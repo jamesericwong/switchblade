@@ -1,0 +1,13 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+D:\dev\switchblade\Services\ThumbnailService.cs(67,35): error CS0103: The name 'sourceHwnd' does not exist in the current context [D:\dev\switchblade\SwitchBlade_eywtf4lk_wpftmp.csproj]
+D:\dev\switchblade\App.xaml.cs(99,26): warning CS0168: The variable 'ex' is declared but never used [D:\dev\switchblade\SwitchBlade_eywtf4lk_wpftmp.csproj]
+
+Build FAILED.
+
+D:\dev\switchblade\App.xaml.cs(99,26): warning CS0168: The variable 'ex' is declared but never used [D:\dev\switchblade\SwitchBlade_eywtf4lk_wpftmp.csproj]
+D:\dev\switchblade\Services\ThumbnailService.cs(67,35): error CS0103: The name 'sourceHwnd' does not exist in the current context [D:\dev\switchblade\SwitchBlade_eywtf4lk_wpftmp.csproj]
+    1 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:00.72
