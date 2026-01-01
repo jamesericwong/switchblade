@@ -34,14 +34,42 @@ namespace SwitchBlade.Services
             }
         }
 
+        private FrameworkElement? _previewContainer;
+
+        public void SetPreviewContainer(FrameworkElement element)
+        {
+            _previewContainer = element;
+        }
+
         private void UpdateThumbnailProperties()
         {
-            if (_currentThumbnail == IntPtr.Zero) return;
+            if (_currentThumbnail == IntPtr.Zero || _previewContainer == null) return;
 
-            // TODO: Make these configurable or dynamic based on UI element
-            int width = 300;
-            int height = 200;
-            int margin = 20;
+            // Get position of the container relative to the window
+            var transform = _previewContainer.TransformToAncestor(_targetWindow);
+            var rootPoint = transform.Transform(new System.Windows.Point(0, 0));
+
+            // Adjust for High DPI if necessary, but DWM usually expects physical pixels? 
+            // WPF works in logical pixels. DWM works in physical pixels.
+            // We need to convert.
+
+            var source = PresentationSource.FromVisual(_targetWindow);
+            double dpiX = 1.0;
+            double dpiY = 1.0;
+            if (source != null)
+            {
+                dpiX = source.CompositionTarget.TransformToDevice.M11;
+                dpiY = source.CompositionTarget.TransformToDevice.M22;
+            }
+
+            // Calculate dimensions
+            int left = (int)(rootPoint.X * dpiX);
+            int top = (int)(rootPoint.Y * dpiY);
+            int width = (int)(_previewContainer.ActualWidth * dpiX);
+            int height = (int)(_previewContainer.ActualHeight * dpiY);
+
+            // Add some padding inside the container
+            int padding = (int)(10 * dpiX);
 
             Interop.DWM_THUMBNAIL_PROPERTIES props = new Interop.DWM_THUMBNAIL_PROPERTIES();
             props.dwFlags = Interop.DWM_TNP_VISIBLE | Interop.DWM_TNP_RECTDESTINATION | Interop.DWM_TNP_OPACITY | Interop.DWM_TNP_SOURCECLIENTAREAONLY;
@@ -51,10 +79,10 @@ namespace SwitchBlade.Services
 
             props.rcDestination = new Interop.Rect
             {
-                Left = (int)_targetWindow.ActualWidth - width - margin,
-                Top = (int)_targetWindow.ActualHeight - height - margin,
-                Right = (int)_targetWindow.ActualWidth - margin,
-                Bottom = (int)_targetWindow.ActualHeight - margin
+                Left = left + padding,
+                Top = top + padding,
+                Right = left + width - padding,
+                Bottom = top + height - padding
             };
 
             Interop.DwmUpdateThumbnailProperties(_currentThumbnail, ref props);

@@ -33,7 +33,7 @@ namespace SwitchBlade
                 _chromeTabFinder
             };
             
-            _viewModel = new MainViewModel(providers);
+            _viewModel = new MainViewModel(providers, settingsService);
             DataContext = _viewModel;
             
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -47,6 +47,7 @@ namespace SwitchBlade
             // Initialize Services that require Window handle
             _hotKeyService = new HotKeyService(this, ((App)System.Windows.Application.Current).SettingsService, OnHotKeyPressed);
             _thumbnailService = new ThumbnailService(this);
+            _thumbnailService.SetPreviewContainer(PreviewCanvas);
 
             // Initial load
             SearchBox.Focus();

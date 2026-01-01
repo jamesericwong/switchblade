@@ -20,6 +20,7 @@
     
     <!-- UI Configuration -->
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
     
     <!-- Launch on Exit Logic -->
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch SwitchBlade" />
@@ -38,9 +39,6 @@
       <ComponentGroup Id="AppComponents" Directory="INSTALLFOLDER">
           <Component Bitness="always64">
               <File Id="SwitchBladeEXE" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.exe" />
-          </Component>
-          <Component Bitness="always64">
-              <File Id="IconPNG" Source="..\icon.png" />
           </Component>
       </ComponentGroup>
   </Fragment>
