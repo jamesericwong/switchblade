@@ -86,17 +86,19 @@ public partial class App : Application
     {
         try
         {
-            // Look for icon.png in the same directory as the executable
-            string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.png");
-            if (System.IO.File.Exists(iconPath))
+            // Load from Embedded Resource
+            var uri = new Uri("pack://application:,,,/icon.png");
+            var streamInfo = System.Windows.Application.GetResourceStream(uri);
+            if (streamInfo != null)
             {
-                using var bitmap = new Bitmap(iconPath);
+                using var stream = streamInfo.Stream;
+                using var bitmap = new Bitmap(stream);
                 return System.Drawing.Icon.FromHandle(bitmap.GetHicon());
             }
         }
-        catch 
+        catch (Exception ex)
         {
-            // Fallback to default if loading fails
+             // Log error if needed: MessageBox.Show("Icon Error: " + ex.Message);
         }
         return SystemIcons.Application;
     }

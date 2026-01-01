@@ -13,10 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="icon.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
+    <Resource Include="icon.png" />
   </ItemGroup>
 
 </Project>

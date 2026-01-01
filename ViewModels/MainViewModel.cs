@@ -14,15 +14,30 @@ namespace SwitchBlade.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly List<IWindowProvider> _windowProviders;
+        private readonly SwitchBlade.Services.SettingsService? _settingsService;
         private ObservableCollection<WindowItem> _allWindows = new ObservableCollection<WindowItem>();
         private ObservableCollection<WindowItem> _filteredWindows = new ObservableCollection<WindowItem>();
         private WindowItem? _selectedWindow;
         private string _searchText = "";
+        private bool _enablePreviews = true;
 
-        public MainViewModel(IEnumerable<IWindowProvider> windowProviders)
+        public MainViewModel(IEnumerable<IWindowProvider> windowProviders, SwitchBlade.Services.SettingsService? settingsService = null)
         {
             _windowProviders = windowProviders.ToList();
+            _settingsService = settingsService;
             _filteredWindows = new ObservableCollection<WindowItem>();
+            
+            if (_settingsService != null)
+            {
+                EnablePreviews = _settingsService.Settings.EnablePreviews;
+                _settingsService.SettingsChanged += () => EnablePreviews = _settingsService.Settings.EnablePreviews;
+            }
+        }
+
+        public bool EnablePreviews
+        {
+            get => _enablePreviews;
+            set { _enablePreviews = value; OnPropertyChanged(); }
         }
 
         public ObservableCollection<WindowItem> FilteredWindows
