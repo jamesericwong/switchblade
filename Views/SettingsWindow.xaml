@@ -79,6 +79,7 @@
 
                 <CheckBox Content="Enable Window Previews" IsChecked="{Binding EnablePreviews}" Foreground="{DynamicResource ForegroundBrush}" Margin="0,5,0,0"/>
                 <CheckBox Content="Hide Taskbar Icon" IsChecked="{Binding HideTaskbarIcon}" Foreground="{DynamicResource ForegroundBrush}" Margin="0,5,0,0"/>
+                <CheckBox Content="Launch on Windows Startup" IsChecked="{Binding LaunchOnStartup}" Foreground="{DynamicResource ForegroundBrush}" Margin="0,5,0,0"/>
             </StackPanel>
         </GroupBox>
 
