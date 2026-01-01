@@ -22,7 +22,8 @@ namespace SwitchBlade.Core
             var walker = TreeWalker.RawViewWalker;
             
             // Debug logging to help identify why tabs are missed
-            var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug_tabs.log");
+            // Debug logging to help identify why tabs are missed
+            var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "switchblade_debug_tabs.log");
             try { System.IO.File.AppendAllText(logPath, $"--- Scan started at {DateTime.Now} ---{Environment.NewLine}"); } catch {}
 
             foreach (var processName in processesToScan)
@@ -187,7 +188,8 @@ namespace SwitchBlade.Core
             catch (Exception ex)
             {
                 // Log error if needed
-                var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug_tabs.log");
+                // Log error if needed
+                var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "switchblade_debug_tabs.log");
                 try { System.IO.File.AppendAllText(logPath, $"Error activating tab '{item.Title}': {ex.Message}{Environment.NewLine}"); } catch {}
             }
         }

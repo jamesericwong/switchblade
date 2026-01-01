@@ -27,23 +27,59 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Global exception handling
+        // Global exception handling
+        this.DispatcherUnhandledException += (s, args) =>
+        {
+            try
+            {
+                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                var crashLog = System.IO.Path.Combine(desktop, "switchblade_crash.txt");
+                var errorMsg = $"[{DateTime.Now}] CRASH: {args.Exception.Message}\nStack: {args.Exception.StackTrace}\nInner: {args.Exception.InnerException}";
+                System.IO.File.WriteAllText(crashLog, errorMsg);
+                System.Windows.MessageBox.Show($"SwitchBlade Crashed!\n\nReason: {args.Exception.Message}\n\nLog saved to Desktop: switchblade_crash.txt", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (Exception lastResort)
+            {
+                System.Windows.MessageBox.Show($"Double Crash: {lastResort.Message}\nOrig: {args.Exception.Message}", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            args.Handled = true;
+            Shutdown();
+        };
+
         // Apply theme immediately
         _themeService.LoadCurrentTheme();
 
-        // Create Tray Icon
+        // 1. Initialize Settings (Registry migration happens here)
+        // _settingsService is already initialized in the constructor.
+        _settingsService.LoadSettings();
+
+        // 2. Setup Tray Icon
         _trayIcon = new NotifyIcon
         {
             Icon = GetIcon(),
-            Text = "SwitchBlade",
-            Visible = true
+            Visible = true,
+            Text = "SwitchBlade"
         };
 
+        // Context Menu
         var contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add("Settings", null, (s, args) => OpenSettings());
-        contextMenu.Items.Add("-");
+        contextMenu.Items.Add("-"); // Separator
         contextMenu.Items.Add("Exit", null, (s, args) => Shutdown());
         _trayIcon.ContextMenuStrip = contextMenu;
-        _trayIcon.DoubleClick += (s, args) => OpenSettings();
+
+        // Click to toggle
+        _trayIcon.Click += (s, args) =>
+        {
+            if (args is System.Windows.Forms.MouseEventArgs me && me.Button == MouseButtons.Left)
+            {
+                // Toggle Window logic if needed, or just show settings?
+                // Typically user uses Hotkey. 
+                // Let's just OpenSettings for now or nothing.
+                // Implementation choice: do nothing on single click, or bring to front?
+            }
+        };
     }
 
     private Icon GetIcon()

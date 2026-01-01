@@ -1,10 +1,11 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="SwitchBlade" Manufacturer="James Wong" Version="1.0.0.0" UpgradeCode="a3543202-6014-486c-a964-15967d6f8c44">
+  <Package Name="SwitchBlade" Manufacturer="James Wong" Version="1.0.0.0" UpgradeCode="a3543202-6014-486c-a964-15967d6f8c44" Scope="perMachine">
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     
     <MediaTemplate EmbedCab="yes" />
 
-    <StandardDirectory Id="ProgramFiles6432Folder">
+    <!-- Use ProgramFiles64Folder for x64 -->
+    <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="SwitchBlade" />
     </StandardDirectory>
 
@@ -17,21 +18,36 @@
       <ComponentRef Id="ApplicationShortcut" />
     </Feature>
     
+    <!-- UI Configuration -->
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    
+    <!-- Launch on Exit Logic -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch SwitchBlade" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    
+    <!-- Use standard MSI action to launch installed file -->
+    <CustomAction Id="LaunchApplication" FileRef="SwitchBladeEXE" ExeCommand="" Return="asyncNoWait" Impersonate="yes" />
+
+    <UI>
+        <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+    </UI>
+
   </Package>
 
   <Fragment>
       <ComponentGroup Id="AppComponents" Directory="INSTALLFOLDER">
-          <Component>
-              <File Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.exe" />
+          <Component Bitness="always64">
+              <File Id="SwitchBladeEXE" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.exe" />
           </Component>
-          <!-- Add other dependencies if we weren't single file, but we are -->
+          <Component Bitness="always64">
+              <File Id="IconPNG" Source="..\icon.png" />
+          </Component>
       </ComponentGroup>
   </Fragment>
 
   <Fragment>
     <DirectoryRef Id="ApplicationProgramsFolder">
-      <Component Id="ApplicationShortcut" Guid="*">
+      <Component Id="ApplicationShortcut" Guid="*" Bitness="always64">
         <Shortcut Id="ApplicationStartMenuShortcut" 
                   Name="SwitchBlade" 
                   Description="SwitchBlade Window Switcher"
