@@ -21,11 +21,12 @@ namespace SwitchBlade.Services
         public double WindowOpacity { get; set; } = 1.0;
         public double ItemHeight { get; set; } = 50.0;
         public bool ShowIcons { get; set; } = true;
+        public bool HideTaskbarIcon { get; set; } = true;
 
         // Hotkey Options (Defaults: Ctrl + Shift + Tab)
         // Modifiers: Alt=1, Ctrl=2, Shift=4, Win=8
         public uint HotKeyModifiers { get; set; } = 6; // Ctrl (2) + Shift (4)
-        public uint HotKeyKey { get; set; } = 0x09; // VK_TAB
+        public uint HotKeyKey { get; set; } = 0x51; // VK_Q
     }
 
     public class SettingsService
@@ -74,7 +75,9 @@ namespace SwitchBlade.Services
                         string heightStr = key.GetValue("ItemHeight", "50.0") as string ?? "50.0";
                         if (double.TryParse(heightStr, out double height)) Settings.ItemHeight = height;
 
+                        
                         Settings.ShowIcons = Convert.ToBoolean(key.GetValue("ShowIcons", 1));
+                        Settings.HideTaskbarIcon = Convert.ToBoolean(key.GetValue("HideTaskbarIcon", 1));
 
                         // Hotkey
                         Settings.HotKeyModifiers = Convert.ToUInt32(key.GetValue("HotKeyModifiers", 6));
@@ -110,6 +113,7 @@ namespace SwitchBlade.Services
                         key.SetValue("WindowOpacity", Settings.WindowOpacity.ToString());
                         key.SetValue("ItemHeight", Settings.ItemHeight.ToString());
                         key.SetValue("ShowIcons", Settings.ShowIcons ? 1 : 0, RegistryValueKind.DWord);
+                        key.SetValue("HideTaskbarIcon", Settings.HideTaskbarIcon ? 1 : 0, RegistryValueKind.DWord);
                         
                         key.SetValue("HotKeyModifiers", Settings.HotKeyModifiers, RegistryValueKind.DWord);
                         key.SetValue("HotKeyKey", Settings.HotKeyKey, RegistryValueKind.DWord);

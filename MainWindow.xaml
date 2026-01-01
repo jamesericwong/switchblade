@@ -11,6 +11,7 @@
         Background="Transparent"
         ResizeMode="NoResize"
         Icon="/icon.png"
+        ShowInTaskbar="{Binding ShowInTaskbar}"
         WindowStartupLocation="CenterScreen">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" />
