@@ -97,5 +97,9 @@ namespace SwitchBlade.Core
         public static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
 
         public const int SW_RESTORE = 9;
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetWindowRect(IntPtr hWnd, out Rect lpRect);
     }
 }
