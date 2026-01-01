@@ -16,6 +16,17 @@ public partial class App : Application
     private NotifyIcon? _trayIcon;
     private SettingsService _settingsService;
     private ThemeService _themeService;
+    private MainWindow? _mainWindow;
+
+    /// <summary>
+    /// When true, the app starts without showing the main window (background mode).
+    /// </summary>
+    public static bool StartMinimized { get; set; } = false;
+
+    /// <summary>
+    /// When true (set via /enablestartup command-line from MSI), enables Windows startup registry.
+    /// </summary>
+    public static bool EnableStartupOnFirstRun { get; set; } = false;
 
     public App()
     {
@@ -56,6 +67,14 @@ public partial class App : Application
         // _settingsService is already initialized in the constructor.
         _settingsService.LoadSettings();
 
+        // Handle MSI installer startup flag - if /enablestartup was passed, enable Windows startup
+        if (EnableStartupOnFirstRun)
+        {
+            SwitchBlade.Core.Logger.Log("EnableStartupOnFirstRun flag detected - enabling Windows startup");
+            _settingsService.Settings.LaunchOnStartup = true;
+            _settingsService.SaveSettings(); // This writes to Windows Run registry
+        }
+
         // 2. Setup Tray Icon
         _trayIcon = new NotifyIcon
         {
@@ -82,6 +101,19 @@ public partial class App : Application
                 // Implementation choice: do nothing on single click, or bring to front?
             }
         };
+
+        // Create MainWindow manually (removed StartupUri from App.xaml)
+        _mainWindow = new MainWindow();
+        
+        // Only show the main window if not starting minimized
+        if (!StartMinimized)
+        {
+            _mainWindow.Show();
+        }
+        else
+        {
+            SwitchBlade.Core.Logger.Log("Starting minimized - MainWindow hidden until hotkey is pressed");
+        }
     }
 
     private Icon GetIcon()

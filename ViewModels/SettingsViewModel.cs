@@ -56,6 +56,13 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.HideTaskbarIcon = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool LaunchOnStartup
+        {
+            // Read directly from Windows Run registry - single source of truth
+            get => _settingsService.IsStartupEnabled();
+            set { _settingsService.Settings.LaunchOnStartup = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
         public int FadeDurationMs
         {
             get => _settingsService.Settings.FadeDurationMs;

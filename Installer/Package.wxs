@@ -18,6 +18,11 @@
       <ComponentRef Id="ApplicationShortcut" />
     </Feature>
     
+    <!-- Startup Feature - installed when LAUNCHONSTARTUP is set (checked) -->
+    <Feature Id="StartupFeature" Level="2" Title="Windows Startup" Description="Start SwitchBlade when Windows starts">
+      <ComponentRef Id="StartupRegistryEntry" />
+    </Feature>
+    
     <!-- UI Configuration -->
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
@@ -30,6 +35,24 @@
     <CustomAction Id="LaunchApplication" FileRef="SwitchBladeEXE" ExeCommand="" Return="asyncNoWait" Impersonate="yes" />
 
     <UI>
+        <!-- Wire StartupOptionsDlg into the dialog sequence -->
+        <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="StartupOptionsDlg" Order="9999" Condition="WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+        
+        <!-- StartupOptionsDlg -> VerifyReadyDlg (Next button) -->
+        <!-- Add/Remove StartupFeature based on checkbox property existence -->
+        <!-- Checkbox Checked -> Property="1" -> AddLocal -->
+        <!-- Checkbox Unchecked -> Property=Null -> Remove -->
+        <Publish Dialog="StartupOptionsDlg" Control="Next" Event="AddLocal" Value="StartupFeature" Order="1" Condition="LAUNCHONSTARTUP" />
+        <Publish Dialog="StartupOptionsDlg" Control="Next" Event="Remove" Value="StartupFeature" Order="2" Condition="NOT LAUNCHONSTARTUP" />
+        <Publish Dialog="StartupOptionsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="99" />
+        
+        <!-- StartupOptionsDlg -> InstallDirDlg (Back button) -->
+        <Publish Dialog="StartupOptionsDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1" />
+        
+        <!-- VerifyReadyDlg -> StartupOptionsDlg (Back button) -->
+        <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="StartupOptionsDlg" Order="9999" Condition="NOT Installed" />
+        
+        <!-- Launch on finish -->
         <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
     </UI>
 
@@ -65,8 +88,20 @@
                   Target="[INSTALLFOLDER]SwitchBlade.exe"
                   WorkingDirectory="INSTALLFOLDER" />
         <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall" />
-        <RegistryValue Root="HKCU" Key="Software\JamesWong\SwitchBlade" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        <RegistryValue Root="HKCU" Key="Software\SwitchBlade" Name="installed" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>
+  </Fragment>
+
+  <!-- Windows Startup Registry Entry -->
+  <Fragment>
+    <Component Id="StartupRegistryEntry" Directory="INSTALLFOLDER" Guid="b8f4e2d1-5a3c-4b7e-9f12-3c8d5e6a7b9f" Bitness="always64">
+      <RegistryValue Root="HKCU" 
+                     Key="Software\Microsoft\Windows\CurrentVersion\Run" 
+                     Name="SwitchBlade" 
+                     Type="string" 
+                     Value="&quot;[INSTALLFOLDER]SwitchBlade.exe&quot; /minimized"
+                     KeyPath="yes" />
+    </Component>
   </Fragment>
 </Wix>
