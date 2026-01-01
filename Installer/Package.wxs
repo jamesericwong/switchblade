@@ -33,6 +33,10 @@
         <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
     </UI>
 
+    <!-- Content for Add/Remove Programs -->
+    <Icon Id="AppIcon" SourceFile="..\icon.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+
   </Package>
 
   <Fragment>

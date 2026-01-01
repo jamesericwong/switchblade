@@ -96,7 +96,7 @@ public partial class App : Application
                 return System.Drawing.Icon.FromHandle(bitmap.GetHicon());
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
              // Log error if needed: MessageBox.Show("Icon Error: " + ex.Message);
         }

@@ -30,7 +30,11 @@ namespace SwitchBlade.ViewModels
             if (_settingsService != null)
             {
                 EnablePreviews = _settingsService.Settings.EnablePreviews;
-                _settingsService.SettingsChanged += () => EnablePreviews = _settingsService.Settings.EnablePreviews;
+                _settingsService.SettingsChanged += () => 
+                {
+                    EnablePreviews = _settingsService.Settings.EnablePreviews;
+                    OnPropertyChanged(nameof(ShowInTaskbar));
+                };
             }
         }
 
@@ -38,6 +42,11 @@ namespace SwitchBlade.ViewModels
         {
             get => _enablePreviews;
             set { _enablePreviews = value; OnPropertyChanged(); }
+        }
+
+        public bool ShowInTaskbar
+        {
+            get => !_settingsService?.Settings.HideTaskbarIcon ?? true;
         }
 
         public ObservableCollection<WindowItem> FilteredWindows

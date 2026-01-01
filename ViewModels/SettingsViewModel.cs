@@ -50,6 +50,12 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.EnablePreviews = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool HideTaskbarIcon
+        {
+            get => _settingsService.Settings.HideTaskbarIcon;
+            set { _settingsService.Settings.HideTaskbarIcon = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
         public int FadeDurationMs
         {
             get => _settingsService.Settings.FadeDurationMs;
