@@ -15,6 +15,7 @@ namespace SwitchBlade
         private readonly MainViewModel _viewModel;
         private HotKeyService? _hotKeyService;
         private ThumbnailService? _thumbnailService;
+        private ChromeTabFinder? _chromeTabFinder;
 
         public MainWindow()
         {
@@ -24,10 +25,12 @@ namespace SwitchBlade
             var settingsService = app.SettingsService;
 
             // Composition Root (Manual DI for now)
+            // Composition Root (Manual DI for now)
+            _chromeTabFinder = new ChromeTabFinder(settingsService);
             var providers = new List<IWindowProvider>
             {
                 new WindowFinder(),
-                new ChromeTabFinder(settingsService)
+                _chromeTabFinder
             };
             
             _viewModel = new MainViewModel(providers);
@@ -151,9 +154,50 @@ namespace SwitchBlade
         {
             if (windowItem != null)
             {
-                Interop.SetForegroundWindow(windowItem.Hwnd);
-                // Future: Handle specific tab activation if needed
-                
+                if (windowItem.IsChromeTab)
+                {
+                    // Find the Chrome provider (it's one of our providers)
+                    // Since we didn't store it in a field, we look it up or cast
+                    // ideally we should have stored it. 
+                    // Quick fix: New up a temp one? No, bad for dependency.
+                    // Better: The ViewModel has the providers? No.
+                    // We can match based on IsChromeTab.
+                    
+                    // Actually, let's just use the one we created in Constructor if we can access it.
+                    // We need to promote 'providers' to a class field or '_chromeTabFinder' to a field.
+                    // Let's rely on the field '_chromeTabFinder' we will create in the next step.
+                    _chromeTabFinder?.ActivateWindow(windowItem);
+                }
+                else
+                {
+                    // Robust window activation for standard apps
+                    if (Interop.IsIconic(windowItem.Hwnd))
+                    {
+                        Interop.ShowWindow(windowItem.Hwnd, Interop.SW_RESTORE);
+                    }
+                    
+                    // Try simple switch first (often works better than SetForeground for task switching)
+                    Interop.SwitchToThisWindow(windowItem.Hwnd, true);
+                    
+                    if (Interop.GetForegroundWindow() != windowItem.Hwnd)
+                    {
+                        // Fallback: The "AttachThreadInput" hack to steal focus
+                        var foregroundThreadId = Interop.GetWindowThreadProcessId(Interop.GetForegroundWindow(), IntPtr.Zero);
+                        var myThreadId = Interop.GetCurrentThreadId();
+                        
+                        if (foregroundThreadId != myThreadId)
+                        {
+                            Interop.AttachThreadInput(myThreadId, foregroundThreadId, true);
+                            Interop.SetForegroundWindow(windowItem.Hwnd);
+                            Interop.AttachThreadInput(myThreadId, foregroundThreadId, false);
+                        }
+                        else
+                        {
+                             Interop.SetForegroundWindow(windowItem.Hwnd);
+                        }
+                    }
+                }
+
                 FadeOut(() => this.Hide());
             }
         }
