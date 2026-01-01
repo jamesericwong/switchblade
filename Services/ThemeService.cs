@@ -17,6 +17,7 @@ namespace SwitchBlade.Services
     public class ThemeService
     {
         private readonly SettingsService _settingsService;
+        private ResourceDictionary? _currentThemeDictionary; 
         public List<ThemeInfo> AvailableThemes { get; private set; } = new List<ThemeInfo>();
 
         public ThemeService(SettingsService settingsService)
@@ -29,12 +30,18 @@ namespace SwitchBlade.Services
         {
             AvailableThemes = new List<ThemeInfo>
             {
-                CreateTheme("Light", "#FFFFFF", "#F0F0F0", "#333333", "#CCCCCC"),
-                CreateTheme("Dark", "#202020", "#303030", "#FFFFFF", "#404040"),
-                CreateTheme("Solarized", "#002b36", "#073642", "#839496", "#586e75"),
+                // Sleek Dark (Default)
+                CreateTheme("Dark", "#1E1E1E", "#2D2D30", "#DDDDDD", "#3E3E42"),
+                // Cyberpunk (High Contrast Neon)
+                CreateTheme("Cyberpunk", "#09080D", "#13111A", "#00FF9F", "#FF003C"),
+                // Deep Ocean (Blue/Black)
+                CreateTheme("Deep Ocean", "#0F1724", "#172336", "#E6F1FF", "#1E2D45"),
+                // Moonlight (Cool Grey)
+                CreateTheme("Moonlight", "#22252A", "#2C3038", "#AABBC3", "#3C424D"),
+                // Dracula (Classic)
                 CreateTheme("Dracula", "#282a36", "#44475a", "#f8f8f2", "#6272a4"),
-                CreateTheme("Nord", "#2e3440", "#3b4252", "#d8dee9", "#4c566a"),
-                CreateTheme("Cyberpunk", "#000b1e", "#05162e", "#00ff9f", "#ff003c")
+                // Light (Clean)
+                CreateTheme("Light", "#F5F5F5", "#FFFFFF", "#333333", "#E0E0E0"),
             };
         }
 
@@ -46,12 +53,13 @@ namespace SwitchBlade.Services
             dict["ForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(foreground));
             dict["BorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(border));
             
-            // Generate a highlight brush (e.g., control background with some opacity or lighter)
-            // For simplicity, reusing border or a computed color could work, but let's just use Border for now or a fixed transparency
-            var highlightColor = (Color)ColorConverter.ConvertFromString(controlBackground);
-            highlightColor.A = 100; // Semi-transparent
-            dict["HighlightBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(border)) { Opacity = 0.4 }; 
-            
+            // Highlight: Use border color but with slight opacity for hover effects
+            var highlight = (Color)ColorConverter.ConvertFromString(border);
+            // If border is too dark, lighten it?? 
+            // Better: use Foreground with very low opacity
+            var fg = (Color)ColorConverter.ConvertFromString(foreground);
+            dict["HighlightBrush"] = new SolidColorBrush(fg) { Opacity = 0.1 }; 
+
             return new ThemeInfo { Name = name, Resources = dict };
         }
 
@@ -59,15 +67,15 @@ namespace SwitchBlade.Services
         {
             var theme = AvailableThemes.FirstOrDefault(t => t.Name == themeName) ?? AvailableThemes.First();
             
-            // Remove old theme resources if any (we assume we clear specific keys or just clear merged dictionaries that are themes)
-            // For simplicity, let's assume we manage one "Theme" dict in App.xaml
-            
-            System.Windows.Application.Current.Resources.MergedDictionaries.Clear(); 
-            // Re-add other necessary dicts if we had any, but we likely don't at this stage except default styles.
-            // If we have default styles in App.xaml, we should be careful. 
-            // Better strategy: Have a dedicated MergedDictionary for Theme.
-            
-            System.Windows.Application.Current.Resources.MergedDictionaries.Add(theme.Resources);
+            // Remove the previously applied theme dictionary
+            if (_currentThemeDictionary != null)
+            {
+                System.Windows.Application.Current.Resources.MergedDictionaries.Remove(_currentThemeDictionary);
+            }
+
+            // apply new one
+            _currentThemeDictionary = theme.Resources;
+            System.Windows.Application.Current.Resources.MergedDictionaries.Add(_currentThemeDictionary);
 
             if (_settingsService.Settings.CurrentTheme != themeName)
             {

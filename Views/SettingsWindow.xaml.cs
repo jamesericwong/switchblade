@@ -66,5 +66,10 @@ namespace SwitchBlade.Views
                 vm.UpdateHotKey(mods, (uint)virtualKey);
             }
         }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
     }
 }

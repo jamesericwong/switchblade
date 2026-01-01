@@ -61,8 +61,7 @@
                         
                         <TextBox x:Name="SearchBox"
                                  Grid.Column="1"
-                                 Background="Transparent"
-                                 BorderThickness="0"
+                                 Style="{DynamicResource ModernTextBoxStyle}"
                                  Foreground="{DynamicResource ForegroundBrush}"
                                  FontSize="18"
                                  CaretBrush="{DynamicResource ForegroundBrush}"
