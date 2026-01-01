@@ -52,3 +52,9 @@ $RECYCLE.BIN/
 
 # VS Code History
 .history/
+
+# WiX
+*.wixobj
+*.wixpdb
+*.msi
+.wix/
