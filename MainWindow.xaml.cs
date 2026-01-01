@@ -44,20 +44,30 @@ namespace SwitchBlade
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            Logger.Log($"MainWindow Loaded. Initial Size: {this.Width}x{this.Height}, ResizeMode: {this.ResizeMode}, Style: {this.WindowStyle}");
+
             // Initialize Services that require Window handle
             _hotKeyService = new HotKeyService(this, ((App)System.Windows.Application.Current).SettingsService, OnHotKeyPressed);
             _thumbnailService = new ThumbnailService(this);
             _thumbnailService.SetPreviewContainer(PreviewCanvas);
 
             // Initial load
+            var app = (App)System.Windows.Application.Current;
+            this.Width = app.SettingsService.Settings.WindowWidth;
+            this.Height = app.SettingsService.Settings.WindowHeight;
+            
+            Logger.Log($"Applied Settings Size: {this.Width}x{this.Height}");
+
             SearchBox.Focus();
             _ = _viewModel.RefreshWindows();
         }
 
         private void OnHotKeyPressed()
         {
+            Logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
             if (this.Visibility == Visibility.Visible)
             {
+                Logger.Log("Hiding Window.");
                 FadeOut(() => this.Hide());
             }
             else
@@ -73,6 +83,7 @@ namespace SwitchBlade
                 
                 FadeIn();
                 _ = _viewModel.RefreshWindows();
+                Logger.Log("Showing Window (Activated & Focused).");
             }
         }
 
@@ -151,6 +162,48 @@ namespace SwitchBlade
             }
         }
 
+        private void ResizeGripBottomRight_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            Logger.Log($"Resize Grip (Bottom-Right) Clicked. ButtonState: {e.ButtonState}");
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                try 
+                {
+                    // Manual Resize via System Command
+                    Interop.SendMessage(new System.Windows.Interop.WindowInteropHelper(this).Handle, 
+                                        Interop.WM_SYSCOMMAND, 
+                                        (IntPtr)(Interop.SC_SIZE + Interop.SC_SIZE_HTBOTTOMRIGHT), 
+                                        IntPtr.Zero);
+                    Logger.Log("Sent SC_SIZE + HTBOTTOMRIGHT command.");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Resize Grip Error", ex);
+                }
+            }
+        }
+
+        private void ResizeGripBottomLeft_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            Logger.Log($"Resize Grip (Bottom-Left) Clicked. ButtonState: {e.ButtonState}");
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                try 
+                {
+                    // Manual Resize via System Command - Bottom-Left corner
+                    Interop.SendMessage(new System.Windows.Interop.WindowInteropHelper(this).Handle, 
+                                        Interop.WM_SYSCOMMAND, 
+                                        (IntPtr)(Interop.SC_SIZE + Interop.SC_SIZE_HTBOTTOMLEFT), 
+                                        IntPtr.Zero);
+                    Logger.Log("Sent SC_SIZE + HTBOTTOMLEFT command.");
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Resize Grip Error", ex);
+                }
+            }
+        }
+
         private void ActivateWindow(WindowItem? windowItem)
         {
             if (windowItem != null)
@@ -205,6 +258,12 @@ namespace SwitchBlade
 
         private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
+            // Only log non-character keys to avoid spam, or log special keys
+            if (e.Key == Key.Escape || e.Key == Key.Enter || e.Key == Key.Down || e.Key == Key.Up)
+            {
+                 Logger.Log($"MainWindow KeyDown: {e.Key}");
+            }
+
             if (e.Key == Key.Escape)
             {
                 this.Hide(); // Don't close, just hide
@@ -228,6 +287,11 @@ namespace SwitchBlade
 
         protected override void OnClosed(EventArgs e)
         {
+            var app = (App)System.Windows.Application.Current;
+            app.SettingsService.Settings.WindowWidth = this.Width;
+            app.SettingsService.Settings.WindowHeight = this.Height;
+            app.SettingsService.SaveSettings();
+
             _hotKeyService?.Dispose();
             _thumbnailService?.Dispose();
             base.OnClosed(e);

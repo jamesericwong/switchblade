@@ -101,5 +101,15 @@ namespace SwitchBlade.Core
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetWindowRect(IntPtr hWnd, out Rect lpRect);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        public const int WM_SYSCOMMAND = 0x0112;
+        public const int SC_SIZE = 0xF000;
+        public const int HTBOTTOMRIGHT = 17; // This is actually for NCHITTEST. For SC_SIZE, we add a direction offset.
+        // Directions for SC_SIZE:
+        public const int SC_SIZE_HTBOTTOMRIGHT = 8; // 6=Bottom, 3=Top, 1=Left, 2=Right, etc.
+        public const int SC_SIZE_HTBOTTOMLEFT = 7; // For bottom-left corner resize
     }
 }

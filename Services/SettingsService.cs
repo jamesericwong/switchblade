@@ -23,6 +23,9 @@ namespace SwitchBlade.Services
         public bool ShowIcons { get; set; } = true;
         public bool HideTaskbarIcon { get; set; } = true;
 
+        public double WindowWidth { get; set; } = 800.0;
+        public double WindowHeight { get; set; } = 600.0;
+
         // Hotkey Options (Defaults: Ctrl + Shift + Tab)
         // Modifiers: Alt=1, Ctrl=2, Shift=4, Win=8
         public uint HotKeyModifiers { get; set; } = 6; // Ctrl (2) + Shift (4)
@@ -75,6 +78,12 @@ namespace SwitchBlade.Services
                         string heightStr = key.GetValue("ItemHeight", "50.0") as string ?? "50.0";
                         if (double.TryParse(heightStr, out double height)) Settings.ItemHeight = height;
 
+                        string widthStr = key.GetValue("WindowWidth", "800.0") as string ?? "800.0";
+                        if (double.TryParse(widthStr, out double w)) Settings.WindowWidth = w;
+
+                        string winHeightStr = key.GetValue("WindowHeight", "600.0") as string ?? "600.0";
+                        if (double.TryParse(winHeightStr, out double h)) Settings.WindowHeight = h;
+
                         
                         Settings.ShowIcons = Convert.ToBoolean(key.GetValue("ShowIcons", 1));
                         Settings.HideTaskbarIcon = Convert.ToBoolean(key.GetValue("HideTaskbarIcon", 1));
@@ -112,6 +121,8 @@ namespace SwitchBlade.Services
                         key.SetValue("FadeDurationMs", Settings.FadeDurationMs, RegistryValueKind.DWord);
                         key.SetValue("WindowOpacity", Settings.WindowOpacity.ToString());
                         key.SetValue("ItemHeight", Settings.ItemHeight.ToString());
+                        key.SetValue("WindowWidth", Settings.WindowWidth.ToString());
+                        key.SetValue("WindowHeight", Settings.WindowHeight.ToString());
                         key.SetValue("ShowIcons", Settings.ShowIcons ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("HideTaskbarIcon", Settings.HideTaskbarIcon ? 1 : 0, RegistryValueKind.DWord);
                         

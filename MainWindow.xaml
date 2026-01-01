@@ -9,12 +9,12 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         Icon="/icon.png"
         ShowInTaskbar="{Binding ShowInTaskbar}"
         WindowStartupLocation="CenterScreen">
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" />
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="5" GlassFrameThickness="0" CornerRadius="0" />
     </WindowChrome.WindowChrome>
 
     <!-- Main Border with Dynamic Theme -->
@@ -28,12 +28,14 @@
         </Border.Effect>
         
         <Grid>
-        <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" /> <!-- Preview Column -->
             </Grid.ColumnDefinitions>
 
+            <!-- Main Grid content starts here -->
+            
+            <!-- Left Pane (Search + Results) -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Search Bar -->
@@ -147,8 +149,35 @@
                 <!-- This Canvas is the target for DWM Thumbnail -->
                 <Canvas x:Name="PreviewCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
             </Border>
-        </Grid>
 
+            <!-- Resize Grip (Bottom Right) - Moved to be last child for Z-Index -->
+            <Path Data="M16,16 L16,0 L0,16 Z" 
+                  Fill="{DynamicResource ForegroundBrush}" 
+                  Opacity="0.8"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Bottom"
+                  Grid.Column="0"
+                  Grid.ColumnSpan="2"
+                  Margin="0,0,5,5"
+                  Width="16" Height="16"
+                  Cursor="SizeNWSE"
+                  MouseLeftButtonDown="ResizeGripBottomRight_MouseLeftButtonDown"
+                  WindowChrome.IsHitTestVisibleInChrome="True"
+                  />
+            
+            <!-- Resize Grip (Bottom Left) -->
+             <Path Data="M0,16 L0,0 L16,16 Z" 
+                  Fill="{DynamicResource ForegroundBrush}" 
+                  Opacity="0.8"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Bottom"
+                  Grid.Column="0"
+                  Margin="5,0,0,5"
+                  Width="16" Height="16"
+                  Cursor="SizeNESW"
+                  MouseLeftButtonDown="ResizeGripBottomLeft_MouseLeftButtonDown"
+                  WindowChrome.IsHitTestVisibleInChrome="True"
+                  />
         </Grid>
     </Border>
 </Window>
