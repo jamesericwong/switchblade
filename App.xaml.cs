@@ -25,6 +25,7 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        SwitchBlade.Core.Logger.Log("Application Starting...");
         base.OnStartup(e);
 
         // Global exception handling
@@ -37,6 +38,7 @@ public partial class App : Application
                 var crashLog = System.IO.Path.Combine(desktop, "switchblade_crash.txt");
                 var errorMsg = $"[{DateTime.Now}] CRASH: {args.Exception.Message}\nStack: {args.Exception.StackTrace}\nInner: {args.Exception.InnerException}";
                 System.IO.File.WriteAllText(crashLog, errorMsg);
+                SwitchBlade.Core.Logger.LogError("CRASH", args.Exception); // Use our new logger too
                 System.Windows.MessageBox.Show($"SwitchBlade Crashed!\n\nReason: {args.Exception.Message}\n\nLog saved to Desktop: switchblade_crash.txt", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception lastResort)

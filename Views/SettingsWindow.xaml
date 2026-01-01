@@ -4,6 +4,7 @@
         Title="SwitchBlade Settings" Height="600" Width="500"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
+        PreviewKeyDown="Window_PreviewKeyDown"
         Background="{DynamicResource WindowBackground}">
     <Grid Margin="20">
         <Grid.RowDefinitions>

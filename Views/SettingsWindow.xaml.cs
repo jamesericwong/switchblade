@@ -10,10 +10,33 @@ namespace SwitchBlade.Views
         public SettingsWindow()
         {
             InitializeComponent();
+            this.Loaded += SettingsWindow_Loaded;
+        }
+
+        private void SettingsWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Ensure the window can receive keyboard input for ESC key
+            this.Focus();
+            Keyboard.Focus(this);
+        }
+
+        private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            Logger.Log($"SettingsWindow KeyDown: {e.Key}");
+            if (e.Key == Key.Escape)
+            {
+                Logger.Log("SettingsWindow: Closing on ESC");
+                this.Close();
+                e.Handled = true;
+            }
         }
 
         private void HotKeyBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
+            Logger.Log($"HotKeyBox KeyDown: {e.Key}");
+            // Ignore Escape key if it wasn't handled by Window (double check)
+            if (e.Key == Key.Escape) return;
+
             e.Handled = true;
 
             // Get modifiers

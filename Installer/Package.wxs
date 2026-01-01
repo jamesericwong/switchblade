@@ -44,6 +44,15 @@
           <Component Bitness="always64">
               <File Id="SwitchBladeEXE" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.exe" />
           </Component>
+          <Component Bitness="always64">
+              <File Id="SwitchBladeDLL" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.dll" />
+          </Component>
+          <Component Bitness="always64">
+              <File Id="SwitchBladeDeps" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.deps.json" />
+          </Component>
+          <Component Bitness="always64">
+              <File Id="SwitchBladeRuntimeConfig" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.runtimeconfig.json" />
+          </Component>
       </ComponentGroup>
   </Fragment>
 
