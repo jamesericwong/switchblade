@@ -111,5 +111,42 @@ namespace SwitchBlade.Core
         // Directions for SC_SIZE:
         public const int SC_SIZE_HTBOTTOMRIGHT = 8; // 6=Bottom, 3=Top, 1=Left, 2=Right, etc.
         public const int SC_SIZE_HTBOTTOMLEFT = 7; // For bottom-left corner resize
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool BringWindowToTop(IntPtr hWnd);
+
+        public static void ForceForegroundWindow(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero) return;
+
+            // 1. Restore if minimized
+            if (IsIconic(hwnd))
+            {
+                ShowWindow(hwnd, SW_RESTORE);
+            }
+
+            // 2. Attach thread input if necessary to steal focus
+            // This is required because Windows prevents applications from stealing focus
+            // unless they are already in the foreground or have special permission.
+            uint dummyPid;
+            uint foregroundThreadId = GetWindowThreadProcessId(GetForegroundWindow(), out dummyPid);
+            uint myThreadId = GetCurrentThreadId();
+            bool threadsAttached = false;
+
+            if (foregroundThreadId != myThreadId)
+            {
+                threadsAttached = AttachThreadInput(myThreadId, foregroundThreadId, true);
+            }
+
+            // 3. Bring to top and set foreground
+            BringWindowToTop(hwnd);
+            SetForegroundWindow(hwnd);
+            
+            // 4. Detach
+            if (threadsAttached)
+            {
+                AttachThreadInput(myThreadId, foregroundThreadId, false);
+            }
+        }
     }
 }
