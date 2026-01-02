@@ -13,7 +13,7 @@ SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. I
 - **Window Providers**: Independent modules responsible for scanning and returning `WindowItem` objects.
 
 ### Plugin System
-SwitchBlade uses a contract-based plugin architecture.
+SwitchBlade uses a contract-based plugin architecture. For a comprehensive guide on building custom plugins, including API references and examples, see [Plugin Development Guide](PLUGIN_DEVELOPMENT.md).
 - **Interface**: `SwitchBlade.Contracts.IWindowProvider`
 - **Mechanism**: On startup, `PluginLoader` scans the `Plugins` directory for DLLs implementing `IWindowProvider`.
 - **Isolation**: Each plugin runs within the main application process but is logically isolated by the `WindowItem` source property.
