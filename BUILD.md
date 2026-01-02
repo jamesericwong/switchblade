@@ -81,8 +81,59 @@ The existing Chrome plugin uses this post-build event in its `.csproj`:
 </Target>
 ```
 
+## Unit Testing
+
+The project includes a comprehensive xUnit test suite in `SwitchBlade.Tests/`.
+
+### Running Tests
+
+**Using Visual Studio:**
+1. Open `SwitchBlade.sln` in Visual Studio 2022.
+2. Open **Test > Test Explorer**.
+3. Click **Run All** to execute all tests.
+
+**Using .NET CLI:**
+```powershell
+# Run all tests
+dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj
+
+# Run tests with detailed output
+dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj --verbosity normal
+
+# Run tests with code coverage (requires coverlet)
+dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj --collect:"XPlat Code Coverage"
+```
+
+### Test Structure
+
+| Directory | Description |
+|-----------|-------------|
+| `Core/` | Tests for `PluginInfo`, `PluginLoader`, `WindowFinder`, `Logger`, `LoggerBridge` |
+| `Services/` | Tests for `UserSettings`, `ThemeInfo`, `ThemeService` |
+| `ViewModels/` | Tests for `RelayCommand`, `MainViewModel`, `SettingsViewModel` |
+| `Contracts/` | Tests for `WindowItem` |
+
+### Writing New Tests
+
+1. Add a new test class in the appropriate subdirectory.
+2. Use `[Fact]` for simple tests and `[Theory]` for parameterized tests.
+3. Follow the pattern: `ClassName_MethodOrProperty_ExpectedBehavior`.
+4. Use **Moq** for mocking dependencies.
+
+Example:
+```csharp
+[Fact]
+public void MyClass_MyMethod_ReturnsExpectedValue()
+{
+    var sut = new MyClass();
+    var result = sut.MyMethod();
+    Assert.Equal("expected", result);
+}
+```
+
 ## Troubleshooting
 
 - **WiX Build Errors**: Ensure WiX v5 is installed and the required extensions (`WixToolset.UI.wixext`, `WixToolset.Util.wixext`) are registered.
 - **Missing Plugins**: If plugins don't show up, check if they are in the `Plugins` folder relative to the executable and that they implement `IWindowProvider`.
 - **Reference Errors**: Ensure all NuGet packages are restored (`dotnet restore`).
+- **Test Failures**: Run `dotnet restore SwitchBlade.Tests/SwitchBlade.Tests.csproj` to restore test dependencies.
