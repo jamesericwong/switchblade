@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Resource Include="icon.png" />
+    <Resource Include="Resources/search_icon.png" />
   </ItemGroup>
   
   <ItemGroup>

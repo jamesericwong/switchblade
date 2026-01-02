@@ -53,11 +53,11 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         
-                        <TextBlock Text="🔍" 
-                                   Foreground="{DynamicResource ForegroundBrush}" 
-                                   VerticalAlignment="Center" 
-                                   Margin="0,0,10,0" 
-                                   FontSize="16"/>
+                        <Image Source="Resources/search_icon.png"
+                               Width="18" Height="18"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
                         
                         <TextBox x:Name="SearchBox"
                                  Grid.Column="1"
