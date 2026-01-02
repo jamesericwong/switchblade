@@ -109,24 +109,23 @@ namespace SwitchBlade.ViewModels
                         if (existingItems.Count == results.Count)
                         {
                             // Deep check
-                            // Assuming order might differ in raw return (though we sort later), we should check set equality.
-                            // But since we sort in the UI, we care if the SET of windows is the same.
+                            // We cannot use ToDictionary(Hwnd) because Chrome Tabs share the same Hwnd.
+                            // We need to compare the content of the collections (Bag Equality).
+                            // Simplest way for small lists: Sort and SequenceEqual.
                             
-                            // Let's assume unique Hwnd is the key.
-                            var existingHwnds = existingItems.Select(x => x.Hwnd).ToHashSet();
-                            bool sameSet = results.All(r => existingHwnds.Contains(r.Hwnd));
-                            
-                            if (sameSet)
-                            {
-                                // Also check titles in case a window title changed (e.g. browser tab)
-                                var existingMap = existingItems.ToDictionary(x => x.Hwnd, x => x.Title);
-                                bool titlesMatch = results.All(r => existingMap.ContainsKey(r.Hwnd) && existingMap[r.Hwnd] == r.Title);
+                            var existingKeys = existingItems
+                                .Select(x => new { x.Hwnd, x.Title })
+                                .OrderBy(x => x.Hwnd.ToInt64())
+                                .ThenBy(x => x.Title)
+                                .ToList();
                                 
-                                if (titlesMatch)
-                                {
-                                    isIdentical = true;
-                                }
-                            }
+                            var newKeys = results
+                                .Select(x => new { x.Hwnd, x.Title })
+                                .OrderBy(x => x.Hwnd.ToInt64())
+                                .ThenBy(x => x.Title)
+                                .ToList();
+                                
+                            isIdentical = existingKeys.SequenceEqual(newKeys);
                         }
 
                         if (!isIdentical)
@@ -154,7 +153,7 @@ namespace SwitchBlade.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Provider error: {ex}");
+                    SwitchBlade.Core.Logger.LogError($"Provider error in RefreshWindows: {ex.Message}", ex);
                 }
             })).ToList();
 

@@ -17,6 +17,7 @@ namespace SwitchBlade
         private HotKeyService? _hotKeyService;
         private ThumbnailService? _thumbnailService;
         private BackgroundPollingService? _backgroundPollingService;
+        private IntPtr _lastThumbnailHwnd = IntPtr.Zero;
         public List<IWindowProvider> Providers { get; private set; } = new List<IWindowProvider>();
 
         public MainWindow()
@@ -153,11 +154,20 @@ namespace SwitchBlade
                 var app = (App)System.Windows.Application.Current;
                 if (app.SettingsService.Settings.EnablePreviews && _viewModel.SelectedWindow != null)
                 {
-                    _thumbnailService?.UpdateThumbnail(_viewModel.SelectedWindow.Hwnd);
+                    // Optimization: Prevent Flicker
+                    // Only update thumbnail if the window handle has actually changed.
+                    if (_lastThumbnailHwnd != _viewModel.SelectedWindow.Hwnd)
+                    {
+                        _lastThumbnailHwnd = _viewModel.SelectedWindow.Hwnd;
+                        _thumbnailService?.UpdateThumbnail(_viewModel.SelectedWindow.Hwnd);
+                    }
+                    
+                    // Always scroll into view, just in case list was rebuilt
                     ResultsConfig.ScrollIntoView(_viewModel.SelectedWindow);
                 }
                 else
                 {
+                    _lastThumbnailHwnd = IntPtr.Zero;
                     _thumbnailService?.UpdateThumbnail(IntPtr.Zero);
                     if (_viewModel.SelectedWindow != null)
                     {
