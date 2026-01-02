@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using SwitchBlade.Services;
+using SwitchBlade.Core;
 
 namespace SwitchBlade.ViewModels
 {
@@ -17,6 +18,7 @@ namespace SwitchBlade.ViewModels
 
         public ObservableCollection<string> BrowserProcesses { get; set; }
         public ObservableCollection<string> AvailableThemes { get; set; }
+        public ObservableCollection<PluginInfo> LoadedPlugins { get; private set; }
 
         public string NewProcessName
         {
@@ -85,10 +87,11 @@ namespace SwitchBlade.ViewModels
         public ICommand AddProcessCommand { get; }
         public ICommand RemoveProcessCommand { get; }
 
-        public SettingsViewModel(SettingsService settingsService, ThemeService themeService)
+        public SettingsViewModel(SettingsService settingsService, ThemeService themeService, IEnumerable<PluginInfo> plugins)
         {
             _settingsService = settingsService;
             _themeService = themeService;
+            LoadedPlugins = new ObservableCollection<PluginInfo>(plugins);
 
             BrowserProcesses = new ObservableCollection<string>(_settingsService.Settings.BrowserProcesses);
             ExcludedProcesses = new ObservableCollection<string>(_settingsService.Settings.ExcludedProcesses);

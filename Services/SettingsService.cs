@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text.Json;
 using Microsoft.Win32;
 
+using SwitchBlade.Contracts;
+
 namespace SwitchBlade.Services
 {
     public class UserSettings
@@ -35,12 +37,15 @@ namespace SwitchBlade.Services
         public uint HotKeyKey { get; set; } = 0x51; // VK_Q
     }
 
-    public class SettingsService
+    public class SettingsService : IBrowserSettingsProvider
     {
         private const string REGISTRY_KEY = @"Software\SwitchBlade";
         private const string STARTUP_REGISTRY_KEY = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string STARTUP_VALUE_NAME = "SwitchBlade";
         public UserSettings Settings { get; private set; }
+        
+        // Interface Implementation
+        public List<string> BrowserProcesses => Settings.BrowserProcesses;
 
         public event Action? SettingsChanged;
 

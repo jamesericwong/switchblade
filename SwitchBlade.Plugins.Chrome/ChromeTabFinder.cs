@@ -2,26 +2,34 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Automation;
-using SwitchBlade.Services;
+using SwitchBlade.Contracts;
 
-namespace SwitchBlade.Core
+namespace SwitchBlade.Plugins.Chrome
 {
     public class ChromeTabFinder : IWindowProvider
     {
-        private readonly SettingsService _settingsService;
+        private IBrowserSettingsProvider? _settingsService;
 
-        public ChromeTabFinder(SettingsService settingsService)
+        public ChromeTabFinder()
         {
-            _settingsService = settingsService;
+        }
+
+        public void Initialize(object settingsService)
+        {
+           if (settingsService is IBrowserSettingsProvider service)
+           {
+               _settingsService = service;
+           }
         }
 
         public IEnumerable<WindowItem> GetWindows()
         {
             var results = new List<WindowItem>();
-            var processesToScan = _settingsService.Settings.BrowserProcesses;
+            if (_settingsService == null) return results;
+
+            var processesToScan = _settingsService.BrowserProcesses;
             var walker = TreeWalker.RawViewWalker;
             
-            // Debug logging to help identify why tabs are missed
             // Debug logging to help identify why tabs are missed
             var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "switchblade_debug_tabs.log");
             try { System.IO.File.AppendAllText(logPath, $"--- Scan started at {DateTime.Now} ---{Environment.NewLine}"); } catch {}
@@ -33,7 +41,12 @@ namespace SwitchBlade.Core
                 foreach (var proc in processes)
                 {
                     if (proc.MainWindowHandle == IntPtr.Zero) continue;
-                    if (!Interop.IsWindowVisible(proc.MainWindowHandle)) continue;
+                    // Note: Interop class is internal to core. We need minimal Interop here or use P/Invoke directly.
+                    // For now, let's assume P/Invoke is needed or we duplicate specific Interop helper.
+                    // Or we just reference user32 directly if simple. 
+                    // Let's rely on standard .NET where possible, but IsWindowVisible needs P/Invoke.
+                    // I'll add a minimal P/Invoke class here to keep it self-contained.
+                    if (!NativeMethods.IsWindowVisible(proc.MainWindowHandle)) continue;
 
                     AutomationElement? root = null;
                     try
@@ -61,7 +74,8 @@ namespace SwitchBlade.Core
                                 Hwnd = proc.MainWindowHandle,  
                                 Title = proc.MainWindowTitle,  
                                 ProcessName = proc.ProcessName,  
-                                IsChromeTab = true 
+                                IsChromeTab = true, // We can keep this flag
+                                Source = this
                             });
                         }
                     }
@@ -75,7 +89,8 @@ namespace SwitchBlade.Core
                                  Hwnd = proc.MainWindowHandle,
                                  Title = tab,
                                  ProcessName = proc.ProcessName,
-                                 IsChromeTab = true
+                                 IsChromeTab = true,
+                                 Source = this
                              });
                          }
                     }
@@ -101,16 +116,11 @@ namespace SwitchBlade.Core
 
                 try
                 {
-                    // Logging for inspection (only first 100 items to avoid giant logs, or specific types)
-                    // System.IO.File.AppendAllText(logPath, $"    [{depth}] {current.Current.ControlType.ProgrammaticName} - '{current.Current.Name}' ({current.Current.LocalizedControlType}){Environment.NewLine}");
-                    
                     bool isTab = false;
                     string name = current.Current.Name;
                     
-                    // Check 1: Standard ControlType
                     if (current.Current.ControlType == ControlType.TabItem) isTab = true;
 
-                    // Check 2: Localized Control Type (e.g. "tab" string)
                     if (!isTab && !string.IsNullOrEmpty(current.Current.LocalizedControlType))
                     {
                         if (current.Current.LocalizedControlType.Equals("tab", StringComparison.OrdinalIgnoreCase)) isTab = true;
@@ -124,9 +134,6 @@ namespace SwitchBlade.Core
                             System.IO.File.AppendAllText(logPath, $"    FOUND TAB: '{name}'{Environment.NewLine}");
                         }
                     }
-
-                    // Heuristic: If we hit a "Pane" that is the document content, we might want to stop recursing into it for performance?
-                    // But "Document" control type is tricky.
                 }
                 catch { /* Element might be invalid now */ }
 
@@ -150,8 +157,7 @@ namespace SwitchBlade.Core
 
         public void ActivateWindow(WindowItem item)
         {
-            // First bring the window to front
-            Interop.SetForegroundWindow(item.Hwnd);
+            NativeMethods.SetForegroundWindow(item.Hwnd);
             
             if (string.IsNullOrEmpty(item.Title)) return;
 
@@ -160,19 +166,16 @@ namespace SwitchBlade.Core
                 AutomationElement? root = AutomationElement.FromHandle(item.Hwnd);
                 if (root == null) return;
 
-                // Re-find the specific tab
                 var walker = TreeWalker.RawViewWalker;
                 var tabElement = FindTabByNameBFS(root, walker, 12, item.Title);
 
                 if (tabElement != null)
                 {
-                    // Try to Select (SelectionItemPattern)
                     if (tabElement.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var selectPatternObj))
                     {
                         var selectPattern = (SelectionItemPattern)selectPatternObj;
                         selectPattern.Select();
                     }
-                    // Or Invoke (InvokePattern) - sometimes tabs are buttons
                     else if (tabElement.TryGetCurrentPattern(InvokePattern.Pattern, out var invokePatternObj))
                     {
                         var invokePattern = (InvokePattern)invokePatternObj;
@@ -180,15 +183,12 @@ namespace SwitchBlade.Core
                     }
                     else
                     {
-                        // Fallback: Click it? or Focus?
                         tabElement.SetFocus();
                     }
                 }
             }
             catch (Exception ex)
             {
-                // Log error if needed
-                // Log error if needed
                 var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "switchblade_debug_tabs.log");
                 try { System.IO.File.AppendAllText(logPath, $"Error activating tab '{item.Title}': {ex.Message}{Environment.NewLine}"); } catch {}
             }
@@ -207,7 +207,6 @@ namespace SwitchBlade.Core
                 try
                 {
                     bool isTab = false;
-                    // Check logic matches FindTabsBFS
                     if (current.Current.ControlType == ControlType.TabItem) isTab = true;
                     if (!isTab && !string.IsNullOrEmpty(current.Current.LocalizedControlType))
                     {
@@ -234,5 +233,16 @@ namespace SwitchBlade.Core
             }
             return null;
         }
+    }
+
+    internal static class NativeMethods
+    {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        public static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
     }
 }

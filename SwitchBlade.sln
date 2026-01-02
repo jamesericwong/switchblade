@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchBlade", "SwitchBlade.csproj", "{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchBlade.Contracts", "SwitchBlade.Contracts\SwitchBlade.Contracts.csproj", "{956C8678-B062-4568-8994-5501F1782129}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchBlade.Plugins.Chrome", "SwitchBlade.Plugins.Chrome\SwitchBlade.Plugins.Chrome.csproj", "{8D18B691-1FCB-46E7-AF7D-E925CC664449}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Debug|x64.Build.0 = Debug|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Debug|x86.Build.0 = Debug|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Release|x64.ActiveCfg = Release|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Release|x64.Build.0 = Release|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Release|x86.ActiveCfg = Release|Any CPU
+		{8B029CC1-EF95-455F-A7C0-3B417DD18BFD}.Release|x86.Build.0 = Release|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Debug|x64.Build.0 = Debug|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Debug|x86.Build.0 = Debug|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Release|Any CPU.Build.0 = Release|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Release|x64.ActiveCfg = Release|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Release|x64.Build.0 = Release|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Release|x86.ActiveCfg = Release|Any CPU
+		{956C8678-B062-4568-8994-5501F1782129}.Release|x86.Build.0 = Release|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Debug|x64.Build.0 = Debug|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Debug|x86.Build.0 = Debug|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Release|x64.ActiveCfg = Release|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Release|x64.Build.0 = Release|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Release|x86.ActiveCfg = Release|Any CPU
+		{8D18B691-1FCB-46E7-AF7D-E925CC664449}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

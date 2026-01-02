@@ -183,6 +183,29 @@
                                 </Grid>
                             </Grid>
                         </GroupBox>
+
+
+                        <!-- Loaded Plugins Section -->
+                        <GroupBox Header="Loaded Plugins" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}" Margin="0,0,0,20">
+                            <StackPanel Margin="10">
+                                <TextBlock Text="Active IWindowProvider modules:" 
+                                           Foreground="{DynamicResource ForegroundBrush}" Opacity="0.7" Margin="0,0,0,10"/>
+                                
+                                <ListView ItemsSource="{Binding LoadedPlugins}" Height="150" 
+                                          Background="{DynamicResource ControlBackground}" 
+                                          Foreground="{DynamicResource ForegroundBrush}" 
+                                          BorderBrush="{DynamicResource BorderBrush}">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="Name" Width="120" DisplayMemberBinding="{Binding Name}"/>
+                                            <GridViewColumn Header="Assembly" Width="150" DisplayMemberBinding="{Binding AssemblyName}"/>
+                                            <GridViewColumn Header="Version" Width="80" DisplayMemberBinding="{Binding Version}"/>
+                                            <GridViewColumn Header="Internal" Width="60" DisplayMemberBinding="{Binding IsInternal}"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </StackPanel>
+                        </GroupBox>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

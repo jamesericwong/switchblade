@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
-    <Version>1.0.1</Version>
+    <Version>1.2.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -11,10 +11,26 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
     <StartupObject>SwitchBlade.Program</StartupObject>
+    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="icon.png" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="SwitchBlade.Contracts\SwitchBlade.Contracts.csproj" />
+    <ProjectReference Include="SwitchBlade.Plugins.Chrome\SwitchBlade.Plugins.Chrome.csproj">
+       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="CopyPluginsToPublish" AfterTargets="Publish">
+    <ItemGroup>
+       <!-- Fix: Point to the actual location where Plugin project copies the files -->
+       <PluginFiles Include="$(MSBuildProjectDirectory)\bin\$(Configuration)\net9.0-windows\Plugins\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PublishDir)Plugins\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

@@ -7,6 +7,7 @@ using System.Windows.Input;
 using SwitchBlade.Core;
 using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
+using SwitchBlade.Contracts;
 
 namespace SwitchBlade
 {
@@ -15,7 +16,7 @@ namespace SwitchBlade
         private readonly MainViewModel _viewModel;
         private HotKeyService? _hotKeyService;
         private ThumbnailService? _thumbnailService;
-        private ChromeTabFinder? _chromeTabFinder;
+        public List<IWindowProvider> Providers { get; private set; } = new List<IWindowProvider>();
 
         public MainWindow()
         {
@@ -24,16 +25,33 @@ namespace SwitchBlade
             var app = (App)System.Windows.Application.Current;
             var settingsService = app.SettingsService;
 
-            // Composition Root (Manual DI for now)
-            // Composition Root (Manual DI for now)
-            _chromeTabFinder = new ChromeTabFinder(settingsService);
-            var providers = new List<IWindowProvider>
-            {
-                new WindowFinder(settingsService),
-                _chromeTabFinder
-            };
+            // Composition Root
+            // var providers = new List<IWindowProvider>(); // Replaced by property
             
-            _viewModel = new MainViewModel(providers, settingsService);
+            // 1. Internal Providers
+            Providers.Add(new WindowFinder());
+            // providers.Add(new ChromeTabFinder()); // Moved to external plugin
+
+            // 2. Load Plugins
+            try
+            {
+                var pluginPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
+                var loader = new PluginLoader(pluginPath);
+                var plugins = loader.LoadPlugins();
+                Providers.AddRange(plugins);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("Error loading plugins", ex);
+            }
+
+            // 3. Initialize all providers
+            foreach (var provider in Providers)
+            {
+                provider.Initialize(settingsService);
+            }
+            
+            _viewModel = new MainViewModel(Providers, settingsService);
             DataContext = _viewModel;
             
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -208,49 +226,24 @@ namespace SwitchBlade
         {
             if (windowItem != null)
             {
-                if (windowItem.IsChromeTab)
+                if (windowItem.Source != null)
                 {
-                    // Find the Chrome provider (it's one of our providers)
-                    // Since we didn't store it in a field, we look it up or cast
-                    // ideally we should have stored it. 
-                    // Quick fix: New up a temp one? No, bad for dependency.
-                    // Better: The ViewModel has the providers? No.
-                    // We can match based on IsChromeTab.
-                    
-                    // Actually, let's just use the one we created in Constructor if we can access it.
-                    // We need to promote 'providers' to a class field or '_chromeTabFinder' to a field.
-                    // Let's rely on the field '_chromeTabFinder' we will create in the next step.
-                    _chromeTabFinder?.ActivateWindow(windowItem);
+                    windowItem.Source.ActivateWindow(windowItem);
                 }
                 else
                 {
-                    // Robust window activation for standard apps
-                    if (Interop.IsIconic(windowItem.Hwnd))
-                    {
-                        Interop.ShowWindow(windowItem.Hwnd, Interop.SW_RESTORE);
-                    }
+                    // Fallback for items without source (shouldn't happen with new architecture, but safe to keep basic activation?)
+                    // Actually, if we didn't migrate everything perfectly, might crash.
+                    // But we did migrate WindowFinder and ChromeTabFinder.
+                    // Let's log if source is missing.
+                    Logger.Log($"Warning: WindowItem '{windowItem.Title}' has no Source provider.");
                     
-                    // Try simple switch first (often works better than SetForeground for task switching)
-                    Interop.SwitchToThisWindow(windowItem.Hwnd, true);
-                    
-                    if (Interop.GetForegroundWindow() != windowItem.Hwnd)
-                    {
-                        // Fallback: The "AttachThreadInput" hack to steal focus
-                        uint dummyPid;
-                        var foregroundThreadId = Interop.GetWindowThreadProcessId(Interop.GetForegroundWindow(), out dummyPid);
-                        var myThreadId = Interop.GetCurrentThreadId();
-                        
-                        if (foregroundThreadId != myThreadId)
-                        {
-                            Interop.AttachThreadInput(myThreadId, foregroundThreadId, true);
-                            Interop.SetForegroundWindow(windowItem.Hwnd);
-                            Interop.AttachThreadInput(myThreadId, foregroundThreadId, false);
-                        }
-                        else
-                        {
-                             Interop.SetForegroundWindow(windowItem.Hwnd);
-                        }
-                    }
+                    // Basic fallback attempt
+                     if (Interop.IsIconic(windowItem.Hwnd))
+                     {
+                         Interop.ShowWindow(windowItem.Hwnd, Interop.SW_RESTORE);
+                     }
+                     Interop.SetForegroundWindow(windowItem.Hwnd);
                 }
 
                 FadeOut(() => this.Hide());
