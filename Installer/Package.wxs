@@ -32,7 +32,7 @@
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
     
     <!-- Use standard MSI action to launch installed file -->
-    <CustomAction Id="LaunchApplication" FileRef="SwitchBladeEXE" ExeCommand="" Return="asyncNoWait" Impersonate="yes" />
+    <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" ExeCommand="[INSTALLFOLDER]SwitchBlade.exe" Return="asyncNoWait" Impersonate="yes" />
 
     <UI>
         <!-- Wire StartupOptionsDlg into the dialog sequence -->
@@ -63,20 +63,7 @@
   </Package>
 
   <Fragment>
-      <ComponentGroup Id="AppComponents" Directory="INSTALLFOLDER">
-          <Component Bitness="always64">
-              <File Id="SwitchBladeEXE" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.exe" />
-          </Component>
-          <Component Bitness="always64">
-              <File Id="SwitchBladeDLL" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.dll" />
-          </Component>
-          <Component Bitness="always64">
-              <File Id="SwitchBladeDeps" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.deps.json" />
-          </Component>
-          <Component Bitness="always64">
-              <File Id="SwitchBladeRuntimeConfig" Source="..\bin\Release\net9.0-windows\win-x64\publish\SwitchBlade.runtimeconfig.json" />
-          </Component>
-      </ComponentGroup>
+      <!-- AppComponents is now populated by HarvestDirectory in the .wixproj -->
   </Fragment>
 
   <Fragment>

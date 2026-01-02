@@ -145,7 +145,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{Binding NewProcessName, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource ModernTextBoxStyle}"
+                                             Style="{StaticResource HighContrastTextBoxStyle}"
                                              Grid.Column="0" Margin="0,0,10,0" Height="30" VerticalContentAlignment="Center"/>
                                     <Button Content="Add" Command="{Binding AddProcessCommand}" Grid.Column="1" Width="70" Margin="0,0,10,0" Style="{StaticResource ModernButtonStyle}"/>
                                     <Button Content="Remove" Command="{Binding RemoveProcessCommand}" Grid.Column="2" Width="70" Style="{StaticResource ModernButtonStyle}"/>
@@ -176,7 +176,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{Binding NewExcludedProcessName, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource ModernTextBoxStyle}"
+                                             Style="{StaticResource HighContrastTextBoxStyle}"
                                              Grid.Column="0" Margin="0,0,10,0" Height="30" VerticalContentAlignment="Center"/>
                                     <Button Content="Add" Command="{Binding AddExcludedProcessCommand}" Grid.Column="1" Width="70" Margin="0,0,10,0" Style="{StaticResource ModernButtonStyle}"/>
                                     <Button Content="Remove" Command="{Binding RemoveExcludedProcessCommand}" Grid.Column="2" Width="70" Style="{StaticResource ModernButtonStyle}"/>
