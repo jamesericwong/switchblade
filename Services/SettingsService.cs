@@ -28,6 +28,10 @@ namespace SwitchBlade.Services
         public bool HideTaskbarIcon { get; set; } = true;
         public bool LaunchOnStartup { get; set; } = false;
 
+        // Background Polling Options
+        public bool EnableBackgroundPolling { get; set; } = true;
+        public int BackgroundPollingIntervalSeconds { get; set; } = 30;
+
         public double WindowWidth { get; set; } = 800.0;
         public double WindowHeight { get; set; } = 600.0;
 
@@ -113,6 +117,10 @@ namespace SwitchBlade.Services
                         // Hotkey
                         Settings.HotKeyModifiers = Convert.ToUInt32(key.GetValue("HotKeyModifiers", 6));
                         Settings.HotKeyKey = Convert.ToUInt32(key.GetValue("HotKeyKey", 0x09));
+
+                        // Background Polling
+                        Settings.EnableBackgroundPolling = Convert.ToBoolean(key.GetValue("EnableBackgroundPolling", 1));
+                        Settings.BackgroundPollingIntervalSeconds = Convert.ToInt32(key.GetValue("BackgroundPollingIntervalSeconds", 30));
                     }
                     catch
                     {
@@ -202,6 +210,10 @@ namespace SwitchBlade.Services
                         
                         key.SetValue("HotKeyModifiers", Settings.HotKeyModifiers, RegistryValueKind.DWord);
                         key.SetValue("HotKeyKey", Settings.HotKeyKey, RegistryValueKind.DWord);
+
+                        // Background Polling
+                        key.SetValue("EnableBackgroundPolling", Settings.EnableBackgroundPolling ? 1 : 0, RegistryValueKind.DWord);
+                        key.SetValue("BackgroundPollingIntervalSeconds", Settings.BackgroundPollingIntervalSeconds, RegistryValueKind.DWord);
                     }
                 }
                 SettingsChanged?.Invoke();

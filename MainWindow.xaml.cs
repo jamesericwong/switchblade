@@ -16,6 +16,7 @@ namespace SwitchBlade
         private readonly MainViewModel _viewModel;
         private HotKeyService? _hotKeyService;
         private ThumbnailService? _thumbnailService;
+        private BackgroundPollingService? _backgroundPollingService;
         public List<IWindowProvider> Providers { get; private set; } = new List<IWindowProvider>();
 
         public MainWindow()
@@ -68,6 +69,11 @@ namespace SwitchBlade
             _hotKeyService = new HotKeyService(this, ((App)System.Windows.Application.Current).SettingsService, OnHotKeyPressed);
             _thumbnailService = new ThumbnailService(this);
             _thumbnailService.SetPreviewContainer(PreviewCanvas);
+
+            // Initialize Background Polling Service
+            _backgroundPollingService = new BackgroundPollingService(
+                ((App)System.Windows.Application.Current).SettingsService,
+                () => _viewModel.RefreshWindows());
 
             // Initial load
             var app = (App)System.Windows.Application.Current;
@@ -288,6 +294,7 @@ namespace SwitchBlade
 
             _hotKeyService?.Dispose();
             _thumbnailService?.Dispose();
+            _backgroundPollingService?.Dispose();
             base.OnClosed(e);
         }
     }

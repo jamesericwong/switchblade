@@ -83,6 +83,18 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.ItemHeight = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool EnableBackgroundPolling
+        {
+            get => _settingsService.Settings.EnableBackgroundPolling;
+            set { _settingsService.Settings.EnableBackgroundPolling = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
+        public int BackgroundPollingIntervalSeconds
+        {
+            get => _settingsService.Settings.BackgroundPollingIntervalSeconds;
+            set { _settingsService.Settings.BackgroundPollingIntervalSeconds = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
 
         public ICommand AddProcessCommand { get; }
         public ICommand RemoveProcessCommand { get; }
