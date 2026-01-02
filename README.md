@@ -12,8 +12,15 @@ SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. I
   - `HotKeyService`: Handles global low-level keyboard hooks for the toggle hotkey.
 - **Window Providers**: Independent modules responsible for scanning and returning `WindowItem` objects.
 
+## Development
+
+For information on how to build the project and create plugins, please refer to the following guides:
+
+- [Build Instructions](BUILD.md): Detailed steps for setting up your environment and building SwitchBlade.
+- [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
+
 ### Plugin System
-SwitchBlade uses a contract-based plugin architecture. For a comprehensive guide on building custom plugins, including API references and examples, see [Plugin Development Guide](PLUGIN_DEVELOPMENT.md).
+SwitchBlade uses a contract-based plugin architecture.
 - **Interface**: `SwitchBlade.Contracts.IWindowProvider`
 - **Mechanism**: On startup, `PluginLoader` scans the `Plugins` directory for DLLs implementing `IWindowProvider`.
 - **Isolation**: Each plugin runs within the main application process but is logically isolated by the `WindowItem` source property.
