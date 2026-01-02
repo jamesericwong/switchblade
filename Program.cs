@@ -21,13 +21,21 @@ namespace SwitchBlade
                     return;
                 }
 
-                var bootLog = Path.Combine(Path.GetTempPath(), "switchblade_boot.log");
+                // Check for /debug flag before anything else
+                var args = Environment.GetCommandLineArgs();
+                bool debugEnabled = Array.Exists(args, arg => 
+                    arg.Equals("/debug", StringComparison.OrdinalIgnoreCase) ||
+                    arg.Equals("--debug", StringComparison.OrdinalIgnoreCase) ||
+                    arg.Equals("-debug", StringComparison.OrdinalIgnoreCase));
+                
+                SwitchBlade.Core.Logger.IsDebugEnabled = debugEnabled;
+
                 try
                 {
-                    File.WriteAllText(bootLog, $"[{DateTime.Now}] Process Started (Managed Entry Point Hit)\n");
+                    SwitchBlade.Core.Logger.Log("Process Started (Managed Entry Point Hit)");
                     
                     // Parse command-line arguments for /minimized
-                    var args = Environment.GetCommandLineArgs();
+
                     bool startMinimized = Array.Exists(args, arg => 
                         arg.Equals("/minimized", StringComparison.OrdinalIgnoreCase) ||
                         arg.Equals("--minimized", StringComparison.OrdinalIgnoreCase) ||
@@ -44,11 +52,11 @@ namespace SwitchBlade
                     
                     if (startMinimized)
                     {
-                        File.AppendAllText(bootLog, $"[{DateTime.Now}] Starting in minimized mode\n");
+                        SwitchBlade.Core.Logger.Log("Starting in minimized mode");
                     }
                     if (enableStartup)
                     {
-                        File.AppendAllText(bootLog, $"[{DateTime.Now}] Enable startup on first run requested\n");
+                        SwitchBlade.Core.Logger.Log("Enable startup on first run requested");
                     }
                     
                     var app = new App();
@@ -59,11 +67,11 @@ namespace SwitchBlade
                 {
                     var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                     var crashLog = Path.Combine(desktop, "switchblade_startup_crash.txt");
-                    var errorMsg = $"[{DateTime.Now}] STARTUP CRASH: {ex.Message}\nStack: {ex.StackTrace}";
+                    SwitchBlade.Core.Logger.LogError("STARTUP CRASH", ex);
                     
-                    try { File.WriteAllText(crashLog, errorMsg); } catch {}
+
                     
-                    System.Windows.MessageBox.Show($"Critical Startup Error: {ex.Message}\n\nLog saved to Desktop: switchblade_startup_crash.txt", "SwitchBlade Fatal", MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Windows.MessageBox.Show($"Critical Startup Error: {ex.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log", "SwitchBlade Fatal", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }

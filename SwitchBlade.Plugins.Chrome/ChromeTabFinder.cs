@@ -9,20 +9,22 @@ namespace SwitchBlade.Plugins.Chrome
     public class ChromeTabFinder : IWindowProvider
     {
         private IBrowserSettingsProvider? _settingsService;
+        private ILogger? _logger;
 
         public ChromeTabFinder()
         {
         }
 
-        public void Initialize(object settingsService)
+        public void Initialize(object settingsService, ILogger logger)
         {
+           _logger = logger;
            if (settingsService is IBrowserSettingsProvider service)
            {
                _settingsService = service;
            }
         }
 
-        private static readonly object _logLock = new object();
+
 
         public IEnumerable<WindowItem> GetWindows()
         {
@@ -41,9 +43,7 @@ namespace SwitchBlade.Plugins.Chrome
             }
 
             var walker = TreeWalker.RawViewWalker;
-            var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "switchblade_debug_tabs.log");
-            
-            try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"--- Scan started at {DateTime.Now} ---{Environment.NewLine}"); } } catch {}
+            _logger?.Log($"--- Scan started at {DateTime.Now} ---");
 
             NativeMethods.EnumWindows((hwnd, lParam) =>
             {
@@ -54,7 +54,7 @@ namespace SwitchBlade.Plugins.Chrome
                 if (targetPids.Contains((int)pid))
                 {
                     // Found a visible window belonging to one of our target browsers
-                    ScanWindow(hwnd, (int)pid, walker, logPath, results);
+                    ScanWindow(hwnd, (int)pid, walker, results);
                 }
 
                 return true; // Continue enumeration
@@ -63,7 +63,7 @@ namespace SwitchBlade.Plugins.Chrome
             return results;
         }
 
-        private void ScanWindow(IntPtr hwnd, int pid, TreeWalker walker, string logPath, List<WindowItem> results)
+        private void ScanWindow(IntPtr hwnd, int pid, TreeWalker walker, List<WindowItem> results)
         {
             AutomationElement? root = null;
             try
@@ -78,9 +78,9 @@ namespace SwitchBlade.Plugins.Chrome
             string processName = "Unknown";
             try { processName = Process.GetProcessById(pid).ProcessName; } catch {}
 
-            try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName}){Environment.NewLine}"); } } catch {}
+            _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
 
-            var foundTabs = FindTabsBFS(root, walker, maxDepth: 20, logPath);
+            var foundTabs = FindTabsBFS(root, walker, maxDepth: 20);
 
             if (foundTabs.Count == 0)
             {
@@ -102,7 +102,7 @@ namespace SwitchBlade.Plugins.Chrome
             }
             else
             {
-                 try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"  Found {foundTabs.Count} tabs via BFS.{Environment.NewLine}"); } } catch {}
+                 _logger?.Log($"  Found {foundTabs.Count} tabs via BFS.");
                  foreach (var tab in foundTabs)
                  {
                      results.Add(new WindowItem
@@ -117,7 +117,7 @@ namespace SwitchBlade.Plugins.Chrome
             }
         }
 
-        private List<string> FindTabsBFS(AutomationElement root, TreeWalker walker, int maxDepth, string logPath)
+        private List<string> FindTabsBFS(AutomationElement root, TreeWalker walker, int maxDepth)
         {
             var results = new List<string>();
             var queue = new Queue<(AutomationElement Element, int Depth)>();
@@ -153,7 +153,7 @@ namespace SwitchBlade.Plugins.Chrome
                         if (!string.IsNullOrWhiteSpace(name) && name != "New Tab" && name != "+")
                         {
                             results.Add(name);
-                            try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"    FOUND TAB: '{name}'{Environment.NewLine}"); } } catch {}
+                            _logger?.Log($"    FOUND TAB: '{name}'");
                         }
                     }
                 }
@@ -173,7 +173,7 @@ namespace SwitchBlade.Plugins.Chrome
                 catch { }
             }
             
-            try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"  Items Scanned: {itemsScanned}{Environment.NewLine}"); } } catch {}
+            _logger?.Log($"  Items Scanned: {itemsScanned}");
 
             return results;
         }
@@ -212,8 +212,7 @@ namespace SwitchBlade.Plugins.Chrome
             }
             catch (Exception ex)
             {
-                var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "switchblade_debug_tabs.log");
-                try { System.IO.File.AppendAllText(logPath, $"Error activating tab '{item.Title}': {ex.Message}{Environment.NewLine}"); } catch {}
+                _logger?.LogError($"Error activating tab '{item.Title}'", ex);
             }
         }
 

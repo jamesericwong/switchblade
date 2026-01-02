@@ -18,7 +18,7 @@ namespace SwitchBlade.Core
             _settingsService = settingsService;
         }
 
-        public void Initialize(object settingsService)
+        public void Initialize(object settingsService, ILogger logger)
         {
            if (settingsService is SettingsService service)
            {
