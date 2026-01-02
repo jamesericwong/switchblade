@@ -26,6 +26,8 @@
     <!-- UI Configuration -->
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="Background.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="Banner.bmp" />
     
     <!-- Launch on Exit Logic -->
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch SwitchBlade" />
