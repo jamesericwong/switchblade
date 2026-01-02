@@ -123,7 +123,7 @@
                         </GroupBox>
 
                         <!-- Browsers Section -->
-                        <GroupBox Header="Chromium Browsers" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                        <GroupBox Header="Chromium Browsers" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}" Margin="0,0,0,20">
                             <Grid Margin="10">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -149,6 +149,37 @@
                                              Grid.Column="0" Margin="0,0,10,0" Height="30" VerticalContentAlignment="Center"/>
                                     <Button Content="Add" Command="{Binding AddProcessCommand}" Grid.Column="1" Width="70" Margin="0,0,10,0" Style="{StaticResource ModernButtonStyle}"/>
                                     <Button Content="Remove" Command="{Binding RemoveProcessCommand}" Grid.Column="2" Width="70" Style="{StaticResource ModernButtonStyle}"/>
+                                </Grid>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Excluded Processes Section -->
+                        <GroupBox Header="Excluded Processes" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                            <Grid Margin="10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Text="Manage process names to hide from results (e.g., SwitchBlade):" 
+                                           Foreground="{DynamicResource ForegroundBrush}" TextWrapping="Wrap" Margin="0,0,0,10" Opacity="0.7"/>
+
+                                <ListBox Grid.Row="1" ItemsSource="{Binding ExcludedProcesses}" SelectedItem="{Binding SelectedExcludedProcess}" 
+                                         Background="{DynamicResource ControlBackground}" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                         Margin="0,0,0,10" Height="100"/>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding NewExcludedProcessName, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBoxStyle}"
+                                             Grid.Column="0" Margin="0,0,10,0" Height="30" VerticalContentAlignment="Center"/>
+                                    <Button Content="Add" Command="{Binding AddExcludedProcessCommand}" Grid.Column="1" Width="70" Margin="0,0,10,0" Style="{StaticResource ModernButtonStyle}"/>
+                                    <Button Content="Remove" Command="{Binding RemoveExcludedProcessCommand}" Grid.Column="2" Width="70" Style="{StaticResource ModernButtonStyle}"/>
                                 </Grid>
                             </Grid>
                         </GroupBox>

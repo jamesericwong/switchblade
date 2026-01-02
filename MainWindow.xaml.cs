@@ -29,7 +29,7 @@ namespace SwitchBlade
             _chromeTabFinder = new ChromeTabFinder(settingsService);
             var providers = new List<IWindowProvider>
             {
-                new WindowFinder(),
+                new WindowFinder(settingsService),
                 _chromeTabFinder
             };
             
@@ -236,7 +236,8 @@ namespace SwitchBlade
                     if (Interop.GetForegroundWindow() != windowItem.Hwnd)
                     {
                         // Fallback: The "AttachThreadInput" hack to steal focus
-                        var foregroundThreadId = Interop.GetWindowThreadProcessId(Interop.GetForegroundWindow(), IntPtr.Zero);
+                        uint dummyPid;
+                        var foregroundThreadId = Interop.GetWindowThreadProcessId(Interop.GetForegroundWindow(), out dummyPid);
                         var myThreadId = Interop.GetCurrentThreadId();
                         
                         if (foregroundThreadId != myThreadId)

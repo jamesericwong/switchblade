@@ -7,9 +7,17 @@ namespace SwitchBlade.Core
 {
     public class WindowFinder : IWindowProvider
     {
+        private readonly Services.SettingsService _settingsService;
+
+        public WindowFinder(Services.SettingsService settingsService)
+        {
+            _settingsService = settingsService;
+        }
+
         public IEnumerable<WindowItem> GetWindows()
         {
             var results = new List<WindowItem>();
+            var excluded = new HashSet<string>(_settingsService.Settings.ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
 
             Interop.EnumWindows((hwnd, lParam) =>
             {
@@ -26,14 +34,38 @@ namespace SwitchBlade.Core
                 // Simple filter to remove common system windows usually not interesting to user
                 if (title == "Program Manager") return true;
 
-                // Get Process Name (Optional, for better context)
-                // We'll skip complex process walking for now for speed, but could add it later
+                // Get Process Name
+                string processName = "Window";
+                try
+                {
+                    uint pid;
+                    Interop.GetWindowThreadProcessId(hwnd, out pid);
+                    if (pid != 0)
+                    {
+                        var proc = Process.GetProcessById((int)pid);
+                        processName = proc.ProcessName;
+                    }
+                }
+                catch
+                {
+                    // Ignore access denied errors etc.
+                }
+
+                // Filter Excluded Processes
+                if (excluded.Contains(processName))
+                {
+                    Logger.Log($"Excluded Window '{title}' from process '{processName}'");
+                    return true;
+                }
+                
+                // Debug log
+                Logger.Log($"Included Window: '{title}', Process: '{processName}'");
 
                 results.Add(new WindowItem
                 {
                     Hwnd = hwnd,
                     Title = title,
-                    ProcessName = "Window", // Placeholder
+                    ProcessName = processName,
                     IsChromeTab = false
                 });
 
