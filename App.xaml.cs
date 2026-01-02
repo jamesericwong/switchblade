@@ -139,7 +139,25 @@ public partial class App : Application
 
     private void OpenSettings()
     {
-        var settingsVm = new SettingsViewModel(_settingsService, _themeService);
+        var plugins = new System.Collections.Generic.List<SwitchBlade.Core.PluginInfo>();
+        if (_mainWindow != null)
+        {
+            foreach (var provider in _mainWindow.Providers)
+            {
+                var type = provider.GetType();
+                var assembly = type.Assembly;
+                plugins.Add(new SwitchBlade.Core.PluginInfo
+                {
+                    Name = type.Name, // Using Type Name as display name for now
+                    TypeName = type.FullName ?? type.Name,
+                    AssemblyName = assembly.GetName().Name ?? "Unknown",
+                    Version = assembly.GetName().Version?.ToString() ?? "0.0.0",
+                    IsInternal = assembly == typeof(App).Assembly
+                });
+            }
+        }
+
+        var settingsVm = new SettingsViewModel(_settingsService, _themeService, plugins);
         var settingsWindow = new SettingsWindow
         {
             DataContext = settingsVm

@@ -2,21 +2,35 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
+using SwitchBlade.Contracts;
+using SwitchBlade.Services;
 
 namespace SwitchBlade.Core
 {
     public class WindowFinder : IWindowProvider
     {
-        private readonly Services.SettingsService _settingsService;
+        private SettingsService? _settingsService;
 
-        public WindowFinder(Services.SettingsService settingsService)
+        public WindowFinder() { }
+
+        public WindowFinder(SettingsService settingsService)
         {
             _settingsService = settingsService;
+        }
+
+        public void Initialize(object settingsService)
+        {
+           if (settingsService is SettingsService service)
+           {
+               _settingsService = service;
+           }
         }
 
         public IEnumerable<WindowItem> GetWindows()
         {
             var results = new List<WindowItem>();
+            if (_settingsService == null) return results; // Add safety
+
             var excluded = new HashSet<string>(_settingsService.Settings.ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
 
             Interop.EnumWindows((hwnd, lParam) =>
@@ -66,13 +80,45 @@ namespace SwitchBlade.Core
                     Hwnd = hwnd,
                     Title = title,
                     ProcessName = processName,
-                    IsChromeTab = false
+                    IsChromeTab = false,
+                    Source = this
                 });
 
                 return true;
             }, IntPtr.Zero);
 
             return results;
+        }
+
+        public void ActivateWindow(WindowItem windowItem)
+        {
+             // Robust window activation for standard apps
+            if (Interop.IsIconic(windowItem.Hwnd))
+            {
+                Interop.ShowWindow(windowItem.Hwnd, Interop.SW_RESTORE);
+            }
+            
+            // Try simple switch first (often works better than SetForeground for task switching)
+            Interop.SwitchToThisWindow(windowItem.Hwnd, true);
+            
+            if (Interop.GetForegroundWindow() != windowItem.Hwnd)
+            {
+                // Fallback: The "AttachThreadInput" hack to steal focus
+                uint dummyPid;
+                var foregroundThreadId = Interop.GetWindowThreadProcessId(Interop.GetForegroundWindow(), out dummyPid);
+                var myThreadId = Interop.GetCurrentThreadId();
+                
+                if (foregroundThreadId != myThreadId)
+                {
+                    Interop.AttachThreadInput(myThreadId, foregroundThreadId, true);
+                    Interop.SetForegroundWindow(windowItem.Hwnd);
+                    Interop.AttachThreadInput(myThreadId, foregroundThreadId, false);
+                }
+                else
+                {
+                     Interop.SetForegroundWindow(windowItem.Hwnd);
+                }
+            }
         }
     }
 }
