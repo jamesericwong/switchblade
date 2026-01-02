@@ -180,7 +180,12 @@ namespace SwitchBlade.Plugins.Chrome
 
         public void ActivateWindow(WindowItem item)
         {
-            NativeMethods.SetForegroundWindow(item.Hwnd);
+            // NativeMethods.SetForegroundWindow(item.Hwnd); // Replaced with robust logic
+            NativeMethods.ForceForegroundWindow(item.Hwnd);
+            
+            // Wait a brief moment for window to actually activate before searching for tabs
+            // This is crucial because AutomationElement tree might not update instantly
+            System.Threading.Thread.Sleep(50);
             
             if (string.IsNullOrEmpty(item.Title)) return;
 
@@ -275,5 +280,56 @@ namespace SwitchBlade.Plugins.Chrome
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        public static extern bool BringWindowToTop(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        public static extern bool IsIconic(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        public static extern uint GetCurrentThreadId();
+
+        public const int SW_RESTORE = 9;
+
+        public static void ForceForegroundWindow(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero) return;
+
+            if (IsIconic(hwnd))
+            {
+                ShowWindow(hwnd, SW_RESTORE);
+            }
+
+            uint dummyPid;
+            uint foregroundThreadId = GetWindowThreadProcessId(GetForegroundWindow(), out dummyPid);
+            uint myThreadId = GetCurrentThreadId();
+            bool threadsAttached = false;
+
+            if (foregroundThreadId != myThreadId)
+            {
+                threadsAttached = AttachThreadInput(myThreadId, foregroundThreadId, true);
+            }
+
+            BringWindowToTop(hwnd);
+            SetForegroundWindow(hwnd);
+            
+            if (threadsAttached)
+            {
+                AttachThreadInput(myThreadId, foregroundThreadId, false);
+            }
+        }
     }
 }

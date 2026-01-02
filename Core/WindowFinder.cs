@@ -102,33 +102,8 @@ namespace SwitchBlade.Core
 
         public void ActivateWindow(WindowItem windowItem)
         {
-             // Robust window activation for standard apps
-            if (Interop.IsIconic(windowItem.Hwnd))
-            {
-                Interop.ShowWindow(windowItem.Hwnd, Interop.SW_RESTORE);
-            }
-            
-            // Try simple switch first (often works better than SetForeground for task switching)
-            Interop.SwitchToThisWindow(windowItem.Hwnd, true);
-            
-            if (Interop.GetForegroundWindow() != windowItem.Hwnd)
-            {
-                // Fallback: The "AttachThreadInput" hack to steal focus
-                uint dummyPid;
-                var foregroundThreadId = Interop.GetWindowThreadProcessId(Interop.GetForegroundWindow(), out dummyPid);
-                var myThreadId = Interop.GetCurrentThreadId();
-                
-                if (foregroundThreadId != myThreadId)
-                {
-                    Interop.AttachThreadInput(myThreadId, foregroundThreadId, true);
-                    Interop.SetForegroundWindow(windowItem.Hwnd);
-                    Interop.AttachThreadInput(myThreadId, foregroundThreadId, false);
-                }
-                else
-                {
-                     Interop.SetForegroundWindow(windowItem.Hwnd);
-                }
-            }
+             // Robust window activation using the improved helper
+            Interop.ForceForegroundWindow(windowItem.Hwnd);
         }
     }
 }
