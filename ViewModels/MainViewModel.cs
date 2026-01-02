@@ -91,27 +91,65 @@ namespace SwitchBlade.ViewModels
                 {
                     var results = provider.GetWindows().ToList();
                     
-                    // Update UI with new results from this provider
+                    // Optimization: Diff check
+                    // Check if the current list for this provider is identical to the new results.
+                    // If so, skip the UI update entirely to prevent flicker.
+                    bool isIdentical = false;
+                    
+                    // We need a thread-safe snapshot or to lock, but _allWindows is bound to UI.
+                    // Reading it from a background thread is risky if it's being modified.
+                    // However, we can capture the items for this provider safely in the Invoke block logic
+                    // OR we can do the check inside Invoke. Doing it inside Invoke is safer.
+                    
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
-                        // 1. Remove outdated items from this specific provider
-                        // Iterate backwards to safely remove
-                        for (int i = _allWindows.Count - 1; i >= 0; i--)
+                        var existingItems = _allWindows.Where(x => x.Source == provider).ToList();
+                        
+                        // Fast count check
+                        if (existingItems.Count == results.Count)
                         {
-                            if (_allWindows[i].Source == provider)
+                            // Deep check
+                            // Assuming order might differ in raw return (though we sort later), we should check set equality.
+                            // But since we sort in the UI, we care if the SET of windows is the same.
+                            
+                            // Let's assume unique Hwnd is the key.
+                            var existingHwnds = existingItems.Select(x => x.Hwnd).ToHashSet();
+                            bool sameSet = results.All(r => existingHwnds.Contains(r.Hwnd));
+                            
+                            if (sameSet)
                             {
-                                _allWindows.RemoveAt(i);
+                                // Also check titles in case a window title changed (e.g. browser tab)
+                                var existingMap = existingItems.ToDictionary(x => x.Hwnd, x => x.Title);
+                                bool titlesMatch = results.All(r => existingMap.ContainsKey(r.Hwnd) && existingMap[r.Hwnd] == r.Title);
+                                
+                                if (titlesMatch)
+                                {
+                                    isIdentical = true;
+                                }
                             }
                         }
 
-                        // 2. Add fresh items
-                        foreach (var item in results)
+                        if (!isIdentical)
                         {
-                            _allWindows.Add(item);
-                        }
+                            // 1. Remove outdated items from this specific provider
+                            // Iterate backwards to safely remove
+                            for (int i = _allWindows.Count - 1; i >= 0; i--)
+                            {
+                                if (_allWindows[i].Source == provider)
+                                {
+                                    _allWindows.RemoveAt(i);
+                                }
+                            }
 
-                        // 3. Refresh the view to show changes and SORT
-                        UpdateSearch();
+                            // 2. Add fresh items
+                            foreach (var item in results)
+                            {
+                                _allWindows.Add(item);
+                            }
+
+                            // 3. Refresh the view to show changes and SORT
+                            UpdateSearch();
+                        }
                     });
                 }
                 catch (Exception ex)
