@@ -4,9 +4,20 @@
     <OutputType>Package</OutputType>
     <InstallerPlatform>x64</InstallerPlatform>
     <SuppressIces>ICE61</SuppressIces>
+    <PublishDir>..\bin\Release\net9.0-windows\win-x64\publish</PublishDir>
+    <DefineConstants>PublishDir=$(PublishDir)</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.UI.wixext" Version="5.0.0" />
     <PackageReference Include="WixToolset.Util.wixext" Version="5.0.0" />
+    <PackageReference Include="WixToolset.Heat" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <HarvestDirectory Include="..\bin\Release\net9.0-windows\win-x64\publish">
+      <ComponentGroupName>AppComponents</ComponentGroupName>
+      <DirectoryRefId>INSTALLFOLDER</DirectoryRefId>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.PublishDir</PreprocessorVariable>
+    </HarvestDirectory>
   </ItemGroup>
 </Project>

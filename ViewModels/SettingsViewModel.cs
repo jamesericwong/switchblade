@@ -116,10 +116,11 @@ namespace SwitchBlade.ViewModels
 
         private void RemoveProcess()
         {
-            if (BrowserProcesses.Contains(SelectedProcess))
+            var processToRemove = SelectedProcess;
+            if (!string.IsNullOrEmpty(processToRemove) && BrowserProcesses.Contains(processToRemove))
             {
-                BrowserProcesses.Remove(SelectedProcess);
-                _settingsService.Settings.BrowserProcesses.Remove(SelectedProcess);
+                BrowserProcesses.Remove(processToRemove);
+                _settingsService.Settings.BrowserProcesses.Remove(processToRemove);
                 _settingsService.SaveSettings();
             }
         }
@@ -184,10 +185,11 @@ namespace SwitchBlade.ViewModels
 
         private void RemoveExcludedProcess()
         {
-            if (ExcludedProcesses.Contains(SelectedExcludedProcess))
+            var processToRemove = SelectedExcludedProcess;
+            if (!string.IsNullOrEmpty(processToRemove) && ExcludedProcesses.Contains(processToRemove))
             {
-                ExcludedProcesses.Remove(SelectedExcludedProcess);
-                _settingsService.Settings.ExcludedProcesses.Remove(SelectedExcludedProcess);
+                ExcludedProcesses.Remove(processToRemove);
+                _settingsService.Settings.ExcludedProcesses.Remove(processToRemove);
                 _settingsService.SaveSettings();
             }
         }
