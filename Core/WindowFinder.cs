@@ -32,6 +32,15 @@ namespace SwitchBlade.Core
             if (_settingsService == null) return results; // Add safety
 
             var excluded = new HashSet<string>(_settingsService.Settings.ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
+            
+            // Auto-exclude processes managed by plugins (Browser processes) to prevent duplication
+            if (_settingsService is IBrowserSettingsProvider browserSettings)
+            {
+                foreach (var browserProc in browserSettings.BrowserProcesses)
+                {
+                    excluded.Add(browserProc);
+                }
+            }
 
             Interop.EnumWindows((hwnd, lParam) =>
             {
@@ -68,7 +77,8 @@ namespace SwitchBlade.Core
                 // Filter Excluded Processes
                 if (excluded.Contains(processName))
                 {
-                    Logger.Log($"Excluded Window '{title}' from process '{processName}'");
+                    // Do not log "excluded" for browsers to reduce noise, or log as debug if needed
+                    // Logger.Log($"Excluded Window '{title}' from process '{processName}'"); 
                     return true;
                 }
                 
