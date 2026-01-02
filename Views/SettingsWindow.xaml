@@ -119,6 +119,20 @@
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Window Previews" IsChecked="{Binding EnablePreviews}" Margin="0,5,0,0"/>
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Hide Taskbar Icon" IsChecked="{Binding HideTaskbarIcon}" Margin="0,10,0,0"/>
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Launch on Windows Startup" IsChecked="{Binding LaunchOnStartup}" Margin="0,10,0,0"/>
+                                
+                                <Separator Margin="0,15,0,10" Background="{DynamicResource BorderBrush}"/>
+                                <TextBlock Text="Background Polling" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,10"/>
+                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Background Polling" IsChecked="{Binding EnableBackgroundPolling}" Margin="0,0,0,10"/>
+                                <Grid Margin="0,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="50"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Interval (seconds):" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
+                                    <Slider Grid.Column="1" Minimum="5" Maximum="120" Value="{Binding BackgroundPollingIntervalSeconds}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding BackgroundPollingIntervalSeconds}" Foreground="{DynamicResource ForegroundBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
                             </StackPanel>
                         </GroupBox>
 

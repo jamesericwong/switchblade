@@ -62,3 +62,15 @@ To ensure the application feels instant, SwitchBlade employs a **Persistence Str
     - The background scan starts immediately.
     - When a provider finishes (e.g., `ChromeTabFinder`), the application removes *only* the old items sourced from that specific provider and atomically adds the new items.
     - This ensures the user never encounters a "Loading..." screen or a blank flash.
+
+## Background Polling
+
+SwitchBlade supports optional background polling to keep the window list up-to-date even when the application is not in focus.
+
+### Configuration
+- **Enable Background Polling**: Toggle in Settings (default: enabled).
+- **Polling Interval**: Configurable in Settings (default: 30 seconds, range: 5-120 seconds).
+
+### Concurrency Protection
+The `BackgroundPollingService` uses a `SemaphoreSlim(1, 1)` to ensure only one refresh operation runs at a time. If a refresh is already in progress when the timer ticks, that tick is skipped. This prevents thread contention and race conditions on the window list.
+
