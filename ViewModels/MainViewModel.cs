@@ -22,6 +22,7 @@ namespace SwitchBlade.ViewModels
         private WindowItem? _selectedWindow;
         private string _searchText = "";
         private bool _enablePreviews = true;
+        private bool _isUpdating = false;
 
         public MainViewModel(IEnumerable<IWindowProvider> windowProviders, SwitchBlade.Services.SettingsService? settingsService = null)
         {
@@ -60,7 +61,14 @@ namespace SwitchBlade.ViewModels
         public WindowItem? SelectedWindow
         {
             get => _selectedWindow;
-            set { _selectedWindow = value; OnPropertyChanged(); }
+            set 
+            { 
+                _selectedWindow = value; 
+                if (!_isUpdating)
+                {
+                    OnPropertyChanged(); 
+                }
+            }
         }
 
         public string SearchText
@@ -162,59 +170,71 @@ namespace SwitchBlade.ViewModels
 
         private void UpdateSearch()
         {
-            // Capture current selection to attempt restoration
-            IntPtr? selectedHwnd = SelectedWindow?.Hwnd;
-
-            List<WindowItem> sortedResults;
-
-            if (string.IsNullOrWhiteSpace(SearchText))
+            _isUpdating = true;
+            try
             {
-                sortedResults = _allWindows.ToList();
-            }
-            else
-            {
-                try
-                {
-                    Regex regex = new Regex(SearchText, RegexOptions.IgnoreCase);
-                    sortedResults = _allWindows.Where(w => regex.IsMatch(w.Title)).ToList();
-                }
-                catch (ArgumentException)
-                {
-                    sortedResults = _allWindows.Where(w => w.Title.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
-                }
-            }
+                // Capture current selection to attempt restoration
+                IntPtr? selectedHwnd = SelectedWindow?.Hwnd;
 
-            // Apply stable sort: Process Name -> Title -> Hwnd
-            sortedResults = sortedResults
-                .OrderBy(w => w.ProcessName)
-                .ThenBy(w => w.Title)
-                .ThenBy(w => w.Hwnd.ToInt64())
-                .ToList();
+                List<WindowItem> sortedResults;
 
-            FilteredWindows = new ObservableCollection<WindowItem>(sortedResults);
-
-            if (FilteredWindows.Count > 0)
-            {
-                // Try to find the previously selected window
-                var preservedSelection = FilteredWindows.FirstOrDefault(w => w.Hwnd == selectedHwnd);
-                if (preservedSelection != null)
+                if (string.IsNullOrWhiteSpace(SearchText))
                 {
-                    SelectedWindow = preservedSelection;
+                    sortedResults = _allWindows.ToList();
                 }
                 else
                 {
-                    // Only default to first if we didn't have a valid selection or it's gone
-                    // And only if we are not actively typing (optional, but good UX)
-                    // For now, simple logic: if selection lost, pick first.
-                    if (SelectedWindow == null || !FilteredWindows.Contains(SelectedWindow))
+                    try
                     {
-                        SelectedWindow = FilteredWindows[0];
+                        Regex regex = new Regex(SearchText, RegexOptions.IgnoreCase);
+                        sortedResults = _allWindows.Where(w => regex.IsMatch(w.Title)).ToList();
+                    }
+                    catch (ArgumentException)
+                    {
+                        sortedResults = _allWindows.Where(w => w.Title.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
                     }
                 }
+
+                // Apply stable sort: Process Name -> Title -> Hwnd
+                sortedResults = sortedResults
+                    .OrderBy(w => w.ProcessName)
+                    .ThenBy(w => w.Title)
+                    .ThenBy(w => w.Hwnd.ToInt64())
+                    .ToList();
+
+                // This assignment might trigger SelectedWindow = null via binding if the old selection is removed
+                // But _isUpdating = true suppresses the notification, preventing flicker.
+                FilteredWindows = new ObservableCollection<WindowItem>(sortedResults);
+
+                if (FilteredWindows.Count > 0)
+                {
+                    // Try to find the previously selected window
+                    var preservedSelection = FilteredWindows.FirstOrDefault(w => w.Hwnd == selectedHwnd);
+                    if (preservedSelection != null)
+                    {
+                        SelectedWindow = preservedSelection;
+                    }
+                    else
+                    {
+                        // Only default to first if we didn't have a valid selection or it's gone
+                        // And only if we are not actively typing (optional, but good UX)
+                        // For now, simple logic: if selection lost, pick first.
+                        if (SelectedWindow == null || !FilteredWindows.Contains(SelectedWindow))
+                        {
+                            SelectedWindow = FilteredWindows[0];
+                        }
+                    }
+                }
+                else
+                {
+                    SelectedWindow = null;
+                }
             }
-            else
+            finally
             {
-                SelectedWindow = null;
+                _isUpdating = false;
+                // Force update now that we are stable
+                OnPropertyChanged(nameof(SelectedWindow));
             }
         }
 
