@@ -82,6 +82,7 @@ namespace SwitchBlade.ViewModels
             // Do not clear _allWindows here. 
             // We want to keep the "old" state visible until the "new" state for each provider is ready.
             // This prevents the UI from flashing blank.
+            // However, we should preserve selection state across the update
             UpdateSearch();
 
             var tasks = _windowProviders.Select(provider => Task.Run(() =>
@@ -109,7 +110,7 @@ namespace SwitchBlade.ViewModels
                             _allWindows.Add(item);
                         }
 
-                        // 3. Refresh the view to show changes
+                        // 3. Refresh the view to show changes and SORT
                         UpdateSearch();
                     });
                 }
@@ -124,28 +125,55 @@ namespace SwitchBlade.ViewModels
 
         private void UpdateSearch()
         {
+            // Capture current selection to attempt restoration
+            IntPtr? selectedHwnd = SelectedWindow?.Hwnd;
+
+            List<WindowItem> sortedResults;
+
             if (string.IsNullOrWhiteSpace(SearchText))
             {
-                FilteredWindows = new ObservableCollection<WindowItem>(_allWindows);
+                sortedResults = _allWindows.ToList();
             }
             else
             {
                 try
                 {
                     Regex regex = new Regex(SearchText, RegexOptions.IgnoreCase);
-                    var results = _allWindows.Where(w => regex.IsMatch(w.Title)).ToList();
-                    FilteredWindows = new ObservableCollection<WindowItem>(results);
+                    sortedResults = _allWindows.Where(w => regex.IsMatch(w.Title)).ToList();
                 }
                 catch (ArgumentException)
                 {
-                    var results = _allWindows.Where(w => w.Title.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
-                    FilteredWindows = new ObservableCollection<WindowItem>(results);
+                    sortedResults = _allWindows.Where(w => w.Title.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
                 }
             }
 
+            // Apply stable sort: Process Name -> Title -> Hwnd
+            sortedResults = sortedResults
+                .OrderBy(w => w.ProcessName)
+                .ThenBy(w => w.Title)
+                .ThenBy(w => w.Hwnd.ToInt64())
+                .ToList();
+
+            FilteredWindows = new ObservableCollection<WindowItem>(sortedResults);
+
             if (FilteredWindows.Count > 0)
             {
-                SelectedWindow = FilteredWindows[0];
+                // Try to find the previously selected window
+                var preservedSelection = FilteredWindows.FirstOrDefault(w => w.Hwnd == selectedHwnd);
+                if (preservedSelection != null)
+                {
+                    SelectedWindow = preservedSelection;
+                }
+                else
+                {
+                    // Only default to first if we didn't have a valid selection or it's gone
+                    // And only if we are not actively typing (optional, but good UX)
+                    // For now, simple logic: if selection lost, pick first.
+                    if (SelectedWindow == null || !FilteredWindows.Contains(SelectedWindow))
+                    {
+                        SelectedWindow = FilteredWindows[0];
+                    }
+                }
             }
             else
             {
