@@ -91,12 +91,16 @@ namespace SwitchBlade.ViewModels
             _themeService = themeService;
 
             BrowserProcesses = new ObservableCollection<string>(_settingsService.Settings.BrowserProcesses);
+            ExcludedProcesses = new ObservableCollection<string>(_settingsService.Settings.ExcludedProcesses);
             AvailableThemes = new ObservableCollection<string>(_themeService.AvailableThemes.Select(t => t.Name));
             
             _selectedTheme = _settingsService.Settings.CurrentTheme;
 
             AddProcessCommand = new RelayCommand(_ => AddProcess(), _ => !string.IsNullOrWhiteSpace(NewProcessName));
             RemoveProcessCommand = new RelayCommand(_ => RemoveProcess(), _ => !string.IsNullOrEmpty(SelectedProcess));
+
+            AddExcludedProcessCommand = new RelayCommand(_ => AddExcludedProcess(), _ => !string.IsNullOrWhiteSpace(NewExcludedProcessName));
+            RemoveExcludedProcessCommand = new RelayCommand(_ => RemoveExcludedProcess(), _ => !string.IsNullOrEmpty(SelectedExcludedProcess));
         }
 
         private void AddProcess()
@@ -144,6 +148,48 @@ namespace SwitchBlade.ViewModels
             _settingsService.Settings.HotKeyKey = key;
             _settingsService.SaveSettings();
             OnPropertyChanged(nameof(HotKeyString));
+        }
+
+        // Excluded Processes Logic
+        private string _newExcludedProcessName = "";
+        private string _selectedExcludedProcess = "";
+
+        public ObservableCollection<string> ExcludedProcesses { get; set; }
+
+        public string NewExcludedProcessName
+        {
+            get => _newExcludedProcessName;
+            set { _newExcludedProcessName = value; OnPropertyChanged(); }
+        }
+
+        public string SelectedExcludedProcess
+        {
+            get => _selectedExcludedProcess;
+            set { _selectedExcludedProcess = value; OnPropertyChanged(); }
+        }
+
+        public ICommand AddExcludedProcessCommand { get; }
+        public ICommand RemoveExcludedProcessCommand { get; }
+
+        private void AddExcludedProcess()
+        {
+            if (!ExcludedProcesses.Contains(NewExcludedProcessName))
+            {
+                ExcludedProcesses.Add(NewExcludedProcessName);
+                _settingsService.Settings.ExcludedProcesses.Add(NewExcludedProcessName);
+                _settingsService.SaveSettings();
+                NewExcludedProcessName = "";
+            }
+        }
+
+        private void RemoveExcludedProcess()
+        {
+            if (ExcludedProcesses.Contains(SelectedExcludedProcess))
+            {
+                ExcludedProcesses.Remove(SelectedExcludedProcess);
+                _settingsService.Settings.ExcludedProcesses.Remove(SelectedExcludedProcess);
+                _settingsService.SaveSettings();
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

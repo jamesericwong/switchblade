@@ -13,6 +13,8 @@ namespace SwitchBlade.Services
             "chrome", "msedge", "brave", "vivaldi", "opera", "opera_gx", 
             "chromium", "thorium", "iron", "epic", "yandex", "arc", "comet" 
         };
+        public List<string> ExcludedProcesses { get; set; } = new List<string> { "SwitchBlade" };
+
         public string CurrentTheme { get; set; } = "Light";
         
         // UI Options
@@ -64,6 +66,17 @@ namespace SwitchBlade.Services
                             if (loaded != null && loaded.Count > 0)
                             {
                                 Settings.BrowserProcesses = loaded;
+                            }
+                        }
+
+                        // Excluded Processes
+                        string? excludedJson = key.GetValue("ExcludedProcesses") as string;
+                        if (!string.IsNullOrEmpty(excludedJson))
+                        {
+                            var loaded = JsonSerializer.Deserialize<List<string>>(excludedJson);
+                            if (loaded != null && loaded.Count > 0)
+                            {
+                                Settings.ExcludedProcesses = loaded;
                             }
                         }
 
@@ -167,6 +180,9 @@ namespace SwitchBlade.Services
                     {
                         string browsersJson = JsonSerializer.Serialize(Settings.BrowserProcesses);
                         key.SetValue("BrowserProcesses", browsersJson);
+
+                        string excludedJson = JsonSerializer.Serialize(Settings.ExcludedProcesses);
+                        key.SetValue("ExcludedProcesses", excludedJson);
 
                         key.SetValue("CurrentTheme", Settings.CurrentTheme);
                         key.SetValue("EnablePreviews", Settings.EnablePreviews ? 1 : 0, RegistryValueKind.DWord);
