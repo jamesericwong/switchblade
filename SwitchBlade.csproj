@@ -11,7 +11,7 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
     <StartupObject>SwitchBlade.Program</StartupObject>
-    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Tests\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
