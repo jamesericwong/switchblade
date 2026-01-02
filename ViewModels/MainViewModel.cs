@@ -1,4 +1,5 @@
 using System;
+
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -78,18 +79,47 @@ namespace SwitchBlade.ViewModels
 
         public async Task RefreshWindows()
         {
-            var windows = await Task.Run(() =>
-            {
-                var list = new List<WindowItem>();
-                foreach (var provider in _windowProviders)
-                {
-                    list.AddRange(provider.GetWindows());
-                }
-                return list;
-            });
-
-            _allWindows = new ObservableCollection<WindowItem>(windows);
+            // Do not clear _allWindows here. 
+            // We want to keep the "old" state visible until the "new" state for each provider is ready.
+            // This prevents the UI from flashing blank.
             UpdateSearch();
+
+            var tasks = _windowProviders.Select(provider => Task.Run(() =>
+            {
+                try
+                {
+                    var results = provider.GetWindows().ToList();
+                    
+                    // Update UI with new results from this provider
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        // 1. Remove outdated items from this specific provider
+                        // Iterate backwards to safely remove
+                        for (int i = _allWindows.Count - 1; i >= 0; i--)
+                        {
+                            if (_allWindows[i].Source == provider)
+                            {
+                                _allWindows.RemoveAt(i);
+                            }
+                        }
+
+                        // 2. Add fresh items
+                        foreach (var item in results)
+                        {
+                            _allWindows.Add(item);
+                        }
+
+                        // 3. Refresh the view to show changes
+                        UpdateSearch();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Provider error: {ex}");
+                }
+            })).ToList();
+
+            await Task.WhenAll(tasks);
         }
 
         private void UpdateSearch()

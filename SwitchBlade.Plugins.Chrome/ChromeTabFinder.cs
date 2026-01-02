@@ -22,81 +22,99 @@ namespace SwitchBlade.Plugins.Chrome
            }
         }
 
+        private static readonly object _logLock = new object();
+
         public IEnumerable<WindowItem> GetWindows()
         {
             var results = new List<WindowItem>();
             if (_settingsService == null) return results;
 
-            var processesToScan = _settingsService.BrowserProcesses;
-            var walker = TreeWalker.RawViewWalker;
-            
-            // Debug logging to help identify why tabs are missed
-            var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "switchblade_debug_tabs.log");
-            try { System.IO.File.AppendAllText(logPath, $"--- Scan started at {DateTime.Now} ---{Environment.NewLine}"); } catch {}
+            var targetProcessNames = new HashSet<string>(_settingsService.BrowserProcesses, StringComparer.OrdinalIgnoreCase);
+            var targetPids = new HashSet<int>();
 
-            foreach (var processName in processesToScan)
+            foreach (var name in targetProcessNames)
             {
-                Process[] processes = Process.GetProcessesByName(processName);
-
-                foreach (var proc in processes)
+                foreach (var p in Process.GetProcessesByName(name))
                 {
-                    if (proc.MainWindowHandle == IntPtr.Zero) continue;
-                    // Note: Interop class is internal to core. We need minimal Interop here or use P/Invoke directly.
-                    // For now, let's assume P/Invoke is needed or we duplicate specific Interop helper.
-                    // Or we just reference user32 directly if simple. 
-                    // Let's rely on standard .NET where possible, but IsWindowVisible needs P/Invoke.
-                    // I'll add a minimal P/Invoke class here to keep it self-contained.
-                    if (!NativeMethods.IsWindowVisible(proc.MainWindowHandle)) continue;
-
-                    AutomationElement? root = null;
-                    try
-                    {
-                        root = AutomationElement.FromHandle(proc.MainWindowHandle);
-                    }
-                    catch { continue; }
-
-                    if (root == null) continue;
-
-                    try { System.IO.File.AppendAllText(logPath, $"Scanning process: {processName} (PID: {proc.Id}, HWND: {proc.MainWindowHandle}){Environment.NewLine}"); } catch {}
-
-                    // Manual BFS to find TabItems. 
-                    var foundTabs = FindTabsBFS(root, walker, maxDepth: 12, logPath); // Increased depth
-
-                    if (foundTabs.Count == 0)
-                    {
-                        try { System.IO.File.AppendAllText(logPath, $"  No tabs found via BFS. Using Fallback: {proc.MainWindowTitle}{Environment.NewLine}"); } catch {}
-                        
-                         // Fallback: Add the main window if no tabs found
-                        if (!string.IsNullOrEmpty(proc.MainWindowTitle))
-                        {
-                            results.Add(new WindowItem  
-                            {  
-                                Hwnd = proc.MainWindowHandle,  
-                                Title = proc.MainWindowTitle,  
-                                ProcessName = proc.ProcessName,  
-                                IsChromeTab = true, // We can keep this flag
-                                Source = this
-                            });
-                        }
-                    }
-                    else
-                    {
-                         try { System.IO.File.AppendAllText(logPath, $"  Found {foundTabs.Count} tabs via BFS.{Environment.NewLine}"); } catch {}
-                         foreach (var tab in foundTabs)
-                         {
-                             results.Add(new WindowItem
-                             {
-                                 Hwnd = proc.MainWindowHandle,
-                                 Title = tab,
-                                 ProcessName = proc.ProcessName,
-                                 IsChromeTab = true,
-                                 Source = this
-                             });
-                         }
-                    }
+                    targetPids.Add(p.Id);
                 }
             }
+
+            var walker = TreeWalker.RawViewWalker;
+            var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "switchblade_debug_tabs.log");
+            
+            try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"--- Scan started at {DateTime.Now} ---{Environment.NewLine}"); } } catch {}
+
+            NativeMethods.EnumWindows((hwnd, lParam) =>
+            {
+                // Check visibility first for speed
+                if (!NativeMethods.IsWindowVisible(hwnd)) return true;
+
+                NativeMethods.GetWindowThreadProcessId(hwnd, out uint pid);
+                if (targetPids.Contains((int)pid))
+                {
+                    // Found a visible window belonging to one of our target browsers
+                    ScanWindow(hwnd, (int)pid, walker, logPath, results);
+                }
+
+                return true; // Continue enumeration
+            }, IntPtr.Zero);
+
             return results;
+        }
+
+        private void ScanWindow(IntPtr hwnd, int pid, TreeWalker walker, string logPath, List<WindowItem> results)
+        {
+            AutomationElement? root = null;
+            try
+            {
+                root = AutomationElement.FromHandle(hwnd);
+            }
+            catch { return; }
+
+            if (root == null) return;
+
+            // Get Process Name for the result item (expensive? maybe just cache it or look it up)
+            string processName = "Unknown";
+            try { processName = Process.GetProcessById(pid).ProcessName; } catch {}
+
+            try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName}){Environment.NewLine}"); } } catch {}
+
+            var foundTabs = FindTabsBFS(root, walker, maxDepth: 20, logPath);
+
+            if (foundTabs.Count == 0)
+            {
+                 // Fallback: Add the main window if no tabs found
+                 string title = "";
+                 try { title = root.Current.Name; } catch {}
+
+                if (!string.IsNullOrEmpty(title))
+                {
+                    results.Add(new WindowItem  
+                    {  
+                        Hwnd = hwnd,  
+                        Title = title,  
+                        ProcessName = processName,  
+                        IsChromeTab = true, 
+                        Source = this
+                    });
+                }
+            }
+            else
+            {
+                 try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"  Found {foundTabs.Count} tabs via BFS.{Environment.NewLine}"); } } catch {}
+                 foreach (var tab in foundTabs)
+                 {
+                     results.Add(new WindowItem
+                     {
+                         Hwnd = hwnd,
+                         Title = tab,
+                         ProcessName = processName,
+                         IsChromeTab = true,
+                         Source = this
+                     });
+                 }
+            }
         }
 
         private List<string> FindTabsBFS(AutomationElement root, TreeWalker walker, int maxDepth, string logPath)
@@ -116,6 +134,10 @@ namespace SwitchBlade.Plugins.Chrome
 
                 try
                 {
+                    // Optimization: Do not traverse into web content (Document control type)
+                    // This prevents scanning thousands of DOM nodes, focusing on the browser "Chrome" UI.
+                    if (current.Current.ControlType == ControlType.Document) continue;
+
                     bool isTab = false;
                     string name = current.Current.Name;
                     
@@ -131,7 +153,7 @@ namespace SwitchBlade.Plugins.Chrome
                         if (!string.IsNullOrWhiteSpace(name) && name != "New Tab" && name != "+")
                         {
                             results.Add(name);
-                            System.IO.File.AppendAllText(logPath, $"    FOUND TAB: '{name}'{Environment.NewLine}");
+                            try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"    FOUND TAB: '{name}'{Environment.NewLine}"); } } catch {}
                         }
                     }
                 }
@@ -143,6 +165,7 @@ namespace SwitchBlade.Plugins.Chrome
                     var child = walker.GetFirstChild(current);
                     while (child != null)
                     {
+                        // Enqueue child only
                         queue.Enqueue((child, depth + 1));
                         child = walker.GetNextSibling(child);
                     }
@@ -150,7 +173,7 @@ namespace SwitchBlade.Plugins.Chrome
                 catch { }
             }
             
-            try { System.IO.File.AppendAllText(logPath, $"  Items Scanned: {itemsScanned}{Environment.NewLine}"); } catch {}
+            try { lock (_logLock) { System.IO.File.AppendAllText(logPath, $"  Items Scanned: {itemsScanned}{Environment.NewLine}"); } } catch {}
 
             return results;
         }
@@ -166,7 +189,7 @@ namespace SwitchBlade.Plugins.Chrome
                 AutomationElement? root = AutomationElement.FromHandle(item.Hwnd);
                 if (root == null) return;
 
-                var walker = TreeWalker.RawViewWalker;
+                var walker = TreeWalker.ControlViewWalker;
                 var tabElement = FindTabByNameBFS(root, walker, 12, item.Title);
 
                 if (tabElement != null)
@@ -237,6 +260,15 @@ namespace SwitchBlade.Plugins.Chrome
 
     internal static class NativeMethods
     {
+        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
         public static extern bool IsWindowVisible(IntPtr hWnd);
