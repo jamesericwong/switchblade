@@ -43,13 +43,14 @@ namespace SwitchBlade
             }
             catch (Exception ex)
             {
-                Logger.LogError("Error loading plugins", ex);
+                SwitchBlade.Core.Logger.LogError("Error loading plugins", ex);
             }
 
             // 3. Initialize all providers
+            var loggerBridge = new LoggerBridge();
             foreach (var provider in Providers)
             {
-                provider.Initialize(settingsService);
+                provider.Initialize(settingsService, loggerBridge);
             }
             
             _viewModel = new MainViewModel(Providers, settingsService);
@@ -63,7 +64,7 @@ namespace SwitchBlade
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            Logger.Log($"MainWindow Loaded. Initial Size: {this.Width}x{this.Height}, ResizeMode: {this.ResizeMode}, Style: {this.WindowStyle}");
+            SwitchBlade.Core.Logger.Log($"MainWindow Loaded. Initial Size: {this.Width}x{this.Height}, ResizeMode: {this.ResizeMode}, Style: {this.WindowStyle}");
 
             // Initialize Services that require Window handle
             _hotKeyService = new HotKeyService(this, ((App)System.Windows.Application.Current).SettingsService, OnHotKeyPressed);
@@ -80,7 +81,7 @@ namespace SwitchBlade
             this.Width = app.SettingsService.Settings.WindowWidth;
             this.Height = app.SettingsService.Settings.WindowHeight;
             
-            Logger.Log($"Applied Settings Size: {this.Width}x{this.Height}");
+            SwitchBlade.Core.Logger.Log($"Applied Settings Size: {this.Width}x{this.Height}");
 
             SearchBox.Focus();
             _ = _viewModel.RefreshWindows();
@@ -88,10 +89,10 @@ namespace SwitchBlade
 
         private void OnHotKeyPressed()
         {
-            Logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
+            SwitchBlade.Core.Logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
             if (this.Visibility == Visibility.Visible)
             {
-                Logger.Log("Hiding Window.");
+                SwitchBlade.Core.Logger.Log("Hiding Window.");
                 FadeOut(() => this.Hide());
             }
             else
@@ -107,7 +108,7 @@ namespace SwitchBlade
                 
                 FadeIn();
                 _ = _viewModel.RefreshWindows();
-                Logger.Log("Showing Window (Activated & Focused).");
+                SwitchBlade.Core.Logger.Log("Showing Window (Activated & Focused).");
             }
         }
 
@@ -188,42 +189,42 @@ namespace SwitchBlade
 
         private void ResizeGripBottomRight_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            Logger.Log($"Resize Grip (Bottom-Right) Clicked. ButtonState: {e.ButtonState}");
+            SwitchBlade.Core.Logger.Log($"Resize Grip (Bottom-Right) Clicked. ButtonState: {e.ButtonState}");
             if (e.ButtonState == MouseButtonState.Pressed)
             {
                 try 
                 {
                     // Manual Resize via System Command
-                    Interop.SendMessage(new System.Windows.Interop.WindowInteropHelper(this).Handle, 
-                                        Interop.WM_SYSCOMMAND, 
-                                        (IntPtr)(Interop.SC_SIZE + Interop.SC_SIZE_HTBOTTOMRIGHT), 
+                    SwitchBlade.Core.Interop.SendMessage(new System.Windows.Interop.WindowInteropHelper(this).Handle, 
+                                        SwitchBlade.Core.Interop.WM_SYSCOMMAND, 
+                                        (IntPtr)(SwitchBlade.Core.Interop.SC_SIZE + SwitchBlade.Core.Interop.SC_SIZE_HTBOTTOMRIGHT), 
                                         IntPtr.Zero);
-                    Logger.Log("Sent SC_SIZE + HTBOTTOMRIGHT command.");
+                    SwitchBlade.Core.Logger.Log("Sent SC_SIZE + HTBOTTOMRIGHT command.");
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError("Resize Grip Error", ex);
+                    SwitchBlade.Core.Logger.LogError("Resize Grip Error", ex);
                 }
             }
         }
 
         private void ResizeGripBottomLeft_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            Logger.Log($"Resize Grip (Bottom-Left) Clicked. ButtonState: {e.ButtonState}");
+            SwitchBlade.Core.Logger.Log($"Resize Grip (Bottom-Left) Clicked. ButtonState: {e.ButtonState}");
             if (e.ButtonState == MouseButtonState.Pressed)
             {
                 try 
                 {
                     // Manual Resize via System Command - Bottom-Left corner
-                    Interop.SendMessage(new System.Windows.Interop.WindowInteropHelper(this).Handle, 
-                                        Interop.WM_SYSCOMMAND, 
-                                        (IntPtr)(Interop.SC_SIZE + Interop.SC_SIZE_HTBOTTOMLEFT), 
+                    SwitchBlade.Core.Interop.SendMessage(new System.Windows.Interop.WindowInteropHelper(this).Handle, 
+                                        SwitchBlade.Core.Interop.WM_SYSCOMMAND, 
+                                        (IntPtr)(SwitchBlade.Core.Interop.SC_SIZE + SwitchBlade.Core.Interop.SC_SIZE_HTBOTTOMLEFT), 
                                         IntPtr.Zero);
-                    Logger.Log("Sent SC_SIZE + HTBOTTOMLEFT command.");
+                    SwitchBlade.Core.Logger.Log("Sent SC_SIZE + HTBOTTOMLEFT command.");
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError("Resize Grip Error", ex);
+                    SwitchBlade.Core.Logger.LogError("Resize Grip Error", ex);
                 }
             }
         }
@@ -242,14 +243,14 @@ namespace SwitchBlade
                     // Actually, if we didn't migrate everything perfectly, might crash.
                     // But we did migrate WindowFinder and ChromeTabFinder.
                     // Let's log if source is missing.
-                    Logger.Log($"Warning: WindowItem '{windowItem.Title}' has no Source provider.");
+                    SwitchBlade.Core.Logger.Log($"Warning: WindowItem '{windowItem.Title}' has no Source provider.");
                     
                     // Basic fallback attempt
-                     if (Interop.IsIconic(windowItem.Hwnd))
+                     if (SwitchBlade.Core.Interop.IsIconic(windowItem.Hwnd))
                      {
-                         Interop.ShowWindow(windowItem.Hwnd, Interop.SW_RESTORE);
+                         SwitchBlade.Core.Interop.ShowWindow(windowItem.Hwnd, SwitchBlade.Core.Interop.SW_RESTORE);
                      }
-                     Interop.SetForegroundWindow(windowItem.Hwnd);
+                     SwitchBlade.Core.Interop.SetForegroundWindow(windowItem.Hwnd);
                 }
 
                 FadeOut(() => this.Hide());
@@ -261,7 +262,7 @@ namespace SwitchBlade
             // Only log non-character keys to avoid spam, or log special keys
             if (e.Key == Key.Escape || e.Key == Key.Enter || e.Key == Key.Down || e.Key == Key.Up)
             {
-                 Logger.Log($"MainWindow KeyDown: {e.Key}");
+                 SwitchBlade.Core.Logger.Log($"MainWindow KeyDown: {e.Key}");
             }
 
             if (e.Key == Key.Escape)

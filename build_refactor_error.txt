@@ -1,0 +1,15 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SwitchBlade.Contracts -> D:\dev\switchblade\SwitchBlade.Contracts\bin\Release\net9.0\SwitchBlade.Contracts.dll
+  SwitchBlade.Plugins.Chrome -> D:\dev\switchblade\SwitchBlade.Plugins.Chrome\bin\Release\net9.0-windows\SwitchBlade.Plugins.Chrome.dll
+  D:\dev\switchblade\SwitchBlade.Plugins.Chrome\bin\Release\net9.0-windows\SwitchBlade.Plugins.Chrome.dll -> D:\dev\switchblade\bin\Release\net9.0-windows\Plugins\SwitchBlade.Plugins.Chrome.dll
+  1 File(s) copied
+D:\dev\switchblade\Views\SettingsWindow.xaml.cs(63,32): error CS0246: The type or namespace name 'SettingsViewModel' could not be found (are you missing a using directive or an assembly reference?) [D:\dev\switchblade\SwitchBlade_zgdveljd_wpftmp.csproj]
+
+Build FAILED.
+
+D:\dev\switchblade\Views\SettingsWindow.xaml.cs(63,32): error CS0246: The type or namespace name 'SettingsViewModel' could not be found (are you missing a using directive or an assembly reference?) [D:\dev\switchblade\SwitchBlade_zgdveljd_wpftmp.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:00.79

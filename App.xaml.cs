@@ -45,12 +45,8 @@ public partial class App : Application
         {
             try
             {
-                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                var crashLog = System.IO.Path.Combine(desktop, "switchblade_crash.txt");
-                var errorMsg = $"[{DateTime.Now}] CRASH: {args.Exception.Message}\nStack: {args.Exception.StackTrace}\nInner: {args.Exception.InnerException}";
-                System.IO.File.WriteAllText(crashLog, errorMsg);
-                SwitchBlade.Core.Logger.LogError("CRASH", args.Exception); // Use our new logger too
-                System.Windows.MessageBox.Show($"SwitchBlade Crashed!\n\nReason: {args.Exception.Message}\n\nLog saved to Desktop: switchblade_crash.txt", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                SwitchBlade.Core.Logger.LogError("CRASH", args.Exception);
+                System.Windows.MessageBox.Show($"SwitchBlade Crashed!\n\nReason: {args.Exception.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception lastResort)
             {

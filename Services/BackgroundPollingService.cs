@@ -2,7 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
-
 namespace SwitchBlade.Services
 {
     /// <summary>
@@ -38,7 +37,7 @@ namespace SwitchBlade.Services
 
             if (!_settingsService.Settings.EnableBackgroundPolling)
             {
-                Core.Logger.Log("BackgroundPollingService: Polling disabled.");
+                SwitchBlade.Core.Logger.Log("BackgroundPollingService: Polling disabled.");
                 return;
             }
 
@@ -50,7 +49,7 @@ namespace SwitchBlade.Services
             _timer.AutoReset = true;
             _timer.Start();
 
-            Core.Logger.Log($"BackgroundPollingService: Polling enabled with interval {intervalMs}ms.");
+            SwitchBlade.Core.Logger.Log($"BackgroundPollingService: Polling enabled with interval {intervalMs}ms.");
         }
 
         private void OnSettingsChanged()
@@ -64,13 +63,13 @@ namespace SwitchBlade.Services
             // Try to acquire lock without blocking; if already refreshing, skip this tick
             if (!_refreshLock.Wait(0))
             {
-                Core.Logger.Log("BackgroundPollingService: Refresh already in progress, skipping tick.");
+                SwitchBlade.Core.Logger.Log("BackgroundPollingService: Refresh already in progress, skipping tick.");
                 return;
             }
 
             try
             {
-                Core.Logger.Log("BackgroundPollingService: Running background refresh.");
+                SwitchBlade.Core.Logger.Log("BackgroundPollingService: Running background refresh.");
                 
                 // Dispatch to UI thread since RefreshWindows updates ObservableCollection
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -80,7 +79,7 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                Core.Logger.LogError("BackgroundPollingService: Error during refresh", ex);
+                SwitchBlade.Core.Logger.LogError("BackgroundPollingService: Error during refresh", ex);
             }
             finally
             {

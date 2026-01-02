@@ -18,6 +18,16 @@ SwitchBlade uses a contract-based plugin architecture. For a comprehensive guide
 - **Mechanism**: On startup, `PluginLoader` scans the `Plugins` directory for DLLs implementing `IWindowProvider`.
 - **Isolation**: Each plugin runs within the main application process but is logically isolated by the `WindowItem` source property.
 
+## Command-Line Arguments
+
+SwitchBlade supports the following command-line parameters (prefixes `/`, `--`, or `-` are all supported):
+
+| Parameter | Description |
+| :--- | :--- |
+| `/debug` | Enables verbose logging. Logs are saved to `%TEMP%\switchblade_debug.log`. |
+| `/minimized` | Starts the application in the system tray without showing the main window. |
+| `/enablestartup` | Used by the installer to enable "Launch on Startup" in the Windows Registry on first run. |
+
 ## Window Discovery Logic
 
 ### 1. Core Window Finder (`WindowFinder.cs`)

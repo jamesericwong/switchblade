@@ -23,8 +23,8 @@ namespace SwitchBlade.Contracts
 {
     public interface IWindowProvider
     {
-        // 1. Initialization: Receive shared application state/settings
-        void Initialize(object settingsService);
+        // 1. Initialization: Receive shared application state/settings and logger
+        void Initialize(object settingsService, ILogger logger);
 
         // 2. Refresh: Return a list of items to display in the user's search
         IEnumerable<WindowItem> GetWindows();
@@ -76,9 +76,9 @@ namespace MyCustomPlugin
 {
     public class SimpleProvider : IWindowProvider
     {
-        public void Initialize(object settingsService)
+        public void Initialize(object settingsService, ILogger logger)
         {
-            // Optional: Store settings if you need to read custom config
+            // Optional: Store settings/logger if you need them later
         }
 
         public IEnumerable<WindowItem> GetWindows()
@@ -107,12 +107,13 @@ namespace MyCustomPlugin
 
 The `ChromeTabFinder` is a real-world example used within SwitchBlade to index individual Chrome tabs as searchable items. It demonstrates complex usage including `UIAutomation` and custom activation logic.
 
-### 1. Initialization
-It receives the `SettingsService` (as an object) but we cast it to a shared interface `IBrowserSettingsProvider` (if available) to access browser configuration without referencing the main app directly.
+#### 1. Initialization
+It receives the `SettingsService` (as an object) and an `ILogger` instance.
 
 ```csharp
-public void Initialize(object settingsService)
+public void Initialize(object settingsService, ILogger logger)
 {
+   _logger = logger;
    if (settingsService is IBrowserSettingsProvider service)
    {
        _settingsService = service;
