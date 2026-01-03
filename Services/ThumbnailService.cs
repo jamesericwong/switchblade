@@ -11,10 +11,12 @@ namespace SwitchBlade.Services
         private IntPtr _currentThumbnail = IntPtr.Zero;
         private IntPtr _currentSourceHwnd = IntPtr.Zero;
         private readonly Window _targetWindow;
+        private readonly ILogger _logger;
 
-        public ThumbnailService(Window targetWindow)
+        public ThumbnailService(Window targetWindow, ILogger logger)
         {
             _targetWindow = targetWindow;
+            _logger = logger;
         }
 
         public void UpdateThumbnail(IntPtr sourceHwnd)
@@ -34,6 +36,11 @@ namespace SwitchBlade.Services
             if (result == 0 && _currentThumbnail != IntPtr.Zero)
             {
                 UpdateThumbnailProperties();
+            }
+            else
+            {
+                // Optional: log failure
+                // _logger.Log($"DwmRegisterThumbnail failed for HWND {sourceHwnd}. Result: {result}");
             }
         }
 

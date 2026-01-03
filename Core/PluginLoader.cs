@@ -16,7 +16,7 @@ namespace SwitchBlade.Core
             _pluginsPath = pluginsPath;
         }
 
-        public List<IWindowProvider> LoadPlugins()
+        public List<IWindowProvider> LoadPlugins(IPluginContext context)
         {
             var providers = new List<IWindowProvider>();
 
@@ -42,7 +42,7 @@ namespace SwitchBlade.Core
                     // Load assembly
                     // We use LoadFrom context usually for simple plugins
                     var assembly = Assembly.LoadFrom(dll);
-                    
+
                     var providerTypes = assembly.GetTypes()
                         .Where(t => typeof(IWindowProvider).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
 
@@ -53,6 +53,7 @@ namespace SwitchBlade.Core
                             var instance = Activator.CreateInstance(type) as IWindowProvider;
                             if (instance != null)
                             {
+                                instance.Initialize(context);
                                 providers.Add(instance);
                                 Logger.Log($"Loaded plugin provider: {type.Name} from {Path.GetFileName(dll)}");
                             }

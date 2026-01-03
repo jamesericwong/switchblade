@@ -7,6 +7,7 @@ using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
 using SwitchBlade.Views;
 using SwitchBlade.Core;
+using SwitchBlade.Contracts;
 using Application = System.Windows.Application;
 
 namespace SwitchBlade;
@@ -19,6 +20,7 @@ public partial class App : Application
     private NotifyIcon? _trayIcon;
     private IServiceProvider _serviceProvider = null!;
     private MainWindow? _mainWindow;
+    private ILogger? _logger;
 
     /// <summary>
     /// When true, the app starts without showing the main window (background mode).
@@ -34,11 +36,12 @@ public partial class App : Application
     {
         // Configure DI container
         _serviceProvider = ServiceConfiguration.ConfigureServices();
+        _logger = _serviceProvider.GetRequiredService<ILogger>();
     }
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        SwitchBlade.Core.Logger.Log("Application Starting...");
+        _logger?.Log("Application Starting...");
         base.OnStartup(e);
 
         // Global exception handling
@@ -46,7 +49,7 @@ public partial class App : Application
         {
             try
             {
-                SwitchBlade.Core.Logger.LogError("CRASH", args.Exception);
+                _logger?.LogError("CRASH", args.Exception);
                 System.Windows.MessageBox.Show($"SwitchBlade Crashed!\n\nReason: {args.Exception.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception lastResort)
@@ -67,7 +70,7 @@ public partial class App : Application
         // Handle MSI installer startup flag - if /enablestartup was passed, enable Windows startup
         if (EnableStartupOnFirstRun)
         {
-            SwitchBlade.Core.Logger.Log("EnableStartupOnFirstRun flag detected - enabling Windows startup");
+            _logger?.Log("EnableStartupOnFirstRun flag detected - enabling Windows startup");
             settingsService.Settings.LaunchOnStartup = true;
             settingsService.SaveSettings(); // This writes to Windows Run registry
         }
@@ -94,7 +97,7 @@ public partial class App : Application
         _trayIcon.DoubleClick += (s, args) => ShowMainWindow();
 
         // Create MainWindow with injected dependencies
-        _mainWindow = new MainWindow(_serviceProvider);
+        _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
 
         // Only show the main window if not starting minimized
         if (!StartMinimized)
@@ -103,7 +106,7 @@ public partial class App : Application
         }
         else
         {
-            SwitchBlade.Core.Logger.Log("Starting minimized - MainWindow hidden until hotkey is pressed");
+            _logger?.Log("Starting minimized - MainWindow hidden until hotkey is pressed");
         }
     }
 

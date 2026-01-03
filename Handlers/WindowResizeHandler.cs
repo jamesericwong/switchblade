@@ -14,22 +14,17 @@ namespace SwitchBlade.Handlers
     public class WindowResizeHandler
     {
         private readonly Window _window;
+        private readonly ILogger _logger;
 
-        /// <summary>
-        /// Creates a new window resize handler.
-        /// </summary>
-        /// <param name="window">The window to handle resizing for.</param>
-        public WindowResizeHandler(Window window)
+        public WindowResizeHandler(Window window, ILogger logger)
         {
             _window = window;
+            _logger = logger;
         }
 
-        /// <summary>
-        /// Handles the bottom-right resize grip mouse down event.
-        /// </summary>
         public void HandleBottomRightGripMouseDown(object sender, MouseButtonEventArgs e)
         {
-            Logger.Log($"Resize Grip (Bottom-Right) Clicked. ButtonState: {e.ButtonState}");
+            _logger.Log($"Resize Grip (Bottom-Right) Clicked. ButtonState: {e.ButtonState}");
             if (e.ButtonState == MouseButtonState.Pressed)
             {
                 try
@@ -39,21 +34,18 @@ namespace SwitchBlade.Handlers
                                         NativeInterop.WM_SYSCOMMAND,
                                         (IntPtr)(NativeInterop.SC_SIZE + NativeInterop.SC_SIZE_HTBOTTOMRIGHT),
                                         IntPtr.Zero);
-                    Logger.Log("Sent SC_SIZE + HTBOTTOMRIGHT command.");
+                    _logger.Log("Sent SC_SIZE + HTBOTTOMRIGHT command.");
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError("Resize Grip Error", ex);
+                    _logger.LogError("Resize Grip Error", ex);
                 }
             }
         }
 
-        /// <summary>
-        /// Handles the bottom-left resize grip mouse down event.
-        /// </summary>
         public void HandleBottomLeftGripMouseDown(object sender, MouseButtonEventArgs e)
         {
-            Logger.Log($"Resize Grip (Bottom-Left) Clicked. ButtonState: {e.ButtonState}");
+            _logger.Log($"Resize Grip (Bottom-Left) Clicked. ButtonState: {e.ButtonState}");
             if (e.ButtonState == MouseButtonState.Pressed)
             {
                 try
@@ -63,11 +55,11 @@ namespace SwitchBlade.Handlers
                                         NativeInterop.WM_SYSCOMMAND,
                                         (IntPtr)(NativeInterop.SC_SIZE + NativeInterop.SC_SIZE_HTBOTTOMLEFT),
                                         IntPtr.Zero);
-                    Logger.Log("Sent SC_SIZE + HTBOTTOMLEFT command.");
+                    _logger.Log("Sent SC_SIZE + HTBOTTOMLEFT command.");
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError("Resize Grip Error", ex);
+                    _logger.LogError("Resize Grip Error", ex);
                 }
             }
         }
