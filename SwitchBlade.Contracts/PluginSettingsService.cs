@@ -9,10 +9,10 @@ namespace SwitchBlade.Contracts
     /// Helper class for plugins to store and retrieve settings from Registry.
     /// Settings are stored under HKCU\Software\SwitchBlade\Plugins\{PluginName}
     /// </summary>
-    public class PluginSettingsService
+    public class PluginSettingsService : IPluginSettingsService
     {
         private const string BASE_REGISTRY_PATH = @"Software\SwitchBlade\Plugins";
-        
+
         public string PluginName { get; }
         public string RegistryPath => $@"{BASE_REGISTRY_PATH}\{PluginName}";
 
@@ -20,7 +20,7 @@ namespace SwitchBlade.Contracts
         {
             if (string.IsNullOrWhiteSpace(pluginName))
                 throw new ArgumentException("Plugin name cannot be empty", nameof(pluginName));
-            
+
             PluginName = pluginName;
         }
 

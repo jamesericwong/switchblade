@@ -145,6 +145,7 @@ namespace SwitchBlade.Tests.ViewModels
         private class SynchronousDispatcherService : IDispatcherService
         {
             public void Invoke(Action action) => action();
+            public async System.Threading.Tasks.Task InvokeAsync(Func<System.Threading.Tasks.Task> action) => await action();
         }
     }
 }

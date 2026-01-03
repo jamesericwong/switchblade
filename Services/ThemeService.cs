@@ -16,13 +16,15 @@ namespace SwitchBlade.Services
 
     public class ThemeService
     {
-        private readonly SettingsService _settingsService;
-        private ResourceDictionary? _currentThemeDictionary; 
+        private readonly ISettingsService _settingsService;
+        private readonly IApplicationResourceHandler _resourceHandler;
+        private ResourceDictionary? _currentThemeDictionary;
         public List<ThemeInfo> AvailableThemes { get; private set; } = new List<ThemeInfo>();
 
-        public ThemeService(SettingsService settingsService)
+        public ThemeService(ISettingsService settingsService, IApplicationResourceHandler? resourceHandler = null)
         {
             _settingsService = settingsService;
+            _resourceHandler = resourceHandler ?? new WpfApplicationResourceHandler();
             InitializeThemes();
         }
 
@@ -52,13 +54,13 @@ namespace SwitchBlade.Services
             dict["ControlBackground"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(controlBackground));
             dict["ForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(foreground));
             dict["BorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(border));
-            
+
             // Highlight: Use border color but with slight opacity for hover effects
             var highlight = (Color)ColorConverter.ConvertFromString(border);
             // If border is too dark, lighten it?? 
             // Better: use Foreground with very low opacity
             var fg = (Color)ColorConverter.ConvertFromString(foreground);
-            dict["HighlightBrush"] = new SolidColorBrush(fg) { Opacity = 0.1 }; 
+            dict["HighlightBrush"] = new SolidColorBrush(fg) { Opacity = 0.1 };
 
             return new ThemeInfo { Name = name, Resources = dict };
         }
@@ -66,16 +68,16 @@ namespace SwitchBlade.Services
         public void ApplyTheme(string themeName)
         {
             var theme = AvailableThemes.FirstOrDefault(t => t.Name == themeName) ?? AvailableThemes.First();
-            
+
             // Remove the previously applied theme dictionary
             if (_currentThemeDictionary != null)
             {
-                System.Windows.Application.Current.Resources.MergedDictionaries.Remove(_currentThemeDictionary);
+                _resourceHandler.RemoveMergedDictionary(_currentThemeDictionary);
             }
 
             // apply new one
             _currentThemeDictionary = theme.Resources;
-            System.Windows.Application.Current.Resources.MergedDictionaries.Add(_currentThemeDictionary);
+            _resourceHandler.AddMergedDictionary(_currentThemeDictionary);
 
             if (_settingsService.Settings.CurrentTheme != themeName)
             {
@@ -83,7 +85,7 @@ namespace SwitchBlade.Services
                 _settingsService.SaveSettings();
             }
         }
-        
+
         public void LoadCurrentTheme()
         {
             ApplyTheme(_settingsService.Settings.CurrentTheme);

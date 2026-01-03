@@ -16,5 +16,19 @@ namespace SwitchBlade.Services
                 action();
             }
         }
+
+
+        public async System.Threading.Tasks.Task InvokeAsync(Func<System.Threading.Tasks.Task> action)
+        {
+            if (System.Windows.Application.Current != null)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(action);
+            }
+            else
+            {
+                // Fallback for non-WPF contexts
+                await action();
+            }
+        }
     }
 }

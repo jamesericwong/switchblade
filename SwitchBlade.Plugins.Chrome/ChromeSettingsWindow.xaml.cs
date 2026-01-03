@@ -7,13 +7,13 @@ namespace SwitchBlade.Plugins.Chrome
 {
     public partial class ChromeSettingsWindow : Window
     {
-        private readonly PluginSettingsService _settingsService;
+        private readonly IPluginSettingsService _settingsService;
         private readonly ObservableCollection<string> _processes;
 
-        public ChromeSettingsWindow(PluginSettingsService settingsService, List<string> currentProcesses)
+        public ChromeSettingsWindow(IPluginSettingsService settingsService, List<string> currentProcesses)
         {
             InitializeComponent();
-            
+
             _settingsService = settingsService;
             _processes = new ObservableCollection<string>(currentProcesses);
             ProcessList.ItemsSource = _processes;

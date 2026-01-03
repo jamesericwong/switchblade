@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.3] - 2026-01-03
+
+### Fixed
+- **Build & Test Infrastructure**:
+  - Achieved clean build (0 errors, 0 warnings) by resolving multiple compiler warnings.
+  - Resolved `App.InitializeComponent` build error during testing by explicitly defining `App.xaml` as `ApplicationDefinition`.
+  - Achieved **100% Test Pass Rate** (128/128 tests) by fixing flaky and broken tests.
+- **Unit Tests**:
+  - Refactored `ConverterTests` to remove dependency on WPF `ListBoxItem`, resolving `STAThread` errors.
+  - Fixed async/await implementation in `BackgroundPollingServiceTests`.
+
 ## [1.4.2] - 2026-01-03
 
 ### Added
@@ -9,6 +20,11 @@ All notable changes to this project will be documented in this file.
 - **IPluginContext Interface**: New context object passed to plugins during initialization, replacing the loosely-typed `(object settingsService, ILogger logger)` signature.
 - **NativeInterop Shared Library**: Consolidated P/Invoke declarations in `SwitchBlade.Contracts.NativeInterop` for use by both Core and plugins.
 - **ServiceConfiguration**: New composition root class (`Services/ServiceConfiguration.cs`) that registers all services.
+- **Testability Interfaces**: Introduced abstractions to enable unit testing:
+  - `IDispatcherService`: Abstracts `Dispatcher.Invoke/InvokeAsync`.
+  - `IApplicationResourceHandler`: Abstracts access to `Application.Current.Resources`.
+  - `IWindowListViewModel`: Decouples input handlers from the main ViewModel.
+  - `IPluginSettingsService`: Abstracts registry access for plugins.
 
 ### Changed
 - **BREAKING**: `IWindowProvider.Initialize()` now takes `IPluginContext context` instead of `(object settingsService, ILogger logger)`. Plugin developers must update their implementations.
@@ -18,6 +34,7 @@ All notable changes to this project will be documented in this file.
   - `Handlers/KeyboardInputHandler.cs` - All keyboard navigation and shortcuts (~160 lines extracted)
   - `Handlers/WindowResizeHandler.cs` - Resize grip handling (~40 lines extracted)
 - **HotKeyService/BackgroundPollingService**: Now depend on `ISettingsService` interface instead of concrete class.
+- **ChromeTabFinder**: Now depends on `IPluginSettingsService` for better testability.
 
 ### Fixed
 - **Silent Exception Swallowing**: Added logging to previously empty catch blocks in `SettingsService`.

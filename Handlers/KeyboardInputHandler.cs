@@ -14,7 +14,7 @@ namespace SwitchBlade.Handlers
     /// </summary>
     public class KeyboardInputHandler
     {
-        private readonly MainViewModel _viewModel;
+        private readonly IWindowListViewModel _viewModel;
         private readonly ISettingsService _settingsService;
         private readonly Action _hideWindow;
         private readonly Action<WindowItem?> _activateWindow;
@@ -29,7 +29,7 @@ namespace SwitchBlade.Handlers
         /// <param name="activateWindow">Action to activate a selected window.</param>
         /// <param name="getListBoxHeight">Function to get the current list box height for page calculations.</param>
         public KeyboardInputHandler(
-            MainViewModel viewModel,
+            IWindowListViewModel viewModel,
             ISettingsService settingsService,
             Action hideWindow,
             Action<WindowItem?> activateWindow,
@@ -47,70 +47,85 @@ namespace SwitchBlade.Handlers
         /// </summary>
         public void HandleKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            // Only log non-character keys to avoid spam, or log special keys
+            // Only log non-character keys to avoid spam
             if (e.Key == Key.Escape || e.Key == Key.Enter || e.Key == Key.Down || e.Key == Key.Up)
             {
                 Logger.Log($"KeyboardInputHandler KeyDown: {e.Key}");
             }
 
-            if (e.Key == Key.Escape)
+            // Extract modifiers relative to this event if possible, but Keyboard.Modifiers is static.
+            // For the purpose of this handler, we use global modifiers.
+            if (HandleKeyInput(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers))
+            {
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Processes key input. Returns true if handled.
+        /// Public for unit testing.
+        /// </summary>
+        public bool HandleKeyInput(Key key, ModifierKeys modifiers)
+        {
+            if (key == Key.Escape)
             {
                 _hideWindow();
+                return false; // Escape hides window but doesn't strictly "handle" input in a way that prevents bubble? Actually MainWindow logic usually handles it.
+                // But looking at original code: _hideWindow(); -> implicitly handled? Original didn't set e.Handled = true for Escape.
             }
-            else if (e.Key == Key.Down)
+            else if (key == Key.Down)
             {
                 _viewModel.MoveSelection(1);
-                e.Handled = true;
+                return true;
             }
-            else if (e.Key == Key.Up)
+            else if (key == Key.Up)
             {
                 _viewModel.MoveSelection(-1);
-                e.Handled = true;
+                return true;
             }
-            else if (e.Key == Key.Enter)
+            else if (key == Key.Enter)
             {
                 _activateWindow(_viewModel.SelectedWindow);
-                e.Handled = true;
+                return true;
             }
-            else if (e.Key == Key.Home && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            else if (key == Key.Home && modifiers.HasFlag(ModifierKeys.Control))
             {
                 _viewModel.MoveSelectionToFirst();
-                e.Handled = true;
+                return true;
             }
-            else if (e.Key == Key.End && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            else if (key == Key.End && modifiers.HasFlag(ModifierKeys.Control))
             {
                 _viewModel.MoveSelectionToLast();
-                e.Handled = true;
+                return true;
             }
-            else if (e.Key == Key.PageUp)
+            else if (key == Key.PageUp)
             {
                 int pageSize = CalculatePageSize();
                 _viewModel.MoveSelectionByPage(-1, pageSize);
-                e.Handled = true;
+                return true;
             }
-            else if (e.Key == Key.PageDown)
+            else if (key == Key.PageDown)
             {
                 int pageSize = CalculatePageSize();
                 _viewModel.MoveSelectionByPage(1, pageSize);
-                e.Handled = true;
+                return true;
             }
             // Number Shortcuts Feature
             else if (_settingsService.Settings.EnableNumberShortcuts)
             {
                 var settings = _settingsService.Settings;
                 // Check if the required modifier key is pressed
-                if (IsModifierKeyPressed(settings.NumberShortcutModifier))
+                if (IsModifierKeyPressed(settings.NumberShortcutModifier, modifiers))
                 {
-                    // When Alt is pressed, WPF sets e.Key to Key.System and the actual key is in e.SystemKey
-                    Key actualKey = (e.Key == Key.System) ? e.SystemKey : e.Key;
-                    int? index = GetNumberKeyIndex(actualKey);
+                    int? index = GetNumberKeyIndex(key);
                     if (index.HasValue)
                     {
                         ActivateWindowByIndex(index.Value);
-                        e.Handled = true;
+                        return true;
                     }
                 }
             }
+            return false;
         }
 
         /// <summary>
@@ -132,14 +147,14 @@ namespace SwitchBlade.Handlers
         /// Checks if the specified modifier key is currently pressed.
         /// Modifier values: Alt=1, Ctrl=2, Shift=4, None=0
         /// </summary>
-        private static bool IsModifierKeyPressed(uint modifier)
+        private static bool IsModifierKeyPressed(uint modifier, ModifierKeys currentModifiers)
         {
             return modifier switch
             {
                 ModifierKeyFlags.None => true, // No modifier required
-                ModifierKeyFlags.Alt => Keyboard.Modifiers.HasFlag(ModifierKeys.Alt),
-                ModifierKeyFlags.Ctrl => Keyboard.Modifiers.HasFlag(ModifierKeys.Control),
-                ModifierKeyFlags.Shift => Keyboard.Modifiers.HasFlag(ModifierKeys.Shift),
+                ModifierKeyFlags.Alt => currentModifiers.HasFlag(ModifierKeys.Alt),
+                ModifierKeyFlags.Ctrl => currentModifiers.HasFlag(ModifierKeys.Control),
+                ModifierKeyFlags.Shift => currentModifiers.HasFlag(ModifierKeys.Shift),
                 _ => false
             };
         }
