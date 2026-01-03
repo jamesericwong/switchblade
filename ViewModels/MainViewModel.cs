@@ -299,6 +299,13 @@ namespace SwitchBlade.ViewModels
                 // Synchronize FilteredWindows in-place to preserve UI state (scroll/selection)
                 SyncCollection(FilteredWindows, sortedResults);
 
+                // Update shortcut indices
+                for (int i = 0; i < FilteredWindows.Count; i++)
+                {
+                    // Only assign 0-9 indices
+                    FilteredWindows[i].ShortcutIndex = (i < 10) ? i : -1;
+                }
+
                 WindowItem? previousSelection = SelectedWindow;
                 bool selectionChanged = false;
 
