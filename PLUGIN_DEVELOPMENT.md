@@ -125,40 +125,51 @@ namespace MyCustomPlugin
 
 ## Case Study: ChromeTabFinder
 
-The `ChromeTabFinder` demonstrates advanced usage, including custom settings storage.
+The `ChromeTabFinder` demonstrates advanced usage, including custom settings storage and concurrency-safe scanning via `CachingWindowProviderBase`.
 
-#### 1. Configuration
+#### 1. Class Definition
+It inherits from `CachingWindowProviderBase` to get automatic concurrency protection:
+
+```csharp
+public class ChromeTabFinder : CachingWindowProviderBase
+{
+    public override string PluginName => "ChromeTabFinder";
+    public override bool HasSettings => true;
+    // ...
+}
+```
+
+#### 2. Configuration
 It uses `PluginSettingsService` (available in Contracts) to store settings in the Registry under `HKCU\Software\SwitchBlade\Plugins\ChromeTabFinder`.
 
 ```csharp
-public void ReloadSettings()
+public override void ReloadSettings()
 {
     // Load process list from registry...
 }
 ```
 
-#### 2. Getting Windows (Aggregation)
-It finds the Browser process, then uses `UIAutomation` (TreeWalker) to find tab controls.
+#### 3. Scanning Windows (ScanWindowsCore)
+It overrides `ScanWindowsCore()` (not `GetWindows()`) to perform the actual scan. The base class handles concurrency:
 
 ```csharp
-public IEnumerable<WindowItem> GetWindows()
+protected override IEnumerable<WindowItem> ScanWindowsCore()
 {
-    foreach (var processName in _processList)
-    {
-        // ... Scan automation tree ...
-    }
+    // Find browser processes, then use UIAutomation (TreeWalker)
+    // to discover tab controls. This method is only called when
+    // no other scan is in progress.
     return results;
 }
 ```
 
-### 3. Activation (The Payoff)
-When a user selects a specific *tab*, the provider handles the specifics.
+#### 4. Activation
+When a user selects a specific *tab*, the provider handles the specifics:
 
 ```csharp
-public void ActivateWindow(WindowItem item)
+public override void ActivateWindow(WindowItem item)
 {
     // 1. Bring the main Chrome window to front first
-    Interop.SetForegroundWindow(item.Hwnd);
+    NativeMethods.ForceForegroundWindow(item.Hwnd);
     
     // 2. Use UIAutomation to find the specific tab control again
     // ... Select tab pattern ...
@@ -181,3 +192,77 @@ public void ActivateWindow(WindowItem item)
 - **Performance**: `GetWindows()` is called every time the search refreshes (or periodically). Keep it fast. If you are querying slow APIs, cache your results and return the cached list immediately.
 - **Error Handling**: Wrap your `GetWindows` logic in try/catch blocks. If your plugin throws an exception, it might be logged but won't crash the main app.
 - **Dependencies**: If your plugin relies on other DLLs, ensure they are also copied to the `Plugins` folder or available in the global path.
+
+---
+
+## Concurrency & Caching Best Practices
+
+SwitchBlade may call `GetWindows()` on plugins concurrently from multiple threads (e.g., background polling, manual refreshes). If your scan takes a long time, you risk:
+
+1. **Duplicate scans** running simultaneously, wasting resources.
+2. **Stale data** from a slow scan overwriting fresh data from a faster subsequent scan.
+
+### Recommended: Use `CachingWindowProviderBase`
+
+The contracts assembly provides `CachingWindowProviderBase`, an abstract base class that handles concurrency automatically:
+
+```csharp
+using SwitchBlade.Contracts;
+
+public class MySlowPlugin : CachingWindowProviderBase
+{
+    public override string PluginName => "MySlowPlugin";
+    public override bool HasSettings => false;
+
+    public override void ShowSettingsDialog(IntPtr ownerHwnd) { }
+    public override void ActivateWindow(WindowItem item) { /* ... */ }
+
+    protected override IEnumerable<WindowItem> ScanWindowsCore()
+    {
+        // Your slow scanning logic here.
+        // This method will ONLY be called if no scan is currently in progress.
+        // If a scan IS in progress, GetWindows() returns cached results automatically.
+        return results;
+    }
+}
+```
+
+**Key benefits:**
+- **Automatic locking**: If `GetWindows()` is called while a scan is running, the base class returns cached results immediately.
+- **`IsScanRunning` property**: Check if a scan is in progress.
+- **`CachedWindows` property**: Access the cached results directly.
+
+### Alternative: Manual Implementation
+
+If you need custom concurrency handling, you can still implement `IWindowProvider` directly:
+
+```csharp
+public class MyCustomPlugin : IWindowProvider
+{
+    private readonly object _lock = new object();
+    private volatile bool _isScanning = false;
+    private List<WindowItem> _cache = new();
+
+    public IEnumerable<WindowItem> GetWindows()
+    {
+        if (_isScanning) return _cache;
+
+        lock (_lock)
+        {
+            if (_isScanning) return _cache;
+            _isScanning = true;
+        }
+
+        try
+        {
+            _cache = DoActualScan();
+            return _cache;
+        }
+        finally
+        {
+            lock (_lock) { _isScanning = false; }
+        }
+    }
+}
+```
+

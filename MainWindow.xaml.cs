@@ -301,6 +301,28 @@ namespace SwitchBlade
                 ActivateWindow(_viewModel.SelectedWindow);
                 e.Handled = true;
             }
+            else if (e.Key == Key.Home && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                _viewModel.MoveSelectionToFirst();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.End && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                _viewModel.MoveSelectionToLast();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.PageUp)
+            {
+                int pageSize = CalculatePageSize();
+                _viewModel.MoveSelectionByPage(-1, pageSize);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.PageDown)
+            {
+                int pageSize = CalculatePageSize();
+                _viewModel.MoveSelectionByPage(1, pageSize);
+                e.Handled = true;
+            }
             // Number Shortcuts Feature
             else if (((App)System.Windows.Application.Current).SettingsService.Settings.EnableNumberShortcuts)
             {
@@ -318,6 +340,22 @@ namespace SwitchBlade
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Calculates the number of items visible in the ListBox (page size).
+        /// </summary>
+        private int CalculatePageSize()
+        {
+            var app = (App)System.Windows.Application.Current;
+            double itemHeight = app.SettingsService.Settings.ItemHeight;
+            if (itemHeight <= 0) itemHeight = 50; // Fallback default
+            
+            double listBoxHeight = ResultsConfig.ActualHeight;
+            if (listBoxHeight <= 0) listBoxHeight = 400; // Fallback default
+            
+            int pageSize = (int)(listBoxHeight / itemHeight);
+            return Math.Max(1, pageSize); // At least 1
         }
 
         /// <summary>

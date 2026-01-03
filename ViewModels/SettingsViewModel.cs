@@ -88,6 +88,12 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.EnableNumberShortcuts = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool PreserveSelectionOnRefresh
+        {
+            get => _settingsService.Settings.PreserveSelectionOnRefresh;
+            set { _settingsService.Settings.PreserveSelectionOnRefresh = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
         public ObservableCollection<string> AvailableShortcutModifiers { get; } = new ObservableCollection<string>
         {
             "Alt", "Ctrl", "Shift", "None"

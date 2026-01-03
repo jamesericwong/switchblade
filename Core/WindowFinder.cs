@@ -7,13 +7,13 @@ using SwitchBlade.Services;
 
 namespace SwitchBlade.Core
 {
-    public class WindowFinder : IWindowProvider
+    public class WindowFinder : CachingWindowProviderBase
     {
         private SettingsService? _settingsService;
         private IEnumerable<string> _dynamicExclusions = new List<string>();
 
-        public string PluginName => "WindowFinder";
-        public bool HasSettings => false;
+        public override string PluginName => "WindowFinder";
+        public override bool HasSettings => false;
 
         public WindowFinder() { }
 
@@ -27,26 +27,27 @@ namespace SwitchBlade.Core
             _settingsService = settingsService;
         }
 
-        public void Initialize(object settingsService, ILogger logger)
+        public override void Initialize(object settingsService, ILogger logger)
         {
+            base.Initialize(settingsService, logger);
            if (settingsService is SettingsService service)
            {
                _settingsService = service;
            }
         }
 
-        public void ReloadSettings()
+        public override void ReloadSettings()
         {
             // No plugin-specific settings to reload
         }
 
-        public void ShowSettingsDialog(IntPtr ownerHwnd)
+        public override void ShowSettingsDialog(IntPtr ownerHwnd)
         {
             // No settings dialog for core WindowFinder
         }
 
 
-        public IEnumerable<WindowItem> GetWindows()
+        protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
             if (_settingsService == null) return results; // Add safety
@@ -114,7 +115,7 @@ namespace SwitchBlade.Core
             return results;
         }
 
-        public void ActivateWindow(WindowItem windowItem)
+        public override void ActivateWindow(WindowItem windowItem)
         {
              // Robust window activation using the improved helper
             Interop.ForceForegroundWindow(windowItem.Hwnd);

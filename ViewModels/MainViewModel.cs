@@ -254,8 +254,16 @@ namespace SwitchBlade.ViewModels
             _isUpdating = true;
             try
             {
-                // Capture current selection to attempt restoration
+                // Capture current selection state
                 IntPtr? selectedHwnd = SelectedWindow?.Hwnd;
+                string? selectedTitle = SelectedWindow?.Title;
+                int selectedIndex = SelectedWindow != null ? FilteredWindows.IndexOf(SelectedWindow) : -1;
+                
+                // Clamp to valid range (in case of stale reference)
+                if (selectedIndex < 0 || selectedIndex >= FilteredWindows.Count)
+                {
+                    selectedIndex = 0;
+                }
 
                 List<WindowItem> sortedResults;
 
@@ -283,27 +291,33 @@ namespace SwitchBlade.ViewModels
                     .ThenBy(w => w.Hwnd.ToInt64())
                     .ToList();
 
-                // This assignment might trigger SelectedWindow = null via binding if the old selection is removed
-                // But _isUpdating = true suppresses the notification, preventing flicker.
                 FilteredWindows = new ObservableCollection<WindowItem>(sortedResults);
 
                 if (FilteredWindows.Count > 0)
                 {
-                    // Try to find the previously selected window
-                    var preservedSelection = FilteredWindows.FirstOrDefault(w => w.Hwnd == selectedHwnd);
-                    if (preservedSelection != null)
+                    bool preserveByIdentity = _settingsService?.Settings.PreserveSelectionOnRefresh ?? false;
+                    
+                    if (preserveByIdentity)
                     {
-                        SelectedWindow = preservedSelection;
+                        // Setting enabled: Try to find and preserve the same window by identity
+                        var sameItem = FilteredWindows.FirstOrDefault(w => 
+                            w.Hwnd == selectedHwnd && w.Title == selectedTitle);
+                        
+                        if (sameItem != null)
+                        {
+                            SelectedWindow = sameItem;
+                        }
+                        else
+                        {
+                            // Item not found - select first
+                            SelectedWindow = FilteredWindows[0];
+                        }
                     }
                     else
                     {
-                        // Only default to first if we didn't have a valid selection or it's gone
-                        // And only if we are not actively typing (optional, but good UX)
-                        // For now, simple logic: if selection lost, pick first.
-                        if (SelectedWindow == null || !FilteredWindows.Contains(SelectedWindow))
-                        {
-                            SelectedWindow = FilteredWindows[0];
-                        }
+                        // Setting disabled (default): Preserve index position, don't follow identity
+                        int newIndex = Math.Min(selectedIndex, FilteredWindows.Count - 1);
+                        SelectedWindow = FilteredWindows[newIndex];
                     }
                 }
                 else
@@ -330,6 +344,30 @@ namespace SwitchBlade.ViewModels
             {
                 SelectedWindow = FilteredWindows[newIndex];
             }
+        }
+
+        public void MoveSelectionToFirst()
+        {
+            if (FilteredWindows.Count == 0) return;
+            SelectedWindow = FilteredWindows[0];
+        }
+
+        public void MoveSelectionToLast()
+        {
+            if (FilteredWindows.Count == 0) return;
+            SelectedWindow = FilteredWindows[FilteredWindows.Count - 1];
+        }
+
+        public void MoveSelectionByPage(int direction, int pageSize)
+        {
+            if (FilteredWindows.Count == 0 || pageSize <= 0) return;
+
+            int currentIndex = SelectedWindow != null ? FilteredWindows.IndexOf(SelectedWindow) : 0;
+            int newIndex = currentIndex + (direction * pageSize);
+
+            // Clamp to valid range
+            newIndex = Math.Max(0, Math.Min(newIndex, FilteredWindows.Count - 1));
+            SelectedWindow = FilteredWindows[newIndex];
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

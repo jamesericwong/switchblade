@@ -31,6 +31,10 @@ namespace SwitchBlade.Services
         // Modifier key for number shortcuts: Alt=1, Ctrl=2, Shift=4, Win=8, None=0
         public uint NumberShortcutModifier { get; set; } = 1; // Alt
 
+        // Selection Preservation: When enabled, list refresh preserves the selected item's identity
+        // When disabled (default), selection stays at current index position
+        public bool PreserveSelectionOnRefresh { get; set; } = false;
+
         public double WindowWidth { get; set; } = 800.0;
         public double WindowHeight { get; set; } = 600.0;
 
@@ -140,6 +144,9 @@ namespace SwitchBlade.Services
                         // Number Shortcuts
                         Settings.EnableNumberShortcuts = Convert.ToBoolean(GetValue<int>("EnableNumberShortcuts", 1));
                         Settings.NumberShortcutModifier = Convert.ToUInt32(GetValue<int>("NumberShortcutModifier", 1));
+
+                        // Selection Preservation
+                        Settings.PreserveSelectionOnRefresh = Convert.ToBoolean(GetValue<int>("PreserveSelectionOnRefresh", 0));
                     }
                     catch (Exception ex)
                     {
@@ -246,6 +253,9 @@ namespace SwitchBlade.Services
                         // Number Shortcuts
                         key.SetValue("EnableNumberShortcuts", Settings.EnableNumberShortcuts ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("NumberShortcutModifier", Settings.NumberShortcutModifier, RegistryValueKind.DWord);
+
+                        // Selection Preservation
+                        key.SetValue("PreserveSelectionOnRefresh", Settings.PreserveSelectionOnRefresh ? 1 : 0, RegistryValueKind.DWord);
                     }
                 }
                 SettingsChanged?.Invoke();

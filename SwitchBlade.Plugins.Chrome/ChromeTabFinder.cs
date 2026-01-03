@@ -7,7 +7,7 @@ using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Plugins.Chrome
 {
-    public class ChromeTabFinder : IWindowProvider
+    public class ChromeTabFinder : CachingWindowProviderBase
     {
         private ILogger? _logger;
         private PluginSettingsService? _settingsService;
@@ -19,15 +19,16 @@ namespace SwitchBlade.Plugins.Chrome
             "chrome","msedge","brave","vivaldi","opera","opera_gx","chromium","thorium","iron","epic","yandex","arc","comet"
         };
 
-        public string PluginName => "ChromeTabFinder";
-        public bool HasSettings => true;
+        public override string PluginName => "ChromeTabFinder";
+        public override bool HasSettings => true;
 
         public ChromeTabFinder()
         {
         }
 
-        public void Initialize(object settingsService, ILogger logger)
+        public override void Initialize(object settingsService, ILogger logger)
         {
+            base.Initialize(settingsService, logger);
             _logger = logger;
             _settingsService = new PluginSettingsService(PluginName);
             
@@ -35,7 +36,7 @@ namespace SwitchBlade.Plugins.Chrome
             ReloadSettings();
         }
 
-        public void ReloadSettings()
+        public override void ReloadSettings()
         {
             if (_settingsService == null) return;
 
@@ -54,7 +55,7 @@ namespace SwitchBlade.Plugins.Chrome
             _logger?.Log($"ChromeTabFinder: Loaded {_browserProcesses.Count} browser processes");
         }
 
-        public void ShowSettingsDialog(IntPtr ownerHwnd)
+        public override void ShowSettingsDialog(IntPtr ownerHwnd)
         {
             var dialog = new ChromeSettingsWindow(_settingsService!, _browserProcesses);
             if (ownerHwnd != IntPtr.Zero)
@@ -68,13 +69,13 @@ namespace SwitchBlade.Plugins.Chrome
             ReloadSettings();
         }
 
-        public IEnumerable<string> GetHandledProcesses()
+        public override IEnumerable<string> GetHandledProcesses()
         {
             _logger?.Log($"ChromeTabFinder Handled Processes: {string.Join(", ", _browserProcesses)}");
             return _browserProcesses;
         }
 
-        public IEnumerable<WindowItem> GetWindows()
+        protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
             if (_settingsService == null || _browserProcesses.Count == 0) return results;
@@ -227,7 +228,7 @@ namespace SwitchBlade.Plugins.Chrome
             return results;
         }
 
-        public void ActivateWindow(WindowItem item)
+        public override void ActivateWindow(WindowItem item)
         {
             // NativeMethods.SetForegroundWindow(item.Hwnd); // Replaced with robust logic
             NativeMethods.ForceForegroundWindow(item.Hwnd);
