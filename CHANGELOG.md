@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.4] - 2026-01-03
+
+### Fixed
+- **Window Duplication**: Fixed a bug where browser windows (e.g., Comet) were listed twice in results—once by the specialized plugin (e.g., ChromeTabFinder) and once by the core WindowFinder.
+  - Implemented proper `SetExclusions` override in `WindowFinder` to listen for excluded processes.
+  - Added virtual `SetExclusions` support to `CachingWindowProviderBase` to ensure exclusions are correctly propagated from the main application.
+
 ## [1.4.3] - 2026-01-03
 
 ### Fixed
