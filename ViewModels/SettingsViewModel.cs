@@ -88,10 +88,46 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.EnableNumberShortcuts = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
-        public bool PreserveSelectionOnRefresh
+        public bool IsPreserveScrollSelected
         {
-            get => _settingsService.Settings.PreserveSelectionOnRefresh;
-            set { _settingsService.Settings.PreserveSelectionOnRefresh = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveScroll;
+            set 
+            { 
+                if (value) 
+                {
+                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveScroll; 
+                    OnPropertyChanged(); 
+                    _settingsService.SaveSettings(); 
+                }
+            }
+        }
+
+        public bool IsPreserveIdentitySelected
+        {
+            get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveIdentity;
+            set 
+            { 
+                if (value) 
+                {
+                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveIdentity; 
+                    OnPropertyChanged(); 
+                    _settingsService.SaveSettings(); 
+                }
+            }
+        }
+
+        public bool IsPreserveIndexSelected
+        {
+            get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveIndex;
+            set 
+            { 
+                if (value) 
+                {
+                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveIndex; 
+                    OnPropertyChanged(); 
+                    _settingsService.SaveSettings(); 
+                }
+            }
         }
 
         public ObservableCollection<string> AvailableShortcutModifiers { get; } = new ObservableCollection<string>

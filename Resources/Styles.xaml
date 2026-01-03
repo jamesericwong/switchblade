@@ -189,4 +189,33 @@
         </Setter>
     </Style>
 
+    <!-- Modern RadioButton -->
+    <Style x:Key="ModernRadioButtonStyle" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Cursor="Hand">
+                        <Border x:Name="radioButtonBorder" Width="18" Height="18" CornerRadius="9" 
+                                BorderBrush="{DynamicResource ForegroundBrush}" BorderThickness="1" 
+                                Background="Transparent" Margin="0,0,10,0">
+                            <Ellipse x:Name="checkMark" Width="10" Height="10" Fill="{DynamicResource ForegroundBrush}" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ContentPresenter/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                             <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                             <Setter TargetName="radioButtonBorder" Property="Background" Value="#33FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="radioButtonBorder" Property="BorderBrush" Value="{DynamicResource HighlightBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>
