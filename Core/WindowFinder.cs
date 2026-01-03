@@ -17,7 +17,7 @@ namespace SwitchBlade.Core
 
         public WindowFinder() { }
 
-        public void SetExclusions(IEnumerable<string> exclusions)
+        public override void SetExclusions(IEnumerable<string> exclusions)
         {
             _dynamicExclusions = exclusions;
         }

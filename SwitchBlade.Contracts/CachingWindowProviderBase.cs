@@ -55,6 +55,12 @@ namespace SwitchBlade.Contracts
         public virtual IEnumerable<string> GetHandledProcesses() => Array.Empty<string>();
 
         /// <inheritdoc />
+        public virtual void SetExclusions(IEnumerable<string> exclusions)
+        {
+            // Default implementation: do nothing
+        }
+
+        /// <inheritdoc />
         public abstract void ShowSettingsDialog(IntPtr ownerHwnd);
 
         /// <inheritdoc />
