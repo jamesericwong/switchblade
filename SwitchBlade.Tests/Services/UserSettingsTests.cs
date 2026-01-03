@@ -110,5 +110,13 @@ namespace SwitchBlade.Tests.Services
             Assert.NotNull(settings.DisabledPlugins);
             Assert.Empty(settings.DisabledPlugins);
         }
+
+        [Fact]
+        public void UserSettings_DefaultPreserveSelectionOnRefresh_IsFalse()
+        {
+            var settings = new UserSettings();
+
+            Assert.False(settings.PreserveSelectionOnRefresh);
+        }
     }
 }

@@ -20,7 +20,7 @@ For information on how to build the project and create plugins, please refer to 
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 - [Changelog](CHANGELOG.md): History of changes and versions.
 
-### Current Version: 1.4.0
+### Current Version: 1.4.1
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:
@@ -80,14 +80,72 @@ SwitchBlade does NOT block the UI thread while searching.
 - As each background task completes, it marshals its results back to the UI thread using `Application.Current.Dispatcher.Invoke`.
 - This creates a "Pop-in" effect where core windows appear instantly, followed shortly by browser tabs.
 
-## Smart Refresh & Caching
+## Smart Refresh & List Merge Strategy
 
-To ensure the application feels instant, SwitchBlade employs a **Persistence Strategy**.
-1.  **No Clear-On-Toggle**: When the Global Hotkey is pressed, the list is **NOT** cleared. The user immediately sees the results from the *previous* session.
-2.  **Incremental Merge**:
-    - The background scan starts immediately.
-    - When a provider finishes (e.g., `ChromeTabFinder`), the application removes *only* the old items sourced from that specific provider and atomically adds the new items.
-    - This ensures the user never encounters a "Loading..." screen or a blank flash.
+SwitchBlade uses a sophisticated incremental update strategy to keep the window list stable and prevent visual disruption during updates. The goal is to never clear the list and re-add all items, which would cause flickering and loss of user context.
+
+### Persistence Strategy
+1. **No Clear-On-Toggle**: When the Global Hotkey is pressed, the list is **NOT** cleared. The user immediately sees the results from the *previous* session while background scans run.
+2. **Provider-Isolated Updates**: Each window provider (e.g., `WindowFinder`, `ChromeTabFinder`) updates its own slice of the list independently. Changes from one provider don't affect items from other providers.
+
+### Incremental Merge Algorithm
+
+When a provider completes scanning, the merge happens in three phases:
+
+#### Phase 1: Diff Check (Optimization)
+Before modifying the list, we check if anything actually changed:
+```
+1. Count check: If existingItems.Count != newItems.Count, skip to Phase 2
+2. Deep equality: Compare (Hwnd, Title) tuples of existing vs new items
+3. If collections are identical → skip update entirely (no UI refresh)
+```
+This prevents unnecessary UI churn when background polling finds no changes.
+
+#### Phase 2: Atomic Remove + Add
+If changes are detected:
+```
+1. Remove all items where item.Source == currentProvider (iterating backwards)
+2. Add all new items from this provider
+3. Trigger UpdateSearch() to re-sort and refresh FilteredWindows
+```
+This is an atomic swap that ensures we never have a partially-updated state.
+
+#### Phase 3: Stable Sort
+After merging, items are sorted using a deterministic 3-key sort:
+```
+OrderBy(ProcessName) → ThenBy(Title) → ThenBy(Hwnd)
+```
+This ensures:
+- Items from the same application are grouped together
+- Within an application, items are alphabetically ordered
+- The sort is fully deterministic (using Hwnd as tiebreaker)
+
+### Selection Preservation
+
+During list updates, the selection behavior is controlled by the **Preserve selection on refresh** setting:
+
+| Setting | Behavior |
+| :--- | :--- |
+| **Disabled (default)** | Selection stays at current **index position**. If you're viewing item #3, you'll still be viewing item #3 after refresh (even if the window at that position changed). |
+| **Enabled** | Selection follows the same **window identity** (Hwnd + Title). If your selected window moves from position #3 to #7, the selection moves with it. |
+
+### Diff Key Design
+
+Chrome tabs share the same `Hwnd` (the browser window handle), so we use a composite key:
+```
+Identity = (Hwnd, Title)
+```
+This allows us to:
+- Distinguish between tabs in the same browser window
+- Detect when a tab's title has changed (e.g., page navigation)
+- Properly track selection across refreshes
+
+### Thread Safety
+
+The merge operation runs on background threads via `Task.Run()`, but all mutations to `_allWindows` and `FilteredWindows` are marshalled to the UI thread via `Dispatcher.Invoke()`. This ensures:
+- No race conditions on the ObservableCollection
+- WPF bindings receive proper change notifications
+- The UI remains responsive during long scans
 
 ## Background Polling
 
@@ -121,3 +179,21 @@ SwitchBlade supports number shortcuts for instant window switching. When enabled
 
 ### Smooth Reordering
 The window list maintains a stable sort (by Process Name → Title → Handle) to minimize visual disruption when new windows appear. Combined with the incremental merge strategy, the numbered positions update smoothly without full list refreshes.
+
+## Keyboard Shortcuts
+
+SwitchBlade supports the following keyboard shortcuts for navigation:
+
+| Key | Action |
+| :--- | :--- |
+| `↑` / `↓` | Move selection up/down by one item |
+| `Page Up` / `Page Down` | Move selection up/down by one visible page |
+| `Ctrl+Home` | Jump to the first item |
+| `Ctrl+End` | Jump to the last item |
+| `Enter` | Activate the selected window |
+| `Escape` | Hide the SwitchBlade window |
+| `Alt+1` to `Alt+0` | Quick-switch to windows 1-10 (configurable modifier) |
+
+### Configuration
+- **Preserve selection on refresh**: When disabled (default), the selection stays at the current index position during background refresh. When enabled, preserves the selected window's identity even if its position changes.
+

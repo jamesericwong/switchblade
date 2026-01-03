@@ -137,5 +137,55 @@ namespace SwitchBlade.Tests.ViewModels
 
             Assert.True(vm.ShowInTaskbar);
         }
+
+        [Fact]
+        public void MoveSelectionToFirst_WithEmptyList_DoesNotThrow()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+
+            var exception = Record.Exception(() => vm.MoveSelectionToFirst());
+
+            Assert.Null(exception);
+        }
+
+        [Fact]
+        public void MoveSelectionToLast_WithEmptyList_DoesNotThrow()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+
+            var exception = Record.Exception(() => vm.MoveSelectionToLast());
+
+            Assert.Null(exception);
+        }
+
+        [Fact]
+        public void MoveSelectionByPage_WithEmptyList_DoesNotThrow()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+
+            var exception = Record.Exception(() => vm.MoveSelectionByPage(1, 10));
+
+            Assert.Null(exception);
+        }
+
+        [Fact]
+        public void MoveSelectionByPage_WithZeroPageSize_DoesNotThrow()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+
+            var exception = Record.Exception(() => vm.MoveSelectionByPage(1, 0));
+
+            Assert.Null(exception);
+        }
+
+        [Fact]
+        public void MoveSelectionByPage_WithNegativePageSize_DoesNotThrow()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+
+            var exception = Record.Exception(() => vm.MoveSelectionByPage(1, -5));
+
+            Assert.Null(exception);
+        }
     }
 }

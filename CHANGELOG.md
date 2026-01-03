@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2026-01-03
+
+### Added
+- **Plugin Framework**: Added `CachingWindowProviderBase` abstract base class to `SwitchBlade.Contracts` for thread-safe window scanning with automatic caching.
+  - When a scan is in progress, subsequent calls to `GetWindows()` return cached results instead of starting duplicate scans.
+  - Includes `IsScanRunning` and `CachedWindows` properties for plugin developers.
+
+### Changed
+- **Plugins**: `ChromeTabFinder` and `WindowFinder` now inherit from `CachingWindowProviderBase` for improved concurrency handling.
+- **Docs**: Updated `PLUGIN_DEVELOPMENT.md` with concurrency and caching best practices section.
+
 ## [1.4.0] - 2026-01-02
 
 ### Added

@@ -147,6 +147,7 @@
                                     <Slider Grid.Column="1" Minimum="5" Maximum="120" Value="{Binding BackgroundPollingIntervalSeconds}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="2" Text="{Binding BackgroundPollingIntervalSeconds}" Foreground="{DynamicResource ForegroundBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
+                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Preserve selection on refresh" IsChecked="{Binding PreserveSelectionOnRefresh}" Margin="0,10,0,0" ToolTip="When enabled, keeps the same window selected during refresh. When disabled, keeps selection at current position."/>
                             </StackPanel>
                         </GroupBox>
 
