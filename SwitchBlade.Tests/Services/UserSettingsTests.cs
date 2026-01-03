@@ -48,14 +48,6 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void UserSettings_DefaultBrowserProcesses_ContainsChrome()
-        {
-            var settings = new UserSettings();
-
-            Assert.Contains("chrome", settings.BrowserProcesses);
-        }
-
-        [Fact]
         public void UserSettings_DefaultExcludedProcesses_ContainsSwitchBlade()
         {
             var settings = new UserSettings();
@@ -92,6 +84,31 @@ namespace SwitchBlade.Tests.Services
             Assert.Equal(0x0008u, settings.HotKeyModifiers);
             Assert.False(settings.EnablePreviews);
             Assert.Equal("Light", settings.CurrentTheme);
+        }
+
+        [Fact]
+        public void UserSettings_DefaultEnableNumberShortcuts_IsTrue()
+        {
+            var settings = new UserSettings();
+
+            Assert.True(settings.EnableNumberShortcuts);
+        }
+
+        [Fact]
+        public void UserSettings_DefaultNumberShortcutModifier_IsAlt()
+        {
+            var settings = new UserSettings();
+
+            // Alt = 1
+            Assert.Equal(1u, settings.NumberShortcutModifier);
+        }
+        [Fact]
+        public void UserSettings_DefaultDisabledPlugins_IsEmpty()
+        {
+            var settings = new UserSettings();
+
+            Assert.NotNull(settings.DisabledPlugins);
+            Assert.Empty(settings.DisabledPlugins);
         }
     }
 }

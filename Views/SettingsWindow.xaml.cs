@@ -71,5 +71,17 @@ namespace SwitchBlade.Views
         {
             this.Close();
         }
+
+        private void PluginSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button button && button.Tag is PluginInfo pluginInfo)
+            {
+                if (pluginInfo.Provider != null && pluginInfo.HasSettings)
+                {
+                    var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                    pluginInfo.Provider.ShowSettingsDialog(hwnd);
+                }
+            }
+        }
     }
 }

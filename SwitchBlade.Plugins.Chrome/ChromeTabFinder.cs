@@ -2,14 +2,25 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Automation;
+using System.Windows.Interop;
 using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Plugins.Chrome
 {
     public class ChromeTabFinder : IWindowProvider
     {
-        private IBrowserSettingsProvider? _settingsService;
         private ILogger? _logger;
+        private PluginSettingsService? _settingsService;
+        private List<string> _browserProcesses = new();
+
+        // Default browser processes if no settings exist
+        private static readonly List<string> DefaultBrowserProcesses = new()
+        {
+            "chrome","msedge","brave","vivaldi","opera","opera_gx","chromium","thorium","iron","epic","yandex","arc","comet"
+        };
+
+        public string PluginName => "ChromeTabFinder";
+        public bool HasSettings => true;
 
         public ChromeTabFinder()
         {
@@ -17,22 +28,54 @@ namespace SwitchBlade.Plugins.Chrome
 
         public void Initialize(object settingsService, ILogger logger)
         {
-           _logger = logger;
-           if (settingsService is IBrowserSettingsProvider service)
-           {
-               _settingsService = service;
-           }
+            _logger = logger;
+            _settingsService = new PluginSettingsService(PluginName);
+            
+            // Initialize settings from Registry or use defaults
+            ReloadSettings();
         }
 
+        public void ReloadSettings()
+        {
+            if (_settingsService == null) return;
 
+            // Check if BrowserProcesses key exists in plugin Registry
+            if (_settingsService.KeyExists("BrowserProcesses"))
+            {
+                _browserProcesses = _settingsService.GetStringList("BrowserProcesses", DefaultBrowserProcesses);
+            }
+            else
+            {
+                // First run or missing key - use defaults and save them
+                _browserProcesses = new List<string>(DefaultBrowserProcesses);
+                _settingsService.SetStringList("BrowserProcesses", _browserProcesses);
+            }
+            
+            _logger?.Log($"ChromeTabFinder: Loaded {_browserProcesses.Count} browser processes");
+        }
+
+        public void ShowSettingsDialog(IntPtr ownerHwnd)
+        {
+            var dialog = new ChromeSettingsWindow(_settingsService!, _browserProcesses);
+            if (ownerHwnd != IntPtr.Zero)
+            {
+                var helper = new WindowInteropHelper(dialog);
+                helper.Owner = ownerHwnd;
+            }
+            dialog.ShowDialog();
+            
+            // Reload settings after dialog closes
+            ReloadSettings();
+        }
 
         public IEnumerable<WindowItem> GetWindows()
         {
             var results = new List<WindowItem>();
-            if (_settingsService == null) return results;
+            if (_settingsService == null || _browserProcesses.Count == 0) return results;
 
-            var targetProcessNames = new HashSet<string>(_settingsService.BrowserProcesses, StringComparer.OrdinalIgnoreCase);
+            var targetProcessNames = new HashSet<string>(_browserProcesses, StringComparer.OrdinalIgnoreCase);
             var targetPids = new HashSet<int>();
+
 
             foreach (var name in targetProcessNames)
             {

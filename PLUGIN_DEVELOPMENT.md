@@ -23,13 +23,21 @@ namespace SwitchBlade.Contracts
 {
     public interface IWindowProvider
     {
+        // 0. Metadata
+        string PluginName { get; }
+        bool HasSettings { get; }
+
         // 1. Initialization: Receive shared application state/settings and logger
         void Initialize(object settingsService, ILogger logger);
 
-        // 2. Refresh: Return a list of items to display in the user's search
+        // 2. Settings Management
+        void ShowSettingsDialog(IntPtr ownerHwnd);
+        void ReloadSettings();
+
+        // 3. Refresh: Return a list of items to display in the user's search
         IEnumerable<WindowItem> GetWindows();
 
-        // 3. Activation: Handle what happens when the user presses Enter on your item
+        // 4. Activation: Handle what happens when the user presses Enter on your item
         void ActivateWindow(WindowItem item);
     }
 }
@@ -76,10 +84,17 @@ namespace MyCustomPlugin
 {
     public class SimpleProvider : IWindowProvider
     {
+        public string PluginName => "SimpleDemo";
+        public bool HasSettings => false;
+
         public void Initialize(object settingsService, ILogger logger)
         {
             // Optional: Store settings/logger if you need them later
         }
+
+        public void ShowSettingsDialog(IntPtr ownerHwnd) { /* No settings */ }
+        
+        public void ReloadSettings() { /* Nothing to reload */ }
 
         public IEnumerable<WindowItem> GetWindows()
         {
@@ -105,59 +120,34 @@ namespace MyCustomPlugin
 
 ## Case Study: ChromeTabFinder
 
-The `ChromeTabFinder` is a real-world example used within SwitchBlade to index individual Chrome tabs as searchable items. It demonstrates complex usage including `UIAutomation` and custom activation logic.
+The `ChromeTabFinder` demonstrates advanced usage, including custom settings storage.
 
-#### 1. Initialization
-It receives the `SettingsService` (as an object) and an `ILogger` instance.
+#### 1. Configuration
+It uses `PluginSettingsService` (available in Contracts) to store settings in the Registry under `HKCU\Software\SwitchBlade\Plugins\ChromeTabFinder`.
 
 ```csharp
-public void Initialize(object settingsService, ILogger logger)
+public void ReloadSettings()
 {
-   _logger = logger;
-   if (settingsService is IBrowserSettingsProvider service)
-   {
-       _settingsService = service;
-   }
+    // Load process list from registry...
 }
 ```
 
-### 2. Getting Windows (Aggregation)
+#### 2. Getting Windows (Aggregation)
 It finds the Browser process, then uses `UIAutomation` (TreeWalker) to find tab controls.
 
 ```csharp
 public IEnumerable<WindowItem> GetWindows()
 {
-    // 1. Get processes from settings interface
-    var processesToScan = _settingsService?.BrowserProcesses ?? new List<string>(); // Safe access
-
-    foreach (var processName in processesToScan)
+    foreach (var processName in _processList)
     {
-        var processes = Process.GetProcessesByName(processName);
-        foreach (var proc in processes)
-        {
-            // 2. Scan the automation tree for "TabItem" controls
-            var foundTabs = FindTabsBFS(AutomationElement.FromHandle(proc.MainWindowHandle));
-            
-            foreach (var tabName in foundTabs)
-            {
-                // 3. Create a WindowItem for each tab
-                results.Add(new WindowItem
-                {
-                    Hwnd = proc.MainWindowHandle, // Same HWND for all tabs in that window
-                    Title = tabName,
-                    ProcessName = proc.ProcessName,
-                    IsChromeTab = true,
-                    Source = this // Links this item back to THIS provider instance
-                });
-            }
-        }
+        // ... Scan automation tree ...
     }
     return results;
 }
 ```
 
 ### 3. Activation (The Payoff)
-When a user selects a specific *tab* (which isn't a separate window in Windows), existing `SetForegroundWindow` isn't enough. The provider must handle the specifics.
+When a user selects a specific *tab*, the provider handles the specifics.
 
 ```csharp
 public void ActivateWindow(WindowItem item)
@@ -166,17 +156,7 @@ public void ActivateWindow(WindowItem item)
     Interop.SetForegroundWindow(item.Hwnd);
     
     // 2. Use UIAutomation to find the specific tab control again
-    var root = AutomationElement.FromHandle(item.Hwnd);
-    var tabElement = FindTabByNameBFS(root, item.Title);
-
-    if (tabElement != null)
-    {
-        // 3. Invoke the pattern to switch tabs inside content
-        if (tabElement.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var pattern))
-        {
-            ((SelectionItemPattern)pattern).Select();
-        }
-    }
+    // ... Select tab pattern ...
 }
 ```
 

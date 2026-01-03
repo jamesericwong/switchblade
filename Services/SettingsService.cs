@@ -4,18 +4,12 @@ using System.Linq;
 using System.Text.Json;
 using Microsoft.Win32;
 
-using SwitchBlade.Contracts;
-
 namespace SwitchBlade.Services
 {
     public class UserSettings
     {
-        public List<string> BrowserProcesses { get; set; } = new List<string> 
-        { 
-            "chrome", "msedge", "brave", "vivaldi", "opera", "opera_gx", 
-            "chromium", "thorium", "iron", "epic", "yandex", "arc", "comet" 
-        };
         public List<string> ExcludedProcesses { get; set; } = new List<string> { "SwitchBlade" };
+        public List<string> DisabledPlugins { get; set; } = new List<string>();
 
         public string CurrentTheme { get; set; } = "Light";
         
@@ -32,6 +26,11 @@ namespace SwitchBlade.Services
         public bool EnableBackgroundPolling { get; set; } = true;
         public int BackgroundPollingIntervalSeconds { get; set; } = 30;
 
+        // Number Shortcuts (press 1-9, 0 to quick-switch)
+        public bool EnableNumberShortcuts { get; set; } = true;
+        // Modifier key for number shortcuts: Alt=1, Ctrl=2, Shift=4, Win=8, None=0
+        public uint NumberShortcutModifier { get; set; } = 1; // Alt
+
         public double WindowWidth { get; set; } = 800.0;
         public double WindowHeight { get; set; } = 600.0;
 
@@ -41,15 +40,12 @@ namespace SwitchBlade.Services
         public uint HotKeyKey { get; set; } = 0x51; // VK_Q
     }
 
-    public class SettingsService : IBrowserSettingsProvider
+    public class SettingsService
     {
         private const string REGISTRY_KEY = @"Software\SwitchBlade";
         private const string STARTUP_REGISTRY_KEY = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string STARTUP_VALUE_NAME = "SwitchBlade";
         public UserSettings Settings { get; private set; }
-        
-        // Interface Implementation
-        public List<string> BrowserProcesses => Settings.BrowserProcesses;
 
         public event Action? SettingsChanged;
 
@@ -61,20 +57,30 @@ namespace SwitchBlade.Services
 
         public void LoadSettings()
         {
+            bool settingsDirty = false;
             using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(REGISTRY_KEY))
             {
                 if (key != null)
                 {
                     try
                     {
-                        // Browser Processes
-                        string? browsersJson = key.GetValue("BrowserProcesses") as string;
-                        if (!string.IsNullOrEmpty(browsersJson))
+                        // Helper to read/convert and mark dirty if missing
+                        T GetValue<T>(string name, T defaultValue)
                         {
-                            var loaded = JsonSerializer.Deserialize<List<string>>(browsersJson);
-                            if (loaded != null && loaded.Count > 0)
+                            object? val = key.GetValue(name);
+                            if (val == null)
                             {
-                                Settings.BrowserProcesses = loaded;
+                                settingsDirty = true;
+                                return defaultValue;
+                            }
+                            try 
+                            { 
+                                return (T)Convert.ChangeType(val, typeof(T)); 
+                            }
+                            catch 
+                            { 
+                                settingsDirty = true;
+                                return defaultValue; 
                             }
                         }
 
@@ -83,68 +89,85 @@ namespace SwitchBlade.Services
                         if (!string.IsNullOrEmpty(excludedJson))
                         {
                             var loaded = JsonSerializer.Deserialize<List<string>>(excludedJson);
-                            if (loaded != null && loaded.Count > 0)
-                            {
-                                Settings.ExcludedProcesses = loaded;
-                            }
+                            if (loaded != null && loaded.Count > 0) Settings.ExcludedProcesses = loaded;
                         }
+                        else settingsDirty = true; // Ensure we save defaults if missing
+
+                        // Disabled Plugins
+                        string? disabledJson = key.GetValue("DisabledPlugins") as string;
+                        if (!string.IsNullOrEmpty(disabledJson))
+                        {
+                            var loaded = JsonSerializer.Deserialize<List<string>>(disabledJson);
+                            if (loaded != null) Settings.DisabledPlugins = loaded;
+                        }
+                        else settingsDirty = true;
 
                         // Theme
-                        Settings.CurrentTheme = key.GetValue("CurrentTheme", "Light") as string ?? "Light";
+                        Settings.CurrentTheme = GetValue("CurrentTheme", "Light");
 
                         // UI Options
-                        Settings.EnablePreviews = Convert.ToBoolean(key.GetValue("EnablePreviews", 1));
-                        Settings.FadeDurationMs = Convert.ToInt32(key.GetValue("FadeDurationMs", 200));
+                        Settings.EnablePreviews = Convert.ToBoolean(GetValue<int>("EnablePreviews", 1));
+                        Settings.FadeDurationMs = GetValue("FadeDurationMs", 200);
                         
-                        // Handle opacity as string because Registry doesn't support double natively well
-                        string opacityStr = key.GetValue("WindowOpacity", "1.0") as string ?? "1.0";
+                        // Handle opacity/doubles
+                        string opacityStr = GetValue("WindowOpacity", "1.0");
                         if (double.TryParse(opacityStr, out double opacity)) Settings.WindowOpacity = opacity;
 
-                        string heightStr = key.GetValue("ItemHeight", "50.0") as string ?? "50.0";
+                        string heightStr = GetValue("ItemHeight", "50.0");
                         if (double.TryParse(heightStr, out double height)) Settings.ItemHeight = height;
 
-                        string widthStr = key.GetValue("WindowWidth", "800.0") as string ?? "800.0";
+                        string widthStr = GetValue("WindowWidth", "800.0");
                         if (double.TryParse(widthStr, out double w)) Settings.WindowWidth = w;
 
-                        string winHeightStr = key.GetValue("WindowHeight", "600.0") as string ?? "600.0";
+                        string winHeightStr = GetValue("WindowHeight", "600.0");
                         if (double.TryParse(winHeightStr, out double h)) Settings.WindowHeight = h;
-
                         
-                        Settings.ShowIcons = Convert.ToBoolean(key.GetValue("ShowIcons", 1));
-                        Settings.HideTaskbarIcon = Convert.ToBoolean(key.GetValue("HideTaskbarIcon", 1));
-                        Settings.LaunchOnStartup = Convert.ToBoolean(key.GetValue("LaunchOnStartup", 0));
+                        Settings.ShowIcons = Convert.ToBoolean(GetValue<int>("ShowIcons", 1));
+                        Settings.HideTaskbarIcon = Convert.ToBoolean(GetValue<int>("HideTaskbarIcon", 1));
+                        Settings.LaunchOnStartup = Convert.ToBoolean(GetValue<int>("LaunchOnStartup", 0));
 
-                        // Hotkey
-                        Settings.HotKeyModifiers = Convert.ToUInt32(key.GetValue("HotKeyModifiers", 6));
-                        Settings.HotKeyKey = Convert.ToUInt32(key.GetValue("HotKeyKey", 0x09));
+                        // Hotkey - Critical Fix: Ensure defaults are enforced and saved if missing
+                        Settings.HotKeyModifiers = Convert.ToUInt32(GetValue<int>("HotKeyModifiers", 6));
+                        Settings.HotKeyKey = Convert.ToUInt32(GetValue<int>("HotKeyKey", 0x51)); // Q
 
                         // Background Polling
-                        Settings.EnableBackgroundPolling = Convert.ToBoolean(key.GetValue("EnableBackgroundPolling", 1));
-                        Settings.BackgroundPollingIntervalSeconds = Convert.ToInt32(key.GetValue("BackgroundPollingIntervalSeconds", 30));
+                        Settings.EnableBackgroundPolling = Convert.ToBoolean(GetValue<int>("EnableBackgroundPolling", 1));
+                        Settings.BackgroundPollingIntervalSeconds = GetValue("BackgroundPollingIntervalSeconds", 30);
+
+                        // Number Shortcuts
+                        Settings.EnableNumberShortcuts = Convert.ToBoolean(GetValue<int>("EnableNumberShortcuts", 1));
+                        Settings.NumberShortcutModifier = Convert.ToUInt32(GetValue<int>("NumberShortcutModifier", 1));
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Fallback to defaults if registry read fails or data is corrupt
+                        // Fatal read error? Reset to safe defaults and force save
+                        SwitchBlade.Core.Logger.LogError("Settings load failed, resetting to defaults", ex);
+                        Settings = new UserSettings(); // Reset
+                        settingsDirty = true;
                     }
                 }
                 else
                 {
-                    // Key doesn't exist, seed with defaults
-                    SaveSettings();
+                    // Key doesn't exist at all
+                    settingsDirty = true;
                 }
             }
 
             // Sync LaunchOnStartup with actual Windows Run registry state
-            // This handles the case where MSI installer set startup but our settings don't know about it
             bool actualStartupEnabled = IsStartupEnabled();
             if (Settings.LaunchOnStartup != actualStartupEnabled)
             {
                 Settings.LaunchOnStartup = actualStartupEnabled;
+                settingsDirty = true;
             }
 
-            // Check for MSI installer startup marker (EnableStartupOnFirstRun)
-            // If the installer set this to 1, enable startup and clear the marker
             CheckAndApplyStartupMarker();
+
+            // HEAL: If we found any missing/corrupt values, save the clean state now
+            if (settingsDirty)
+            {
+                SaveSettings();
+            }
         }
 
         /// <summary>
@@ -191,11 +214,13 @@ namespace SwitchBlade.Services
                 {
                     if (key != null)
                     {
-                        string browsersJson = JsonSerializer.Serialize(Settings.BrowserProcesses);
-                        key.SetValue("BrowserProcesses", browsersJson);
+                        // Browser Processes are now managed by plugins
 
                         string excludedJson = JsonSerializer.Serialize(Settings.ExcludedProcesses);
                         key.SetValue("ExcludedProcesses", excludedJson);
+
+                        string disabledJson = JsonSerializer.Serialize(Settings.DisabledPlugins);
+                        key.SetValue("DisabledPlugins", disabledJson);
 
                         key.SetValue("CurrentTheme", Settings.CurrentTheme);
                         key.SetValue("EnablePreviews", Settings.EnablePreviews ? 1 : 0, RegistryValueKind.DWord);
@@ -214,6 +239,10 @@ namespace SwitchBlade.Services
                         // Background Polling
                         key.SetValue("EnableBackgroundPolling", Settings.EnableBackgroundPolling ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("BackgroundPollingIntervalSeconds", Settings.BackgroundPollingIntervalSeconds, RegistryValueKind.DWord);
+
+                        // Number Shortcuts
+                        key.SetValue("EnableNumberShortcuts", Settings.EnableNumberShortcuts ? 1 : 0, RegistryValueKind.DWord);
+                        key.SetValue("NumberShortcutModifier", Settings.NumberShortcutModifier, RegistryValueKind.DWord);
                     }
                 }
                 SettingsChanged?.Invoke();

@@ -11,6 +11,9 @@ namespace SwitchBlade.Core
     {
         private SettingsService? _settingsService;
 
+        public string PluginName => "WindowFinder";
+        public bool HasSettings => false;
+
         public WindowFinder() { }
 
         public WindowFinder(SettingsService settingsService)
@@ -26,6 +29,17 @@ namespace SwitchBlade.Core
            }
         }
 
+        public void ReloadSettings()
+        {
+            // No plugin-specific settings to reload
+        }
+
+        public void ShowSettingsDialog(IntPtr ownerHwnd)
+        {
+            // No settings dialog for core WindowFinder
+        }
+
+
         public IEnumerable<WindowItem> GetWindows()
         {
             var results = new List<WindowItem>();
@@ -33,14 +47,8 @@ namespace SwitchBlade.Core
 
             var excluded = new HashSet<string>(_settingsService.Settings.ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
             
-            // Auto-exclude processes managed by plugins (Browser processes) to prevent duplication
-            if (_settingsService is IBrowserSettingsProvider browserSettings)
-            {
-                foreach (var browserProc in browserSettings.BrowserProcesses)
-                {
-                    excluded.Add(browserProc);
-                }
-            }
+            // Note: Browser processes are now managed by the ChromeTabFinder plugin.
+            // To prevent duplicate windows, add browser process names to ExcludedProcesses in Settings.
 
             Interop.EnumWindows((hwnd, lParam) =>
             {

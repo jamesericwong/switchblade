@@ -1,16 +1,40 @@
+using System;
 using System.Collections.Generic;
 
 namespace SwitchBlade.Contracts
 {
     public interface IWindowProvider
     {
-        // Called after instantiation to pass dependencies (e.g., SettingsService)
-        // We use 'object' to avoid hard dependency on the main app's SettingsService,
-        // ideally this would be a specific settings interface in Contracts too, but for now 'object' allows loose coupling.
+        /// <summary>
+        /// Unique plugin name used for Registry storage path.
+        /// Must be a valid folder name (no special characters).
+        /// </summary>
+        string PluginName { get; }
+
+        /// <summary>
+        /// Indicates whether this plugin has user-configurable settings.
+        /// </summary>
+        bool HasSettings { get; }
+
+        /// <summary>
+        /// Called after instantiation to pass dependencies.
+        /// </summary>
         void Initialize(object settingsService, ILogger logger);
+
+        /// <summary>
+        /// Called before GetWindows to reload settings from Registry.
+        /// Allows settings changes to take effect without app restart.
+        /// </summary>
+        void ReloadSettings();
 
         IEnumerable<WindowItem> GetWindows();
 
         void ActivateWindow(WindowItem item);
+
+        /// <summary>
+        /// Opens a settings dialog for this plugin.
+        /// </summary>
+        /// <param name="ownerHwnd">Handle to the parent window for modal dialog.</param>
+        void ShowSettingsDialog(IntPtr ownerHwnd);
     }
 }

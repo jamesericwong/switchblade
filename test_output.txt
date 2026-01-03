@@ -1,0 +1,123 @@
+Build started 1/2/2026 8:25:08 PM.
+Test run for d:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.0 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.5.6+bf9b858c26 (64-bit .NET 9.0.5)
+[xUnit.net 00:00:00.03]   Discovering: SwitchBlade.Tests
+[xUnit.net 00:00:00.05]   Discovered:  SwitchBlade.Tests
+[xUnit.net 00:00:00.05]   Starting:    SwitchBlade.Tests
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultEnableBackgroundPolling_IsTrue [2 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.ShowInTaskbar_WithNullSettingsService_ReturnsTrue [2 ms]
+  Passed SwitchBlade.Tests.Core.LoggerBridgeTests.Log_DelegatesToStaticLogger [2 ms]
+  Passed SwitchBlade.Tests.Core.PluginInfoTests.PluginInfo_SetVersion_ReturnsCorrectValue [2 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_SetHwnd_ReturnsCorrectValue [3 ms]
+  Passed SwitchBlade.Tests.Core.WindowFinderTests.Initialize_WithNonSettingsServiceObject_DoesNotThrow [3 ms]
+  Passed SwitchBlade.Tests.Core.LoggerTests.LogError_WritesToFile_WithErrorPrefix [4 ms]
+  Passed SwitchBlade.Tests.ViewModels.RelayCommandTests.Execute_PassesParameterToAction [3 ms]
+  Passed SwitchBlade.Tests.Core.PluginLoaderTests.LoadPlugins_EmptyDirectory_ReturnsEmptyList [4 ms]
+  Passed SwitchBlade.Tests.Core.WindowFinderTests.Constructor_Default_CreatesInstance [< 1 ms]
+  Passed SwitchBlade.Tests.Core.PluginInfoTests.PluginInfo_SetAssemblyName_ReturnsCorrectValue [< 1 ms]
+  Passed SwitchBlade.Tests.Core.LoggerBridgeTests.LoggerBridge_ImplementsILogger [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.RelayCommandTests.CanExecute_PredicateReceivesParameter [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.ToString_WithEmptyProcessName_ReturnsEmptyProcessFormat [< 1 ms]
+  Passed SwitchBlade.Tests.Core.WindowFinderTests.GetWindows_WithNullSettingsService_ReturnsEmptyList [< 1 ms]
+  Passed SwitchBlade.Tests.Core.PluginInfoTests.PluginInfo_DefaultValues_AreEmptyStrings [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_SetProcessName_ReturnsCorrectValue [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.RelayCommandTests.Execute_InvokesAction [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_SetTitle_ReturnsCorrectValue [< 1 ms]
+  Passed SwitchBlade.Tests.Core.PluginInfoTests.PluginInfo_SetTypeName_ReturnsCorrectValue [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_DefaultProcessName_IsEmptyString [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.RelayCommandTests.CanExecute_WithPredicateReturningTrue_ReturnsTrue [< 1 ms]
+  Passed SwitchBlade.Tests.Core.PluginInfoTests.PluginInfo_SetIsInternal_ReturnsCorrectValue [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.EnablePreviews_Change_RaisesPropertyChanged [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.RelayCommandTests.CanExecute_WithPredicateReturningFalse_ReturnsFalse [< 1 ms]
+  Passed SwitchBlade.Tests.Core.PluginInfoTests.PluginInfo_SetName_ReturnsCorrectValue [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_DefaultSource_IsNull [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.RelayCommandTests.CanExecute_WithNoPredicate_ReturnsTrue [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.EnablePreviews_SetValue_UpdatesProperty [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.RelayCommandTests.Constructor_WithNullExecute_DoesNotThrow [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.Constructor_WithEmptyProviders_CreatesEmptyFilteredWindows [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.FilteredWindows_ImplementsINotifyPropertyChanged [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_SetIsChromeTab_ReturnsCorrectValue [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.ToString_ReturnsFormattedString [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.ToString_WithEmptyTitle_ReturnsEmptyTitleFormat [< 1 ms]
+  Passed SwitchBlade.Tests.Core.LoggerBridgeTests.LogError_DelegatesToStaticLogger [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_DefaultTitle_IsEmptyString [< 1 ms]
+  Passed SwitchBlade.Tests.Core.PluginLoaderTests.LoadPlugins_DirectoryDoesNotExist_CreatesDirectoryAndReturnsEmptyList [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_DefaultHwnd_IsZero [< 1 ms]
+  Passed SwitchBlade.Tests.Contracts.WindowItemTests.WindowItem_DefaultIsChromeTab_IsFalse [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultNumberShortcutModifier_IsAlt [1 ms]
+  Passed SwitchBlade.Tests.Core.PluginLoaderTests.LoadPlugins_DirectoryWithNoValidDlls_ReturnsEmptyList [< 1 ms]
+  Passed SwitchBlade.Tests.Core.PluginLoaderTests.Constructor_SetsPluginsPath [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.SearchText_Change_RaisesPropertyChanged [2 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultBackgroundPollingIntervalSeconds_Is30 [1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.SelectedWindow_DefaultValue_IsNull [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.Constructor_SetsDefaultEnablePreviews_ToTrue [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.SearchText_SetValue_UpdatesProperty [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_SetProperty_ReturnsNewValue [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultHotKeyKey_IsQ [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.MoveSelection_WithNullSelectedWindow_DoesNotThrow [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultDisabledPlugins_IsEmpty [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.SearchText_DefaultValue_IsEmptyString [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultEnableNumberShortcuts_IsTrue [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultHotKeyModifiers_IsCtrlShift [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.MainViewModelTests.MoveSelection_WithEmptyList_DoesNotThrow [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultEnablePreviews_IsTrue [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultLaunchOnStartup_IsFalse [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultExcludedProcesses_ContainsSwitchBlade [< 1 ms]
+  Passed SwitchBlade.Tests.Services.UserSettingsTests.UserSettings_DefaultCurrentTheme_IsLight [< 1 ms]
+  Passed SwitchBlade.Tests.Core.LoggerTests.Log_WhenDebugEnabled_IncludesTimestamp [4 ms]
+  Passed SwitchBlade.Tests.Core.LoggerTests.LogError_IncludesStackTrace [8 ms]
+  Passed SwitchBlade.Tests.Core.LoggerTests.Log_WhenDebugEnabled_WritesToFile [< 1 ms]
+  Passed SwitchBlade.Tests.Core.LoggerTests.Log_WhenDebugDisabled_DoesNotWriteToFile [< 1 ms]
+  Passed SwitchBlade.Tests.Core.LoggerTests.IsDebugEnabled_DefaultValue_IsFalse [< 1 ms]
+  Passed SwitchBlade.Tests.Services.ThemeInfoTests.ThemeInfo_DefaultResources_IsNotNull [93 ms]
+  Passed SwitchBlade.Tests.Services.ThemeInfoTests.ThemeInfo_DefaultName_IsEmptyString [< 1 ms]
+  Passed SwitchBlade.Tests.Services.ThemeInfoTests.ThemeInfo_SetName_ReturnsCorrectValue [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.RelayCommandTests.CanExecuteChanged_CanAddAndRemoveHandler [91 ms]
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.RemoveExcludedProcessCommand_IsNotNull [98 ms]
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.Constructor_InitializesLoadedPlugins [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.Constructor_InitializesAvailableThemes [< 1 ms]
+[xUnit.net 00:00:00.19]       Assert.DoesNotContain() Failure: Item found in collection
+[xUnit.net 00:00:00.19]                    Γåô (pos 0)
+[xUnit.net 00:00:00.19]       Collection: ["TestPlugin"]
+[xUnit.net 00:00:00.19]       Found:      "TestPlugin"
+[xUnit.net 00:00:00.19]       Stack Trace:
+[xUnit.net 00:00:00.19]         d:\dev\switchblade\SwitchBlade.Tests\ViewModels\SettingsViewModelTests.cs(187,0): at SwitchBlade.Tests.ViewModels.SettingsViewModelTests.TogglePluginCommand_EnablingPlugin_RemovesFromSettings()
+[xUnit.net 00:00:00.19]            at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+[xUnit.net 00:00:00.19]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.19]   Finished:    SwitchBlade.Tests
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.SelectedExcludedProcess_SetValue_UpdatesProperty [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.TogglePluginCommand_DisablingPlugin_AddsToSettings [4 ms]
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.Constructor_InitializesExcludedProcesses [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.AddExcludedProcessCommand_IsNotNull [< 1 ms]
+  Failed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.TogglePluginCommand_EnablingPlugin_RemovesFromSettings [2 ms]
+  Error Message:
+   Assert.DoesNotContain() Failure: Item found in collection
+             Γåô (pos 0)
+Collection: ["TestPlugin"]
+Found:      "TestPlugin"
+  Stack Trace:
+     at SwitchBlade.Tests.ViewModels.SettingsViewModelTests.TogglePluginCommand_EnablingPlugin_RemovesFromSettings() in d:\dev\switchblade\SwitchBlade.Tests\ViewModels\SettingsViewModelTests.cs:line 187
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.NewExcludedProcessName_SetValue_UpdatesProperty [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.UpdateHotKey_UpdatesSettingsAndRaisesPropertyChanged [< 1 ms]
+  Passed SwitchBlade.Tests.ViewModels.SettingsViewModelTests.ViewModel_ImplementsINotifyPropertyChanged [< 1 ms]
+
+Total tests: 80
+     Passed: 79
+     Failed: 1
+ Total time: 0.5134 Seconds
+     1>Project "d:\dev\switchblade\SwitchBlade.Tests\SwitchBlade.Tests.csproj" on node 1 (VSTest target(s)).
+     1>_VSTestConsole:
+         MSB4181: The "VSTestTask" task returned false but did not log an error.
+     1>Done Building Project "d:\dev\switchblade\SwitchBlade.Tests\SwitchBlade.Tests.csproj" (VSTest target(s)) -- FAILED.
+
+Build FAILED.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.82

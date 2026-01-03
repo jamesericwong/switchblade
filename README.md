@@ -18,6 +18,9 @@ For information on how to build the project and create plugins, please refer to 
 
 - [Build Instructions](BUILD.md): Detailed steps for setting up your environment, building SwitchBlade, and running unit tests.
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
+- [Changelog](CHANGELOG.md): History of changes and versions.
+
+### Current Version: 1.4.0
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:
@@ -97,3 +100,24 @@ SwitchBlade supports optional background polling to keep the window list up-to-d
 ### Concurrency Protection
 The `BackgroundPollingService` uses a `SemaphoreSlim(1, 1)` to ensure only one refresh operation runs at a time. If a refresh is already in progress when the timer ticks, that tick is skipped. This prevents thread contention and race conditions on the window list.
 
+## Number Shortcuts
+
+SwitchBlade supports number shortcuts for instant window switching. When enabled, holding the modifier key and pressing a number key (1-9 or 0) will immediately activate the corresponding window in the list.
+
+### Key Mapping
+| Keys | Window Position |
+| :---: | :---: |
+| `Alt+1` | 1st window |
+| `Alt+2` | 2nd window |
+| ... | ... |
+| `Alt+9` | 9th window |
+| `Alt+0` | 10th window |
+
+### Configuration
+- **Enable Number Shortcuts**: Toggle in Settings (default: enabled)
+- **Shortcut Modifier**: Choose Alt, Ctrl, Shift, or None (default: Alt)
+- Supports both main keyboard number row and NumPad keys
+- When enabled, number badges appear next to the first 10 windows in the list
+
+### Smooth Reordering
+The window list maintains a stable sort (by Process Name → Title → Handle) to minimize visual disruption when new windows appear. Combined with the incremental merge strategy, the numbered positions update smoothly without full list refreshes.
