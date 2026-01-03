@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [1.4.1] - 2026-01-03
 
 ### Added
+- **Keyboard Navigation**:
+  - `Ctrl+Home` / `Ctrl+End`: Jump to first/last item in the list.
+  - `Page Up` / `Page Down`: Move selection by one visible page.
+- **Preserve Selection on Refresh**: New setting (disabled by default) to control whether selection follows window identity or stays at index position during list updates.
 - **Plugin Framework**: Added `CachingWindowProviderBase` abstract base class to `SwitchBlade.Contracts` for thread-safe window scanning with automatic caching.
   - When a scan is in progress, subsequent calls to `GetWindows()` return cached results instead of starting duplicate scans.
   - Includes `IsScanRunning` and `CachedWindows` properties for plugin developers.
@@ -12,6 +16,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **Plugins**: `ChromeTabFinder` and `WindowFinder` now inherit from `CachingWindowProviderBase` for improved concurrency handling.
 - **Docs**: Updated `PLUGIN_DEVELOPMENT.md` with concurrency and caching best practices section.
+- **Docs**: Added comprehensive "Smart Refresh & List Merge Strategy" section to README.
 
 ## [1.4.0] - 2026-01-02
 
