@@ -23,6 +23,8 @@ namespace SwitchBlade.ViewModels
         private string _searchText = "";
         private bool _enablePreviews = true;
         private bool _isUpdating = false;
+        private HashSet<string> _disabledPlugins = new HashSet<string>();
+        private readonly object _lock = new object();
 
         public MainViewModel(IEnumerable<IWindowProvider> windowProviders, SwitchBlade.Services.SettingsService? settingsService = null)
         {
@@ -32,11 +34,23 @@ namespace SwitchBlade.ViewModels
             
             if (_settingsService != null)
             {
+                // Initialize disabled plugins safely
+                lock (_lock)
+                {
+                    _disabledPlugins = new HashSet<string>(_settingsService.Settings.DisabledPlugins);
+                }
+
                 EnablePreviews = _settingsService.Settings.EnablePreviews;
                 _settingsService.SettingsChanged += () => 
                 {
+                    lock (_lock)
+                    {
+                        _disabledPlugins = new HashSet<string>(_settingsService.Settings.DisabledPlugins);
+                    }
                     EnablePreviews = _settingsService.Settings.EnablePreviews;
                     OnPropertyChanged(nameof(ShowInTaskbar));
+                    OnPropertyChanged(nameof(EnableNumberShortcuts));
+                    OnPropertyChanged(nameof(ShortcutModifierText));
                 };
             }
         }
@@ -45,6 +59,26 @@ namespace SwitchBlade.ViewModels
         {
             get => _enablePreviews;
             set { _enablePreviews = value; OnPropertyChanged(); }
+        }
+
+        public bool EnableNumberShortcuts
+        {
+            get => _settingsService?.Settings.EnableNumberShortcuts ?? true;
+        }
+
+        public string ShortcutModifierText
+        {
+            get
+            {
+                var modifier = _settingsService?.Settings.NumberShortcutModifier ?? 1;
+                return modifier switch
+                {
+                    1 => "Alt",
+                    2 => "Ctrl",
+                    4 => "Shift",
+                    _ => ""
+                };
+            }
         }
 
         public bool ShowInTaskbar
@@ -97,7 +131,24 @@ namespace SwitchBlade.ViewModels
             {
                 try
                 {
-                    var results = provider.GetWindows().ToList();
+                    // Check if disabled
+                    bool isDisabled;
+                    lock (_lock)
+                    {
+                        isDisabled = _disabledPlugins.Contains(provider.PluginName);
+                    }
+
+                    List<WindowItem> results;
+                    if (isDisabled)
+                    {
+                        results = new List<WindowItem>();
+                    }
+                    else
+                    {
+                        // Reload settings before getting windows to pick up any changes
+                        provider.ReloadSettings();
+                        results = provider.GetWindows().ToList();
+                    }
                     
                     // Optimization: Diff check
                     // Check if the current list for this provider is identical to the new results.

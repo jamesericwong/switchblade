@@ -81,22 +81,16 @@ public partial class App : Application
 
         // Context Menu
         var contextMenu = new ContextMenuStrip();
+        var showItem = new ToolStripMenuItem("Show", null, (s, args) => ShowMainWindow());
+        showItem.Font = new Font(showItem.Font, System.Drawing.FontStyle.Bold);
+        contextMenu.Items.Add(showItem);
         contextMenu.Items.Add("Settings", null, (s, args) => OpenSettings());
         contextMenu.Items.Add("-"); // Separator
         contextMenu.Items.Add("Exit", null, (s, args) => Shutdown());
         _trayIcon.ContextMenuStrip = contextMenu;
 
-        // Click to toggle
-        _trayIcon.Click += (s, args) =>
-        {
-            if (args is System.Windows.Forms.MouseEventArgs me && me.Button == MouseButtons.Left)
-            {
-                // Toggle Window logic if needed, or just show settings?
-                // Typically user uses Hotkey. 
-                // Let's just OpenSettings for now or nothing.
-                // Implementation choice: do nothing on single click, or bring to front?
-            }
-        };
+        // Double Click to Show
+        _trayIcon.DoubleClick += (s, args) => ShowMainWindow();
 
         // Create MainWindow manually (removed StartupUri from App.xaml)
         _mainWindow = new MainWindow();
@@ -109,6 +103,33 @@ public partial class App : Application
         else
         {
             SwitchBlade.Core.Logger.Log("Starting minimized - MainWindow hidden until hotkey is pressed");
+        }
+    }
+
+    private void ShowMainWindow()
+    {
+        if (_mainWindow != null)
+        {
+            // Replicate the logic from HotKeyService/MainWindow HotKey handler
+            // to ensure consistent "fresh" state (preview hidden, search box focused)
+            _mainWindow.Opacity = 0; 
+            _mainWindow.Show();
+            
+            if (_mainWindow.WindowState == WindowState.Minimized)
+            {
+                _mainWindow.WindowState = WindowState.Normal;
+            }
+            
+            _mainWindow.Activate();
+
+            // We need to trigger the same "Reset" logic that happens on hotkey
+            // Since we don't have direct access to private methods, we'll expose a public Activate/Reset method on MainWindow
+            // Or just trigger the refresh via ViewModel if public.
+            // BETTER: Let's call a public method on MainWindow that handles "Open".
+            if (_mainWindow is MainWindow mw)
+            {
+                mw.ForceOpen();
+            }
         }
     }
 
@@ -144,11 +165,13 @@ public partial class App : Application
                 var assembly = type.Assembly;
                 plugins.Add(new SwitchBlade.Core.PluginInfo
                 {
-                    Name = type.Name, // Using Type Name as display name for now
+                    Name = provider.PluginName, // Use PluginName from interface
                     TypeName = type.FullName ?? type.Name,
                     AssemblyName = assembly.GetName().Name ?? "Unknown",
                     Version = assembly.GetName().Version?.ToString() ?? "0.0.0",
-                    IsInternal = assembly == typeof(App).Assembly
+                    IsInternal = assembly == typeof(App).Assembly,
+                    HasSettings = provider.HasSettings,
+                    Provider = provider
                 });
             }
         }

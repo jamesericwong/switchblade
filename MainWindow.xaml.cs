@@ -88,6 +88,24 @@ namespace SwitchBlade
             _ = _viewModel.RefreshWindows();
         }
 
+        public void ForceOpen()
+        {
+             // Apply Settings
+             var app = (App)System.Windows.Application.Current;
+             this.Opacity = 0; // Start transparent for fade in
+             this.Show();
+             this.WindowState = WindowState.Normal;
+             this.Activate();
+             SwitchBlade.Core.Interop.ForceForegroundWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+             
+             SearchBox.Focus();
+             SearchBox.Text = "";
+             
+             FadeIn();
+             _ = _viewModel.RefreshWindows();
+             SwitchBlade.Core.Logger.Log("Forced Open (Tray/Menu).");
+        }
+
         private void OnHotKeyPressed()
         {
             SwitchBlade.Core.Logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
@@ -98,18 +116,7 @@ namespace SwitchBlade
             }
             else
             {
-                // Apply Settings
-                var app = (App)System.Windows.Application.Current;
-                this.Opacity = 0; // Start transparent for fade in
-                this.Show();
-                this.WindowState = WindowState.Normal;
-                this.Activate();
-                SearchBox.Focus();
-                SearchBox.Text = "";
-                
-                FadeIn();
-                _ = _viewModel.RefreshWindows();
-                SwitchBlade.Core.Logger.Log("Showing Window (Activated & Focused).");
+               ForceOpen();
             }
         }
 
@@ -293,6 +300,74 @@ namespace SwitchBlade
             {
                 ActivateWindow(_viewModel.SelectedWindow);
                 e.Handled = true;
+            }
+            // Number Shortcuts Feature
+            else if (((App)System.Windows.Application.Current).SettingsService.Settings.EnableNumberShortcuts)
+            {
+                var settings = ((App)System.Windows.Application.Current).SettingsService.Settings;
+                // Check if the required modifier key is pressed
+                if (IsModifierKeyPressed(settings.NumberShortcutModifier))
+                {
+                    // When Alt is pressed, WPF sets e.Key to Key.System and the actual key is in e.SystemKey
+                    Key actualKey = (e.Key == Key.System) ? e.SystemKey : e.Key;
+                    int? index = GetNumberKeyIndex(actualKey);
+                    if (index.HasValue)
+                    {
+                        ActivateWindowByIndex(index.Value);
+                        e.Handled = true;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks if the specified modifier key is currently pressed.
+        /// Modifier values: Alt=1, Ctrl=2, Shift=4, None=0
+        /// </summary>
+        private bool IsModifierKeyPressed(uint modifier)
+        {
+            return modifier switch
+            {
+                0 => true, // No modifier required
+                1 => Keyboard.Modifiers.HasFlag(ModifierKeys.Alt),
+                2 => Keyboard.Modifiers.HasFlag(ModifierKeys.Control),
+                4 => Keyboard.Modifiers.HasFlag(ModifierKeys.Shift),
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Maps a key to a window index (0-9). Returns null if the key is not a number key.
+        /// Keys 1-9 map to indices 0-8, key 0 maps to index 9.
+        /// </summary>
+        private int? GetNumberKeyIndex(Key key)
+        {
+            return key switch
+            {
+                Key.D1 or Key.NumPad1 => 0,
+                Key.D2 or Key.NumPad2 => 1,
+                Key.D3 or Key.NumPad3 => 2,
+                Key.D4 or Key.NumPad4 => 3,
+                Key.D5 or Key.NumPad5 => 4,
+                Key.D6 or Key.NumPad6 => 5,
+                Key.D7 or Key.NumPad7 => 6,
+                Key.D8 or Key.NumPad8 => 7,
+                Key.D9 or Key.NumPad9 => 8,
+                Key.D0 or Key.NumPad0 => 9,
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Activates a window by its index in the filtered list.
+        /// </summary>
+        private void ActivateWindowByIndex(int index)
+        {
+            if (index >= 0 && index < _viewModel.FilteredWindows.Count)
+            {
+                var windowItem = _viewModel.FilteredWindows[index];
+                SwitchBlade.Core.Logger.Log($"Number shortcut activated: index {index} -> '{windowItem.Title}'");
+                ActivateWindow(windowItem);
             }
         }
 

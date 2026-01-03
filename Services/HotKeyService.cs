@@ -62,7 +62,15 @@ namespace SwitchBlade.Services
         {
             var mods = _settingsService.Settings.HotKeyModifiers;
             var key = _settingsService.Settings.HotKeyKey;
-            Interop.RegisterHotKey(handle, HOTKEY_ID, mods, key);
+            bool success = Interop.RegisterHotKey(handle, HOTKEY_ID, mods, key);
+            if (!success)
+            {
+                Logger.LogError($"Failed to register hotkey. Mods: {mods}, Key: {key:X}");
+            }
+            else
+            {
+                Logger.Log($"Registered hotkey. Mods: {mods}, Key: {key:X}");
+            }
         }
 
         private void UnregisterHotKey(IntPtr handle)

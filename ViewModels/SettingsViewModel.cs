@@ -12,25 +12,12 @@ namespace SwitchBlade.ViewModels
     {
         private readonly SettingsService _settingsService;
         private readonly ThemeService _themeService;
-        private string _newProcessName = "";
-        private string _selectedProcess = "";
         private string _selectedTheme;
 
-        public ObservableCollection<string> BrowserProcesses { get; set; }
         public ObservableCollection<string> AvailableThemes { get; set; }
         public ObservableCollection<PluginInfo> LoadedPlugins { get; private set; }
 
-        public string NewProcessName
-        {
-            get => _newProcessName;
-            set { _newProcessName = value; OnPropertyChanged(); }
-        }
 
-        public string SelectedProcess
-        {
-            get => _selectedProcess;
-            set { _selectedProcess = value; OnPropertyChanged(); }
-        }
 
         public string SelectedTheme
         {
@@ -95,50 +82,73 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.BackgroundPollingIntervalSeconds = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool EnableNumberShortcuts
+        {
+            get => _settingsService.Settings.EnableNumberShortcuts;
+            set { _settingsService.Settings.EnableNumberShortcuts = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
 
-        public ICommand AddProcessCommand { get; }
-        public ICommand RemoveProcessCommand { get; }
+        public ObservableCollection<string> AvailableShortcutModifiers { get; } = new ObservableCollection<string>
+        {
+            "Alt", "Ctrl", "Shift", "None"
+        };
+
+        public string SelectedShortcutModifier
+        {
+            get => ModifierValueToString(_settingsService.Settings.NumberShortcutModifier);
+            set 
+            { 
+                _settingsService.Settings.NumberShortcutModifier = StringToModifierValue(value);
+                OnPropertyChanged(); 
+                _settingsService.SaveSettings(); 
+            }
+        }
+
+        private static string ModifierValueToString(uint value) => value switch
+        {
+            1 => "Alt",
+            2 => "Ctrl",
+            4 => "Shift",
+            _ => "None"
+        };
+
+        private static uint StringToModifierValue(string value) => value switch
+        {
+            "Alt" => 1,
+            "Ctrl" => 2,
+            "Shift" => 4,
+            _ => 0
+        };
+
+
 
         public SettingsViewModel(SettingsService settingsService, ThemeService themeService, IEnumerable<PluginInfo> plugins)
         {
             _settingsService = settingsService;
             _themeService = themeService;
+            
+            // Initialize enabled state
+            foreach (var plugin in plugins)
+            {
+                if (_settingsService.Settings.DisabledPlugins.Contains(plugin.Name))
+                {
+                    plugin.IsEnabled = false;
+                }
+            }
+            
             LoadedPlugins = new ObservableCollection<PluginInfo>(plugins);
 
-            BrowserProcesses = new ObservableCollection<string>(_settingsService.Settings.BrowserProcesses);
             ExcludedProcesses = new ObservableCollection<string>(_settingsService.Settings.ExcludedProcesses);
             AvailableThemes = new ObservableCollection<string>(_themeService.AvailableThemes.Select(t => t.Name));
             
             _selectedTheme = _settingsService.Settings.CurrentTheme;
 
-            AddProcessCommand = new RelayCommand(_ => AddProcess(), _ => !string.IsNullOrWhiteSpace(NewProcessName));
-            RemoveProcessCommand = new RelayCommand(_ => RemoveProcess(), _ => !string.IsNullOrEmpty(SelectedProcess));
-
+            TogglePluginCommand = new RelayCommand(param => TogglePlugin(param));
             AddExcludedProcessCommand = new RelayCommand(_ => AddExcludedProcess(), _ => !string.IsNullOrWhiteSpace(NewExcludedProcessName));
             RemoveExcludedProcessCommand = new RelayCommand(_ => RemoveExcludedProcess(), _ => !string.IsNullOrEmpty(SelectedExcludedProcess));
         }
 
-        private void AddProcess()
-        {
-            if (!BrowserProcesses.Contains(NewProcessName))
-            {
-                BrowserProcesses.Add(NewProcessName);
-                _settingsService.Settings.BrowserProcesses.Add(NewProcessName);
-                _settingsService.SaveSettings();
-                NewProcessName = "";
-            }
-        }
 
-        private void RemoveProcess()
-        {
-            var processToRemove = SelectedProcess;
-            if (!string.IsNullOrEmpty(processToRemove) && BrowserProcesses.Contains(processToRemove))
-            {
-                BrowserProcesses.Remove(processToRemove);
-                _settingsService.Settings.BrowserProcesses.Remove(processToRemove);
-                _settingsService.SaveSettings();
-            }
-        }
 
         public string HotKeyString
         {
@@ -186,6 +196,28 @@ namespace SwitchBlade.ViewModels
 
         public ICommand AddExcludedProcessCommand { get; }
         public ICommand RemoveExcludedProcessCommand { get; }
+        public ICommand TogglePluginCommand { get; }
+
+        private void TogglePlugin(object? param)
+        {
+            if (param is PluginInfo plugin)
+            {
+                // IsEnabled is bound to the CheckBox, so it's already updated in the object
+                // We just need to sync with Settings
+                if (plugin.IsEnabled)
+                {
+                    _settingsService.Settings.DisabledPlugins.Remove(plugin.Name);
+                }
+                else
+                {
+                    if (!_settingsService.Settings.DisabledPlugins.Contains(plugin.Name))
+                    {
+                        _settingsService.Settings.DisabledPlugins.Add(plugin.Name);
+                    }
+                }
+                _settingsService.SaveSettings();
+            }
+        }
 
         private void AddExcludedProcess()
         {

@@ -24,18 +24,7 @@ namespace SwitchBlade.Tests.ViewModels
             return new ThemeService(settingsService);
         }
 
-        [Fact]
-        public void Constructor_InitializesBrowserProcesses()
-        {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var plugins = Enumerable.Empty<PluginInfo>();
 
-            var vm = new SettingsViewModel(settingsService, themeService, plugins);
-
-            Assert.NotNull(vm.BrowserProcesses);
-            Assert.NotEmpty(vm.BrowserProcesses);
-        }
 
         [Fact]
         public void Constructor_InitializesExcludedProcesses()
@@ -78,47 +67,7 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal("TestPlugin", vm.LoadedPlugins.First().Name);
         }
 
-        [Fact]
-        public void NewProcessName_SetValue_UpdatesProperty()
-        {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
 
-            vm.NewProcessName = "firefox";
-
-            Assert.Equal("firefox", vm.NewProcessName);
-        }
-
-        [Fact]
-        public void NewProcessName_Change_RaisesPropertyChanged()
-        {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
-            var propertyChangedRaised = false;
-            vm.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == nameof(SettingsViewModel.NewProcessName))
-                    propertyChangedRaised = true;
-            };
-
-            vm.NewProcessName = "firefox";
-
-            Assert.True(propertyChangedRaised);
-        }
-
-        [Fact]
-        public void SelectedProcess_SetValue_UpdatesProperty()
-        {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
-
-            vm.SelectedProcess = "chrome";
-
-            Assert.Equal("chrome", vm.SelectedProcess);
-        }
 
         [Fact]
         public void NewExcludedProcessName_SetValue_UpdatesProperty()
@@ -144,25 +93,7 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal("TextInputHost", vm.SelectedExcludedProcess);
         }
 
-        [Fact]
-        public void AddProcessCommand_IsNotNull()
-        {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
 
-            Assert.NotNull(vm.AddProcessCommand);
-        }
-
-        [Fact]
-        public void RemoveProcessCommand_IsNotNull()
-        {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
-
-            Assert.NotNull(vm.RemoveProcessCommand);
-        }
 
         [Fact]
         public void AddExcludedProcessCommand_IsNotNull()
@@ -210,6 +141,52 @@ namespace SwitchBlade.Tests.ViewModels
             var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
 
             Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
+            Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
+        }
+
+        [Fact]
+        public void TogglePluginCommand_DisablingPlugin_AddsToSettings()
+        {
+            var settingsService = new SettingsService();
+            var themeService = CreateThemeService(settingsService);
+            var plugin = new PluginInfo { Name = "TestPlugin" };
+            var plugins = new List<PluginInfo> { plugin };
+            
+            var vm = new SettingsViewModel(settingsService, themeService, plugins);
+
+            // Simulate unchecking the box (IsEnabled goes false)
+            plugin.IsEnabled = false;
+            
+            // Execute command
+            vm.TogglePluginCommand.Execute(plugin);
+
+            Assert.Contains("TestPlugin", settingsService.Settings.DisabledPlugins);
+        }
+
+        [Fact]
+        public void TogglePluginCommand_EnablingPlugin_RemovesFromSettings()
+        {
+            var settingsService = new SettingsService();
+            // Clear any existing settings from registry to avoid duplicates
+            settingsService.Settings.DisabledPlugins.Clear();
+            settingsService.Settings.DisabledPlugins.Add("TestPlugin");
+            
+            var themeService = CreateThemeService(settingsService);
+            var plugin = new PluginInfo { Name = "TestPlugin" }; // Constructor should see it's disabled
+            var plugins = new List<PluginInfo> { plugin };
+            
+            var vm = new SettingsViewModel(settingsService, themeService, plugins);
+            
+            // Verify initial state
+            Assert.False(plugin.IsEnabled);
+
+            // Simulate checking the box
+            plugin.IsEnabled = true;
+
+            // Execute command
+            vm.TogglePluginCommand.Execute(plugin);
+
+            Assert.DoesNotContain("TestPlugin", settingsService.Settings.DisabledPlugins);
         }
     }
 }

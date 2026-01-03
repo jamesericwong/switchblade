@@ -28,6 +28,19 @@ namespace SwitchBlade.Core
             }
         }
 
+        public static void LogError(string message)
+        {
+            try 
+            {
+                 var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] ERROR: {message}{Environment.NewLine}";
+                 lock (_lock)
+                 {
+                    File.AppendAllText(LogPath, line);
+                 }
+            }
+            catch { }
+        }
+
         public static void LogError(string context, Exception ex)
         {
             // We force logging for errors even if debug is disabled, 
