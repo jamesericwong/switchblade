@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Xunit;
+using Moq;
 using SwitchBlade.Core;
 
 namespace SwitchBlade.Tests.Core
@@ -26,8 +27,9 @@ namespace SwitchBlade.Tests.Core
         public void LoadPlugins_DirectoryDoesNotExist_CreatesDirectoryAndReturnsEmptyList()
         {
             var loader = new PluginLoader(_testPluginsPath);
+            var mockContext = new Mock<SwitchBlade.Contracts.IPluginContext>();
 
-            var result = loader.LoadPlugins();
+            var result = loader.LoadPlugins(mockContext.Object);
 
             Assert.Empty(result);
             Assert.True(Directory.Exists(_testPluginsPath));
@@ -38,8 +40,9 @@ namespace SwitchBlade.Tests.Core
         {
             Directory.CreateDirectory(_testPluginsPath);
             var loader = new PluginLoader(_testPluginsPath);
+            var mockContext = new Mock<SwitchBlade.Contracts.IPluginContext>();
 
-            var result = loader.LoadPlugins();
+            var result = loader.LoadPlugins(mockContext.Object);
 
             Assert.Empty(result);
         }
@@ -51,8 +54,9 @@ namespace SwitchBlade.Tests.Core
             // Create a non-DLL file
             File.WriteAllText(Path.Combine(_testPluginsPath, "readme.txt"), "Test file");
             var loader = new PluginLoader(_testPluginsPath);
+            var mockContext = new Mock<SwitchBlade.Contracts.IPluginContext>();
 
-            var result = loader.LoadPlugins();
+            var result = loader.LoadPlugins(mockContext.Object);
 
             Assert.Empty(result);
         }

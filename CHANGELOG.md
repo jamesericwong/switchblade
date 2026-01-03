@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.7] - 2026-01-03
+
+### Changed
+- **DI & Service Locator Refactoring**:
+  - Eliminated Service Locator usages in `MainWindow` and `Helpers`.
+  - Refactored `MainWindow` to use full Constructor Injection for `ISettingsService`, `IDispatcherService`, and `ILogger`.
+  - Converted `Logger` to a proper Singleton `ILogger` implementation, removing `LoggerBridge` and static dependency usage in core services.
+  - Updated `PluginLoader` to simplified dependency passing logic.
+  - Standardized `IWindowProvider.Initialize` to use `IPluginContext` consistently, with `CachingWindowProviderBase` exposing a protected `Logger` property for derived plugins.
+
+### Fixed
+- **Logging**: Fixed duplicate `ILogger` method definitions and potential file lock contention.
+- **Unit Tests**: Updated test suite to use `Moq` for `IPluginContext` and `ILogger`, achieving greater isolation and reliability.
+
 ## [1.4.6] - 2026-01-03
 
 ### Changed

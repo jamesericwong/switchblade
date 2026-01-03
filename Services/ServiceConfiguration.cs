@@ -28,14 +28,14 @@ namespace SwitchBlade.Services
             services.AddSingleton<IDispatcherService, WpfDispatcherService>();
 
             // Logger
-            services.AddSingleton<ILogger, LoggerBridge>();
+            services.AddSingleton<ILogger>(Logger.Instance);
             services.AddSingleton<IPluginContext>(sp => new PluginContext(sp.GetRequiredService<ILogger>()));
 
             // Window Providers
             services.AddSingleton<WindowFinder>(sp =>
             {
                 var finder = new WindowFinder(sp.GetRequiredService<SettingsService>());
-                finder.Initialize(sp.GetRequiredService<IPluginContext>());
+                // No manual Initialize needed anymore as it's part of context
                 return finder;
             });
 
@@ -43,12 +43,21 @@ namespace SwitchBlade.Services
             services.AddTransient<MainViewModel>(sp =>
             {
                 var providers = GetAllProviders(sp);
+                // Ensure WindowFinder is initialized properly with context!
+                // Wait, GetAllProviders handles plugins, but internal WindowFinder needs manual init?
+                // Actually, GetAllProviders adds WindowFinder manually.
+                // Let's make sure WindowFinder is initialized.
+                var finder = sp.GetRequiredService<WindowFinder>();
+                finder.Initialize(sp.GetRequiredService<IPluginContext>());
+
                 return new MainViewModel(
                     providers,
                     sp.GetRequiredService<ISettingsService>(),
                     sp.GetRequiredService<IDispatcherService>()
                 );
             });
+
+            services.AddSingleton<MainWindow>();
 
             services.AddTransient<SettingsViewModel>();
 
@@ -71,13 +80,9 @@ namespace SwitchBlade.Services
             {
                 var pluginPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
                 var loader = new PluginLoader(pluginPath);
-                var plugins = loader.LoadPlugins();
+                var plugins = loader.LoadPlugins(context);
 
-                foreach (var plugin in plugins)
-                {
-                    plugin.Initialize(context);
-                    providers.Add(plugin);
-                }
+                providers.AddRange(plugins);
             }
             catch (Exception ex)
             {
@@ -85,25 +90,6 @@ namespace SwitchBlade.Services
             }
 
             return providers;
-        }
-    }
-
-    /// <summary>
-    /// Logger bridge that implements ILogger from Contracts.
-    /// </summary>
-    public class LoggerBridge : ILogger
-    {
-        public void Log(string message) => SwitchBlade.Core.Logger.Log(message);
-        public void LogError(string message, Exception? ex)
-        {
-            if (ex != null)
-            {
-                SwitchBlade.Core.Logger.LogError(message, ex);
-            }
-            else
-            {
-                SwitchBlade.Core.Logger.Log($"[Error] {message}");
-            }
         }
     }
 }

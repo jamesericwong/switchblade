@@ -1,4 +1,5 @@
 using Xunit;
+using Moq;
 using SwitchBlade.Core;
 using SwitchBlade.Contracts;
 
@@ -28,10 +29,12 @@ namespace SwitchBlade.Tests.Core
         public void Initialize_WithPluginContext_DoesNotThrow()
         {
             var finder = new WindowFinder();
-            var context = new PluginContext(new LoggerBridge());
+            var mockLogger = new Mock<ILogger>();
+            var mockContext = new Mock<IPluginContext>();
+            mockContext.Setup(c => c.Logger).Returns(mockLogger.Object);
 
             // Should initialize without throwing
-            finder.Initialize(context);
+            finder.Initialize(mockContext.Object);
 
             // GetWindows should still return empty since settings weren't set
             var result = finder.GetWindows();

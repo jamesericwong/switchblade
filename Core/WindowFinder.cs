@@ -90,12 +90,12 @@ namespace SwitchBlade.Core
                 if (excluded.Contains(processName) || _dynamicExclusions.Contains(processName, StringComparer.OrdinalIgnoreCase))
                 {
                     // Do not log "excluded" for browsers to reduce noise, or log as debug if needed
-                    Logger.Log($"Excluded Window '{title}' from process '{processName}' (Matched Exclusion)");
+                    base.Logger?.Log($"Excluded Window '{title}' from process '{processName}' (Matched Exclusion)");
                     return true;
                 }
 
                 // Debug log
-                Logger.Log($"Included Window: '{title}', Process: '{processName}' (Exclusions: {string.Join(",", _dynamicExclusions)})");
+                base.Logger?.Log($"Included Window: '{title}', Process: '{processName}' (Exclusions: {string.Join(",", _dynamicExclusions)})");
 
                 results.Add(new WindowItem
                 {

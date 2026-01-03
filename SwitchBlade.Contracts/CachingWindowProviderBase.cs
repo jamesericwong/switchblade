@@ -20,7 +20,12 @@ namespace SwitchBlade.Contracts
         private readonly object _scanLock = new object();
         private volatile bool _isScanRunning = false;
         private IList<WindowItem> _cachedWindows = new List<WindowItem>();
-        private ILogger? _logger;
+
+        /// <summary>
+        /// Logger instance provided by the plugin context.
+        /// Derived classes can use this for logging.
+        /// </summary>
+        protected ILogger? Logger { get; private set; }
 
         /// <summary>
         /// Indicates whether a scan is currently in progress.
@@ -42,7 +47,7 @@ namespace SwitchBlade.Contracts
         /// <inheritdoc />
         public virtual void Initialize(IPluginContext context)
         {
-            _logger = context.Logger;
+            Logger = context.Logger;
         }
 
         /// <inheritdoc />
@@ -75,7 +80,7 @@ namespace SwitchBlade.Contracts
             // Fast path: if a scan is already running, return cached results
             if (_isScanRunning)
             {
-                _logger?.Log($"{PluginName}: Scan in progress, returning {_cachedWindows.Count} cached results");
+                Logger?.Log($"{PluginName}: Scan in progress, returning {_cachedWindows.Count} cached results");
                 return _cachedWindows.ToList(); // Return a copy to avoid collection modification issues
             }
 
@@ -84,7 +89,7 @@ namespace SwitchBlade.Contracts
                 // Double-check after acquiring lock
                 if (_isScanRunning)
                 {
-                    _logger?.Log($"{PluginName}: Scan in progress (after lock), returning cached results");
+                    Logger?.Log($"{PluginName}: Scan in progress (after lock), returning cached results");
                     return _cachedWindows.ToList();
                 }
 
@@ -93,7 +98,7 @@ namespace SwitchBlade.Contracts
 
             try
             {
-                _logger?.Log($"{PluginName}: Starting window scan");
+                Logger?.Log($"{PluginName}: Starting window scan");
                 var results = ScanWindowsCore().ToList();
 
                 lock (_scanLock)
@@ -101,12 +106,12 @@ namespace SwitchBlade.Contracts
                     _cachedWindows = results;
                 }
 
-                _logger?.Log($"{PluginName}: Scan complete, found {results.Count} windows");
+                Logger?.Log($"{PluginName}: Scan complete, found {results.Count} windows");
                 return results;
             }
             catch (Exception ex)
             {
-                _logger?.LogError($"{PluginName}: Error during scan", ex);
+                Logger?.LogError($"{PluginName}: Error during scan", ex);
                 // Return cached results on error
                 return _cachedWindows.ToList();
             }

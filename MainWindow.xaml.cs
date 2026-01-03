@@ -16,32 +16,34 @@ namespace SwitchBlade
     public partial class MainWindow : Window
     {
         private readonly MainViewModel _viewModel;
-        private readonly IServiceProvider _serviceProvider;
         private readonly ISettingsService _settingsService;
+        private readonly IDispatcherService _dispatcherService;
+        private readonly ILogger _logger;
         private readonly KeyboardInputHandler _keyboardHandler;
         private readonly WindowResizeHandler _resizeHandler;
+
         private HotKeyService? _hotKeyService;
         private ThumbnailService? _thumbnailService;
         private BackgroundPollingService? _backgroundPollingService;
         private IntPtr _lastThumbnailHwnd = IntPtr.Zero;
+
         public List<IWindowProvider> Providers { get; private set; } = new List<IWindowProvider>();
 
-        public MainWindow(IServiceProvider serviceProvider)
+        // Constructor Injection - Explicit Dependencies
+        public MainWindow(
+            MainViewModel viewModel,
+            ISettingsService settingsService,
+            IDispatcherService dispatcherService,
+            ILogger logger)
         {
             InitializeComponent();
 
-            _serviceProvider = serviceProvider;
-            _settingsService = serviceProvider.GetRequiredService<ISettingsService>();
+            _viewModel = viewModel;
+            _settingsService = settingsService;
+            _dispatcherService = dispatcherService;
+            _logger = logger;
 
-            // Get providers from DI (already initialized by ServiceConfiguration)
-            var windowFinder = serviceProvider.GetRequiredService<WindowFinder>();
-            Providers.Add(windowFinder);
-
-            // Load additional plugins (already loaded by ServiceConfiguration's GetAllProviders)
-            // We need to get the same list that was passed to MainViewModel
-            _viewModel = serviceProvider.GetRequiredService<MainViewModel>();
-
-            // Sync Providers list with what's in the ViewModel
+            // Sync Providers list with what's in the ViewModel (ViewModel is the source of truth for providers)
             Providers.Clear();
             foreach (var provider in _viewModel.WindowProviders)
             {
@@ -59,7 +61,7 @@ namespace SwitchBlade
                 ActivateWindow,
                 () => ResultsConfig.ActualHeight);
 
-            _resizeHandler = new WindowResizeHandler(this);
+            _resizeHandler = new WindowResizeHandler(this, _logger);
 
             this.Loaded += MainWindow_Loaded;
             this.PreviewKeyDown += _keyboardHandler.HandleKeyDown;
@@ -80,24 +82,24 @@ namespace SwitchBlade
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            SwitchBlade.Core.Logger.Log($"MainWindow Loaded. Initial Size: {this.Width}x{this.Height}, ResizeMode: {this.ResizeMode}, Style: {this.WindowStyle}");
+            _logger.Log($"MainWindow Loaded. Initial Size: {this.Width}x{this.Height}, ResizeMode: {this.ResizeMode}, Style: {this.WindowStyle}");
 
             // Initialize Services that require Window handle
-            _hotKeyService = new HotKeyService(this, _settingsService, OnHotKeyPressed);
-            _thumbnailService = new ThumbnailService(this);
+            _hotKeyService = new HotKeyService(this, _settingsService, _logger, OnHotKeyPressed);
+            _thumbnailService = new ThumbnailService(this, _logger);
             _thumbnailService.SetPreviewContainer(PreviewCanvas);
 
             // Initialize Background Polling Service
             _backgroundPollingService = new BackgroundPollingService(
                 _settingsService,
-                _serviceProvider.GetRequiredService<IDispatcherService>(),
+                _dispatcherService,
                 () => _viewModel.RefreshWindows());
 
             // Initial load
             this.Width = _settingsService.Settings.WindowWidth;
             this.Height = _settingsService.Settings.WindowHeight;
 
-            SwitchBlade.Core.Logger.Log($"Applied Settings Size: {this.Width}x{this.Height}");
+            _logger.Log($"Applied Settings Size: {this.Width}x{this.Height}");
 
             SearchBox.Focus();
             _ = _viewModel.RefreshWindows();
@@ -118,15 +120,15 @@ namespace SwitchBlade
 
             FadeIn();
             _ = _viewModel.RefreshWindows();
-            SwitchBlade.Core.Logger.Log("Forced Open (Tray/Menu).");
+            _logger.Log("Forced Open (Tray/Menu).");
         }
 
         private void OnHotKeyPressed()
         {
-            SwitchBlade.Core.Logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
+            _logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
             if (this.Visibility == Visibility.Visible)
             {
-                SwitchBlade.Core.Logger.Log("Hiding Window.");
+                _logger.Log("Hiding Window.");
                 FadeOut(() => this.Hide());
             }
             else
@@ -231,11 +233,8 @@ namespace SwitchBlade
                 }
                 else
                 {
-                    // Fallback for items without source (shouldn't happen with new architecture, but safe to keep basic activation?)
-                    // Actually, if we didn't migrate everything perfectly, might crash.
-                    // But we did migrate WindowFinder and ChromeTabFinder.
-                    // Let's log if source is missing.
-                    SwitchBlade.Core.Logger.Log($"Warning: WindowItem '{windowItem.Title}' has no Source provider.");
+                    // Fallback for items without source
+                    _logger.Log($"Warning: WindowItem '{windowItem.Title}' has no Source provider.");
 
                     // Basic fallback attempt
                     if (SwitchBlade.Contracts.NativeInterop.IsIconic(windowItem.Hwnd))
