@@ -14,7 +14,7 @@ using SwitchBlade.Services;
 
 namespace SwitchBlade.ViewModels
 {
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : INotifyPropertyChanged, IWindowListViewModel
     {
         private readonly List<IWindowProvider> _windowProviders;
         private readonly ISettingsService? _settingsService;

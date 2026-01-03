@@ -90,6 +90,7 @@ namespace SwitchBlade
             // Initialize Background Polling Service
             _backgroundPollingService = new BackgroundPollingService(
                 _settingsService,
+                _serviceProvider.GetRequiredService<IDispatcherService>(),
                 () => _viewModel.RefreshWindows());
 
             // Initial load

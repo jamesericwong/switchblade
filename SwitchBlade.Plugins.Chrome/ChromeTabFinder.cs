@@ -10,7 +10,7 @@ namespace SwitchBlade.Plugins.Chrome
     public class ChromeTabFinder : CachingWindowProviderBase
     {
         private ILogger? _logger;
-        private PluginSettingsService? _settingsService;
+        private IPluginSettingsService? _settingsService;
         private List<string> _browserProcesses = new();
 
         // Default browser processes if no settings exist
@@ -38,11 +38,23 @@ namespace SwitchBlade.Plugins.Chrome
         {
         }
 
+        /// <summary>
+        /// Constructor for unit testing with mocked settings.
+        /// </summary>
+        public ChromeTabFinder(IPluginSettingsService settingsService)
+        {
+            _settingsService = settingsService;
+        }
+
         public override void Initialize(IPluginContext context)
         {
             base.Initialize(context);
             _logger = context.Logger;
-            _settingsService = new PluginSettingsService(PluginName);
+
+            if (_settingsService == null)
+            {
+                _settingsService = new PluginSettingsService(PluginName);
+            }
 
             // Initialize settings from Registry or use defaults
             ReloadSettings();

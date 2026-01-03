@@ -154,7 +154,7 @@ public class ChromeTabFinder : CachingWindowProviderBase
 ```
 
 #### 2. Configuration
-It uses `PluginSettingsService` (available in Contracts) to store settings in the Registry under `HKCU\Software\SwitchBlade\Plugins\ChromeTabFinder`.
+It uses `PluginSettingsService` (which implements `IPluginSettingsService`) to store settings in the Registry under `HKCU\Software\SwitchBlade\Plugins\ChromeTabFinder`.
 
 ```csharp
 public override void ReloadSettings()
@@ -357,13 +357,26 @@ void SetExclusions(IEnumerable<string> exclusions) { }
 
 Override this if your plugin needs to filter out processes handled by other plugins.
 
+### New: `IPluginSettingsService` Interface
+
+For better testability, `PluginSettingsService` now implements `IPluginSettingsService`.
+If you are writing unit tests for your plugin, you can now inject a mock `IPluginSettingsService` instead of relying on the real Registry.
+
+```csharp
+// Production usage (default constructor)
+_settings = new PluginSettingsService(PluginName);
+
+// Test usage (inject interface)
+public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
+```
+
 ---
 
 ## Version History
 
 | Version | Key Changes |
 |---------|-------------|
-| 1.4.2   | `IPluginContext`, `NativeInterop`, DI container |
+| 1.4.2   | `IPluginContext`, `NativeInterop`, `IPluginSettingsService` |
 | 1.4.1   | `CachingWindowProviderBase`, concurrency protection |
 | 1.4.0   | Plugin settings, number shortcuts |
 | 1.3.0   | Initial plugin framework |

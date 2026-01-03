@@ -11,14 +11,16 @@ namespace SwitchBlade.Services
     public class BackgroundPollingService : IDisposable
     {
         private readonly ISettingsService _settingsService;
+        private readonly IDispatcherService _dispatcherService;
         private readonly Func<Task> _refreshAction;
         private readonly SemaphoreSlim _refreshLock = new SemaphoreSlim(1, 1);
         private System.Timers.Timer? _timer;
         private bool _disposed;
 
-        public BackgroundPollingService(ISettingsService settingsService, Func<Task> refreshAction)
+        public BackgroundPollingService(ISettingsService settingsService, IDispatcherService dispatcherService, Func<Task> refreshAction)
         {
             _settingsService = settingsService;
+            _dispatcherService = dispatcherService;
             _refreshAction = refreshAction;
 
             // Subscribe to settings changes to dynamically update timer
@@ -72,7 +74,7 @@ namespace SwitchBlade.Services
                 SwitchBlade.Core.Logger.Log("BackgroundPollingService: Running background refresh.");
 
                 // Dispatch to UI thread since RefreshWindows updates ObservableCollection
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                await _dispatcherService.InvokeAsync(async () =>
                 {
                     await _refreshAction();
                 });
