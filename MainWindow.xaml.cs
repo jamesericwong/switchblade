@@ -111,7 +111,7 @@ namespace SwitchBlade
             this.Show();
             this.WindowState = WindowState.Normal;
             this.Activate();
-            SwitchBlade.Core.Interop.ForceForegroundWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            SwitchBlade.Contracts.NativeInterop.ForceForegroundWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
 
             SearchBox.Focus();
             SearchBox.Text = "";
@@ -238,11 +238,11 @@ namespace SwitchBlade
                     SwitchBlade.Core.Logger.Log($"Warning: WindowItem '{windowItem.Title}' has no Source provider.");
 
                     // Basic fallback attempt
-                    if (SwitchBlade.Core.Interop.IsIconic(windowItem.Hwnd))
+                    if (SwitchBlade.Contracts.NativeInterop.IsIconic(windowItem.Hwnd))
                     {
-                        SwitchBlade.Core.Interop.ShowWindow(windowItem.Hwnd, SwitchBlade.Core.Interop.SW_RESTORE);
+                        SwitchBlade.Contracts.NativeInterop.ShowWindow(windowItem.Hwnd, SwitchBlade.Contracts.NativeInterop.SW_RESTORE);
                     }
-                    SwitchBlade.Core.Interop.SetForegroundWindow(windowItem.Hwnd);
+                    SwitchBlade.Contracts.NativeInterop.SetForegroundWindow(windowItem.Hwnd);
                 }
 
                 FadeOut(() => this.Hide());

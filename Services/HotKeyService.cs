@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Interop;
+using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
@@ -69,7 +70,7 @@ namespace SwitchBlade.Services
             var mods = _settingsService.Settings.HotKeyModifiers;
             var key = _settingsService.Settings.HotKeyKey;
             Logger.Log($"HotKeyService: Attempting to register hotkey. Mods: {mods}, Key: {key:X} (0x{key:X})");
-            bool success = Interop.RegisterHotKey(handle, HOTKEY_ID, mods, key);
+            bool success = NativeInterop.RegisterHotKey(handle, HOTKEY_ID, mods, key);
             if (!success)
             {
                 int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
@@ -83,7 +84,7 @@ namespace SwitchBlade.Services
 
         private bool UnregisterHotKey(IntPtr handle)
         {
-            bool result = Interop.UnregisterHotKey(handle, HOTKEY_ID);
+            bool result = NativeInterop.UnregisterHotKey(handle, HOTKEY_ID);
             if (!result)
             {
                 int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();

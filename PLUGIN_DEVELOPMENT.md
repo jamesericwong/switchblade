@@ -376,6 +376,7 @@ public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
 
 | Version | Key Changes |
 |---------|-------------|
+| 1.4.6   | Removed `SwitchBlade.Core.Interop`, fully migrated to `SwitchBlade.Contracts.NativeInterop` |
 | 1.4.2   | `IPluginContext`, `NativeInterop`, `IPluginSettingsService` |
 | 1.4.1   | `CachingWindowProviderBase`, concurrency protection |
 | 1.4.0   | Plugin settings, number shortcuts |

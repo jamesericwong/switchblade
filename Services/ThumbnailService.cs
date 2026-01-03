@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Interop;
+using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
@@ -20,7 +21,7 @@ namespace SwitchBlade.Services
         {
             if (_currentThumbnail != IntPtr.Zero)
             {
-                Interop.DwmUnregisterThumbnail(_currentThumbnail);
+                NativeInterop.DwmUnregisterThumbnail(_currentThumbnail);
                 _currentThumbnail = IntPtr.Zero;
             }
 
@@ -28,7 +29,7 @@ namespace SwitchBlade.Services
             if (sourceHwnd == IntPtr.Zero) return;
 
             var helper = new WindowInteropHelper(_targetWindow);
-            int result = Interop.DwmRegisterThumbnail(helper.Handle, sourceHwnd, out _currentThumbnail);
+            int result = NativeInterop.DwmRegisterThumbnail(helper.Handle, sourceHwnd, out _currentThumbnail);
 
             if (result == 0 && _currentThumbnail != IntPtr.Zero)
             {
@@ -65,14 +66,14 @@ namespace SwitchBlade.Services
             }
 
             // 1. Get source window dimensions
-            Interop.Rect sourceRect;
-            Interop.GetWindowRect(_currentSourceHwnd, out sourceRect); 
+            NativeInterop.Rect sourceRect;
+            NativeInterop.GetWindowRect(_currentSourceHwnd, out sourceRect);
             // Note: GetWindowRect might return 0 size if minimized? 
             // DWM usually handles minimized windows fine, but we need the restored size for aspect ratio.
             // If minimized, we might need GetWindowPlacement, but let's try GetWindowRect first.
             // Actually, for DWM thumbnail, it shows the "live" content. If minimized, it might be 0 or small.
             // However, typical Alt-Tab logic gets the "snapshot" size.
-            
+
             // Safe fallback width/height
             double sourceW = sourceRect.Right - sourceRect.Left;
             double sourceH = sourceRect.Bottom - sourceRect.Top;
@@ -111,20 +112,20 @@ namespace SwitchBlade.Services
             int finalTop = (int)((rootPoint.Y * dpiY) + (offsetY * dpiY));
             int finalRight = finalLeft + (int)(destW * dpiX);
             int finalBottom = finalTop + (int)(destH * dpiY);
-            
+
             // Add padding (optional, applied inside the calculated rect?)
             // Let's keep it tight or add small padding
             int paddingPixels = (int)(10 * dpiX);
             // Apply padding by shrinking the box slightly? Or leave as is.
             // Scaling already fits it inside container.
 
-            Interop.DWM_THUMBNAIL_PROPERTIES props = new Interop.DWM_THUMBNAIL_PROPERTIES();
-            props.dwFlags = Interop.DWM_TNP_VISIBLE | Interop.DWM_TNP_RECTDESTINATION | Interop.DWM_TNP_OPACITY | Interop.DWM_TNP_SOURCECLIENTAREAONLY;
+            NativeInterop.DWM_THUMBNAIL_PROPERTIES props = new NativeInterop.DWM_THUMBNAIL_PROPERTIES();
+            props.dwFlags = NativeInterop.DWM_TNP_VISIBLE | NativeInterop.DWM_TNP_RECTDESTINATION | NativeInterop.DWM_TNP_OPACITY | NativeInterop.DWM_TNP_SOURCECLIENTAREAONLY;
             props.fVisible = true;
             props.opacity = 255;
             props.fSourceClientAreaOnly = true;
 
-            props.rcDestination = new Interop.Rect
+            props.rcDestination = new NativeInterop.Rect
             {
                 Left = finalLeft + paddingPixels,
                 Top = finalTop + paddingPixels,
@@ -132,14 +133,14 @@ namespace SwitchBlade.Services
                 Bottom = finalBottom - paddingPixels
             };
 
-            Interop.DwmUpdateThumbnailProperties(_currentThumbnail, ref props);
+            NativeInterop.DwmUpdateThumbnailProperties(_currentThumbnail, ref props);
         }
 
         public void Dispose()
         {
             if (_currentThumbnail != IntPtr.Zero)
             {
-                Interop.DwmUnregisterThumbnail(_currentThumbnail);
+                NativeInterop.DwmUnregisterThumbnail(_currentThumbnail);
                 _currentThumbnail = IntPtr.Zero;
             }
         }

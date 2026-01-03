@@ -1,7 +1,8 @@
 using System.Windows;
 using System.Windows.Input;
 using SwitchBlade.ViewModels;
-using SwitchBlade.Core; 
+using SwitchBlade.Core;
+using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Views
 {
@@ -41,10 +42,10 @@ namespace SwitchBlade.Views
 
             // Get modifiers
             uint mods = 0;
-            if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt) mods |= Interop.MOD_ALT;
-            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) mods |= Interop.MOD_CONTROL;
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift) mods |= Interop.MOD_SHIFT;
-            if ((Keyboard.Modifiers & ModifierKeys.Windows) == ModifierKeys.Windows) mods |= Interop.MOD_WIN;
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt) mods |= NativeInterop.MOD_ALT;
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) mods |= NativeInterop.MOD_CONTROL;
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift) mods |= NativeInterop.MOD_SHIFT;
+            if ((Keyboard.Modifiers & ModifierKeys.Windows) == ModifierKeys.Windows) mods |= NativeInterop.MOD_WIN;
 
             // Get the key
             Key key = (e.Key == Key.System ? e.SystemKey : e.Key);
