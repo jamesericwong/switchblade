@@ -17,9 +17,10 @@ namespace SwitchBlade.Contracts
         bool HasSettings { get; }
 
         /// <summary>
-        /// Called after instantiation to pass dependencies.
+        /// Called after instantiation to pass dependencies via context.
         /// </summary>
-        void Initialize(object settingsService, ILogger logger);
+        /// <param name="context">Plugin context containing logger and other dependencies.</param>
+        void Initialize(IPluginContext context);
 
         /// <summary>
         /// Called before GetWindows to reload settings from Registry.
@@ -32,6 +33,14 @@ namespace SwitchBlade.Contracts
         /// The core WindowFinder will exclude these processes to prevent duplicates.
         /// </summary>
         IEnumerable<string> GetHandledProcesses() => Array.Empty<string>();
+
+        /// <summary>
+        /// Sets dynamic exclusions for this provider. For providers that need to filter out
+        /// processes handled by other plugins (e.g., WindowFinder excludes browser processes).
+        /// Default implementation is no-op.
+        /// </summary>
+        /// <param name="exclusions">Process names to exclude.</param>
+        void SetExclusions(IEnumerable<string> exclusions) { }
 
         IEnumerable<WindowItem> GetWindows();
 

@@ -27,8 +27,8 @@ namespace SwitchBlade.Contracts
         string PluginName { get; }
         bool HasSettings { get; }
 
-        // 1. Initialization: Receive shared application state/settings and logger
-        void Initialize(object settingsService, ILogger logger);
+        // 1. Initialization: Receive context with logger and other dependencies
+        void Initialize(IPluginContext context);
 
         // 2. Settings Management
         void ShowSettingsDialog(IntPtr ownerHwnd);
@@ -38,12 +38,21 @@ namespace SwitchBlade.Contracts
         // Return processes (names without extension) that this plugin handles exclusively.
         // The core WindowFinder will ignore these processes to prevent duplicates.
         IEnumerable<string> GetHandledProcesses();
+        
+        // Set exclusions (called by MainViewModel for all providers)
+        void SetExclusions(IEnumerable<string> exclusions) { } // Default no-op
 
         // 4. Refresh: Return a list of items to display in the user's search
         IEnumerable<WindowItem> GetWindows();
 
-        // 4. Activation: Handle what happens when the user presses Enter on your item
+        // 5. Activation: Handle what happens when the user presses Enter on your item
         void ActivateWindow(WindowItem item);
+    }
+    
+    // Context object passed to Initialize()
+    public interface IPluginContext
+    {
+        ILogger Logger { get; }
     }
 }
 ```
@@ -89,12 +98,16 @@ namespace MyCustomPlugin
 {
     public class SimpleProvider : IWindowProvider
     {
+        private ILogger? _logger;
+        
         public string PluginName => "SimpleDemo";
         public bool HasSettings => false;
 
-        public void Initialize(object settingsService, ILogger logger)
+        public void Initialize(IPluginContext context)
         {
-            // Optional: Store settings/logger if you need them later
+            // Store the logger for diagnostic output
+            _logger = context.Logger;
+            _logger?.Log("SimpleDemo plugin initialized");
         }
 
         public void ShowSettingsDialog(IntPtr ownerHwnd) { /* No settings */ }
@@ -115,6 +128,7 @@ namespace MyCustomPlugin
         public void ActivateWindow(WindowItem item)
         {
             // Logic to execute when selected
+            _logger?.Log($"Activating: {item.Title}");
             System.Diagnostics.Process.Start("notepad.exe");
         }
     }
@@ -169,7 +183,8 @@ When a user selects a specific *tab*, the provider handles the specifics:
 public override void ActivateWindow(WindowItem item)
 {
     // 1. Bring the main Chrome window to front first
-    NativeMethods.ForceForegroundWindow(item.Hwnd);
+    // Use the shared NativeInterop from SwitchBlade.Contracts
+    NativeInterop.ForceForegroundWindow(item.Hwnd);
     
     // 2. Use UIAutomation to find the specific tab control again
     // ... Select tab pattern ...
@@ -266,3 +281,89 @@ public class MyCustomPlugin : IWindowProvider
 }
 ```
 
+---
+
+## Migration Guide: v1.4.1 → v1.4.2
+
+Version 1.4.2 introduces **breaking changes** to the plugin API. Follow this guide to update your plugins.
+
+### Breaking Change: `Initialize()` Signature
+
+**Before (v1.4.1):**
+```csharp
+public void Initialize(object settingsService, ILogger logger)
+{
+    _logger = logger;
+    // settingsService was passed but rarely used by plugins
+}
+```
+
+**After (v1.4.2):**
+```csharp
+public void Initialize(IPluginContext context)
+{
+    _logger = context.Logger;
+    // Context object is cleaner and extensible
+}
+```
+
+### Using `CachingWindowProviderBase`
+
+If you're using `CachingWindowProviderBase`, the change is similar:
+
+```csharp
+// Before
+public override void Initialize(object settingsService, ILogger logger)
+{
+    base.Initialize(settingsService, logger);
+    _logger = logger;
+}
+
+// After
+public override void Initialize(IPluginContext context)
+{
+    base.Initialize(context);
+    _logger = context.Logger;
+}
+```
+
+### New: `NativeInterop` Shared Library
+
+Version 1.4.2 consolidates P/Invoke declarations in `SwitchBlade.Contracts.NativeInterop`. Instead of defining your own:
+
+```csharp
+// Before: Local NativeMethods class with duplicate P/Invoke declarations
+NativeMethods.ForceForegroundWindow(hwnd);
+
+// After: Use shared library from Contracts
+using SwitchBlade.Contracts;
+NativeInterop.ForceForegroundWindow(hwnd);
+```
+
+Available methods include:
+- `EnumWindows()`, `IsWindowVisible()`, `GetWindowThreadProcessId()`
+- `ForceForegroundWindow()` - robust focus stealing with thread attachment
+- `ShowWindow()`, `BringWindowToTop()`, `SetForegroundWindow()`
+- `IsIconic()`, `GetForegroundWindow()`
+
+### New: `SetExclusions()` Interface Method
+
+The `IWindowProvider` interface now includes a default method for setting exclusions:
+
+```csharp
+// Default implementation is no-op
+void SetExclusions(IEnumerable<string> exclusions) { }
+```
+
+Override this if your plugin needs to filter out processes handled by other plugins.
+
+---
+
+## Version History
+
+| Version | Key Changes |
+|---------|-------------|
+| 1.4.2   | `IPluginContext`, `NativeInterop`, DI container |
+| 1.4.1   | `CachingWindowProviderBase`, concurrency protection |
+| 1.4.0   | Plugin settings, number shortcuts |
+| 1.3.0   | Initial plugin framework |

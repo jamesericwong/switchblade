@@ -40,9 +40,9 @@ namespace SwitchBlade.Contracts
         public abstract bool HasSettings { get; }
 
         /// <inheritdoc />
-        public virtual void Initialize(object settingsService, ILogger logger)
+        public virtual void Initialize(IPluginContext context)
         {
-            _logger = logger;
+            _logger = context.Logger;
         }
 
         /// <inheritdoc />
@@ -89,12 +89,12 @@ namespace SwitchBlade.Contracts
             {
                 _logger?.Log($"{PluginName}: Starting window scan");
                 var results = ScanWindowsCore().ToList();
-                
+
                 lock (_scanLock)
                 {
                     _cachedWindows = results;
                 }
-                
+
                 _logger?.Log($"{PluginName}: Scan complete, found {results.Count} windows");
                 return results;
             }

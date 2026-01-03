@@ -16,7 +16,19 @@ namespace SwitchBlade.Plugins.Chrome
         // Default browser processes if no settings exist
         private static readonly List<string> DefaultBrowserProcesses = new()
         {
-            "chrome","msedge","brave","vivaldi","opera","opera_gx","chromium","thorium","iron","epic","yandex","arc","comet"
+            "chrome",
+            "msedge",
+            "brave",
+            "vivaldi",
+            "opera",
+            "opera_gx",
+            "chromium",
+            "thorium",
+            "iron",
+            "epic",
+            "yandex",
+            "arc",
+            "comet"
         };
 
         public override string PluginName => "ChromeTabFinder";
@@ -26,12 +38,12 @@ namespace SwitchBlade.Plugins.Chrome
         {
         }
 
-        public override void Initialize(object settingsService, ILogger logger)
+        public override void Initialize(IPluginContext context)
         {
-            base.Initialize(settingsService, logger);
-            _logger = logger;
+            base.Initialize(context);
+            _logger = context.Logger;
             _settingsService = new PluginSettingsService(PluginName);
-            
+
             // Initialize settings from Registry or use defaults
             ReloadSettings();
         }
@@ -51,7 +63,7 @@ namespace SwitchBlade.Plugins.Chrome
                 _browserProcesses = new List<string>(DefaultBrowserProcesses);
                 _settingsService.SetStringList("BrowserProcesses", _browserProcesses);
             }
-            
+
             _logger?.Log($"ChromeTabFinder: Loaded {_browserProcesses.Count} browser processes");
         }
 
@@ -64,7 +76,7 @@ namespace SwitchBlade.Plugins.Chrome
                 helper.Owner = ownerHwnd;
             }
             dialog.ShowDialog();
-            
+
             // Reload settings after dialog closes
             ReloadSettings();
         }
@@ -95,12 +107,12 @@ namespace SwitchBlade.Plugins.Chrome
             var walker = TreeWalker.RawViewWalker;
             _logger?.Log($"--- Scan started at {DateTime.Now} ---");
 
-            NativeMethods.EnumWindows((hwnd, lParam) =>
+            NativeInterop.EnumWindows((hwnd, lParam) =>
             {
                 // Check visibility first for speed
-                if (!NativeMethods.IsWindowVisible(hwnd)) return true;
+                if (!NativeInterop.IsWindowVisible(hwnd)) return true;
 
-                NativeMethods.GetWindowThreadProcessId(hwnd, out uint pid);
+                NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 if (targetPids.Contains((int)pid))
                 {
                     // Found a visible window belonging to one of our target browsers
@@ -126,7 +138,7 @@ namespace SwitchBlade.Plugins.Chrome
 
             // Get Process Name for the result item (expensive? maybe just cache it or look it up)
             string processName = "Unknown";
-            try { processName = Process.GetProcessById(pid).ProcessName; } catch {}
+            try { processName = Process.GetProcessById(pid).ProcessName; } catch { }
 
             _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
 
@@ -134,36 +146,36 @@ namespace SwitchBlade.Plugins.Chrome
 
             if (foundTabs.Count == 0)
             {
-                 // Fallback: Add the main window if no tabs found
-                 string title = "";
-                 try { title = root.Current.Name; } catch {}
+                // Fallback: Add the main window if no tabs found
+                string title = "";
+                try { title = root.Current.Name; } catch { }
 
                 if (!string.IsNullOrEmpty(title))
                 {
-                    results.Add(new WindowItem  
-                    {  
-                        Hwnd = hwnd,  
-                        Title = title,  
-                        ProcessName = processName,  
-                        IsChromeTab = true, 
+                    results.Add(new WindowItem
+                    {
+                        Hwnd = hwnd,
+                        Title = title,
+                        ProcessName = processName,
+                        IsChromeTab = true,
                         Source = this
                     });
                 }
             }
             else
             {
-                 _logger?.Log($"  Found {foundTabs.Count} tabs via BFS.");
-                 foreach (var tab in foundTabs)
-                 {
-                     results.Add(new WindowItem
-                     {
-                         Hwnd = hwnd,
-                         Title = tab,
-                         ProcessName = processName,
-                         IsChromeTab = true,
-                         Source = this
-                     });
-                 }
+                _logger?.Log($"  Found {foundTabs.Count} tabs via BFS.");
+                foreach (var tab in foundTabs)
+                {
+                    results.Add(new WindowItem
+                    {
+                        Hwnd = hwnd,
+                        Title = tab,
+                        ProcessName = processName,
+                        IsChromeTab = true,
+                        Source = this
+                    });
+                }
             }
         }
 
@@ -190,7 +202,7 @@ namespace SwitchBlade.Plugins.Chrome
 
                     bool isTab = false;
                     string name = current.Current.Name;
-                    
+
                     if (current.Current.ControlType == ControlType.TabItem) isTab = true;
 
                     if (!isTab && !string.IsNullOrEmpty(current.Current.LocalizedControlType))
@@ -222,7 +234,7 @@ namespace SwitchBlade.Plugins.Chrome
                 }
                 catch { }
             }
-            
+
             _logger?.Log($"  Items Scanned: {itemsScanned}");
 
             return results;
@@ -230,16 +242,16 @@ namespace SwitchBlade.Plugins.Chrome
 
         public override void ActivateWindow(WindowItem item)
         {
-            // NativeMethods.SetForegroundWindow(item.Hwnd); // Replaced with robust logic
-            NativeMethods.ForceForegroundWindow(item.Hwnd);
-            
+            // Use shared NativeInterop for robust window activation
+            NativeInterop.ForceForegroundWindow(item.Hwnd);
+
             // Wait a brief moment for window to actually activate before searching for tabs
             // This is crucial because AutomationElement tree might not update instantly
             System.Threading.Thread.Sleep(50);
-            
+
             if (string.IsNullOrEmpty(item.Title)) return;
 
-            try 
+            try
             {
                 AutomationElement? root = AutomationElement.FromHandle(item.Hwnd);
                 if (root == null) return;
@@ -312,74 +324,5 @@ namespace SwitchBlade.Plugins.Chrome
         }
     }
 
-    internal static class NativeMethods
-    {
-        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-        public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
-        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-        public static extern bool IsWindowVisible(IntPtr hWnd);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-        public static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-        public static extern bool BringWindowToTop(IntPtr hWnd);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-        public static extern bool IsIconic(IntPtr hWnd);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        public static extern IntPtr GetForegroundWindow();
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
-
-        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
-        public static extern uint GetCurrentThreadId();
-
-        public const int SW_RESTORE = 9;
-
-        public static void ForceForegroundWindow(IntPtr hwnd)
-        {
-            if (hwnd == IntPtr.Zero) return;
-
-            if (IsIconic(hwnd))
-            {
-                ShowWindow(hwnd, SW_RESTORE);
-            }
-
-            uint dummyPid;
-            uint foregroundThreadId = GetWindowThreadProcessId(GetForegroundWindow(), out dummyPid);
-            uint myThreadId = GetCurrentThreadId();
-            bool threadsAttached = false;
-
-            if (foregroundThreadId != myThreadId)
-            {
-                threadsAttached = AttachThreadInput(myThreadId, foregroundThreadId, true);
-            }
-
-            BringWindowToTop(hwnd);
-            SetForegroundWindow(hwnd);
-            
-            if (threadsAttached)
-            {
-                AttachThreadInput(myThreadId, foregroundThreadId, false);
-            }
-        }
-    }
+    // NativeMethods class removed - now using SwitchBlade.Contracts.NativeInterop
 }

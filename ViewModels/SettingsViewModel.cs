@@ -22,12 +22,12 @@ namespace SwitchBlade.ViewModels
         public string SelectedTheme
         {
             get => _selectedTheme;
-            set 
-            { 
+            set
+            {
                 if (_selectedTheme != value)
                 {
-                    _selectedTheme = value; 
-                    OnPropertyChanged(); 
+                    _selectedTheme = value;
+                    OnPropertyChanged();
                     _themeService.ApplyTheme(_selectedTheme);
                 }
             }
@@ -63,7 +63,7 @@ namespace SwitchBlade.ViewModels
             get => _settingsService.Settings.WindowOpacity;
             set { _settingsService.Settings.WindowOpacity = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
-        
+
         public double ItemHeight
         {
             get => _settingsService.Settings.ItemHeight;
@@ -91,13 +91,13 @@ namespace SwitchBlade.ViewModels
         public bool IsPreserveScrollSelected
         {
             get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveScroll;
-            set 
-            { 
-                if (value) 
+            set
+            {
+                if (value)
                 {
-                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveScroll; 
-                    OnPropertyChanged(); 
-                    _settingsService.SaveSettings(); 
+                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveScroll;
+                    OnPropertyChanged();
+                    _settingsService.SaveSettings();
                 }
             }
         }
@@ -105,13 +105,13 @@ namespace SwitchBlade.ViewModels
         public bool IsPreserveIdentitySelected
         {
             get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveIdentity;
-            set 
-            { 
-                if (value) 
+            set
+            {
+                if (value)
                 {
-                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveIdentity; 
-                    OnPropertyChanged(); 
-                    _settingsService.SaveSettings(); 
+                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveIdentity;
+                    OnPropertyChanged();
+                    _settingsService.SaveSettings();
                 }
             }
         }
@@ -119,13 +119,13 @@ namespace SwitchBlade.ViewModels
         public bool IsPreserveIndexSelected
         {
             get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveIndex;
-            set 
-            { 
-                if (value) 
+            set
+            {
+                if (value)
                 {
-                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveIndex; 
-                    OnPropertyChanged(); 
-                    _settingsService.SaveSettings(); 
+                    _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveIndex;
+                    OnPropertyChanged();
+                    _settingsService.SaveSettings();
                 }
             }
         }
@@ -138,29 +138,17 @@ namespace SwitchBlade.ViewModels
         public string SelectedShortcutModifier
         {
             get => ModifierValueToString(_settingsService.Settings.NumberShortcutModifier);
-            set 
-            { 
+            set
+            {
                 _settingsService.Settings.NumberShortcutModifier = StringToModifierValue(value);
-                OnPropertyChanged(); 
-                _settingsService.SaveSettings(); 
+                OnPropertyChanged();
+                _settingsService.SaveSettings();
             }
         }
 
-        private static string ModifierValueToString(uint value) => value switch
-        {
-            1 => "Alt",
-            2 => "Ctrl",
-            4 => "Shift",
-            _ => "None"
-        };
+        private static string ModifierValueToString(uint value) => Services.ModifierKeyFlags.ToString(value);
 
-        private static uint StringToModifierValue(string value) => value switch
-        {
-            "Alt" => 1,
-            "Ctrl" => 2,
-            "Shift" => 4,
-            _ => 0
-        };
+        private static uint StringToModifierValue(string value) => Services.ModifierKeyFlags.FromString(value);
 
 
 
@@ -168,7 +156,7 @@ namespace SwitchBlade.ViewModels
         {
             _settingsService = settingsService;
             _themeService = themeService;
-            
+
             // Initialize enabled state
             foreach (var plugin in plugins)
             {
@@ -177,12 +165,12 @@ namespace SwitchBlade.ViewModels
                     plugin.IsEnabled = false;
                 }
             }
-            
+
             LoadedPlugins = new ObservableCollection<PluginInfo>(plugins);
 
             ExcludedProcesses = new ObservableCollection<string>(_settingsService.Settings.ExcludedProcesses);
             AvailableThemes = new ObservableCollection<string>(_themeService.AvailableThemes.Select(t => t.Name));
-            
+
             _selectedTheme = _settingsService.Settings.CurrentTheme;
 
             TogglePluginCommand = new RelayCommand(param => TogglePlugin(param));
@@ -198,13 +186,13 @@ namespace SwitchBlade.ViewModels
             {
                 var mods = (uint)_settingsService.Settings.HotKeyModifiers;
                 var key = (uint)_settingsService.Settings.HotKeyKey;
-                
+
                 var parts = new System.Collections.Generic.List<string>();
                 if ((mods & 1) != 0) parts.Add("Alt");
                 if ((mods & 2) != 0) parts.Add("Ctrl");
                 if ((mods & 4) != 0) parts.Add("Shift");
                 if ((mods & 8) != 0) parts.Add("Win");
-                
+
                 parts.Add(((System.Windows.Forms.Keys)key).ToString());
                 return string.Join(" + ", parts);
             }
