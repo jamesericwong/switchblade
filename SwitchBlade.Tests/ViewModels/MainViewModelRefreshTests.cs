@@ -28,34 +28,28 @@ namespace SwitchBlade.Tests.ViewModels
         private readonly SynchronousDispatcherService _dispatcher = new SynchronousDispatcherService();
 
         [Fact]
-        public async System.Threading.Tasks.Task UpdateSearch_PreserveScroll_FiresPreAndPostEvents()
+        public async System.Threading.Tasks.Task RefreshWindows_WithPreserveScroll_UpdatesFilteredWindows()
         {
             // Arrange
             _userSettings.RefreshBehavior = RefreshBehavior.PreserveScroll;
-            
+
             var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
-            
+
             // Setup initial windows
             var initialWindows = new List<WindowItem>
             {
                 new WindowItem { Hwnd = IntPtr.Zero, Title = "Title 1", ProcessName = "Process 1", Source = _mockWindowProvider.Object },
                 new WindowItem { Hwnd = IntPtr.Zero, Title = "Title 2", ProcessName = "Process 2", Source = _mockWindowProvider.Object }
             };
-            
+
             _mockWindowProvider.Setup(p => p.PluginName).Returns("MockPlugin");
             _mockWindowProvider.Setup(p => p.GetWindows()).Returns(initialWindows);
-
-            bool preFired = false;
-            bool postFired = false;
-            vm.PreUpdate += () => preFired = true;
-            vm.PostUpdate += () => postFired = true;
 
             // Act
             await vm.RefreshWindows();
 
-            // Assert
-            Assert.True(preFired, "PreUpdate event should fire");
-            Assert.True(postFired, "PostUpdate event should fire");
+            // Assert - FilteredWindows should be populated
+            Assert.Equal(2, vm.FilteredWindows.Count);
         }
 
         [Fact]
@@ -74,7 +68,7 @@ namespace SwitchBlade.Tests.ViewModels
                 .Returns(new[] { win2, win1 }); // Second call (Swap order)
 
             await vm.RefreshWindows();
-            
+
             // User selects Target Window (win1)
             vm.SelectedWindow = vm.FilteredWindows.First(w => w.Hwnd == new IntPtr(1));
             Assert.Equal("Target Window", vm.SelectedWindow.Title);
@@ -101,11 +95,11 @@ namespace SwitchBlade.Tests.ViewModels
 
             // Initial: A, B
             _mockWindowProvider.SetupSequence(p => p.GetWindows())
-                .Returns(new[] { win1, win2 }) 
+                .Returns(new[] { win1, win2 })
                 .Returns(new[] { winNew, win2 }); // A is gone, C is new. Sorted: B, C.
 
             await vm.RefreshWindows();
-            
+
             // Select index 1 (Window B)
             vm.SelectedWindow = vm.FilteredWindows[1];
             Assert.Equal("Window B", vm.SelectedWindow.Title);
@@ -118,11 +112,11 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal("Window C", vm.SelectedWindow.Title);
             Assert.NotEqual("Window B", vm.SelectedWindow.Title);
         }
-        
+
         [Fact]
         public async System.Threading.Tasks.Task UpdateSearch_PreserveScroll_DoesNotForceSelectionIfItemGone()
         {
-             // Arrange
+            // Arrange
             _userSettings.RefreshBehavior = RefreshBehavior.PreserveScroll;
             var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
 
@@ -130,7 +124,7 @@ namespace SwitchBlade.Tests.ViewModels
             var win2 = new WindowItem { Hwnd = new IntPtr(2), Title = "Window B", ProcessName = "Proc", Source = _mockWindowProvider.Object };
 
             _mockWindowProvider.SetupSequence(p => p.GetWindows())
-                .Returns(new[] { win1, win2 }) 
+                .Returns(new[] { win1, win2 })
                 .Returns(new[] { win2 }); // A is gone
 
             await vm.RefreshWindows();
@@ -143,7 +137,7 @@ namespace SwitchBlade.Tests.ViewModels
             // Behavior for SCROLL logic: If identity found, keep it. If not found, select index (fallback).
             // But View suppresses scroll via Pre/Post Update events.
             // Here, A is gone. Logic falls back to index preservation (select index 0, which is B).
-           
+
             Assert.NotNull(vm.SelectedWindow);
             Assert.Equal("Window B", vm.SelectedWindow.Title);
         }

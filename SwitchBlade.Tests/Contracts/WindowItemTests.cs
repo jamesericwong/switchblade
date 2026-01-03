@@ -26,7 +26,7 @@ namespace SwitchBlade.Tests.Contracts
         {
             var item = new WindowItem();
 
-            Assert.Equal(nint.Zero, item.Hwnd);
+            Assert.Equal(IntPtr.Zero, item.Hwnd);
         }
 
         [Fact]
@@ -64,9 +64,9 @@ namespace SwitchBlade.Tests.Contracts
         [Fact]
         public void WindowItem_SetHwnd_ReturnsCorrectValue()
         {
-            var item = new WindowItem { Hwnd = new nint(12345) };
+            var item = new WindowItem { Hwnd = (IntPtr)12345 };
 
-            Assert.Equal(new nint(12345), item.Hwnd);
+            Assert.Equal((IntPtr)12345, item.Hwnd);
         }
 
         [Fact]
