@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
   - When a scan is in progress, subsequent calls to `GetWindows()` return cached results instead of starting duplicate scans.
   - Includes `IsScanRunning` and `CachedWindows` properties for plugin developers.
 
+### Fixed
+- **Settings Crash**: Fixed missing `ModernRadioButtonStyle` resource causing a crash when opening settings.
+- **Scroll Preservation**: Fixed list scroll position resetting during refresh by synchronizing the window list in-place instead of replacing it.
+
 ### Changed
 - **Plugins**: `ChromeTabFinder` and `WindowFinder` now inherit from `CachingWindowProviderBase` for improved concurrency handling.
 - **Docs**: Updated `PLUGIN_DEVELOPMENT.md` with concurrency and caching best practices section.

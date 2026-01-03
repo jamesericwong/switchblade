@@ -147,7 +147,13 @@
                                     <Slider Grid.Column="1" Minimum="5" Maximum="120" Value="{Binding BackgroundPollingIntervalSeconds}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="2" Text="{Binding BackgroundPollingIntervalSeconds}" Foreground="{DynamicResource ForegroundBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
-                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Preserve selection on refresh" IsChecked="{Binding PreserveSelectionOnRefresh}" Margin="0,10,0,0" ToolTip="When enabled, keeps the same window selected during refresh. When disabled, keeps selection at current position."/>
+                                <!-- Refresh Behavior -->
+                                <TextBlock Text="List Refresh Behavior:" Foreground="{DynamicResource ForegroundBrush}" Margin="0,15,0,5" FontWeight="SemiBold"/>
+                                <StackPanel>
+                                    <RadioButton Style="{StaticResource ModernRadioButtonStyle}" Content="Preserve scroll position (No jump)" IsChecked="{Binding IsPreserveScrollSelected}" Margin="0,0,0,5" ToolTip="Keeps the scroll bar fixed. The selection might change if items move."/>
+                                    <RadioButton Style="{StaticResource ModernRadioButtonStyle}" Content="Follow selected window (Identity)" IsChecked="{Binding IsPreserveIdentitySelected}" Margin="0,0,0,5" ToolTip="Keeps the same window selected even if it moves in the list."/>
+                                    <RadioButton Style="{StaticResource ModernRadioButtonStyle}" Content="Keep selection index (Position)" IsChecked="{Binding IsPreserveIndexSelected}" Margin="0,0,0,5" ToolTip="Keeps the selection at the same visual row (e.g. 2nd item)."/>
+                                </StackPanel>
                             </StackPanel>
                         </GroupBox>
 

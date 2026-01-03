@@ -31,9 +31,9 @@ namespace SwitchBlade.Services
         // Modifier key for number shortcuts: Alt=1, Ctrl=2, Shift=4, Win=8, None=0
         public uint NumberShortcutModifier { get; set; } = 1; // Alt
 
-        // Selection Preservation: When enabled, list refresh preserves the selected item's identity
-        // When disabled (default), selection stays at current index position
-        public bool PreserveSelectionOnRefresh { get; set; } = false;
+        // List Refresh Behavior
+        public RefreshBehavior RefreshBehavior { get; set; } = RefreshBehavior.PreserveScroll;
+
 
         public double WindowWidth { get; set; } = 800.0;
         public double WindowHeight { get; set; } = 600.0;
@@ -44,7 +44,14 @@ namespace SwitchBlade.Services
         public uint HotKeyKey { get; set; } = 0x51; // VK_Q
     }
 
-    public class SettingsService
+    public enum RefreshBehavior
+    {
+        PreserveScroll,
+        PreserveIdentity,
+        PreserveIndex
+    }
+
+    public class SettingsService : ISettingsService
     {
         private const string REGISTRY_KEY = @"Software\SwitchBlade";
         private const string STARTUP_REGISTRY_KEY = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -145,8 +152,8 @@ namespace SwitchBlade.Services
                         Settings.EnableNumberShortcuts = Convert.ToBoolean(GetValue<int>("EnableNumberShortcuts", 1));
                         Settings.NumberShortcutModifier = Convert.ToUInt32(GetValue<int>("NumberShortcutModifier", 1));
 
-                        // Selection Preservation
-                        Settings.PreserveSelectionOnRefresh = Convert.ToBoolean(GetValue<int>("PreserveSelectionOnRefresh", 0));
+                        // Refresh Behavior
+                        Settings.RefreshBehavior = (RefreshBehavior)GetValue<int>("RefreshBehavior", (int)RefreshBehavior.PreserveScroll);
                     }
                     catch (Exception ex)
                     {
@@ -254,8 +261,8 @@ namespace SwitchBlade.Services
                         key.SetValue("EnableNumberShortcuts", Settings.EnableNumberShortcuts ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("NumberShortcutModifier", Settings.NumberShortcutModifier, RegistryValueKind.DWord);
 
-                        // Selection Preservation
-                        key.SetValue("PreserveSelectionOnRefresh", Settings.PreserveSelectionOnRefresh ? 1 : 0, RegistryValueKind.DWord);
+                        // Refresh Behavior
+                        key.SetValue("RefreshBehavior", (int)Settings.RefreshBehavior, RegistryValueKind.DWord);
                     }
                 }
                 SettingsChanged?.Invoke();

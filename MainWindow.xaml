@@ -90,7 +90,7 @@
                             <!-- Interaction Events -->
                             <EventSetter Event="MouseEnter" Handler="ListBoxItem_MouseEnter"/>
                             <EventSetter Event="PreviewMouseLeftButtonUp" Handler="ListBoxItem_PreviewMouseLeftButtonUp"/>
-                            
+                            <Setter Property="Height" Value="{Binding DataContext.ItemHeight, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">

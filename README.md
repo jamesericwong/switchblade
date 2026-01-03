@@ -122,12 +122,13 @@ This ensures:
 
 ### Selection Preservation
 
-During list updates, the selection behavior is controlled by the **Preserve selection on refresh** setting:
+During list updates, the selection behavior is controlled by the **List Refresh Behavior** setting:
 
 | Setting | Behavior |
 | :--- | :--- |
-| **Disabled (default)** | Selection stays at current **index position**. If you're viewing item #3, you'll still be viewing item #3 after refresh (even if the window at that position changed). |
-| **Enabled** | Selection follows the same **window identity** (Hwnd + Title). If your selected window moves from position #3 to #7, the selection moves with it. |
+| **Preserve scroll position** (default) | Selection is updated silently. The scroll position stays exactly where it was. The view does NOT auto-scroll to the selected item. |
+| **Follow selected window (Identity)** | Selection follows the same **window identity** (Hwnd + Title). If your selected window moves, the list auto-scrolls to keep it visible. |
+| **Keep selection index (Position)** | Selection stays at the current **index position**. If you're viewing item #3, you'll still be viewing item #3 after refresh (even if the window at that position changed). The list auto-scrolls to the new selection. |
 
 ### Diff Key Design
 
@@ -195,5 +196,5 @@ SwitchBlade supports the following keyboard shortcuts for navigation:
 | `Alt+1` to `Alt+0` | Quick-switch to windows 1-10 (configurable modifier) |
 
 ### Configuration
-- **Preserve selection on refresh**: When disabled (default), the selection stays at the current index position during background refresh. When enabled, preserves the selected window's identity even if its position changes.
+- **List Refresh Behavior**: Controls whether the list preserves scroll position (default), follows the selected window, or keeps the index position during background refresh.
 

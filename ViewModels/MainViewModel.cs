@@ -10,13 +10,15 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using SwitchBlade.Core;
 using SwitchBlade.Contracts;
+using SwitchBlade.Services;
 
 namespace SwitchBlade.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly List<IWindowProvider> _windowProviders;
-        private readonly SwitchBlade.Services.SettingsService? _settingsService;
+        private readonly ISettingsService? _settingsService;
+        private readonly IDispatcherService _dispatcherService;
         private ObservableCollection<WindowItem> _allWindows = new ObservableCollection<WindowItem>();
         private ObservableCollection<WindowItem> _filteredWindows = new ObservableCollection<WindowItem>();
         private WindowItem? _selectedWindow;
@@ -26,10 +28,11 @@ namespace SwitchBlade.ViewModels
         private HashSet<string> _disabledPlugins = new HashSet<string>();
         private readonly object _lock = new object();
 
-        public MainViewModel(IEnumerable<IWindowProvider> windowProviders, SwitchBlade.Services.SettingsService? settingsService = null)
+        public MainViewModel(IEnumerable<IWindowProvider> windowProviders, ISettingsService? settingsService = null, IDispatcherService? dispatcherService = null)
         {
             _windowProviders = windowProviders.ToList();
             _settingsService = settingsService;
+            _dispatcherService = dispatcherService ?? new WpfDispatcherService();
             _filteredWindows = new ObservableCollection<WindowItem>();
             
             if (_settingsService != null)
@@ -41,7 +44,7 @@ namespace SwitchBlade.ViewModels
                 }
 
                 EnablePreviews = _settingsService.Settings.EnablePreviews;
-                _settingsService.SettingsChanged += () => 
+                    _settingsService.SettingsChanged += () => 
                 {
                     lock (_lock)
                     {
@@ -51,8 +54,14 @@ namespace SwitchBlade.ViewModels
                     OnPropertyChanged(nameof(ShowInTaskbar));
                     OnPropertyChanged(nameof(EnableNumberShortcuts));
                     OnPropertyChanged(nameof(ShortcutModifierText));
+                    OnPropertyChanged(nameof(ItemHeight));
                 };
             }
+        }
+
+        public double ItemHeight
+        {
+            get => _settingsService?.Settings.ItemHeight ?? 50.0;
         }
 
         public bool EnablePreviews
@@ -190,7 +199,7 @@ namespace SwitchBlade.ViewModels
                      // However, we can capture the items for this provider safely in the Invoke block logic
                      // OR we can do the check inside Invoke. Doing it inside Invoke is safer.
                      
-                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                     _dispatcherService.Invoke(() =>
                      {
                          var existingItems = _allWindows.Where(x => x.Source == provider).ToList();
                          
@@ -291,15 +300,19 @@ namespace SwitchBlade.ViewModels
                     .ThenBy(w => w.Hwnd.ToInt64())
                     .ToList();
 
-                FilteredWindows = new ObservableCollection<WindowItem>(sortedResults);
+                // Synchronize FilteredWindows in-place to preserve UI state (scroll/selection)
+                SyncCollection(FilteredWindows, sortedResults);
+
+                WindowItem? previousSelection = SelectedWindow;
+                bool selectionChanged = false;
 
                 if (FilteredWindows.Count > 0)
                 {
-                    bool preserveByIdentity = _settingsService?.Settings.PreserveSelectionOnRefresh ?? false;
-                    
-                    if (preserveByIdentity)
+                    var behavior = _settingsService?.Settings.RefreshBehavior ?? RefreshBehavior.PreserveScroll;
+
+                    if (behavior == RefreshBehavior.PreserveIdentity)
                     {
-                        // Setting enabled: Try to find and preserve the same window by identity
+                        // 1. IDENTITY: Try to find valid item by Hwnd+Title
                         var sameItem = FilteredWindows.FirstOrDefault(w => 
                             w.Hwnd == selectedHwnd && w.Title == selectedTitle);
                         
@@ -309,27 +322,113 @@ namespace SwitchBlade.ViewModels
                         }
                         else
                         {
-                            // Item not found - select first
+                            // Identity lost, select first
                             SelectedWindow = FilteredWindows[0];
                         }
+                        selectionChanged = (SelectedWindow != previousSelection);
                     }
-                    else
+                    else if (behavior == RefreshBehavior.PreserveIndex)
                     {
-                        // Setting disabled (default): Preserve index position, don't follow identity
+                        // 2. INDEX: Try to keep same numeric index
                         int newIndex = Math.Min(selectedIndex, FilteredWindows.Count - 1);
+                        if (newIndex < 0) newIndex = 0;
                         SelectedWindow = FilteredWindows[newIndex];
+                        selectionChanged = (SelectedWindow != previousSelection);
+                    }
+                    else // PreserveScroll (Default)
+                    {
+                        // 3. SCROLL:
+                        // With in-place updates, the scroll position is naturally preserved.
+                        // We update selection silently without triggering ScrollIntoView.
+                        
+                        var sameItem = FilteredWindows.FirstOrDefault(w => 
+                            w.Hwnd == selectedHwnd && w.Title == selectedTitle);
+
+                        if (sameItem != null)
+                        {
+                            // Keep same item selected (silently, no scroll)
+                            if (SelectedWindow != sameItem)
+                            {
+                                SelectedWindow = sameItem;
+                            }
+                            // Do NOT mark selectionChanged to prevent ScrollIntoView
+                        }
+                        else
+                        {
+                            // Item gone. Keep index to avoid jumping wildly.
+                            int newIndex = Math.Min(selectedIndex, FilteredWindows.Count - 1);
+                            if (newIndex < 0) newIndex = 0;
+                            SelectedWindow = FilteredWindows[newIndex];
+                            // Do NOT mark selectionChanged to prevent ScrollIntoView
+                        }
                     }
                 }
                 else
                 {
                     SelectedWindow = null;
+                    selectionChanged = (previousSelection != null);
+                }
+
+                // Fire PropertyChanged for non-PreserveScroll behaviors if selection changed
+                // This triggers ScrollIntoView in the View
+                if (selectionChanged)
+                {
+                    _isUpdating = false; // Allow notification to fire
+                    OnPropertyChanged(nameof(SelectedWindow));
+                    return; // Skip finally's _isUpdating = false
                 }
             }
             finally
             {
                 _isUpdating = false;
-                // Force update now that we are stable
-                OnPropertyChanged(nameof(SelectedWindow));
+            }
+        }
+
+        private void SyncCollection(ObservableCollection<WindowItem> collection, IList<WindowItem> target)
+        {
+            // Use Hwnd+Title as composite key for identity comparison
+            var targetDict = target.ToDictionary(w => (w.Hwnd, w.Title), w => w);
+            var existingKeysSet = new HashSet<(IntPtr, string)>(collection.Select(w => (w.Hwnd, w.Title)));
+            var targetKeysSet = new HashSet<(IntPtr, string)>(target.Select(w => (w.Hwnd, w.Title)));
+
+            // 1. Remove items not in target (by key, not reference)
+            for (int i = collection.Count - 1; i >= 0; i--)
+            {
+                var key = (collection[i].Hwnd, collection[i].Title);
+                if (!targetKeysSet.Contains(key))
+                {
+                    collection.RemoveAt(i);
+                }
+            }
+
+            // 2. Add/Move items to match target order
+            for (int i = 0; i < target.Count; i++)
+            {
+                var targetItem = target[i];
+                var targetKey = (targetItem.Hwnd, targetItem.Title);
+
+                // Find if an item with this key already exists in collection
+                int currentIndex = -1;
+                for (int j = 0; j < collection.Count; j++)
+                {
+                    if (collection[j].Hwnd == targetKey.Item1 && collection[j].Title == targetKey.Item2)
+                    {
+                        currentIndex = j;
+                        break;
+                    }
+                }
+
+                if (currentIndex == -1)
+                {
+                    // Item not in collection, insert it
+                    collection.Insert(i, targetItem);
+                }
+                else if (currentIndex != i)
+                {
+                    // Item exists but at wrong index, move it
+                    collection.Move(currentIndex, i);
+                }
+                // If currentIndex == i, item is already in the correct position
             }
         }
 

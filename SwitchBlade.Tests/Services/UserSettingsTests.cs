@@ -112,11 +112,11 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void UserSettings_DefaultPreserveSelectionOnRefresh_IsFalse()
+        public void UserSettings_DefaultRefreshBehavior_IsPreserveScroll()
         {
             var settings = new UserSettings();
 
-            Assert.False(settings.PreserveSelectionOnRefresh);
+            Assert.Equal(RefreshBehavior.PreserveScroll, settings.RefreshBehavior);
         }
     }
 }
