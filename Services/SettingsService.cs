@@ -6,50 +6,7 @@ using Microsoft.Win32;
 
 namespace SwitchBlade.Services
 {
-    public class UserSettings
-    {
-        public List<string> ExcludedProcesses { get; set; } = new List<string> { "SwitchBlade" };
-        public List<string> DisabledPlugins { get; set; } = new List<string>();
-
-        public string CurrentTheme { get; set; } = "Light";
-        
-        // UI Options
-        public bool EnablePreviews { get; set; } = true;
-        public int FadeDurationMs { get; set; } = 200;
-        public double WindowOpacity { get; set; } = 1.0;
-        public double ItemHeight { get; set; } = 50.0;
-        public bool ShowIcons { get; set; } = true;
-        public bool HideTaskbarIcon { get; set; } = true;
-        public bool LaunchOnStartup { get; set; } = false;
-
-        // Background Polling Options
-        public bool EnableBackgroundPolling { get; set; } = true;
-        public int BackgroundPollingIntervalSeconds { get; set; } = 30;
-
-        // Number Shortcuts (press 1-9, 0 to quick-switch)
-        public bool EnableNumberShortcuts { get; set; } = true;
-        // Modifier key for number shortcuts: Alt=1, Ctrl=2, Shift=4, Win=8, None=0
-        public uint NumberShortcutModifier { get; set; } = 1; // Alt
-
-        // List Refresh Behavior
-        public RefreshBehavior RefreshBehavior { get; set; } = RefreshBehavior.PreserveScroll;
-
-
-        public double WindowWidth { get; set; } = 800.0;
-        public double WindowHeight { get; set; } = 600.0;
-
-        // Hotkey Options (Defaults: Ctrl + Shift + Tab)
-        // Modifiers: Alt=1, Ctrl=2, Shift=4, Win=8
-        public uint HotKeyModifiers { get; set; } = 6; // Ctrl (2) + Shift (4)
-        public uint HotKeyKey { get; set; } = 0x51; // VK_Q
-    }
-
-    public enum RefreshBehavior
-    {
-        PreserveScroll,
-        PreserveIdentity,
-        PreserveIndex
-    }
+    // UserSettings and RefreshBehavior have been moved to Models/ directory
 
     public class SettingsService : ISettingsService
     {
@@ -84,14 +41,14 @@ namespace SwitchBlade.Services
                                 settingsDirty = true;
                                 return defaultValue;
                             }
-                            try 
-                            { 
-                                return (T)Convert.ChangeType(val, typeof(T)); 
+                            try
+                            {
+                                return (T)Convert.ChangeType(val, typeof(T));
                             }
-                            catch 
-                            { 
+                            catch
+                            {
                                 settingsDirty = true;
-                                return defaultValue; 
+                                return defaultValue;
                             }
                         }
 
@@ -119,7 +76,7 @@ namespace SwitchBlade.Services
                         // UI Options
                         Settings.EnablePreviews = Convert.ToBoolean(GetValue<int>("EnablePreviews", 1));
                         Settings.FadeDurationMs = GetValue("FadeDurationMs", 200);
-                        
+
                         // Handle opacity/doubles
                         string opacityStr = GetValue("WindowOpacity", "1.0");
                         if (double.TryParse(opacityStr, out double opacity)) Settings.WindowOpacity = opacity;
@@ -132,14 +89,14 @@ namespace SwitchBlade.Services
 
                         string winHeightStr = GetValue("WindowHeight", "600.0");
                         if (double.TryParse(winHeightStr, out double h)) Settings.WindowHeight = h;
-                        
+
                         Settings.ShowIcons = Convert.ToBoolean(GetValue<int>("ShowIcons", 1));
                         Settings.HideTaskbarIcon = Convert.ToBoolean(GetValue<int>("HideTaskbarIcon", 1));
                         Settings.LaunchOnStartup = Convert.ToBoolean(GetValue<int>("LaunchOnStartup", 0));
 
                         // Hotkey - Critical Fix: Ensure defaults are enforced and saved if missing
                         Settings.HotKeyModifiers = Convert.ToUInt32(GetValue<int>("HotKeyModifiers", 6));
-                        
+
                         var loadedKey = GetValue<int>("HotKeyKey", 0x51);
                         SwitchBlade.Core.Logger.Log($"SettingsService: Loaded HotKeyKey from Registry: {loadedKey} (Default: 81/0x51)");
                         Settings.HotKeyKey = Convert.ToUInt32(loadedKey);
@@ -217,9 +174,9 @@ namespace SwitchBlade.Services
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently fail if we can't read/delete the marker
+                SwitchBlade.Core.Logger.LogError("Failed to read/delete EnableStartupOnFirstRun marker", ex);
             }
         }
 
@@ -249,7 +206,7 @@ namespace SwitchBlade.Services
                         key.SetValue("ShowIcons", Settings.ShowIcons ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("HideTaskbarIcon", Settings.HideTaskbarIcon ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("LaunchOnStartup", Settings.LaunchOnStartup ? 1 : 0, RegistryValueKind.DWord);
-                        
+
                         key.SetValue("HotKeyModifiers", Settings.HotKeyModifiers, RegistryValueKind.DWord);
                         key.SetValue("HotKeyKey", Settings.HotKeyKey, RegistryValueKind.DWord);
 
@@ -267,9 +224,9 @@ namespace SwitchBlade.Services
                 }
                 SettingsChanged?.Invoke();
             }
-            catch
+            catch (Exception ex)
             {
-                // Handle save error
+                SwitchBlade.Core.Logger.LogError("Failed to save settings to registry", ex);
             }
 
             // Sync startup registry entry
@@ -307,9 +264,9 @@ namespace SwitchBlade.Services
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Handle registry access errors silently
+                SwitchBlade.Core.Logger.LogError("Failed to update startup registry entry", ex);
             }
         }
 

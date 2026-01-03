@@ -1,5 +1,6 @@
 using Xunit;
 using SwitchBlade.Core;
+using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Tests.Core
 {
@@ -24,12 +25,13 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
-        public void Initialize_WithNonSettingsServiceObject_DoesNotThrow()
+        public void Initialize_WithPluginContext_DoesNotThrow()
         {
             var finder = new WindowFinder();
+            var context = new PluginContext(new LoggerBridge());
 
-            // Should handle invalid type gracefully
-            finder.Initialize(new object(), new LoggerBridge());
+            // Should initialize without throwing
+            finder.Initialize(context);
 
             // GetWindows should still return empty since settings weren't set
             var result = finder.GetWindows();
@@ -37,12 +39,13 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
-        public void SetDynamicExclusions_DoesNotThrow()
+        public void SetExclusions_DoesNotThrow()
         {
             var finder = new WindowFinder();
             // This verifies the method exists and runs without exception
-            finder.SetDynamicExclusions(new System.Collections.Generic.List<string> { "chrome" });
+            finder.SetExclusions(new System.Collections.Generic.List<string> { "chrome" });
             Assert.NotNull(finder);
         }
     }
 }
+

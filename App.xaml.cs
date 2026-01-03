@@ -1,9 +1,12 @@
-﻿using System.Windows;
+﻿using System;
+using System.Windows;
 using System.Drawing;
 using System.Windows.Forms;
+using Microsoft.Extensions.DependencyInjection;
 using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
 using SwitchBlade.Views;
+using SwitchBlade.Core;
 using Application = System.Windows.Application;
 
 namespace SwitchBlade;
@@ -14,8 +17,7 @@ namespace SwitchBlade;
 public partial class App : Application
 {
     private NotifyIcon? _trayIcon;
-    private SettingsService _settingsService;
-    private ThemeService _themeService;
+    private IServiceProvider _serviceProvider = null!;
     private MainWindow? _mainWindow;
 
     /// <summary>
@@ -30,8 +32,8 @@ public partial class App : Application
 
     public App()
     {
-        _settingsService = new SettingsService();
-        _themeService = new ThemeService(_settingsService);
+        // Configure DI container
+        _serviceProvider = ServiceConfiguration.ConfigureServices();
     }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -39,7 +41,6 @@ public partial class App : Application
         SwitchBlade.Core.Logger.Log("Application Starting...");
         base.OnStartup(e);
 
-        // Global exception handling
         // Global exception handling
         this.DispatcherUnhandledException += (s, args) =>
         {
@@ -56,22 +57,22 @@ public partial class App : Application
             Shutdown();
         };
 
-        // Apply theme immediately
-        _themeService.LoadCurrentTheme();
+        // Get services from DI container
+        var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
+        var themeService = _serviceProvider.GetRequiredService<ThemeService>();
 
-        // 1. Initialize Settings (Registry migration happens here)
-        // _settingsService is already initialized in the constructor.
-        _settingsService.LoadSettings();
+        // Apply theme immediately
+        themeService.LoadCurrentTheme();
 
         // Handle MSI installer startup flag - if /enablestartup was passed, enable Windows startup
         if (EnableStartupOnFirstRun)
         {
             SwitchBlade.Core.Logger.Log("EnableStartupOnFirstRun flag detected - enabling Windows startup");
-            _settingsService.Settings.LaunchOnStartup = true;
-            _settingsService.SaveSettings(); // This writes to Windows Run registry
+            settingsService.Settings.LaunchOnStartup = true;
+            settingsService.SaveSettings(); // This writes to Windows Run registry
         }
 
-        // 2. Setup Tray Icon
+        // Setup Tray Icon
         _trayIcon = new NotifyIcon
         {
             Icon = GetIcon(),
@@ -92,9 +93,9 @@ public partial class App : Application
         // Double Click to Show
         _trayIcon.DoubleClick += (s, args) => ShowMainWindow();
 
-        // Create MainWindow manually (removed StartupUri from App.xaml)
-        _mainWindow = new MainWindow();
-        
+        // Create MainWindow with injected dependencies
+        _mainWindow = new MainWindow(_serviceProvider);
+
         // Only show the main window if not starting minimized
         if (!StartMinimized)
         {
@@ -112,24 +113,18 @@ public partial class App : Application
         {
             // Replicate the logic from HotKeyService/MainWindow HotKey handler
             // to ensure consistent "fresh" state (preview hidden, search box focused)
-            _mainWindow.Opacity = 0; 
+            _mainWindow.Opacity = 0;
             _mainWindow.Show();
-            
+
             if (_mainWindow.WindowState == WindowState.Minimized)
             {
                 _mainWindow.WindowState = WindowState.Normal;
             }
-            
+
             _mainWindow.Activate();
 
-            // We need to trigger the same "Reset" logic that happens on hotkey
-            // Since we don't have direct access to private methods, we'll expose a public Activate/Reset method on MainWindow
-            // Or just trigger the refresh via ViewModel if public.
-            // BETTER: Let's call a public method on MainWindow that handles "Open".
-            if (_mainWindow is MainWindow mw)
-            {
-                mw.ForceOpen();
-            }
+            // Call public method on MainWindow that handles "Open"
+            _mainWindow.ForceOpen();
         }
     }
 
@@ -149,21 +144,21 @@ public partial class App : Application
         }
         catch (Exception)
         {
-             // Log error if needed: MessageBox.Show("Icon Error: " + ex.Message);
+            // Log error if needed: MessageBox.Show("Icon Error: " + ex.Message);
         }
         return SystemIcons.Application;
     }
 
     private void OpenSettings()
     {
-        var plugins = new System.Collections.Generic.List<SwitchBlade.Core.PluginInfo>();
+        var plugins = new System.Collections.Generic.List<PluginInfo>();
         if (_mainWindow != null)
         {
             foreach (var provider in _mainWindow.Providers)
             {
                 var type = provider.GetType();
                 var assembly = type.Assembly;
-                plugins.Add(new SwitchBlade.Core.PluginInfo
+                plugins.Add(new PluginInfo
                 {
                     Name = provider.PluginName, // Use PluginName from interface
                     TypeName = type.FullName ?? type.Name,
@@ -176,7 +171,9 @@ public partial class App : Application
             }
         }
 
-        var settingsVm = new SettingsViewModel(_settingsService, _themeService, plugins);
+        var settingsService = _serviceProvider.GetRequiredService<SettingsService>();
+        var themeService = _serviceProvider.GetRequiredService<ThemeService>();
+        var settingsVm = new SettingsViewModel(settingsService, themeService, plugins);
         var settingsWindow = new SettingsWindow
         {
             DataContext = settingsVm
@@ -187,11 +184,15 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _trayIcon?.Dispose();
+        if (_serviceProvider is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
         base.OnExit(e);
     }
-    
-    // Services access for MainWindow (Service Locator pattern for simplicity in this small app)
-    public SettingsService SettingsService => _settingsService;
-    public ThemeService ThemeService => _themeService;
-}
 
+    /// <summary>
+    /// Gets the DI service provider for dependency resolution.
+    /// </summary>
+    public IServiceProvider ServiceProvider => _serviceProvider;
+}

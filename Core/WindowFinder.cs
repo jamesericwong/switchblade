@@ -17,7 +17,7 @@ namespace SwitchBlade.Core
 
         public WindowFinder() { }
 
-        public void SetDynamicExclusions(IEnumerable<string> exclusions)
+        public void SetExclusions(IEnumerable<string> exclusions)
         {
             _dynamicExclusions = exclusions;
         }
@@ -27,13 +27,10 @@ namespace SwitchBlade.Core
             _settingsService = settingsService;
         }
 
-        public override void Initialize(object settingsService, ILogger logger)
+        public override void Initialize(IPluginContext context)
         {
-            base.Initialize(settingsService, logger);
-           if (settingsService is SettingsService service)
-           {
-               _settingsService = service;
-           }
+            base.Initialize(context);
+            // Note: SettingsService is now injected via constructor, not through Initialize
         }
 
         public override void ReloadSettings()
@@ -53,7 +50,7 @@ namespace SwitchBlade.Core
             if (_settingsService == null) return results; // Add safety
 
             var excluded = new HashSet<string>(_settingsService.Settings.ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
-            
+
             // Note: Browser processes are now managed by the ChromeTabFinder plugin.
             // To prevent duplicate windows, add browser process names to ExcludedProcesses in Settings.
 
@@ -93,10 +90,10 @@ namespace SwitchBlade.Core
                 if (excluded.Contains(processName) || _dynamicExclusions.Contains(processName, StringComparer.OrdinalIgnoreCase))
                 {
                     // Do not log "excluded" for browsers to reduce noise, or log as debug if needed
-                    Logger.Log($"Excluded Window '{title}' from process '{processName}' (Matched Exclusion)"); 
+                    Logger.Log($"Excluded Window '{title}' from process '{processName}' (Matched Exclusion)");
                     return true;
                 }
-                
+
                 // Debug log
                 Logger.Log($"Included Window: '{title}', Process: '{processName}' (Exclusions: {string.Join(",", _dynamicExclusions)})");
 
@@ -117,7 +114,7 @@ namespace SwitchBlade.Core
 
         public override void ActivateWindow(WindowItem windowItem)
         {
-             // Robust window activation using the improved helper
+            // Robust window activation using the improved helper
             Interop.ForceForegroundWindow(windowItem.Hwnd);
         }
     }

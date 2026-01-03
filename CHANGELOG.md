@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2026-01-03
+
+### Added
+- **Dependency Injection Container**: Introduced `Microsoft.Extensions.DependencyInjection` for proper service resolution.
+- **IPluginContext Interface**: New context object passed to plugins during initialization, replacing the loosely-typed `(object settingsService, ILogger logger)` signature.
+- **NativeInterop Shared Library**: Consolidated P/Invoke declarations in `SwitchBlade.Contracts.NativeInterop` for use by both Core and plugins.
+- **ServiceConfiguration**: New composition root class (`Services/ServiceConfiguration.cs`) that registers all services.
+
+### Changed
+- **BREAKING**: `IWindowProvider.Initialize()` now takes `IPluginContext context` instead of `(object settingsService, ILogger logger)`. Plugin developers must update their implementations.
+- **App Architecture**: Removed Service Locator pattern (`((App)Application.Current).SettingsService`). Services are now injected via constructor.
+- **MainWindow**: Now receives `IServiceProvider` via constructor instead of accessing services through `App`.
+- **MainWindow SRP Refactoring**: Extracted handlers into dedicated classes:
+  - `Handlers/KeyboardInputHandler.cs` - All keyboard navigation and shortcuts (~160 lines extracted)
+  - `Handlers/WindowResizeHandler.cs` - Resize grip handling (~40 lines extracted)
+- **HotKeyService/BackgroundPollingService**: Now depend on `ISettingsService` interface instead of concrete class.
+
+### Fixed
+- **Silent Exception Swallowing**: Added logging to previously empty catch blocks in `SettingsService`.
+- **Code Organization**: 
+  - Extracted `UserSettings` class to `Models/UserSettings.cs`.
+  - Extracted `RefreshBehavior` enum to `Models/RefreshBehavior.cs`.
+  - Created `ModifierKeyFlags` constants to replace magic numbers.
+
+### Removed
+- **Duplicated Native Methods**: Removed ~70 lines of duplicated P/Invoke code from `ChromeTabFinder` plugin.
+
 ## [1.4.1] - 2026-01-03
 
 ### Added

@@ -31,12 +31,12 @@ namespace SwitchBlade.Tests.Contracts
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             ScanCallCount++;
-            
+
             if (_scanDelayMs > 0)
             {
                 Thread.Sleep(_scanDelayMs);
             }
-            
+
             return _testResults;
         }
     }
@@ -130,13 +130,13 @@ namespace SwitchBlade.Tests.Contracts
 
             // Act - start first scan in background
             var firstScanTask = Task.Run(() => provider.GetWindows());
-            
+
             // Wait a bit for the scan to start
             await Task.Delay(50);
-            
+
             // Second call while first is still running should return cached (empty initially)
             var secondResult = provider.GetWindows().ToList();
-            
+
             // Wait for first scan to complete
             var firstResult = (await firstScanTask).ToList();
 
@@ -172,9 +172,10 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange
             var provider = new TestCachingWindowProvider();
             var mockLogger = new Mock<ILogger>();
+            var context = new PluginContext(mockLogger.Object);
 
             // Act & Assert - should not throw
-            provider.Initialize(new object(), mockLogger.Object);
+            provider.Initialize(context);
         }
 
         [Fact]

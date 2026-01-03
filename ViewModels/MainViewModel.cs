@@ -28,13 +28,16 @@ namespace SwitchBlade.ViewModels
         private HashSet<string> _disabledPlugins = new HashSet<string>();
         private readonly object _lock = new object();
 
+        /// <summary>Gets the list of window providers for this ViewModel.</summary>
+        public IReadOnlyList<IWindowProvider> WindowProviders => _windowProviders;
+
         public MainViewModel(IEnumerable<IWindowProvider> windowProviders, ISettingsService? settingsService = null, IDispatcherService? dispatcherService = null)
         {
             _windowProviders = windowProviders.ToList();
             _settingsService = settingsService;
             _dispatcherService = dispatcherService ?? new WpfDispatcherService();
             _filteredWindows = new ObservableCollection<WindowItem>();
-            
+
             if (_settingsService != null)
             {
                 // Initialize disabled plugins safely
@@ -44,18 +47,18 @@ namespace SwitchBlade.ViewModels
                 }
 
                 EnablePreviews = _settingsService.Settings.EnablePreviews;
-                    _settingsService.SettingsChanged += () => 
+                _settingsService.SettingsChanged += () =>
+            {
+                lock (_lock)
                 {
-                    lock (_lock)
-                    {
-                        _disabledPlugins = new HashSet<string>(_settingsService.Settings.DisabledPlugins);
-                    }
-                    EnablePreviews = _settingsService.Settings.EnablePreviews;
-                    OnPropertyChanged(nameof(ShowInTaskbar));
-                    OnPropertyChanged(nameof(EnableNumberShortcuts));
-                    OnPropertyChanged(nameof(ShortcutModifierText));
-                    OnPropertyChanged(nameof(ItemHeight));
-                };
+                    _disabledPlugins = new HashSet<string>(_settingsService.Settings.DisabledPlugins);
+                }
+                EnablePreviews = _settingsService.Settings.EnablePreviews;
+                OnPropertyChanged(nameof(ShowInTaskbar));
+                OnPropertyChanged(nameof(EnableNumberShortcuts));
+                OnPropertyChanged(nameof(ShortcutModifierText));
+                OnPropertyChanged(nameof(ItemHeight));
+            };
             }
         }
 
@@ -79,14 +82,8 @@ namespace SwitchBlade.ViewModels
         {
             get
             {
-                var modifier = _settingsService?.Settings.NumberShortcutModifier ?? 1;
-                return modifier switch
-                {
-                    1 => "Alt",
-                    2 => "Ctrl",
-                    4 => "Shift",
-                    _ => ""
-                };
+                var modifier = _settingsService?.Settings.NumberShortcutModifier ?? SwitchBlade.Services.ModifierKeyFlags.Alt;
+                return SwitchBlade.Services.ModifierKeyFlags.ToString(modifier);
             }
         }
 
@@ -104,12 +101,12 @@ namespace SwitchBlade.ViewModels
         public WindowItem? SelectedWindow
         {
             get => _selectedWindow;
-            set 
-            { 
-                _selectedWindow = value; 
+            set
+            {
+                _selectedWindow = value;
                 if (!_isUpdating)
                 {
-                    OnPropertyChanged(); 
+                    OnPropertyChanged();
                 }
             }
         }
@@ -128,135 +125,134 @@ namespace SwitchBlade.ViewModels
             }
         }
 
-         public async Task RefreshWindows()
-         {
-             // Do not clear _allWindows here. 
-             // We want to keep the "old" state visible until the "new" state for each provider is ready.
-             // This prevents the UI from flashing blank.
-             UpdateSearch();
- 
-             // 1. Reload settings and Collect Exclusions
-             // We need to do this sequentially or carefully to ensure we have the full list before WindowFinder runs
-             
-             var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-             
-             // First pass: Reload settings and gather handled processes
-             foreach (var provider in _windowProviders)
-             {
-                 try
-                 {
-                     provider.ReloadSettings();
-                     foreach(var p in provider.GetHandledProcesses())
-                     {
-                         handledProcesses.Add(p);
-                         SwitchBlade.Core.Logger.Log($"MainViewModel: Added exclusion '{p}' from {provider.PluginName}");
-                     }
-                 }
-                 catch (Exception ex)
-                 {
-                     SwitchBlade.Core.Logger.LogError($"Error reloading settings for {provider.PluginName}", ex);
-                 }
-             }
- 
-             // 2. Inject exclusions into WindowFinder
-             var windowFinder = _windowProviders.OfType<WindowFinder>().FirstOrDefault();
-             if (windowFinder != null)
-             {
-                 windowFinder.SetDynamicExclusions(handledProcesses);
-             }
- 
- 
-             // 3. Parallel fetch
-             var tasks = _windowProviders.Select(provider => Task.Run(() =>
-             {
-                 try
-                 {
-                     // Check if disabled
-                     bool isDisabled;
-                     lock (_lock)
-                     {
-                         isDisabled = _disabledPlugins.Contains(provider.PluginName);
-                     }
- 
-                     List<WindowItem> results;
-                     if (isDisabled)
-                     {
-                         results = new List<WindowItem>();
-                     }
-                     else
-                     {
-                         // Already reloaded settings above
-                         results = provider.GetWindows().ToList();
-                     }
-                     
-                     // Optimization: Diff check
-                     // Check if the current list for this provider is identical to the new results.
-                     // If so, skip the UI update entirely to prevent flicker.
-                     bool isIdentical = false;
-                     
-                     // We need a thread-safe snapshot or to lock, but _allWindows is bound to UI.
-                     // Reading it from a background thread is risky if it's being modified.
-                     // However, we can capture the items for this provider safely in the Invoke block logic
-                     // OR we can do the check inside Invoke. Doing it inside Invoke is safer.
-                     
-                     _dispatcherService.Invoke(() =>
-                     {
-                         var existingItems = _allWindows.Where(x => x.Source == provider).ToList();
-                         
-                         // Fast count check
-                         if (existingItems.Count == results.Count)
-                         {
-                             // Deep check
-                             // We cannot use ToDictionary(Hwnd) because Chrome Tabs share the same Hwnd.
-                             // We need to compare the content of the collections (Bag Equality).
-                             // Simplest way for small lists: Sort and SequenceEqual.
-                             
-                             var existingKeys = existingItems
-                                 .Select(x => new { x.Hwnd, x.Title })
-                                 .OrderBy(x => x.Hwnd.ToInt64())
-                                 .ThenBy(x => x.Title)
-                                 .ToList();
-                                 
-                             var newKeys = results
-                                 .Select(x => new { x.Hwnd, x.Title })
-                                 .OrderBy(x => x.Hwnd.ToInt64())
-                                 .ThenBy(x => x.Title)
-                                 .ToList();
-                                 
-                             isIdentical = existingKeys.SequenceEqual(newKeys);
-                         }
- 
-                         if (!isIdentical)
-                         {
-                             // 1. Remove outdated items from this specific provider
-                             // Iterate backwards to safely remove
-                             for (int i = _allWindows.Count - 1; i >= 0; i--)
-                             {
-                                 if (_allWindows[i].Source == provider)
-                                 {
-                                     _allWindows.RemoveAt(i);
-                                 }
-                             }
- 
-                             // 2. Add fresh items
-                             foreach (var item in results)
-                             {
-                                 _allWindows.Add(item);
-                             }
- 
-                             // 3. Refresh the view to show changes and SORT
-                             UpdateSearch();
-                         }
-                     });
-                 }
-                 catch (Exception ex)
-                 {
-                     SwitchBlade.Core.Logger.LogError($"Provider error in RefreshWindows: {ex.Message}", ex);
-                 }
-             })).ToList();
- 
-             await Task.WhenAll(tasks);
-         }
+        public async Task RefreshWindows()
+        {
+            // Do not clear _allWindows here. 
+            // We want to keep the "old" state visible until the "new" state for each provider is ready.
+            // This prevents the UI from flashing blank.
+            UpdateSearch();
+
+            // 1. Reload settings and Collect Exclusions
+            // We need to do this sequentially or carefully to ensure we have the full list before WindowFinder runs
+
+            var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // First pass: Reload settings and gather handled processes
+            foreach (var provider in _windowProviders)
+            {
+                try
+                {
+                    provider.ReloadSettings();
+                    foreach (var p in provider.GetHandledProcesses())
+                    {
+                        handledProcesses.Add(p);
+                        SwitchBlade.Core.Logger.Log($"MainViewModel: Added exclusion '{p}' from {provider.PluginName}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SwitchBlade.Core.Logger.LogError($"Error reloading settings for {provider.PluginName}", ex);
+                }
+            }
+
+            // 2. Inject exclusions into all providers via interface (no concrete type check)
+            foreach (var provider in _windowProviders)
+            {
+                provider.SetExclusions(handledProcesses);
+            }
+
+
+            // 3. Parallel fetch
+            var tasks = _windowProviders.Select(provider => Task.Run(() =>
+            {
+                try
+                {
+                    // Check if disabled
+                    bool isDisabled;
+                    lock (_lock)
+                    {
+                        isDisabled = _disabledPlugins.Contains(provider.PluginName);
+                    }
+
+                    List<WindowItem> results;
+                    if (isDisabled)
+                    {
+                        results = new List<WindowItem>();
+                    }
+                    else
+                    {
+                        // Already reloaded settings above
+                        results = provider.GetWindows().ToList();
+                    }
+
+                    // Optimization: Diff check
+                    // Check if the current list for this provider is identical to the new results.
+                    // If so, skip the UI update entirely to prevent flicker.
+                    bool isIdentical = false;
+
+                    // We need a thread-safe snapshot or to lock, but _allWindows is bound to UI.
+                    // Reading it from a background thread is risky if it's being modified.
+                    // However, we can capture the items for this provider safely in the Invoke block logic
+                    // OR we can do the check inside Invoke. Doing it inside Invoke is safer.
+
+                    _dispatcherService.Invoke(() =>
+                   {
+                       var existingItems = _allWindows.Where(x => x.Source == provider).ToList();
+
+                       // Fast count check
+                       if (existingItems.Count == results.Count)
+                       {
+                           // Deep check
+                           // We cannot use ToDictionary(Hwnd) because Chrome Tabs share the same Hwnd.
+                           // We need to compare the content of the collections (Bag Equality).
+                           // Simplest way for small lists: Sort and SequenceEqual.
+
+                           var existingKeys = existingItems
+                              .Select(x => new { x.Hwnd, x.Title })
+                              .OrderBy(x => x.Hwnd.ToInt64())
+                              .ThenBy(x => x.Title)
+                              .ToList();
+
+                           var newKeys = results
+                               .Select(x => new { x.Hwnd, x.Title })
+                               .OrderBy(x => x.Hwnd.ToInt64())
+                               .ThenBy(x => x.Title)
+                               .ToList();
+
+                           isIdentical = existingKeys.SequenceEqual(newKeys);
+                       }
+
+                       if (!isIdentical)
+                       {
+                           // 1. Remove outdated items from this specific provider
+                           // Iterate backwards to safely remove
+                           for (int i = _allWindows.Count - 1; i >= 0; i--)
+                           {
+                               if (_allWindows[i].Source == provider)
+                               {
+                                   _allWindows.RemoveAt(i);
+                               }
+                           }
+
+                           // 2. Add fresh items
+                           foreach (var item in results)
+                           {
+                               _allWindows.Add(item);
+                           }
+
+                           // 3. Refresh the view to show changes and SORT
+                           UpdateSearch();
+                       }
+                   });
+                }
+                catch (Exception ex)
+                {
+                    SwitchBlade.Core.Logger.LogError($"Provider error in RefreshWindows: {ex.Message}", ex);
+                }
+            })).ToList();
+
+            await Task.WhenAll(tasks);
+        }
 
         private void UpdateSearch()
         {
@@ -267,7 +263,7 @@ namespace SwitchBlade.ViewModels
                 IntPtr? selectedHwnd = SelectedWindow?.Hwnd;
                 string? selectedTitle = SelectedWindow?.Title;
                 int selectedIndex = SelectedWindow != null ? FilteredWindows.IndexOf(SelectedWindow) : -1;
-                
+
                 // Clamp to valid range (in case of stale reference)
                 if (selectedIndex < 0 || selectedIndex >= FilteredWindows.Count)
                 {
@@ -313,9 +309,9 @@ namespace SwitchBlade.ViewModels
                     if (behavior == RefreshBehavior.PreserveIdentity)
                     {
                         // 1. IDENTITY: Try to find valid item by Hwnd+Title
-                        var sameItem = FilteredWindows.FirstOrDefault(w => 
+                        var sameItem = FilteredWindows.FirstOrDefault(w =>
                             w.Hwnd == selectedHwnd && w.Title == selectedTitle);
-                        
+
                         if (sameItem != null)
                         {
                             SelectedWindow = sameItem;
@@ -340,8 +336,8 @@ namespace SwitchBlade.ViewModels
                         // 3. SCROLL:
                         // With in-place updates, the scroll position is naturally preserved.
                         // We update selection silently without triggering ScrollIntoView.
-                        
-                        var sameItem = FilteredWindows.FirstOrDefault(w => 
+
+                        var sameItem = FilteredWindows.FirstOrDefault(w =>
                             w.Hwnd == selectedHwnd && w.Title == selectedTitle);
 
                         if (sameItem != null)

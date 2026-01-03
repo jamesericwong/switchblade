@@ -10,16 +10,16 @@ namespace SwitchBlade.Services
         private const int HOTKEY_ID = 9001;
         private const int WM_HOTKEY = 0x0312;
         private readonly Window _window;
-        private readonly SettingsService _settingsService;
+        private readonly ISettingsService _settingsService;
         private HwndSource? _source;
         private Action _onHotKeyPressed;
 
-        public HotKeyService(Window window, SettingsService settingsService, Action onHotKeyPressed)
+        public HotKeyService(Window window, ISettingsService settingsService, Action onHotKeyPressed)
         {
             _window = window;
             _settingsService = settingsService;
             _onHotKeyPressed = onHotKeyPressed;
-            
+
             _settingsService.SettingsChanged += OnSettingsChanged;
 
             if (_window.IsLoaded)
@@ -35,10 +35,16 @@ namespace SwitchBlade.Services
 
         private void OnSettingsChanged()
         {
+            Logger.Log("HotKeyService: OnSettingsChanged triggered - re-registering hotkey");
             if (_source != null)
             {
-                UnregisterHotKey(_source.Handle);
+                bool unregSuccess = UnregisterHotKey(_source.Handle);
+                Logger.Log($"HotKeyService: Unregister result: {unregSuccess}");
                 RegisterHotKey(_source.Handle);
+            }
+            else
+            {
+                Logger.Log("HotKeyService: OnSettingsChanged - _source is null, cannot re-register");
             }
         }
 
@@ -62,20 +68,28 @@ namespace SwitchBlade.Services
         {
             var mods = _settingsService.Settings.HotKeyModifiers;
             var key = _settingsService.Settings.HotKeyKey;
+            Logger.Log($"HotKeyService: Attempting to register hotkey. Mods: {mods}, Key: {key:X} (0x{key:X})");
             bool success = Interop.RegisterHotKey(handle, HOTKEY_ID, mods, key);
             if (!success)
             {
-                Logger.LogError($"Failed to register hotkey. Mods: {mods}, Key: {key:X}");
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logger.LogError($"Failed to register hotkey. Mods: {mods}, Key: {key:X}, Win32Error: {error}");
             }
             else
             {
-                Logger.Log($"Registered hotkey. Mods: {mods}, Key: {key:X}");
+                Logger.Log($"HotKeyService: Successfully registered hotkey. Mods: {mods}, Key: {key:X}");
             }
         }
 
-        private void UnregisterHotKey(IntPtr handle)
+        private bool UnregisterHotKey(IntPtr handle)
         {
-             Interop.UnregisterHotKey(handle, HOTKEY_ID);
+            bool result = Interop.UnregisterHotKey(handle, HOTKEY_ID);
+            if (!result)
+            {
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logger.Log($"HotKeyService: UnregisterHotKey failed, Win32Error: {error}");
+            }
+            return result;
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
