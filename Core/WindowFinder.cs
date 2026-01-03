@@ -54,13 +54,13 @@ namespace SwitchBlade.Core
             // Note: Browser processes are now managed by the ChromeTabFinder plugin.
             // To prevent duplicate windows, add browser process names to ExcludedProcesses in Settings.
 
-            Interop.EnumWindows((hwnd, lParam) =>
+            NativeInterop.EnumWindows((hwnd, lParam) =>
             {
-                if (!Interop.IsWindowVisible(hwnd))
+                if (!NativeInterop.IsWindowVisible(hwnd))
                     return true;
 
                 StringBuilder sb = new StringBuilder(256);
-                Interop.GetWindowText(hwnd, sb, sb.Capacity);
+                NativeInterop.GetWindowText(hwnd, sb, sb.Capacity);
                 string title = sb.ToString();
 
                 if (string.IsNullOrWhiteSpace(title))
@@ -74,7 +74,7 @@ namespace SwitchBlade.Core
                 try
                 {
                     uint pid;
-                    Interop.GetWindowThreadProcessId(hwnd, out pid);
+                    NativeInterop.GetWindowThreadProcessId(hwnd, out pid);
                     if (pid != 0)
                     {
                         var proc = Process.GetProcessById((int)pid);
@@ -115,7 +115,7 @@ namespace SwitchBlade.Core
         public override void ActivateWindow(WindowItem windowItem)
         {
             // Robust window activation using the improved helper
-            Interop.ForceForegroundWindow(windowItem.Hwnd);
+            NativeInterop.ForceForegroundWindow(windowItem.Hwnd);
         }
     }
 }

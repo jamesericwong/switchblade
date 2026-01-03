@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.6] - 2026-01-03
+
+### Changed
+- **Native Interop Refactoring**: 
+  - Consolidated all Win32 P/Invoke declarations into `SwitchBlade.Contracts.NativeInterop`.
+  - Deleted the redundant `SwitchBlade.Core.Interop` class.
+  - Updated all core components (`WindowFinder`, `ThumbnailService`, `HotKeyService`) and plugins to use the shared Contracts library, establishing a "Single Source of Truth" for OS interactions.
+
 ## [1.4.5] - 2026-01-03
 
 ### Fixed

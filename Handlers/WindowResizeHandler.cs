@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 
 namespace SwitchBlade.Handlers
@@ -34,9 +35,9 @@ namespace SwitchBlade.Handlers
                 try
                 {
                     // Manual Resize via System Command
-                    Interop.SendMessage(new WindowInteropHelper(_window).Handle,
-                                        Interop.WM_SYSCOMMAND,
-                                        (IntPtr)(Interop.SC_SIZE + Interop.SC_SIZE_HTBOTTOMRIGHT),
+                    NativeInterop.SendMessage(new WindowInteropHelper(_window).Handle,
+                                        NativeInterop.WM_SYSCOMMAND,
+                                        (IntPtr)(NativeInterop.SC_SIZE + NativeInterop.SC_SIZE_HTBOTTOMRIGHT),
                                         IntPtr.Zero);
                     Logger.Log("Sent SC_SIZE + HTBOTTOMRIGHT command.");
                 }
@@ -58,9 +59,9 @@ namespace SwitchBlade.Handlers
                 try
                 {
                     // Manual Resize via System Command - Bottom-Left corner
-                    Interop.SendMessage(new WindowInteropHelper(_window).Handle,
-                                        Interop.WM_SYSCOMMAND,
-                                        (IntPtr)(Interop.SC_SIZE + Interop.SC_SIZE_HTBOTTOMLEFT),
+                    NativeInterop.SendMessage(new WindowInteropHelper(_window).Handle,
+                                        NativeInterop.WM_SYSCOMMAND,
+                                        (IntPtr)(NativeInterop.SC_SIZE + NativeInterop.SC_SIZE_HTBOTTOMLEFT),
                                         IntPtr.Zero);
                     Logger.Log("Sent SC_SIZE + HTBOTTOMLEFT command.");
                 }
