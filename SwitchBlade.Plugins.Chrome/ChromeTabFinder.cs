@@ -68,6 +68,12 @@ namespace SwitchBlade.Plugins.Chrome
             ReloadSettings();
         }
 
+        public IEnumerable<string> GetHandledProcesses()
+        {
+            _logger?.Log($"ChromeTabFinder Handled Processes: {string.Join(", ", _browserProcesses)}");
+            return _browserProcesses;
+        }
+
         public IEnumerable<WindowItem> GetWindows()
         {
             var results = new List<WindowItem>();

@@ -34,7 +34,12 @@ namespace SwitchBlade.Contracts
         void ShowSettingsDialog(IntPtr ownerHwnd);
         void ReloadSettings();
 
-        // 3. Refresh: Return a list of items to display in the user's search
+        // 3. Dynamic Exclusions
+        // Return processes (names without extension) that this plugin handles exclusively.
+        // The core WindowFinder will ignore these processes to prevent duplicates.
+        IEnumerable<string> GetHandledProcesses();
+
+        // 4. Refresh: Return a list of items to display in the user's search
         IEnumerable<WindowItem> GetWindows();
 
         // 4. Activation: Handle what happens when the user presses Enter on your item
