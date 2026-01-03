@@ -128,7 +128,10 @@ namespace SwitchBlade.Services
 
                         // Hotkey - Critical Fix: Ensure defaults are enforced and saved if missing
                         Settings.HotKeyModifiers = Convert.ToUInt32(GetValue<int>("HotKeyModifiers", 6));
-                        Settings.HotKeyKey = Convert.ToUInt32(GetValue<int>("HotKeyKey", 0x51)); // Q
+                        
+                        var loadedKey = GetValue<int>("HotKeyKey", 0x51);
+                        SwitchBlade.Core.Logger.Log($"SettingsService: Loaded HotKeyKey from Registry: {loadedKey} (Default: 81/0x51)");
+                        Settings.HotKeyKey = Convert.ToUInt32(loadedKey);
 
                         // Background Polling
                         Settings.EnableBackgroundPolling = Convert.ToBoolean(GetValue<int>("EnableBackgroundPolling", 1));

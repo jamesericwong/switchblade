@@ -27,6 +27,12 @@ namespace SwitchBlade.Contracts
         /// </summary>
         void ReloadSettings();
 
+        /// <summary>
+        /// Returns a list of process names (without extension) that this plugin exclusively handles.
+        /// The core WindowFinder will exclude these processes to prevent duplicates.
+        /// </summary>
+        IEnumerable<string> GetHandledProcesses() => Array.Empty<string>();
+
         IEnumerable<WindowItem> GetWindows();
 
         void ActivateWindow(WindowItem item);

@@ -35,5 +35,14 @@ namespace SwitchBlade.Tests.Core
             var result = finder.GetWindows();
             Assert.Empty(result);
         }
+
+        [Fact]
+        public void SetDynamicExclusions_DoesNotThrow()
+        {
+            var finder = new WindowFinder();
+            // This verifies the method exists and runs without exception
+            finder.SetDynamicExclusions(new System.Collections.Generic.List<string> { "chrome" });
+            Assert.NotNull(finder);
+        }
     }
 }

@@ -10,11 +10,17 @@ namespace SwitchBlade.Core
     public class WindowFinder : IWindowProvider
     {
         private SettingsService? _settingsService;
+        private IEnumerable<string> _dynamicExclusions = new List<string>();
 
         public string PluginName => "WindowFinder";
         public bool HasSettings => false;
 
         public WindowFinder() { }
+
+        public void SetDynamicExclusions(IEnumerable<string> exclusions)
+        {
+            _dynamicExclusions = exclusions;
+        }
 
         public WindowFinder(SettingsService settingsService)
         {
@@ -83,15 +89,15 @@ namespace SwitchBlade.Core
                 }
 
                 // Filter Excluded Processes
-                if (excluded.Contains(processName))
+                if (excluded.Contains(processName) || _dynamicExclusions.Contains(processName, StringComparer.OrdinalIgnoreCase))
                 {
                     // Do not log "excluded" for browsers to reduce noise, or log as debug if needed
-                    // Logger.Log($"Excluded Window '{title}' from process '{processName}'"); 
+                    Logger.Log($"Excluded Window '{title}' from process '{processName}' (Matched Exclusion)"); 
                     return true;
                 }
                 
                 // Debug log
-                Logger.Log($"Included Window: '{title}', Process: '{processName}'");
+                Logger.Log($"Included Window: '{title}', Process: '{processName}' (Exclusions: {string.Join(",", _dynamicExclusions)})");
 
                 results.Add(new WindowItem
                 {
