@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.9] - 2026-01-03
+
+### Added
+- **Windows Terminal Plugin**: New plugin (`SwitchBlade.Plugins.WindowsTerminal`) that lists individual tabs within Windows Terminal instances.
+  - Uses UI Automation to discover and activate specific tabs within each Terminal window.
+  - **Defensive Fallback**: If tabs cannot be enumerated (e.g., due to UIPI when SwitchBlade runs as User but Terminal runs as Administrator), the plugin returns the main window as a fallback to avoid "losing" windows.
+  - Added `IsTerminalTab` property to `WindowItem` to distinguish Terminal tab results from standard windows.
+- **Run as Administrator Setting**: New toggle in Settings to run SwitchBlade with elevated privileges.
+  - Some plugins require Administrator privileges for full window inspection (e.g., viewing tabs in elevated applications).
+  - When enabled, SwitchBlade prompts for UAC consent on startup.
+  - Toggling the setting prompts to restart the application.
+
+### Notes
+- **Privilege Considerations**: 
+  - Standard applications: Visible to SwitchBlade running as User.
+  - Elevated (Administrator) applications: Requires SwitchBlade to also run as Administrator to see internal details. Otherwise, only the main window is listed.
+
+
 ## [1.4.8] - 2026-01-03
 
 ### Fixed

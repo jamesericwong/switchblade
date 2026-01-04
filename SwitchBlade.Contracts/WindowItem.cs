@@ -14,6 +14,9 @@ namespace SwitchBlade.Contracts
         // Kept for backward compat / specific logic if needed, but 'Source' is preferred for activation
         public bool IsChromeTab { get; set; }
 
+        // Indicates this is a tab within Windows Terminal
+        public bool IsTerminalTab { get; set; }
+
         public IWindowProvider? Source { get; set; }
 
         public override string ToString()

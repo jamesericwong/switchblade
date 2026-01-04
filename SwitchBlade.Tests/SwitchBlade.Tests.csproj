@@ -27,6 +27,7 @@
     <ProjectReference Include="..\SwitchBlade.csproj" />
     <ProjectReference Include="..\SwitchBlade.Contracts\SwitchBlade.Contracts.csproj" />
     <ProjectReference Include="..\SwitchBlade.Plugins.Chrome\SwitchBlade.Plugins.Chrome.csproj" />
+    <ProjectReference Include="..\SwitchBlade.Plugins.WindowsTerminal\SwitchBlade.Plugins.WindowsTerminal.csproj" />
   </ItemGroup>
 
 </Project>

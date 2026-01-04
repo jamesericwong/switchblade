@@ -93,6 +93,7 @@ namespace SwitchBlade.Services
                         Settings.ShowIcons = Convert.ToBoolean(GetValue<int>("ShowIcons", 1));
                         Settings.HideTaskbarIcon = Convert.ToBoolean(GetValue<int>("HideTaskbarIcon", 1));
                         Settings.LaunchOnStartup = Convert.ToBoolean(GetValue<int>("LaunchOnStartup", 0));
+                        Settings.RunAsAdministrator = Convert.ToBoolean(GetValue<int>("RunAsAdministrator", 0));
 
                         // Hotkey - Critical Fix: Ensure defaults are enforced and saved if missing
                         Settings.HotKeyModifiers = Convert.ToUInt32(GetValue<int>("HotKeyModifiers", 6));
@@ -206,6 +207,7 @@ namespace SwitchBlade.Services
                         key.SetValue("ShowIcons", Settings.ShowIcons ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("HideTaskbarIcon", Settings.HideTaskbarIcon ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("LaunchOnStartup", Settings.LaunchOnStartup ? 1 : 0, RegistryValueKind.DWord);
+                        key.SetValue("RunAsAdministrator", Settings.RunAsAdministrator ? 1 : 0, RegistryValueKind.DWord);
 
                         key.SetValue("HotKeyModifiers", Settings.HotKeyModifiers, RegistryValueKind.DWord);
                         key.SetValue("HotKeyKey", Settings.HotKeyKey, RegistryValueKind.DWord);
