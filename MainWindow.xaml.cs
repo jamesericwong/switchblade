@@ -95,11 +95,18 @@ namespace SwitchBlade
                 _dispatcherService,
                 () => _viewModel.RefreshWindows());
 
-            // Initial load
+            // Initial load - apply saved size
             this.Width = _settingsService.Settings.WindowWidth;
             this.Height = _settingsService.Settings.WindowHeight;
 
-            _logger.Log($"Applied Settings Size: {this.Width}x{this.Height}");
+            // Center the window based on the applied size
+            // (WindowStartupLocation="CenterScreen" doesn't account for size changes after load)
+            var screenWidth = SystemParameters.WorkArea.Width;
+            var screenHeight = SystemParameters.WorkArea.Height;
+            this.Left = (screenWidth - this.Width) / 2;
+            this.Top = (screenHeight - this.Height) / 2;
+
+            _logger.Log($"Applied Settings Size: {this.Width}x{this.Height}, Centered at: ({this.Left}, {this.Top})");
 
             SearchBox.Focus();
             _ = _viewModel.RefreshWindows();
@@ -222,6 +229,14 @@ namespace SwitchBlade
 
         private void ResizeGripBottomLeft_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
             => _resizeHandler.HandleBottomLeftGripMouseDown(sender, e);
+
+        private void DragBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                this.DragMove();
+            }
+        }
 
         private void ActivateWindow(WindowItem? windowItem)
         {
