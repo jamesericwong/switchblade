@@ -348,7 +348,11 @@ namespace SwitchBlade.ViewModels
                         if (selectedHwnd == null || selectedHwnd == IntPtr.Zero)
                         {
                             SelectedWindow = FilteredWindows[0];
-                            // Do NOT mark selectionChanged to prevent ScrollIntoView on fresh results
+                            // Fire PropertyChanged so the UI highlights the selection
+                            // But don't set selectionChanged to avoid ScrollIntoView
+                            _isUpdating = false;
+                            OnPropertyChanged(nameof(SelectedWindow));
+                            return; // Exit early since we already fired notification
                         }
                         else
                         {
