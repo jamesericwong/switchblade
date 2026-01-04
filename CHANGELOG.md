@@ -11,10 +11,12 @@
   - `App` constructor now accepts `IServiceProvider` from `Program.Main()`.
 
 ### Fixed
-- **Keyboard Navigation**: Fixed a bug where pressing Up/Down arrow keys would not select any row when no item was selected.
+- **Keyboard Navigation & Auto-Selection**: Fixed a bug where pressing Up/Down arrow keys would not select any row when no item was selected, and typing a search term would not visually highlight the first row.
   - Pressing **Down** with no selection now selects the **first** item.
   - Pressing **Up** with no selection now selects the **last** item.
-  - Fresh search results now **auto-select the first row**, matching standard app launcher behavior (Windows PowerToys Run, Alfred, Raycast).
+  - **Typing a search term now immediately selects and visually highlights the first matching row**, providing instant keyboard navigation feedback.
+  - This matches standard app launcher behavior (Windows PowerToys Run, Alfred, Raycast).
+
 
 
 ## [1.4.11] - 2026-01-03

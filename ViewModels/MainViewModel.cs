@@ -120,7 +120,7 @@ namespace SwitchBlade.ViewModels
                 {
                     _searchText = value;
                     OnPropertyChanged();
-                    UpdateSearch();
+                    UpdateSearch(resetSelection: true);
                 }
             }
         }
@@ -254,7 +254,7 @@ namespace SwitchBlade.ViewModels
             await Task.WhenAll(tasks);
         }
 
-        private void UpdateSearch()
+        private void UpdateSearch(bool resetSelection = false)
         {
             _isUpdating = true;
             try
@@ -311,6 +311,16 @@ namespace SwitchBlade.ViewModels
 
                 if (FilteredWindows.Count > 0)
                 {
+                    // If resetSelection is requested (e.g., user typed in search box),
+                    // force select first item with visible highlight
+                    if (resetSelection)
+                    {
+                        SelectedWindow = FilteredWindows[0];
+                        _isUpdating = false;
+                        OnPropertyChanged(nameof(SelectedWindow));
+                        return;
+                    }
+
                     var behavior = _settingsService?.Settings.RefreshBehavior ?? RefreshBehavior.PreserveScroll;
 
                     if (behavior == RefreshBehavior.PreserveIdentity)
