@@ -1,6 +1,10 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="SwitchBlade" Manufacturer="James Wong" Version="1.4.10" UpgradeCode="a3543202-6014-486c-a964-15967d6f8c44" Scope="perMachine">
+  <Package Name="SwitchBlade" Manufacturer="James Wong" Version="1.4.11" UpgradeCode="a3543202-6014-486c-a964-15967d6f8c44" Scope="perUserOrMachine">
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." AllowSameVersionUpgrades="yes" />
+
+    <Property Id="WixAppFolder" Value="WixPerUserFolder" />
+    <WixVariable Id="WixUISupportPerUser" Value="1" />
+    <WixVariable Id="WixUISupportPerMachine" Value="1" />
     
     <MediaTemplate EmbedCab="yes" />
 
@@ -35,9 +39,34 @@
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
     
     <!-- Use standard MSI action to launch installed file -->
-    <CustomAction Id="LaunchApplication" Directory="INSTALLFOLDER" ExeCommand="[INSTALLFOLDER]SwitchBlade.exe" Return="asyncNoWait" Impersonate="yes" />
+    <!-- Property WixShellExecTarget is set via Publish on ExitDialog to avoid WIX1077 warning -->
+    <CustomAction Id="LaunchApplication" BinaryRef="Wix4UtilCA_X86" DllEntry="WixShellExec" Impersonate="yes" />
 
     <UI>
+        <!-- Welcome -> License (Standard) -->
+        
+        <!-- License -> InstallScope -->
+        <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Order="2" Condition="LicenseAccepted = &quot;1&quot;" />
+        
+        <!-- InstallScope -> License (Back) -->
+        <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" Order="1" />
+        
+        <!-- InstallScope -> InstallDir (Next) -->
+        <!-- Logic: If WixAppFolder is WixPerUserFolder (Per User) -->
+        <Publish Dialog="InstallScopeDlg" Control="Next" Property="MSIINSTALLPERUSER" Value="1" Order="1" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+        <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="2" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+        <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[LocalAppDataFolder]Programs\SwitchBlade" Order="3" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
+        
+        <!-- Logic: If WixAppFolder is WixPerMachineFolder (Per Machine) -->
+        <Publish Dialog="InstallScopeDlg" Control="Next" Property="MSIINSTALLPERUSER" Value="{}" Order="4" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+        <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="5" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+        <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[ProgramFiles64Folder]SwitchBlade" Order="6" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
+        
+        <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="7" />
+        
+        <!-- InstallDir -> InstallScope (Back) -->
+        <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="InstallScopeDlg" Order="2" Condition="NOT Installed" />
+
         <!-- Wire StartupOptionsDlg into the dialog sequence -->
         <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="StartupOptionsDlg" Order="9999" Condition="WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
         
@@ -56,7 +85,8 @@
         <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="StartupOptionsDlg" Order="9999" Condition="NOT Installed" />
         
         <!-- Launch on finish -->
-        <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+        <Publish Dialog="ExitDialog" Control="Finish" Property="WixShellExecTarget" Value="[INSTALLFOLDER]\SwitchBlade.exe" Order="1" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+        <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Order="2" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
     </UI>
 
     <!-- Content for Add/Remove Programs -->

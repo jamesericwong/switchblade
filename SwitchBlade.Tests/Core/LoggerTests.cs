@@ -11,8 +11,11 @@ namespace SwitchBlade.Tests.Core
 
         public LoggerTests()
         {
-            _logPath = Path.Combine(Path.GetTempPath(), "switchblade_debug.log");
-            // Clean up any existing log file
+            // Use a unique file for each test instance to avoid contention
+            _logPath = Path.Combine(Path.GetTempPath(), $"switchblade_test_{Guid.NewGuid()}.log");
+            Logger.LogFilePath = _logPath;
+
+            // Clean up if by rare chance it exists
             if (File.Exists(_logPath))
             {
                 File.Delete(_logPath);
@@ -107,7 +110,7 @@ namespace SwitchBlade.Tests.Core
         {
             // Reset to verify default
             var field = typeof(Logger).GetProperty("IsDebugEnabled");
-            
+
             // After construction, should be false by default
             Assert.False(Logger.IsDebugEnabled);
         }

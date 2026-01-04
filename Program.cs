@@ -46,12 +46,19 @@ namespace SwitchBlade
                     SwitchBlade.Core.Logger.Log("RunAsAdministrator enabled but not elevated. Restarting with elevation...");
                     try
                     {
+                        var processPath = Environment.ProcessPath;
+                        if (string.IsNullOrEmpty(processPath))
+                        {
+                            processPath = Process.GetCurrentProcess().MainModule?.FileName;
+                        }
+
                         var startInfo = new ProcessStartInfo
                         {
-                            FileName = Process.GetCurrentProcess().MainModule?.FileName ?? "",
+                            FileName = processPath ?? "SwitchBlade.exe",
                             UseShellExecute = true,
                             Verb = "runas",
-                            Arguments = string.Join(" ", args, 1, args.Length - 1) // Skip first arg (exe path)
+                            Arguments = string.Join(" ", args, 1, args.Length - 1), // Skip first arg (exe path)
+                            WorkingDirectory = Path.GetDirectoryName(processPath) ?? ""
                         };
 
                         // Release mutex before starting new process to prevent "already running" error
@@ -64,9 +71,20 @@ namespace SwitchBlade
                     }
                     catch (System.ComponentModel.Win32Exception ex)
                     {
-                        // User cancelled UAC prompt
-                        SwitchBlade.Core.Logger.Log($"Elevation cancelled by user: {ex.Message}");
-                        // Continue running non-elevated
+                        // User cancelled UAC prompt or other elevation error
+                        SwitchBlade.Core.Logger.Log($"Elevation failed/cancelled: {ex.Message}");
+                        // If we released the mutex and failed to start, we are in a bad state.
+                        // Better to exit than run without single-instance protection.
+                        System.Windows.MessageBox.Show($"Failed to restart as Administrator: {ex.Message}", "SwitchBlade", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                        Environment.Exit(1);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        SwitchBlade.Core.Logger.LogError("Elevation Error", ex);
+                        System.Windows.MessageBox.Show($"Failed to restart as Administrator: {ex.Message}", "SwitchBlade", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                        Environment.Exit(1);
+                        return;
                     }
                 }
 

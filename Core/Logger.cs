@@ -11,7 +11,10 @@ namespace SwitchBlade.Core
         // Singleton instance for static bridge
         public static Logger Instance { get; } = new Logger();
 
-        private static string LogPath => Path.Combine(Path.GetTempPath(), "switchblade_debug.log");
+        // Allow tests to override the log path
+        public static string LogFilePath { get; set; } = Path.Combine(Path.GetTempPath(), "switchblade_debug.log");
+
+        private static string LogPath => LogFilePath;
 
         // Instance methods implementing ILogger
         void SwitchBlade.Contracts.ILogger.Log(string message) => LogStatic(message);
