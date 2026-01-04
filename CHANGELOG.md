@@ -1,3 +1,15 @@
+## [1.4.12] - 2026-01-04
+
+### Changed
+- **System Tray Toggle**: The tray menu "Show" item is now "Show / Hide" and toggles window visibility.
+  - If the window is visible and active, clicking toggles it hidden.
+  - If the window is hidden or inactive, clicking shows and activates it.
+  - Double-clicking the tray icon also toggles visibility.
+- **Startup DI Refactoring**: Moved DI container initialization from `App` to `Program.Main()`.
+  - `Program.cs` now initializes `ServiceConfiguration.ConfigureServices()` early and resolves `ILogger` for all startup logging.
+  - All static `Logger.Log()`/`Logger.LogError()` calls replaced with injected `ILogger` instance.
+  - `App` constructor now accepts `IServiceProvider` from `Program.Main()`.
+
 ## [1.4.11] - 2026-01-03
 
 ### Added

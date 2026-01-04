@@ -4,6 +4,9 @@ using System.IO;
 using System.Security.Principal;
 using System.Windows;
 using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
+using SwitchBlade.Contracts;
+using SwitchBlade.Services;
 
 namespace SwitchBlade
 {
@@ -40,10 +43,14 @@ namespace SwitchBlade
 
                 SwitchBlade.Core.Logger.IsDebugEnabled = debugEnabled;
 
+                // Initialize DI container early so we can use ILogger
+                var serviceProvider = ServiceConfiguration.ConfigureServices();
+                var logger = serviceProvider.GetRequiredService<ILogger>();
+
                 // Check if elevation is required but not running as admin
                 if (ShouldElevate() && !IsRunningAsAdmin())
                 {
-                    SwitchBlade.Core.Logger.Log("RunAsAdministrator enabled but not elevated. Restarting with elevation...");
+                    logger.Log("RunAsAdministrator enabled but not elevated. Restarting with elevation...");
                     try
                     {
                         var processPath = Environment.ProcessPath;
@@ -72,7 +79,7 @@ namespace SwitchBlade
                     catch (System.ComponentModel.Win32Exception ex)
                     {
                         // User cancelled UAC prompt or other elevation error
-                        SwitchBlade.Core.Logger.Log($"Elevation failed/cancelled: {ex.Message}");
+                        logger.Log($"Elevation failed/cancelled: {ex.Message}");
                         // If we released the mutex and failed to start, we are in a bad state.
                         // Better to exit than run without single-instance protection.
                         System.Windows.MessageBox.Show($"Failed to restart as Administrator: {ex.Message}", "SwitchBlade", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
@@ -81,7 +88,7 @@ namespace SwitchBlade
                     }
                     catch (Exception ex)
                     {
-                        SwitchBlade.Core.Logger.LogError("Elevation Error", ex);
+                        logger.LogError("Elevation Error", ex);
                         System.Windows.MessageBox.Show($"Failed to restart as Administrator: {ex.Message}", "SwitchBlade", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                         Environment.Exit(1);
                         return;
@@ -90,7 +97,7 @@ namespace SwitchBlade
 
                 try
                 {
-                    SwitchBlade.Core.Logger.Log("Process Started (Managed Entry Point Hit)");
+                    logger.Log("Process Started (Managed Entry Point Hit)");
 
                     // Parse command-line arguments for /minimized
 
@@ -110,25 +117,20 @@ namespace SwitchBlade
 
                     if (startMinimized)
                     {
-                        SwitchBlade.Core.Logger.Log("Starting in minimized mode");
+                        logger.Log("Starting in minimized mode");
                     }
                     if (enableStartup)
                     {
-                        SwitchBlade.Core.Logger.Log("Enable startup on first run requested");
+                        logger.Log("Enable startup on first run requested");
                     }
 
-                    var app = new App();
+                    var app = new App(serviceProvider);
                     app.InitializeComponent();
                     app.Run();
                 }
                 catch (Exception ex)
                 {
-                    var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                    var crashLog = Path.Combine(desktop, "switchblade_startup_crash.txt");
-                    SwitchBlade.Core.Logger.LogError("STARTUP CRASH", ex);
-
-
-
+                    logger.LogError("STARTUP CRASH", ex);
                     System.Windows.MessageBox.Show($"Critical Startup Error: {ex.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log", "SwitchBlade Fatal", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }

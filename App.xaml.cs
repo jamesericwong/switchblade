@@ -32,9 +32,23 @@ public partial class App : Application
     /// </summary>
     public static bool EnableStartupOnFirstRun { get; set; } = false;
 
+    /// <summary>
+    /// Primary constructor that accepts the DI container from Program.cs.
+    /// </summary>
+    public App(IServiceProvider serviceProvider)
+    {
+        // Use the DI container created by Program.cs
+        _serviceProvider = serviceProvider;
+        _logger = _serviceProvider.GetRequiredService<ILogger>();
+    }
+
+    /// <summary>
+    /// Parameterless constructor required by WPF generated code.
+    /// At runtime, Program.Main creates the App with serviceProvider, so this is only used by the designer.
+    /// </summary>
     public App()
     {
-        // Configure DI container
+        // Fallback: Initialize DI container here for WPF designer compatibility
         _serviceProvider = ServiceConfiguration.ConfigureServices();
         _logger = _serviceProvider.GetRequiredService<ILogger>();
     }
@@ -85,16 +99,16 @@ public partial class App : Application
 
         // Context Menu
         var contextMenu = new ContextMenuStrip();
-        var showItem = new ToolStripMenuItem("Show", null, (s, args) => ShowMainWindow());
-        showItem.Font = new Font(showItem.Font, System.Drawing.FontStyle.Bold);
-        contextMenu.Items.Add(showItem);
+        var showHideItem = new ToolStripMenuItem("Show / Hide", null, (s, args) => ToggleMainWindow());
+        showHideItem.Font = new Font(showHideItem.Font, System.Drawing.FontStyle.Bold);
+        contextMenu.Items.Add(showHideItem);
         contextMenu.Items.Add("Settings", null, (s, args) => OpenSettings());
         contextMenu.Items.Add("-"); // Separator
         contextMenu.Items.Add("Exit", null, (s, args) => Shutdown());
         _trayIcon.ContextMenuStrip = contextMenu;
 
-        // Double Click to Show
-        _trayIcon.DoubleClick += (s, args) => ShowMainWindow();
+        // Double Click to Toggle
+        _trayIcon.DoubleClick += (s, args) => ToggleMainWindow();
 
         // Create MainWindow with injected dependencies
         _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
@@ -110,12 +124,18 @@ public partial class App : Application
         }
     }
 
-    private void ShowMainWindow()
+    private void ToggleMainWindow()
     {
-        if (_mainWindow != null)
+        if (_mainWindow == null) return;
+
+        // If window is visible, hide it
+        if (_mainWindow.IsVisible)
         {
-            // Replicate the logic from HotKeyService/MainWindow HotKey handler
-            // to ensure consistent "fresh" state (preview hidden, search box focused)
+            _mainWindow.Hide();
+        }
+        else
+        {
+            // Show the window
             _mainWindow.Opacity = 0;
             _mainWindow.Show();
 
@@ -125,8 +145,6 @@ public partial class App : Application
             }
 
             _mainWindow.Activate();
-
-            // Call public method on MainWindow that handles "Open"
             _mainWindow.ForceOpen();
         }
     }
