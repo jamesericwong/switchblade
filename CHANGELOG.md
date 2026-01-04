@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.10] - 2026-01-03
+
+### Fixed
+- **Admin Restart Reliability**: Improved mutex acquisition to retry with a 2-second timeout during application restart.
+  - Resolves "SwitchBlade is already running" error when toggling "Run as Administrator" from settings
+  - New process now waits for the previous instance to complete shutdown before acquiring the mutex
+  - Gracefully handles asynchronous shutdown timing issues
+
 ## [1.4.9] - 2026-01-03
 
 ### Added

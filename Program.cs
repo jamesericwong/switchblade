@@ -17,10 +17,18 @@ namespace SwitchBlade
 
             using (var mutex = new Mutex(true, appName, out createdNew))
             {
+                // If mutex not immediately acquired, try waiting for a bit (handles restart scenarios)
                 if (!createdNew)
                 {
-                    System.Windows.MessageBox.Show("SwitchBlade is already running!", "SwitchBlade", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
+                    // Wait up to 2 seconds for previous instance to release mutex
+                    // This handles the case where we're restarting and the old process is shutting down
+                    bool acquired = mutex.WaitOne(2000);
+                    if (!acquired)
+                    {
+                        System.Windows.MessageBox.Show("SwitchBlade is already running!", "SwitchBlade", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+                    // Successfully acquired mutex after waiting, continue normally
                 }
 
                 // Check for /debug flag before anything else
