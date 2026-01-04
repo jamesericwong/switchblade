@@ -344,25 +344,34 @@ namespace SwitchBlade.ViewModels
                         // With in-place updates, the scroll position is naturally preserved.
                         // We update selection silently without triggering ScrollIntoView.
 
-                        var sameItem = FilteredWindows.FirstOrDefault(w =>
-                            w.Hwnd == selectedHwnd && w.Title == selectedTitle);
-
-                        if (sameItem != null)
+                        // If there was no previous selection (e.g., fresh search), auto-select first
+                        if (selectedHwnd == null || selectedHwnd == IntPtr.Zero)
                         {
-                            // Keep same item selected (silently, no scroll)
-                            if (SelectedWindow != sameItem)
-                            {
-                                SelectedWindow = sameItem;
-                            }
-                            // Do NOT mark selectionChanged to prevent ScrollIntoView
+                            SelectedWindow = FilteredWindows[0];
+                            // Do NOT mark selectionChanged to prevent ScrollIntoView on fresh results
                         }
                         else
                         {
-                            // Item gone. Keep index to avoid jumping wildly.
-                            int newIndex = Math.Min(selectedIndex, FilteredWindows.Count - 1);
-                            if (newIndex < 0) newIndex = 0;
-                            SelectedWindow = FilteredWindows[newIndex];
-                            // Do NOT mark selectionChanged to prevent ScrollIntoView
+                            var sameItem = FilteredWindows.FirstOrDefault(w =>
+                                w.Hwnd == selectedHwnd && w.Title == selectedTitle);
+
+                            if (sameItem != null)
+                            {
+                                // Keep same item selected (silently, no scroll)
+                                if (SelectedWindow != sameItem)
+                                {
+                                    SelectedWindow = sameItem;
+                                }
+                                // Do NOT mark selectionChanged to prevent ScrollIntoView
+                            }
+                            else
+                            {
+                                // Item gone. Keep index to avoid jumping wildly.
+                                int newIndex = Math.Min(selectedIndex, FilteredWindows.Count - 1);
+                                if (newIndex < 0) newIndex = 0;
+                                SelectedWindow = FilteredWindows[newIndex];
+                                // Do NOT mark selectionChanged to prevent ScrollIntoView
+                            }
                         }
                     }
                 }
@@ -446,6 +455,18 @@ namespace SwitchBlade.ViewModels
             if (FilteredWindows.Count == 0) return;
 
             int currentIndex = SelectedWindow != null ? FilteredWindows.IndexOf(SelectedWindow) : -1;
+
+            // Handle case where nothing is selected
+            if (currentIndex == -1)
+            {
+                // Down (direction=1) -> select first item
+                // Up (direction=-1) -> select last item
+                SelectedWindow = direction > 0
+                    ? FilteredWindows[0]
+                    : FilteredWindows[FilteredWindows.Count - 1];
+                return;
+            }
+
             int newIndex = currentIndex + direction;
 
             if (newIndex >= 0 && newIndex < FilteredWindows.Count)
