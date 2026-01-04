@@ -169,7 +169,6 @@ namespace SwitchBlade.Plugins.Chrome
                         Hwnd = hwnd,
                         Title = title,
                         ProcessName = processName,
-                        IsChromeTab = true,
                         Source = this
                     });
                 }
@@ -184,7 +183,6 @@ namespace SwitchBlade.Plugins.Chrome
                         Hwnd = hwnd,
                         Title = tab,
                         ProcessName = processName,
-                        IsChromeTab = true,
                         Source = this
                     });
                 }

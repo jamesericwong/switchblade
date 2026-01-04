@@ -30,14 +30,6 @@ namespace SwitchBlade.Tests.Contracts
         }
 
         [Fact]
-        public void WindowItem_DefaultIsChromeTab_IsFalse()
-        {
-            var item = new WindowItem();
-
-            Assert.False(item.IsChromeTab);
-        }
-
-        [Fact]
         public void WindowItem_DefaultSource_IsNull()
         {
             var item = new WindowItem();
@@ -67,14 +59,6 @@ namespace SwitchBlade.Tests.Contracts
             var item = new WindowItem { Hwnd = (IntPtr)12345 };
 
             Assert.Equal((IntPtr)12345, item.Hwnd);
-        }
-
-        [Fact]
-        public void WindowItem_SetIsChromeTab_ReturnsCorrectValue()
-        {
-            var item = new WindowItem { IsChromeTab = true };
-
-            Assert.True(item.IsChromeTab);
         }
 
         [Fact]

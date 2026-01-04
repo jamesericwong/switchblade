@@ -45,6 +45,11 @@ namespace SwitchBlade
                             Verb = "runas",
                             Arguments = string.Join(" ", args, 1, args.Length - 1) // Skip first arg (exe path)
                         };
+
+                        // Release mutex before starting new process to prevent "already running" error
+                        mutex.ReleaseMutex();
+                        mutex.Dispose();
+
                         Process.Start(startInfo);
                         Environment.Exit(0);
                         return;

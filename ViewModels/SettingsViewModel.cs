@@ -96,12 +96,21 @@ namespace SwitchBlade.ViewModels
 
         private static void RestartApplication()
         {
+            // Note: Settings have already been saved by the time this is called
+            // The new process will read RunAsAdministrator from registry and handle elevation in Program.Main()
+
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "",
                 UseShellExecute = true
+                // Do NOT set Verb = "runas" here - let Program.Main() handle elevation based on registry
             };
+
             System.Diagnostics.Process.Start(startInfo);
+
+            // Small delay to ensure registry writes are flushed and new process starts
+            System.Threading.Thread.Sleep(100);
+
             System.Windows.Application.Current.Shutdown();
         }
 

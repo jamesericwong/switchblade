@@ -14,6 +14,24 @@ All notable changes to this project will be documented in this file.
   - When enabled, SwitchBlade prompts for UAC consent on startup.
   - Toggling the setting prompts to restart the application.
 
+### Changed
+- **Plugin Architecture Improvement**: Removed plugin-specific flags from core `WindowItem` contract.
+  - Deleted `IsChromeTab` and `IsTerminalTab` properties to make the architecture truly plugin-agnostic.
+  - Plugins now rely on the `Source` property and internal logic to determine activation strategies.
+  - **BREAKING**: External plugins depending on these flags must be updated to use `item.Source == this` checks instead.
+  - This change ensures that future plugin developers won't need to modify core contracts.
+- **Windows Terminal Plugin - Configurable Processes**: Added settings dialog to configure which terminal processes to scan for tabs.
+  - Default processes: `WindowsTerminal`
+  - Settings UI matches the Chrome plugin's design for consistency
+  - Process names are stored in registry and persist across restarts
+
+### Fixed
+- **Run as Administrator Restart**: Fixed a critical bug where toggling "Run as Administrator" caused a "SwitchBlade is already running" error.
+  - **Root cause**: The single-instance mutex was held during restart, preventing the elevated process from starting.
+  - **Solution**: Release and dispose the mutex before launching the elevated process in `Program.cs`.
+  - **Additional fix**: Updated `SettingsViewModel.RestartApplication()` to properly delegate elevation logic to `Program.Main()`.
+  - Toggling admin privileges (on or off) now works reliably without manual registry cleanup.
+
 ### Notes
 - **Privilege Considerations**: 
   - Standard applications: Visible to SwitchBlade running as User.

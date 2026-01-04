@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Windows.Automation;
+using System.Windows.Interop;
 using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Plugins.WindowsTerminal
@@ -14,41 +16,93 @@ namespace SwitchBlade.Plugins.WindowsTerminal
     public class WindowsTerminalPlugin : CachingWindowProviderBase
     {
         private ILogger? _logger;
-        private const string ProcessName = "WindowsTerminal";
+        private IPluginSettingsService? _settingsService;
+        private List<string> _terminalProcesses = new();
+
+        // Default terminal processes if no settings exist
+        private static readonly List<string> DefaultTerminalProcesses = new()
+        {
+            "WindowsTerminal"
+        };
 
         public override string PluginName => "WindowsTerminalPlugin";
-        public override bool HasSettings => false;
+        public override bool HasSettings => true;
+
+        public WindowsTerminalPlugin()
+        {
+        }
+
+        /// <summary>
+        /// Constructor for unit testing with mocked settings.
+        /// </summary>
+        public WindowsTerminalPlugin(IPluginSettingsService settingsService)
+        {
+            _settingsService = settingsService;
+        }
 
         public override void Initialize(IPluginContext context)
         {
             base.Initialize(context);
             _logger = context.Logger;
-            _logger?.Log($"{PluginName}: Initialized");
+
+            if (_settingsService == null)
+            {
+                _settingsService = new PluginSettingsService(PluginName);
+            }
+
+            // Initialize settings from Registry or use defaults
+            ReloadSettings();
         }
 
         public override void ReloadSettings()
         {
-            // No settings for this plugin
+            if (_settingsService == null) return;
+
+            // Check if TerminalProcesses key exists in plugin Registry
+            if (_settingsService.KeyExists("TerminalProcesses"))
+            {
+                _terminalProcesses = _settingsService.GetStringList("TerminalProcesses", DefaultTerminalProcesses);
+            }
+            else
+            {
+                // First run or missing key - use defaults and save them
+                _terminalProcesses = new List<string>(DefaultTerminalProcesses);
+                _settingsService.SetStringList("TerminalProcesses", _terminalProcesses);
+            }
+
+            _logger?.Log($"{PluginName}: Loaded {_terminalProcesses.Count} terminal processes");
         }
 
         public override IEnumerable<string> GetHandledProcesses()
         {
-            return new[] { ProcessName };
+            _logger?.Log($"{PluginName} Handled Processes: {string.Join(", ", _terminalProcesses)}");
+            return _terminalProcesses;
         }
 
         public override void ShowSettingsDialog(IntPtr ownerHwnd)
         {
-            // No settings dialog for this plugin
+            var dialog = new TerminalSettingsWindow(_settingsService!, _terminalProcesses);
+            if (ownerHwnd != IntPtr.Zero)
+            {
+                var helper = new WindowInteropHelper(dialog);
+                helper.Owner = ownerHwnd;
+            }
+            dialog.ShowDialog();
+
+            // Reload settings after dialog closes
+            ReloadSettings();
         }
 
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
 
+            var targetProcessNames = new HashSet<string>(_terminalProcesses, StringComparer.OrdinalIgnoreCase);
+
             Process[] processes;
             try
             {
-                processes = Process.GetProcessesByName(ProcessName);
+                processes = targetProcessNames.SelectMany(name => Process.GetProcessesByName(name)).ToArray();
             }
             catch (Exception ex)
             {
@@ -77,9 +131,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                             {
                                 Hwnd = hwnd,
                                 Title = tabName,
-                                ProcessName = ProcessName,
-                                IsChromeTab = false,
-                                IsTerminalTab = true,
+                                ProcessName = process.ProcessName,
                                 Source = this
                             });
                         }
@@ -92,9 +144,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                         {
                             Hwnd = hwnd,
                             Title = windowTitle,
-                            ProcessName = ProcessName,
-                            IsChromeTab = false,
-                            IsTerminalTab = false,
+                            ProcessName = process.ProcessName,
                             Source = this
                         });
                     }
@@ -186,8 +236,8 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             // First, bring the main window to foreground
             NativeInterop.ForceForegroundWindow(item.Hwnd);
 
-            // If this is a tab, try to select it
-            if (item.IsTerminalTab && !string.IsNullOrEmpty(item.Title))
+            // If this item was created by this plugin and has a title, try to select the specific tab
+            if (item.Source == this && !string.IsNullOrEmpty(item.Title))
             {
                 System.Threading.Thread.Sleep(50); // Brief wait for window activation
 
