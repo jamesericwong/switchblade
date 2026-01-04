@@ -94,6 +94,7 @@ namespace SwitchBlade.Services
                         Settings.HideTaskbarIcon = Convert.ToBoolean(GetValue<int>("HideTaskbarIcon", 1));
                         Settings.LaunchOnStartup = Convert.ToBoolean(GetValue<int>("LaunchOnStartup", 0));
                         Settings.RunAsAdministrator = Convert.ToBoolean(GetValue<int>("RunAsAdministrator", 0));
+                        SwitchBlade.Core.Logger.Log($"SettingsService: Loaded RunAsAdministrator = {Settings.RunAsAdministrator}");
 
                         // Hotkey - Critical Fix: Ensure defaults are enforced and saved if missing
                         Settings.HotKeyModifiers = Convert.ToUInt32(GetValue<int>("HotKeyModifiers", 6));
@@ -209,6 +210,8 @@ namespace SwitchBlade.Services
                         key.SetValue("LaunchOnStartup", Settings.LaunchOnStartup ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("RunAsAdministrator", Settings.RunAsAdministrator ? 1 : 0, RegistryValueKind.DWord);
 
+                        SwitchBlade.Core.Logger.Log($"SettingsService: Saved RunAsAdministrator = {Settings.RunAsAdministrator}");
+
                         key.SetValue("HotKeyModifiers", Settings.HotKeyModifiers, RegistryValueKind.DWord);
                         key.SetValue("HotKeyKey", Settings.HotKeyKey, RegistryValueKind.DWord);
 
@@ -222,6 +225,9 @@ namespace SwitchBlade.Services
 
                         // Refresh Behavior
                         key.SetValue("RefreshBehavior", (int)Settings.RefreshBehavior, RegistryValueKind.DWord);
+
+                        // Flush to ensure all writes are committed before any restart
+                        key.Flush();
                     }
                 }
                 SettingsChanged?.Invoke();

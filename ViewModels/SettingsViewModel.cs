@@ -59,36 +59,37 @@ namespace SwitchBlade.ViewModels
             {
                 if (_settingsService.Settings.RunAsAdministrator != value)
                 {
-                    _settingsService.Settings.RunAsAdministrator = value;
-                    OnPropertyChanged();
-                    _settingsService.SaveSettings();
+                    // Don't save yet - ask user first
+                    bool needsRestart = (value && !Program.IsRunningAsAdmin()) || (!value && Program.IsRunningAsAdmin());
 
-                    // Offer to restart the app for the change to take effect
-                    if (value && !Program.IsRunningAsAdmin())
+                    if (needsRestart)
                     {
+                        string message = value
+                            ? "This setting requires restarting SwitchBlade with Administrator privileges. Restart now?"
+                            : "To run without Administrator privileges, SwitchBlade needs to restart. Restart now?";
+
                         var result = System.Windows.MessageBox.Show(
-                            "This setting requires restarting SwitchBlade. Restart now?",
+                            message,
                             "Restart Required",
                             System.Windows.MessageBoxButton.YesNo,
                             System.Windows.MessageBoxImage.Question);
 
                         if (result == System.Windows.MessageBoxResult.Yes)
                         {
+                            // User confirmed - now save the setting and restart
+                            _settingsService.Settings.RunAsAdministrator = value;
+                            OnPropertyChanged();
+                            _settingsService.SaveSettings();
                             RestartApplication();
                         }
+                        // else: User clicked No - don't change anything, checkbox reverts automatically via binding
                     }
-                    else if (!value && Program.IsRunningAsAdmin())
+                    else
                     {
-                        var result = System.Windows.MessageBox.Show(
-                            "To run without Administrator privileges, SwitchBlade needs to restart. Restart now?",
-                            "Restart Required",
-                            System.Windows.MessageBoxButton.YesNo,
-                            System.Windows.MessageBoxImage.Question);
-
-                        if (result == System.Windows.MessageBoxResult.Yes)
-                        {
-                            RestartApplication();
-                        }
+                        // No restart needed (rare case: setting matches current state)
+                        _settingsService.Settings.RunAsAdministrator = value;
+                        OnPropertyChanged();
+                        _settingsService.SaveSettings();
                     }
                 }
             }
@@ -99,18 +100,73 @@ namespace SwitchBlade.ViewModels
             // Note: Settings have already been saved by the time this is called
             // The new process will read RunAsAdministrator from registry and handle elevation in Program.Main()
 
-            var startInfo = new System.Diagnostics.ProcessStartInfo
+            var processPath = System.Environment.ProcessPath;
+            if (string.IsNullOrEmpty(processPath))
             {
-                FileName = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "",
-                UseShellExecute = true
-                // Do NOT set Verb = "runas" here - let Program.Main() handle elevation based on registry
-            };
+                processPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            }
 
-            System.Diagnostics.Process.Start(startInfo);
+            if (string.IsNullOrEmpty(processPath))
+            {
+                System.Windows.MessageBox.Show("Unable to determine application path for restart.", "Restart Failed",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                return;
+            }
 
-            // Small delay to ensure registry writes are flushed and new process starts
-            System.Threading.Thread.Sleep(100);
+            var currentPid = System.Diagnostics.Process.GetCurrentProcess().Id;
+            var workingDir = System.IO.Path.GetDirectoryName(processPath) ?? "";
 
+            // Determine if we're de-elevating (currently admin, turning it off)
+            // In this case, we need special handling to run at normal privilege level
+            bool isDeElevating = Program.IsRunningAsAdmin();
+
+            System.Diagnostics.ProcessStartInfo startInfo;
+
+            if (isDeElevating)
+            {
+                // For de-elevation: Use a single PowerShell command that waits then uses explorer.exe
+                // Explorer.exe always runs at the user's normal (non-elevated) privilege level
+                // When explorer launches an app, that app also runs non-elevated
+                var escapedPath = processPath.Replace("\"", "`\"");
+                var command = $"Wait-Process -Id {currentPid} -ErrorAction SilentlyContinue; Start-Process explorer.exe -ArgumentList '\"{escapedPath}\"'";
+
+                startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -WindowStyle Hidden -Command \"{command}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = workingDir
+                };
+            }
+            else
+            {
+                // Normal restart - use PowerShell to wait then start the process
+                // Program.Main() will handle elevation if RunAsAdministrator is now enabled
+                var command = $"Wait-Process -Id {currentPid} -ErrorAction SilentlyContinue; Start-Process '{processPath}' -WorkingDirectory '{workingDir}'";
+
+                startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -WindowStyle Hidden -Command \"{command}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = workingDir
+                };
+            }
+
+            try
+            {
+                System.Diagnostics.Process.Start(startInfo);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to restart: {ex.Message}", "Restart Failed",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                return;
+            }
+
+            // Shutdown current application - the PowerShell script will wait for us to exit, then launch new instance
             System.Windows.Application.Current.Shutdown();
         }
 

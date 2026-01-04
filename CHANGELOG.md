@@ -1,6 +1,18 @@
-# Changelog
+## [1.4.11] - 2026-01-03
 
-All notable changes to this project will be documented in this file.
+### Added
+- **Dual-Purpose Installer**: The MSI installer now supports both per-user and per-machine installation modes.
+  - Added a new Scope selection dialog to the installer.
+  - **Per-User Mode**: Installs to `%LocalAppData%\Programs\SwitchBlade`. Does not require Administrator privileges.
+  - **Per-Machine Mode**: Installs to `C:\Program Files\SwitchBlade`. Requires Administrator privileges (triggers UAC).
+  - Both modes correctly handle shortcuts and startup settings.
+
+### Fixed
+- **Admin Toggle Restart**: Completely reworked the restart logic when toggling "Run as Administrator" setting.
+  - **Mutex race condition**: The new process now waits for the old process to fully exit using PowerShell's `Wait-Process` before attempting to acquire the single-instance mutex.
+  - **Setting persistence**: Added `Registry.Flush()` to ensure registry writes are committed before restart begins.
+  - **Checkbox/state mismatch**: The setting is now only persisted after the user confirms the restart. Clicking "No" on the restart dialog now correctly reverts the checkbox.
+  - **De-elevation support**: When turning admin OFF, uses `explorer.exe` to launch the new instance. This ensures the new process runs at the user's normal privilege level instead of inheriting elevation from the current process.
 
 ## [1.4.10] - 2026-01-03
 
