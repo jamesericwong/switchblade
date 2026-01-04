@@ -60,6 +60,12 @@ namespace SwitchBlade.Services
         /// </summary>
         public bool LaunchOnStartup { get; set; } = false;
 
+        /// <summary>
+        /// Whether to run the application with Administrator privileges.
+        /// Some plugins require this for full inspection of elevated windows.
+        /// </summary>
+        public bool RunAsAdministrator { get; set; } = false;
+
         // Background Polling Options
 
         /// <summary>

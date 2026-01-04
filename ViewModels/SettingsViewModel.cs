@@ -52,6 +52,59 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.LaunchOnStartup = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool RunAsAdministrator
+        {
+            get => _settingsService.Settings.RunAsAdministrator;
+            set
+            {
+                if (_settingsService.Settings.RunAsAdministrator != value)
+                {
+                    _settingsService.Settings.RunAsAdministrator = value;
+                    OnPropertyChanged();
+                    _settingsService.SaveSettings();
+
+                    // Offer to restart the app for the change to take effect
+                    if (value && !Program.IsRunningAsAdmin())
+                    {
+                        var result = System.Windows.MessageBox.Show(
+                            "This setting requires restarting SwitchBlade. Restart now?",
+                            "Restart Required",
+                            System.Windows.MessageBoxButton.YesNo,
+                            System.Windows.MessageBoxImage.Question);
+
+                        if (result == System.Windows.MessageBoxResult.Yes)
+                        {
+                            RestartApplication();
+                        }
+                    }
+                    else if (!value && Program.IsRunningAsAdmin())
+                    {
+                        var result = System.Windows.MessageBox.Show(
+                            "To run without Administrator privileges, SwitchBlade needs to restart. Restart now?",
+                            "Restart Required",
+                            System.Windows.MessageBoxButton.YesNo,
+                            System.Windows.MessageBoxImage.Question);
+
+                        if (result == System.Windows.MessageBoxResult.Yes)
+                        {
+                            RestartApplication();
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void RestartApplication()
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "",
+                UseShellExecute = true
+            };
+            System.Diagnostics.Process.Start(startInfo);
+            System.Windows.Application.Current.Shutdown();
+        }
+
         public int FadeDurationMs
         {
             get => _settingsService.Settings.FadeDurationMs;

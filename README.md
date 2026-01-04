@@ -20,7 +20,7 @@ For information on how to build the project and create plugins, please refer to 
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 - [Changelog](CHANGELOG.md): History of changes and versions.
 
-### Current Version: 1.4.8
+### Current Version: 1.4.9
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:
@@ -147,6 +147,23 @@ The merge operation runs on background threads via `Task.Run()`, but all mutatio
 - No race conditions on the ObservableCollection
 - WPF bindings receive proper change notifications
 - The UI remains responsive during long scans
+
+## Run as Administrator
+
+Some plugins require elevated privileges to fully inspect certain windows (e.g., tabs in an elevated Terminal or other admin-level applications).
+
+### Configuration
+- **Toggle**: Found in Settings → "Run as Administrator"
+- **Default**: Off (disabled)
+- **Effect**: When enabled, SwitchBlade displays a UAC prompt on startup
+
+### Behavior
+When the setting is toggled:
+1. The setting is saved immediately
+2. A dialog prompts the user to restart
+3. On next startup, SwitchBlade requests elevation via UAC
+
+> **Note**: If "Launch on Windows Startup" is also enabled, and the user wants automatic elevation, they may need to configure a Scheduled Task with "Run with highest privileges" instead of the standard Run registry entry.
 
 ## Background Polling
 
