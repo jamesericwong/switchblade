@@ -26,12 +26,46 @@
             CornerRadius="12" 
             BorderBrush="{DynamicResource BorderBrush}" 
             BorderThickness="1"
-            Padding="20">
+            Padding="0">
         <Border.Effect>
             <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.5" Color="Black"/>
         </Border.Effect>
         
         <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <!-- Drag Bar with Grip Indicator -->
+            <Border x:Name="DragBar"
+                    Grid.Row="0"
+                    Background="Transparent"
+                    Height="28"
+                    Cursor="SizeAll"
+                    MouseLeftButtonDown="DragBar_MouseLeftButtonDown">
+                <StackPanel Orientation="Horizontal" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            Opacity="0.4">
+                    <!-- Grip dots indicator -->
+                    <TextBlock Text="⋮" 
+                               FontSize="12" 
+                               Foreground="{DynamicResource ForegroundBrush}" 
+                               Margin="1,0"/>
+                    <TextBlock Text="⋮" 
+                               FontSize="12" 
+                               Foreground="{DynamicResource ForegroundBrush}" 
+                               Margin="1,0"/>
+                    <TextBlock Text="⋮" 
+                               FontSize="12" 
+                               Foreground="{DynamicResource ForegroundBrush}" 
+                               Margin="1,0"/>
+                </StackPanel>
+            </Border>
+            
+            <!-- Main Content Grid -->
+            <Grid Grid.Row="1" Margin="20,0,20,20">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" /> <!-- Preview Column -->
@@ -239,6 +273,7 @@
                   MouseLeftButtonDown="ResizeGripBottomLeft_MouseLeftButtonDown"
                   WindowChrome.IsHitTestVisibleInChrome="True"
                   />
+            </Grid>
         </Grid>
     </Border>
 </Window>

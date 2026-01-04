@@ -1,3 +1,16 @@
+## [1.4.13] - 2026-01-04
+
+### Added
+- **Moveable Window**: The SwitchBlade window can now be dragged to reposition it on screen.
+  - Added a subtle drag bar at the top of the window with centered grip dots indicator (⋮⋮⋮).
+  - Cursor changes to `SizeAll` on hover to indicate the draggable area.
+  - Window corners remain rounded—the drag bar is contained within the existing border design.
+
+### Fixed
+- **Smart Centering on Startup**: Window now correctly centers on screen based on the persisted size.
+  - Previously, `WindowStartupLocation="CenterScreen"` centered based on default size, then the saved size was applied, causing offset positioning.
+  - Now calculates true center after applying saved dimensions using `SystemParameters.WorkArea`.
+
 ## [1.4.12] - 2026-01-04
 
 ### Changed
