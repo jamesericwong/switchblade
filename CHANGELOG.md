@@ -10,6 +10,13 @@
   - All static `Logger.Log()`/`Logger.LogError()` calls replaced with injected `ILogger` instance.
   - `App` constructor now accepts `IServiceProvider` from `Program.Main()`.
 
+### Fixed
+- **Keyboard Navigation**: Fixed a bug where pressing Up/Down arrow keys would not select any row when no item was selected.
+  - Pressing **Down** with no selection now selects the **first** item.
+  - Pressing **Up** with no selection now selects the **last** item.
+  - Fresh search results now **auto-select the first row**, matching standard app launcher behavior (Windows PowerToys Run, Alfred, Raycast).
+
+
 ## [1.4.11] - 2026-01-03
 
 ### Added
