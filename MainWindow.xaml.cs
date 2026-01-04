@@ -116,7 +116,7 @@ namespace SwitchBlade
             SwitchBlade.Contracts.NativeInterop.ForceForegroundWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
 
             SearchBox.Focus();
-            SearchBox.Text = "";
+            _viewModel.SearchText = "";
 
             FadeIn();
             _ = _viewModel.RefreshWindows();

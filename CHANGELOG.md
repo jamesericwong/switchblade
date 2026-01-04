@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.8] - 2026-01-03
+
+### Fixed
+- **Search Reset**: Fixed an issue where the search results and search bar were not clearing correctly when the window was re-shown.
+  - Updated `MainWindow` to modify the ViewModel's `SearchText` property directly instead of the View's `TextBox`, ensuring state consistency.
+- **Stability**: Fixed an `ArgumentException` crash ("An item with the same key has already been added") in `MainViewModel`.
+  - Updated `SyncCollection` to correctly handle and deduplicate window items with identical Hwnd and Title returned by multiple plugins.
+
 ## [1.4.7] - 2026-01-03
 
 ### Changed

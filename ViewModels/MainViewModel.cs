@@ -389,10 +389,16 @@ namespace SwitchBlade.ViewModels
 
         private void SyncCollection(ObservableCollection<WindowItem> collection, IList<WindowItem> target)
         {
+            // 0. Dedup target list to handle multiple providers returning same window
             // Use Hwnd+Title as composite key for identity comparison
-            var targetDict = target.ToDictionary(w => (w.Hwnd, w.Title), w => w);
+            var uniqueTarget = target
+                .GroupBy(w => (w.Hwnd, w.Title))
+                .Select(g => g.First())
+                .ToList();
+
+            var targetDict = uniqueTarget.ToDictionary(w => (w.Hwnd, w.Title), w => w);
             var existingKeysSet = new HashSet<(IntPtr, string)>(collection.Select(w => (w.Hwnd, w.Title)));
-            var targetKeysSet = new HashSet<(IntPtr, string)>(target.Select(w => (w.Hwnd, w.Title)));
+            var targetKeysSet = new HashSet<(IntPtr, string)>(uniqueTarget.Select(w => (w.Hwnd, w.Title)));
 
             // 1. Remove items not in target (by key, not reference)
             for (int i = collection.Count - 1; i >= 0; i--)
@@ -405,9 +411,9 @@ namespace SwitchBlade.ViewModels
             }
 
             // 2. Add/Move items to match target order
-            for (int i = 0; i < target.Count; i++)
+            for (int i = 0; i < uniqueTarget.Count; i++)
             {
-                var targetItem = target[i];
+                var targetItem = uniqueTarget[i];
                 var targetKey = (targetItem.Hwnd, targetItem.Title);
 
                 // Find if an item with this key already exists in collection
