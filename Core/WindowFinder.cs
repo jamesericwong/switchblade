@@ -102,7 +102,6 @@ namespace SwitchBlade.Core
                     Hwnd = hwnd,
                     Title = title,
                     ProcessName = processName,
-                    IsChromeTab = false,
                     Source = this
                 });
 

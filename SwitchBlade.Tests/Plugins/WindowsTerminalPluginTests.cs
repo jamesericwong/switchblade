@@ -28,9 +28,9 @@ namespace SwitchBlade.Tests.Plugins
         }
 
         [Fact]
-        public void HasSettings_ReturnsFalse()
+        public void HasSettings_ReturnsTrue()
         {
-            Assert.False(_plugin.HasSettings);
+            Assert.True(_plugin.HasSettings);
         }
 
         [Fact]
@@ -45,7 +45,7 @@ namespace SwitchBlade.Tests.Plugins
         }
 
         [Fact]
-        public void GetHandledProcesses_ReturnsWindowsTerminal()
+        public void GetHandledProcesses_ReturnsDefaultProcesses()
         {
             // Arrange
             _plugin.Initialize(_mockContext.Object);
@@ -53,9 +53,10 @@ namespace SwitchBlade.Tests.Plugins
             // Act
             var handled = _plugin.GetHandledProcesses().ToList();
 
-            // Assert
-            Assert.Single(handled);
+            // Assert - should have default processes: WindowsTerminal, wt
+            Assert.Equal(2, handled.Count);
             Assert.Contains("WindowsTerminal", handled);
+            Assert.Contains("wt", handled);
         }
 
         [Fact]
@@ -68,15 +69,7 @@ namespace SwitchBlade.Tests.Plugins
             _plugin.ReloadSettings();
         }
 
-        [Fact]
-        public void ShowSettingsDialog_DoesNotThrow()
-        {
-            // Arrange
-            _plugin.Initialize(_mockContext.Object);
 
-            // Act & Assert - no exception (should be a no-op)
-            _plugin.ShowSettingsDialog(IntPtr.Zero);
-        }
 
         [Fact]
         public void GetWindows_ReturnsEmptyWhenNoTerminalRunning()
