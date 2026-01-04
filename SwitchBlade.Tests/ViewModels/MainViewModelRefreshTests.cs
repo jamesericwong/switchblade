@@ -142,6 +142,28 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal("Window B", vm.SelectedWindow.Title);
         }
 
+        [Fact]
+        public async System.Threading.Tasks.Task RefreshWindows_WithDuplicateKeys_DedupesWithoutError()
+        {
+            // Arrange
+            var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
+
+            // Create two identical windows (same Hwnd, same Title)
+            var duplicateWin = new WindowItem { Hwnd = new IntPtr(999), Title = "Duplicate Window", ProcessName = "Proc", Source = _mockWindowProvider.Object };
+
+            _mockWindowProvider.Setup(p => p.GetWindows())
+                .Returns(new[] { duplicateWin, duplicateWin });
+
+            // Act
+            // This should NOT throw ArgumentException
+            await vm.RefreshWindows();
+
+            // Assert
+            // It should validly populate the list with ONE instance
+            Assert.Single(vm.FilteredWindows);
+            Assert.Equal("Duplicate Window", vm.FilteredWindows[0].Title);
+        }
+
         private class SynchronousDispatcherService : IDispatcherService
         {
             public void Invoke(Action action) => action();
