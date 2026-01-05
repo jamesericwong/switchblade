@@ -3,6 +3,15 @@
 ## Overview
 SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. It is built using **C# / WPF** and follows the **MVVM (Model-View-ViewModel)** architectural pattern. It is designed to be extensible via a robust Plugin System, allowing it to index not just top-level windows but also internal document tabs (like browser tabs) as searchable items.
 
+
+## Basic Usage
+
+- **Toggle SwitchBlade**: Press `Ctrl + Shift + Q` (Default) to show or hide the search window.
+- **Search**: Start typing immediately to filter open windows and tabs.
+- **Navigate**: Use `Up` / `Down` arrows to select a window.
+- **Activate**: Press `Enter` to switch to the selected window.
+- **Close**: Press `Escape` to hide SwitchBlade without switching.
+
 ## Architecture
 
 ### Core Components
