@@ -24,9 +24,8 @@ namespace SwitchBlade.Tests.Services
 
             // Mock Dispatcher to execute immediately on current thread
             _mockDispatcherService
-                .Setup(d => d.InvokeAsync(It.IsAny<Func<Task>>()))
-                .Callback<Func<Task>>(async (action) => await action())
-                .Returns(Task.CompletedTask);
+                .Setup(d => d.InvokeAsync(It.IsAny<Action>()))
+                .Callback<Action>((action) => action());
         }
 
         [Fact]

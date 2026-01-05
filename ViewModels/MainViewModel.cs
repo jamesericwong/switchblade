@@ -35,7 +35,7 @@ namespace SwitchBlade.ViewModels
         {
             _windowProviders = windowProviders.ToList();
             _settingsService = settingsService;
-            _dispatcherService = dispatcherService ?? new WpfDispatcherService();
+            _dispatcherService = dispatcherService ?? new WinUIDispatcherService();
             _filteredWindows = new ObservableCollection<WindowItem>();
 
             if (_settingsService != null)
@@ -195,7 +195,7 @@ namespace SwitchBlade.ViewModels
                     // However, we can capture the items for this provider safely in the Invoke block logic
                     // OR we can do the check inside Invoke. Doing it inside Invoke is safer.
 
-                    _dispatcherService.Invoke(() =>
+                    _dispatcherService.InvokeAsync(() =>
                    {
                        var existingItems = _allWindows.Where(x => x.Source == provider).ToList();
 

@@ -74,7 +74,7 @@ namespace SwitchBlade.Services
                 SwitchBlade.Core.Logger.Log("BackgroundPollingService: Running background refresh.");
 
                 // Dispatch to UI thread since RefreshWindows updates ObservableCollection
-                await _dispatcherService.InvokeAsync(async () =>
+                _dispatcherService.InvokeAsync(async () =>
                 {
                     await _refreshAction();
                 });

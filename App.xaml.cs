@@ -1,21 +1,20 @@
 ﻿using System;
-using System.Windows;
 using System.Drawing;
 using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
 using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
 using SwitchBlade.Views;
 using SwitchBlade.Core;
 using SwitchBlade.Contracts;
-using Application = System.Windows.Application;
 
 namespace SwitchBlade;
 
 /// <summary>
-/// Interaction logic for App.xaml
+/// WinUI 3 Application class
 /// </summary>
-public partial class App : Application
+public partial class App : Microsoft.UI.Xaml.Application
 {
     private NotifyIcon? _trayIcon;
     private IServiceProvider _serviceProvider = null!;
@@ -37,41 +36,49 @@ public partial class App : Application
     /// </summary>
     public App(IServiceProvider serviceProvider)
     {
-        // Use the DI container created by Program.cs
+        InitializeComponent();
         _serviceProvider = serviceProvider;
         _logger = _serviceProvider.GetRequiredService<ILogger>();
     }
 
     /// <summary>
-    /// Parameterless constructor required by WPF generated code.
+    /// Parameterless constructor required by WinUI generated code.
     /// At runtime, Program.Main creates the App with serviceProvider, so this is only used by the designer.
     /// </summary>
     public App()
     {
-        // Fallback: Initialize DI container here for WPF designer compatibility
+        InitializeComponent();
+        // Fallback: Initialize DI container here for WinUI designer compatibility
         _serviceProvider = ServiceConfiguration.ConfigureServices();
         _logger = _serviceProvider.GetRequiredService<ILogger>();
     }
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _logger?.Log("Application Starting...");
-        base.OnStartup(e);
+        _logger?.Log("Application Starting (WinUI)...");
 
-        // Global exception handling
-        this.DispatcherUnhandledException += (s, args) =>
+        // Global exception handling for unhandled exceptions
+        UnhandledException += (s, e) =>
         {
             try
             {
-                _logger?.LogError("CRASH", args.Exception);
-                System.Windows.MessageBox.Show($"SwitchBlade Crashed!\n\nReason: {args.Exception.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                _logger?.LogError("CRASH", e.Exception);
+                System.Windows.Forms.MessageBox.Show(
+                    $"SwitchBlade Crashed!\n\nReason: {e.Exception.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log",
+                    "Fatal Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
             catch (Exception lastResort)
             {
-                System.Windows.MessageBox.Show($"Double Crash: {lastResort.Message}\nOrig: {args.Exception.Message}", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.Forms.MessageBox.Show(
+                    $"Double Crash: {lastResort.Message}\nOrig: {e.Exception.Message}",
+                    "Fatal Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
-            args.Handled = true;
-            Shutdown();
+            e.Handled = true;
+            Exit();
         };
 
         // Get services from DI container
@@ -81,7 +88,7 @@ public partial class App : Application
         // Apply theme immediately
         themeService.LoadCurrentTheme();
 
-        // Handle MSI installer startup flag - if /enablestartup was passed, enable Windows startup
+        // Handle MSI/MSIX installer startup flag - if /enablestartup was passed, enable Windows startup
         if (EnableStartupOnFirstRun)
         {
             _logger?.Log("EnableStartupOnFirstRun flag detected - enabling Windows startup");
@@ -89,7 +96,7 @@ public partial class App : Application
             settingsService.SaveSettings(); // This writes to Windows Run registry
         }
 
-        // Setup Tray Icon
+        // Setup Tray Icon (using WinForms interop)
         _trayIcon = new NotifyIcon
         {
             Icon = GetIcon(),
@@ -104,7 +111,7 @@ public partial class App : Application
         contextMenu.Items.Add(showHideItem);
         contextMenu.Items.Add("Settings", null, (s, args) => OpenSettings());
         contextMenu.Items.Add("-"); // Separator
-        contextMenu.Items.Add("Exit", null, (s, args) => Shutdown());
+        contextMenu.Items.Add("Exit", null, (s, args) => Exit());
         _trayIcon.ContextMenuStrip = contextMenu;
 
         // Double Click to Toggle
@@ -116,7 +123,7 @@ public partial class App : Application
         // Only show the main window if not starting minimized
         if (!StartMinimized)
         {
-            _mainWindow.Show();
+            _mainWindow.Activate();
         }
         else
         {
@@ -129,21 +136,13 @@ public partial class App : Application
         if (_mainWindow == null) return;
 
         // If window is visible, hide it
-        if (_mainWindow.IsVisible)
+        if (_mainWindow.Visible)
         {
             _mainWindow.Hide();
         }
         else
         {
             // Show the window
-            _mainWindow.Opacity = 0;
-            _mainWindow.Show();
-
-            if (_mainWindow.WindowState == WindowState.Minimized)
-            {
-                _mainWindow.WindowState = WindowState.Normal;
-            }
-
             _mainWindow.Activate();
             _mainWindow.ForceOpen();
         }
@@ -153,19 +152,17 @@ public partial class App : Application
     {
         try
         {
-            // Load from Embedded Resource
-            var uri = new Uri("pack://application:,,,/icon.png");
-            var streamInfo = System.Windows.Application.GetResourceStream(uri);
-            if (streamInfo != null)
+            // Load from embedded resource or file
+            var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "icon.png");
+            if (System.IO.File.Exists(iconPath))
             {
-                using var stream = streamInfo.Stream;
-                using var bitmap = new Bitmap(stream);
-                return System.Drawing.Icon.FromHandle(bitmap.GetHicon());
+                using var bitmap = new Bitmap(iconPath);
+                return Icon.FromHandle(bitmap.GetHicon());
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Log error if needed: MessageBox.Show("Icon Error: " + ex.Message);
+            _logger?.Log($"Icon Error: {ex.Message}");
         }
         return SystemIcons.Application;
     }
@@ -181,7 +178,7 @@ public partial class App : Application
                 var assembly = type.Assembly;
                 plugins.Add(new PluginInfo
                 {
-                    Name = provider.PluginName, // Use PluginName from interface
+                    Name = provider.PluginName,
                     TypeName = type.FullName ?? type.Name,
                     AssemblyName = assembly.GetName().Name ?? "Unknown",
                     Version = assembly.GetName().Version?.ToString() ?? "0.0.0",
@@ -195,27 +192,26 @@ public partial class App : Application
         var settingsService = _serviceProvider.GetRequiredService<SettingsService>();
         var themeService = _serviceProvider.GetRequiredService<ThemeService>();
         var settingsVm = new SettingsViewModel(settingsService, themeService, plugins);
-        var settingsWindow = new SettingsWindow
-        {
-            DataContext = settingsVm
-        };
-        // Use ShowDialog to make the settings window modal
-        // This prevents the window from lingering in background and accidentally capturing keyboard input
-        settingsWindow.ShowDialog();
-    }
-
-    protected override void OnExit(ExitEventArgs e)
-    {
-        _trayIcon?.Dispose();
-        if (_serviceProvider is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
-        base.OnExit(e);
+        var settingsWindow = new SettingsWindow();
+        settingsWindow.ViewModel = settingsVm;
+        // WinUI doesn't have ShowDialog in the same way, use Activate for now
+        settingsWindow.Activate();
     }
 
     /// <summary>
     /// Gets the DI service provider for dependency resolution.
     /// </summary>
     public IServiceProvider ServiceProvider => _serviceProvider;
+
+    /// <summary>
+    /// Clean shutdown of the application
+    /// </summary>
+    private void Cleanup()
+    {
+        _trayIcon?.Dispose();
+        if (_serviceProvider is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+    }
 }

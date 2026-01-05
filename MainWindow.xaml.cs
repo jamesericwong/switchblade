@@ -1,33 +1,39 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Windowing;
 using Microsoft.Extensions.DependencyInjection;
 using SwitchBlade.Core;
 using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
 using SwitchBlade.Contracts;
 using SwitchBlade.Handlers;
+using WinRT.Interop;
 
 namespace SwitchBlade
 {
-    public partial class MainWindow : Window
+    /// <summary>
+    /// Main application window - WinUI 3 version
+    /// </summary>
+    public sealed partial class MainWindow : Window
     {
         private readonly MainViewModel _viewModel;
         private readonly ISettingsService _settingsService;
         private readonly IDispatcherService _dispatcherService;
         private readonly ILogger _logger;
-        private readonly KeyboardInputHandler _keyboardHandler;
-        private readonly WindowResizeHandler _resizeHandler;
-
-        private HotKeyService? _hotKeyService;
         private ThumbnailService? _thumbnailService;
-        private BackgroundPollingService? _backgroundPollingService;
-        private IntPtr _lastThumbnailHwnd = IntPtr.Zero;
+        private HotKeyService? _hotKeyService;
+        private KeyboardInputHandler? _keyboardHandler;
+        private readonly List<IWindowProvider> _providers = new();
 
-        public List<IWindowProvider> Providers { get; private set; } = new List<IWindowProvider>();
+        private AppWindow? _appWindow;
+        private IntPtr _hwnd;
+
+        public MainViewModel ViewModel => _viewModel;
+        public IReadOnlyList<IWindowProvider> Providers => _providers;
 
         // Constructor Injection - Explicit Dependencies
         public MainWindow(
@@ -43,136 +49,162 @@ namespace SwitchBlade
             _dispatcherService = dispatcherService;
             _logger = logger;
 
-            // Sync Providers list with what's in the ViewModel (ViewModel is the source of truth for providers)
-            Providers.Clear();
-            foreach (var provider in _viewModel.WindowProviders)
-            {
-                Providers.Add(provider);
-            }
+            // Get the window handle for interop
+            _hwnd = WindowNative.GetWindowHandle(this);
+            var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(_hwnd);
+            _appWindow = AppWindow.GetFromWindowId(windowId);
 
-            DataContext = _viewModel;
-            _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+            // Configure window
+            ConfigureWindow();
 
-            // Initialize handlers (extracted for SRP)
-            _keyboardHandler = new KeyboardInputHandler(
-                _viewModel,
-                _settingsService,
-                () => this.Hide(),
-                ActivateWindow,
-                () => ResultsConfig.ActualHeight);
+            // Set up the window
+            this.Activated += MainWindow_Activated;
+            this.Closed += MainWindow_Closed;
 
-            _resizeHandler = new WindowResizeHandler(this, _logger);
-
-            this.Loaded += MainWindow_Loaded;
-            this.PreviewKeyDown += _keyboardHandler.HandleKeyDown;
+            // Set data context for x:Bind
+            // In WinUI, x:Bind uses the code-behind as the default data context
         }
 
-        public static T? GetChildOfType<T>(DependencyObject depObj) where T : DependencyObject
+        private void ConfigureWindow()
         {
-            if (depObj == null) return null;
-
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(depObj); i++)
+            if (_appWindow != null)
             {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(depObj, i);
-                var result = (child as T) ?? GetChildOfType<T>(child);
-                if (result != null) return result;
+                // Set window size
+                _appWindow.Resize(new Windows.Graphics.SizeInt32(800, 600));
+
+                // Extend content into title bar for custom chrome
+                _appWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+                _appWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+
+                // Set title bar colors to transparent for custom appearance
+                if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported())
+                {
+                    var titleBar = _appWindow.TitleBar;
+                    titleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+                    titleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+                }
             }
-            return null;
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
         {
-            _logger.Log($"MainWindow Loaded. Initial Size: {this.Width}x{this.Height}, ResizeMode: {this.ResizeMode}, Style: {this.WindowStyle}");
+            if (args.WindowActivationState != WindowActivationState.Deactivated)
+            {
+                // Window is being activated
+                InitializeServices();
+            }
+        }
 
-            // Initialize Services that require Window handle
-            _hotKeyService = new HotKeyService(this, _settingsService, _logger, OnHotKeyPressed);
-            _thumbnailService = new ThumbnailService(this, _logger);
-            _thumbnailService.SetPreviewContainer(PreviewCanvas);
+        private bool _servicesInitialized = false;
 
-            // Initialize Background Polling Service
-            _backgroundPollingService = new BackgroundPollingService(
-                _settingsService,
-                _dispatcherService,
-                () => _viewModel.RefreshWindows());
+        private void InitializeServices()
+        {
+            if (_servicesInitialized) return;
+            _servicesInitialized = true;
 
-            // Initial load - apply saved size
-            this.Width = _settingsService.Settings.WindowWidth;
-            this.Height = _settingsService.Settings.WindowHeight;
+            _logger.Log("MainWindow: Initializing services after activation");
 
-            // Center the window based on the applied size
-            // (WindowStartupLocation="CenterScreen" doesn't account for size changes after load)
-            var screenWidth = SystemParameters.WorkArea.Width;
-            var screenHeight = SystemParameters.WorkArea.Height;
-            this.Left = (screenWidth - this.Width) / 2;
-            this.Top = (screenHeight - this.Height) / 2;
+            // Set up thumbnail service for DWM previews
+            // _thumbnailService = new ThumbnailService(this, _logger);
+            // _thumbnailService.SetPreviewContainer(PreviewCanvas);
 
-            _logger.Log($"Applied Settings Size: {this.Width}x{this.Height}, Centered at: ({this.Left}, {this.Top})");
+            // Set up HotKey service
+            // _hotKeyService = new HotKeyService(this, _settingsService, _logger, OnHotKeyPressed);
 
-            SearchBox.Focus();
+            // Set up keyboard input handler
+            _keyboardHandler = new KeyboardInputHandler(_viewModel, _logger, _settingsService, ActivateWindow);
+
+            // Subscribe to keyboard events
+            SearchBox.KeyDown += SearchBox_KeyDown;
+
+            // Subscribe to property changes for updating preview
+            // _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+            // Initialize providers and windows
+            InitializeProviders();
             _ = _viewModel.RefreshWindows();
+
+            // Focus search box
+            _dispatcherService.InvokeAsync(() =>
+            {
+                SearchBox.Focus(FocusState.Programmatic);
+            });
+        }
+
+        private void InitializeProviders()
+        {
+            _logger.Log("MainWindow: Loading providers");
+            _providers.Clear();
+
+            // Add built-in provider
+            _providers.Add(new WindowFinder());
+
+            // Load plugins using proper API
+            // var pluginsPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Plugins");
+            // var pluginLoader = new PluginLoader(pluginsPath);
+            // var context = new PluginContext(_logger);
+            // var plugins = pluginLoader.LoadPlugins(context);
+            // foreach (var plugin in plugins)
+            // {
+            //     _providers.Add(plugin);
+            // }
+
+            // MainViewModel gets providers via DI, but keep _providers for Providers property
+            _logger.Log($"MainWindow: Loaded {_providers.Count} providers");
         }
 
         public void ForceOpen()
         {
-            // Apply Settings
-            var app = (App)System.Windows.Application.Current;
-            this.Opacity = 0; // Start transparent for fade in
-            this.Show();
-            this.WindowState = WindowState.Normal;
-            this.Activate();
-            SwitchBlade.Contracts.NativeInterop.ForceForegroundWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            _logger.Log("MainWindow: ForceOpen called");
 
-            SearchBox.Focus();
-            _viewModel.SearchText = "";
-
-            FadeIn();
+            // Refresh windows
             _ = _viewModel.RefreshWindows();
-            _logger.Log("Forced Open (Tray/Menu).");
+
+            // Fade in effect using WinUI animation
+            FadeIn();
+
+            // Focus search box
+            _dispatcherService.InvokeAsync(() =>
+            {
+                SearchBox.Focus(FocusState.Programmatic);
+                SearchBox.SelectAll();
+            });
         }
 
         private void OnHotKeyPressed()
         {
-            _logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
-            if (this.Visibility == Visibility.Visible)
+            _logger.Log("MainWindow: Hotkey pressed");
+
+            if (this.Visible)
             {
-                _logger.Log("Hiding Window.");
-                FadeOut(() => this.Hide());
+                FadeOut();
             }
             else
             {
+                this.Activate();
                 ForceOpen();
             }
         }
 
         private void FadeIn()
         {
-            var duration = _settingsService.Settings.FadeDurationMs;
-            var targetOpacity = _settingsService.Settings.WindowOpacity;
-
-            if (duration > 0)
-            {
-                var anim = new System.Windows.Media.Animation.DoubleAnimation(0, targetOpacity, TimeSpan.FromMilliseconds(duration));
-                this.BeginAnimation(Window.OpacityProperty, anim);
-            }
-            else
-            {
-                this.Opacity = targetOpacity;
-            }
+            // Simple opacity animation for WinUI
+            // TODO: Implement proper WinUI composition animation
+            this.Activate();
         }
 
-        private void FadeOut(Action onCompleted)
+        private void FadeOut()
         {
-            var duration = _settingsService.Settings.FadeDurationMs;
+            // Simple hide
+            // TODO: Implement proper WinUI fade animation
+            this.Hide();
+        }
 
-            if (duration > 0 && this.Opacity > 0)
+        public void Hide()
+        {
+            if (_appWindow != null)
             {
-                var anim = new System.Windows.Media.Animation.DoubleAnimation(this.Opacity, 0, TimeSpan.FromMilliseconds(duration));
-                anim.Completed += (s, e) => onCompleted();
-                this.BeginAnimation(Window.OpacityProperty, anim);
-            }
-            else
-            {
-                onCompleted();
+                _appWindow.Hide();
             }
         }
 
@@ -180,99 +212,53 @@ namespace SwitchBlade
         {
             if (e.PropertyName == nameof(MainViewModel.SelectedWindow))
             {
-                if (_settingsService.Settings.EnablePreviews && _viewModel.SelectedWindow != null)
+                var selected = _viewModel.SelectedWindow;
+                if (selected != null && _settingsService.Settings.EnablePreviews)
                 {
-                    // Optimization: Prevent Flicker
-                    // Only update thumbnail if the window handle has actually changed.
-                    if (_lastThumbnailHwnd != _viewModel.SelectedWindow.Hwnd)
-                    {
-                        _lastThumbnailHwnd = _viewModel.SelectedWindow.Hwnd;
-                        _thumbnailService?.UpdateThumbnail(_viewModel.SelectedWindow.Hwnd);
-                    }
-
-                    // Always scroll into view, just in case list was rebuilt
-                    ResultsConfig.ScrollIntoView(_viewModel.SelectedWindow);
+                    _thumbnailService?.UpdateThumbnail(selected.Hwnd);
                 }
                 else
                 {
-                    _lastThumbnailHwnd = IntPtr.Zero;
                     _thumbnailService?.UpdateThumbnail(IntPtr.Zero);
-                    if (_viewModel.SelectedWindow != null)
-                    {
-                        ResultsConfig.ScrollIntoView(_viewModel.SelectedWindow);
-                    }
                 }
             }
         }
 
-        private void ListBoxItem_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        private void SearchBox_KeyDown(object sender, KeyRoutedEventArgs e)
         {
-            if (_settingsService.Settings.EnablePreviews)
+            if (_keyboardHandler != null)
             {
-                if (sender is ListBoxItem item && item.DataContext is WindowItem windowItem)
-                {
-                    _thumbnailService?.UpdateThumbnail(windowItem.Hwnd);
-                }
+                _keyboardHandler.HandleKeyDown(e);
             }
         }
 
-        private void ListBoxItem_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void ActivateWindow(WindowItem window)
         {
-            if (sender is ListBoxItem item && item.DataContext is WindowItem windowItem)
+            _logger.Log($"MainWindow: Activating window: {window.Title}");
+
+            // Hide this window first
+            FadeOut();
+
+            // Switch to the target window
+            NativeInterop.SetForegroundWindow(window.Hwnd);
+
+            if (NativeInterop.IsIconic(window.Hwnd))
             {
-                ActivateWindow(windowItem);
+                NativeInterop.ShowWindow(window.Hwnd, NativeInterop.SW_RESTORE);
             }
         }
 
-        private void ResizeGripBottomRight_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-            => _resizeHandler.HandleBottomRightGripMouseDown(sender, e);
-
-        private void ResizeGripBottomLeft_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-            => _resizeHandler.HandleBottomLeftGripMouseDown(sender, e);
-
-        private void DragBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void MainWindow_Closed(object sender, WindowEventArgs args)
         {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                this.DragMove();
-            }
-        }
+            _logger.Log("MainWindow: Window closing");
 
-        private void ActivateWindow(WindowItem? windowItem)
-        {
-            if (windowItem != null)
-            {
-                if (windowItem.Source != null)
-                {
-                    windowItem.Source.ActivateWindow(windowItem);
-                }
-                else
-                {
-                    // Fallback for items without source
-                    _logger.Log($"Warning: WindowItem '{windowItem.Title}' has no Source provider.");
-
-                    // Basic fallback attempt
-                    if (SwitchBlade.Contracts.NativeInterop.IsIconic(windowItem.Hwnd))
-                    {
-                        SwitchBlade.Contracts.NativeInterop.ShowWindow(windowItem.Hwnd, SwitchBlade.Contracts.NativeInterop.SW_RESTORE);
-                    }
-                    SwitchBlade.Contracts.NativeInterop.SetForegroundWindow(windowItem.Hwnd);
-                }
-
-                FadeOut(() => this.Hide());
-            }
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            _settingsService.Settings.WindowWidth = this.Width;
-            _settingsService.Settings.WindowHeight = this.Height;
-            _settingsService.SaveSettings();
-
-            _hotKeyService?.Dispose();
             _thumbnailService?.Dispose();
-            _backgroundPollingService?.Dispose();
-            base.OnClosed(e);
+            _hotKeyService?.Dispose();
+
+            if (_viewModel is IDisposable disposableVm)
+            {
+                disposableVm.Dispose();
+            }
         }
     }
 }

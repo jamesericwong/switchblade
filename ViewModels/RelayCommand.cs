@@ -3,6 +3,10 @@ using System.Windows.Input;
 
 namespace SwitchBlade.ViewModels
 {
+    /// <summary>
+    /// Simple ICommand implementation for WinUI 3.
+    /// Does not rely on WPF's CommandManager.
+    /// </summary>
     public class RelayCommand : ICommand
     {
         private readonly Action<object?> _execute;
@@ -24,10 +28,14 @@ namespace SwitchBlade.ViewModels
             _execute(parameter);
         }
 
-        public event EventHandler? CanExecuteChanged
+        public event EventHandler? CanExecuteChanged;
+
+        /// <summary>
+        /// Call this to manually trigger CanExecuteChanged event.
+        /// </summary>
+        public void RaiseCanExecuteChanged()
         {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
+            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 }

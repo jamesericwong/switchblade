@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows;
-using System.Windows.Media;
-using Color = System.Windows.Media.Color;
-using ColorConverter = System.Windows.Media.ColorConverter;
+using Microsoft.UI;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 
 namespace SwitchBlade.Services
 {
@@ -24,7 +23,7 @@ namespace SwitchBlade.Services
         public ThemeService(ISettingsService settingsService, IApplicationResourceHandler? resourceHandler = null)
         {
             _settingsService = settingsService;
-            _resourceHandler = resourceHandler ?? new WpfApplicationResourceHandler();
+            _resourceHandler = resourceHandler ?? new WinUIApplicationResourceHandler();
             InitializeThemes();
         }
 
@@ -32,17 +31,12 @@ namespace SwitchBlade.Services
         {
             AvailableThemes = new List<ThemeInfo>
             {
-                // Sleek Dark (Default)
+                // WinUI uses built-in theming, these are accent overrides
                 CreateTheme("Dark", "#1E1E1E", "#2D2D30", "#DDDDDD", "#3E3E42"),
-                // Cyberpunk (High Contrast Neon)
                 CreateTheme("Cyberpunk", "#09080D", "#13111A", "#00FF9F", "#FF003C"),
-                // Deep Ocean (Blue/Black)
                 CreateTheme("Deep Ocean", "#0F1724", "#172336", "#E6F1FF", "#1E2D45"),
-                // Moonlight (Cool Grey)
                 CreateTheme("Moonlight", "#22252A", "#2C3038", "#AABBC3", "#3C424D"),
-                // Dracula (Classic)
                 CreateTheme("Dracula", "#282a36", "#44475a", "#f8f8f2", "#6272a4"),
-                // Light (Clean)
                 CreateTheme("Light", "#F5F5F5", "#FFFFFF", "#333333", "#E0E0E0"),
             };
         }
@@ -50,19 +44,50 @@ namespace SwitchBlade.Services
         private ThemeInfo CreateTheme(string name, string background, string controlBackground, string foreground, string border)
         {
             var dict = new ResourceDictionary();
-            dict["WindowBackground"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(background));
-            dict["ControlBackground"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(controlBackground));
-            dict["ForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(foreground));
-            dict["BorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(border));
 
-            // Highlight: Use border color but with slight opacity for hover effects
-            var highlight = (Color)ColorConverter.ConvertFromString(border);
-            // If border is too dark, lighten it?? 
-            // Better: use Foreground with very low opacity
-            var fg = (Color)ColorConverter.ConvertFromString(foreground);
-            dict["HighlightBrush"] = new SolidColorBrush(fg) { Opacity = 0.1 };
+            // Parse colors for WinUI
+            var bgColor = ParseColor(background);
+            var ctrlColor = ParseColor(controlBackground);
+            var fgColor = ParseColor(foreground);
+            var borderColor = ParseColor(border);
+
+            dict["WindowBackground"] = new SolidColorBrush(bgColor);
+            dict["ControlBackground"] = new SolidColorBrush(ctrlColor);
+            dict["ForegroundBrush"] = new SolidColorBrush(fgColor);
+            dict["BorderBrush"] = new SolidColorBrush(borderColor);
+
+            // Highlight with low opacity
+            var highlightBrush = new SolidColorBrush(fgColor) { Opacity = 0.1 };
+            dict["HighlightBrush"] = highlightBrush;
 
             return new ThemeInfo { Name = name, Resources = dict };
+        }
+
+        private static Windows.UI.Color ParseColor(string hex)
+        {
+            hex = hex.TrimStart('#');
+            byte a = 255;
+            byte r, g, b;
+
+            if (hex.Length == 8)
+            {
+                a = Convert.ToByte(hex.Substring(0, 2), 16);
+                r = Convert.ToByte(hex.Substring(2, 2), 16);
+                g = Convert.ToByte(hex.Substring(4, 2), 16);
+                b = Convert.ToByte(hex.Substring(6, 2), 16);
+            }
+            else if (hex.Length == 6)
+            {
+                r = Convert.ToByte(hex.Substring(0, 2), 16);
+                g = Convert.ToByte(hex.Substring(2, 2), 16);
+                b = Convert.ToByte(hex.Substring(4, 2), 16);
+            }
+            else
+            {
+                throw new ArgumentException($"Invalid color format: {hex}");
+            }
+
+            return Windows.UI.Color.FromArgb(a, r, g, b);
         }
 
         public void ApplyTheme(string themeName)
@@ -75,7 +100,7 @@ namespace SwitchBlade.Services
                 _resourceHandler.RemoveMergedDictionary(_currentThemeDictionary);
             }
 
-            // apply new one
+            // Apply new one
             _currentThemeDictionary = theme.Resources;
             _resourceHandler.AddMergedDictionary(_currentThemeDictionary);
 

@@ -1,246 +1,179 @@
-<Window x:Class="SwitchBlade.Views.SettingsWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:core="clr-namespace:SwitchBlade.Core"
-        Title="SwitchBlade Settings" Height="650" Width="550"
-        ResizeMode="CanResize"
-        AllowsTransparency="True"
-        WindowStyle="None"
-        WindowStartupLocation="CenterScreen"
-        PreviewKeyDown="Window_PreviewKeyDown"
-        Background="Transparent">
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-        <core:InverseBooleanConverter x:Key="InverseBoolConverter"/>
-    </Window.Resources>
-    <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="30" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" />
-    </WindowChrome.WindowChrome>
+<Window
+    x:Class="SwitchBlade.Views.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SwitchBlade.Views"
+    xmlns:core="using:SwitchBlade.Core"
+    Title="SwitchBlade Settings">
+    
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
 
-    <Border Background="{DynamicResource WindowBackground}" 
-            BorderBrush="{DynamicResource BorderBrush}" 
-            BorderThickness="1">
-        
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- Title Bar -->
-                <RowDefinition Height="*"/>    <!-- Content -->
-            </Grid.RowDefinitions>
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Title Bar -->
+            <RowDefinition Height="*"/>    <!-- Content -->
+        </Grid.RowDefinitions>
 
-            <!-- Custom Title Bar -->
-            <Grid Grid.Row="0" Background="Transparent">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                
-                <TextBlock Text="SwitchBlade Settings" 
-                           Foreground="{DynamicResource ForegroundBrush}" 
-                           VerticalAlignment="Center" 
-                           Margin="15,0,0,0" 
-                           FontSize="14" 
-                           FontWeight="SemiBold"/>
-                
-                <Button Grid.Column="1" 
-                        Content="✕" 
-                        Width="40" Height="30"
-                        Style="{StaticResource ModernButtonStyle}"
-                        Background="Transparent"
-                        Foreground="{DynamicResource ForegroundBrush}"
-                        Click="CloseButton_Click"
-                        WindowChrome.IsHitTestVisibleInChrome="True"/>
-            </Grid>
-
-            <!-- Main Content -->
-            <Grid Grid.Row="1" Margin="20">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel>
-                        <!-- Appearance Section -->
-                        <GroupBox Header="Appearance" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,20" BorderBrush="{DynamicResource BorderBrush}">
-                            <StackPanel Margin="10">
-                                <Grid Margin="0,0,0,15">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Theme:" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
-                                    <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding SelectedTheme}" HorizontalAlignment="Stretch" Height="30" VerticalContentAlignment="Center"/>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,15">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="40"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Window Opacity:" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" Minimum="0.2" Maximum="1.0" Value="{Binding WindowOpacity}" TickFrequency="0.05" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding WindowOpacity, StringFormat=P0}" Foreground="{DynamicResource ForegroundBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,15">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="40"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Fade Duration (ms):" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" Minimum="0" Maximum="1000" Value="{Binding FadeDurationMs}" TickFrequency="50" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding FadeDurationMs}" Foreground="{DynamicResource ForegroundBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,15">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="40"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Item Height:" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" Minimum="30" Maximum="100" Value="{Binding ItemHeight}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding ItemHeight}" Foreground="{DynamicResource ForegroundBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,15">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Global Hotkey:" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
-                                    <TextBox x:Name="HotKeyBox" Text="{Binding HotKeyString, Mode=OneWay}" 
-                                             Style="{StaticResource ModernTextBoxStyle}"
-                                             IsReadOnly="True" 
-                                             PreviewKeyDown="HotKeyBox_PreviewKeyDown"
-                                             Grid.Column="1" 
-                                             Padding="5" 
-                                             Cursor="Hand"
-                                             ToolTip="Click and press keys to set new hotkey"/>
-                                </Grid>
-
-                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Window Previews" IsChecked="{Binding EnablePreviews}" Margin="0,5,0,0"/>
-                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Hide Taskbar Icon" IsChecked="{Binding HideTaskbarIcon}" Margin="0,10,0,0"/>
-                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Launch on Windows Startup" IsChecked="{Binding LaunchOnStartup}" Margin="0,10,0,0"/>
-                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Run as Administrator" IsChecked="{Binding RunAsAdministrator}" Margin="0,10,0,0" ToolTip="Some plugins require Administrator privileges for full window inspection"/>
-                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Number Shortcuts (1-9, 0)" IsChecked="{Binding EnableNumberShortcuts}" Margin="0,10,0,0" ToolTip="Hold modifier + number to quickly switch to a window"/>
-                                <Grid Margin="20,10,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Shortcut Modifier:" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
-                                    <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableShortcutModifiers}" SelectedItem="{Binding SelectedShortcutModifier}" Height="30" VerticalContentAlignment="Center" ToolTip="Hold this key + number to activate window"/>
-                                </Grid>
-                                
-                                <Separator Margin="0,15,0,10" Background="{DynamicResource BorderBrush}"/>
-                                <TextBlock Text="Background Polling" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,10"/>
-                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Background Polling" IsChecked="{Binding EnableBackgroundPolling}" Margin="0,0,0,10"/>
-                                <Grid Margin="0,0,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="50"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Interval (seconds):" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" Minimum="5" Maximum="120" Value="{Binding BackgroundPollingIntervalSeconds}" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding BackgroundPollingIntervalSeconds}" Foreground="{DynamicResource ForegroundBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                </Grid>
-                                <!-- Refresh Behavior -->
-                                <TextBlock Text="List Refresh Behavior:" Foreground="{DynamicResource ForegroundBrush}" Margin="0,15,0,5" FontWeight="SemiBold"/>
-                                <StackPanel>
-                                    <RadioButton Style="{StaticResource ModernRadioButtonStyle}" Content="Preserve scroll position (No jump)" IsChecked="{Binding IsPreserveScrollSelected}" Margin="0,0,0,5" ToolTip="Keeps the scroll bar fixed. The selection might change if items move."/>
-                                    <RadioButton Style="{StaticResource ModernRadioButtonStyle}" Content="Follow selected window (Identity)" IsChecked="{Binding IsPreserveIdentitySelected}" Margin="0,0,0,5" ToolTip="Keeps the same window selected even if it moves in the list."/>
-                                    <RadioButton Style="{StaticResource ModernRadioButtonStyle}" Content="Keep selection index (Position)" IsChecked="{Binding IsPreserveIndexSelected}" Margin="0,0,0,5" ToolTip="Keeps the selection at the same visual row (e.g. 2nd item)."/>
-                                </StackPanel>
-                            </StackPanel>
-                        </GroupBox>
-
-                        <!-- Browser Processes are now managed via plugin settings -->
-
-                        <!-- Excluded Processes Section -->
-                        <GroupBox Header="Excluded Processes" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}">
-                            <Grid Margin="10">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <TextBlock Text="Manage process names to hide from results (e.g., SwitchBlade):" 
-                                           Foreground="{DynamicResource ForegroundBrush}" TextWrapping="Wrap" Margin="0,0,0,10" Opacity="0.7"/>
-
-                                <ListBox Grid.Row="1" ItemsSource="{Binding ExcludedProcesses}" SelectedItem="{Binding SelectedExcludedProcess}" 
-                                         Background="{DynamicResource ControlBackground}" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
-                                         Margin="0,0,0,10" Height="100"/>
-
-                                <Grid Grid.Row="2">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Text="{Binding NewExcludedProcessName, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource HighContrastTextBoxStyle}"
-                                             Grid.Column="0" Margin="0,0,10,0" Height="30" VerticalContentAlignment="Center"/>
-                                    <Button Content="Add" Command="{Binding AddExcludedProcessCommand}" Grid.Column="1" Width="70" Margin="0,0,10,0" Style="{StaticResource ModernButtonStyle}"/>
-                                    <Button Content="Remove" Command="{Binding RemoveExcludedProcessCommand}" Grid.Column="2" Width="70" Style="{StaticResource ModernButtonStyle}"/>
-                                </Grid>
-                            </Grid>
-                        </GroupBox>
-
-
-                        <!-- Loaded Plugins Section -->
-                        <GroupBox Header="Loaded Plugins" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}" Margin="0,0,0,20">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Active IWindowProvider modules:" 
-                                           Foreground="{DynamicResource ForegroundBrush}" Opacity="0.7" Margin="0,0,0,10"/>
-                                
-                                <ListView x:Name="PluginsListView" ItemsSource="{Binding LoadedPlugins}" Height="150" 
-                                          Background="{DynamicResource ControlBackground}" 
-                                          Foreground="{DynamicResource ForegroundBrush}" 
-                                          BorderBrush="{DynamicResource BorderBrush}">
-                                    <ListView.View>
-                                        <GridView>
-                                            <GridViewColumn Header="Name" Width="100" DisplayMemberBinding="{Binding Name}"/>
-                                            <GridViewColumn Header="Version" Width="60" DisplayMemberBinding="{Binding Version}"/>
-                                            <GridViewColumn Header="Enabled" Width="60">
-                                                <GridViewColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <CheckBox IsChecked="{Binding IsEnabled}" 
-                                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                  IsEnabled="{Binding IsInternal, Converter={StaticResource InverseBoolConverter}}"
-                                                                  Command="{Binding DataContext.TogglePluginCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                                                                  CommandParameter="{Binding}"/>
-                                                    </DataTemplate>
-                                                </GridViewColumn.CellTemplate>
-                                            </GridViewColumn>
-                                            <GridViewColumn Header="Settings" Width="70">
-                                                <GridViewColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <Button Content="&#xE713;" 
-                                                                FontFamily="Segoe MDL2 Assets" FontSize="12"
-                                                                Width="30" Height="24"
-                                                                Margin="0" Padding="0"
-                                                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                                Style="{StaticResource ModernButtonStyle}"
-                                                                Click="PluginSettingsButton_Click"
-                                                                Tag="{Binding}"
-                                                                Visibility="{Binding HasSettings, Converter={StaticResource BoolToVisibility}}"
-                                                                ToolTip="Open plugin settings"/>
-                                                    </DataTemplate>
-                                                </GridViewColumn.CellTemplate>
-                                            </GridViewColumn>
-                                        </GridView>
-                                    </ListView.View>
-                                </ListView>
-                            </StackPanel>
-                        </GroupBox>
-                    </StackPanel>
-                </ScrollViewer>
-            </Grid>
+        <!-- Custom Title Bar -->
+        <Grid Grid.Row="0" Background="Transparent" Height="48">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <TextBlock Text="SwitchBlade Settings" 
+                       VerticalAlignment="Center" 
+                       Margin="16,0,0,0" 
+                       FontSize="14" 
+                       FontWeight="SemiBold"/>
+            
+            <Button Grid.Column="1" 
+                    Content="&#xE711;" 
+                    FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                    Width="48" Height="48"
+                    Background="Transparent"
+                    Click="CloseButton_Click"/>
         </Grid>
-    </Border>
+
+        <!-- Main Content -->
+        <ScrollViewer Grid.Row="1" Margin="20">
+            <StackPanel Spacing="16">
+                <!-- Appearance Section -->
+                <Expander Header="Appearance" IsExpanded="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="12" Padding="12">
+                        <ComboBox Header="Theme" 
+                                  ItemsSource="{x:Bind ViewModel.AvailableThemes, Mode=OneWay}" 
+                                  SelectedItem="{x:Bind ViewModel.SelectedTheme, Mode=TwoWay}" 
+                                  HorizontalAlignment="Stretch"/>
+                        
+                        <Slider Header="Window Opacity" 
+                                Minimum="0.2" Maximum="1.0" 
+                                Value="{x:Bind ViewModel.WindowOpacity, Mode=TwoWay}" 
+                                StepFrequency="0.05"/>
+                        
+                        <Slider Header="Fade Duration (ms)" 
+                                Minimum="0" Maximum="1000" 
+                                Value="{x:Bind ViewModel.FadeDurationMs, Mode=TwoWay}" 
+                                StepFrequency="50"/>
+                        
+                        <Slider Header="Item Height" 
+                                Minimum="30" Maximum="100" 
+                                Value="{x:Bind ViewModel.ItemHeight, Mode=TwoWay}" 
+                                StepFrequency="5"/>
+                        
+                        <TextBox Header="Global Hotkey" 
+                                 x:Name="HotKeyBox" 
+                                 Text="{x:Bind ViewModel.HotKeyString, Mode=OneWay}" 
+                                 IsReadOnly="True" 
+                                 PlaceholderText="Click and press keys"
+                                 PreviewKeyDown="HotKeyBox_PreviewKeyDown"/>
+                        
+                        <ToggleSwitch Header="Enable Window Previews" 
+                                      IsOn="{x:Bind ViewModel.EnablePreviews, Mode=TwoWay}"/>
+                        
+                        <ToggleSwitch Header="Hide Taskbar Icon" 
+                                      IsOn="{x:Bind ViewModel.HideTaskbarIcon, Mode=TwoWay}"/>
+                        
+                        <ToggleSwitch Header="Launch on Windows Startup" 
+                                      IsOn="{x:Bind ViewModel.LaunchOnStartup, Mode=TwoWay}"/>
+                        
+                        <ToggleSwitch Header="Run as Administrator" 
+                                      IsOn="{x:Bind ViewModel.RunAsAdministrator, Mode=TwoWay}"/>
+                        
+                        <ToggleSwitch Header="Enable Number Shortcuts (1-9, 0)" 
+                                      IsOn="{x:Bind ViewModel.EnableNumberShortcuts, Mode=TwoWay}"/>
+                        
+                        <ComboBox Header="Shortcut Modifier" 
+                                  ItemsSource="{x:Bind ViewModel.AvailableShortcutModifiers, Mode=OneWay}" 
+                                  SelectedItem="{x:Bind ViewModel.SelectedShortcutModifier, Mode=TwoWay}" 
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </Expander>
+                
+                <!-- Background Polling Section -->
+                <Expander Header="Background Polling" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="12" Padding="12">
+                        <ToggleSwitch Header="Enable Background Polling" 
+                                      IsOn="{x:Bind ViewModel.EnableBackgroundPolling, Mode=TwoWay}"/>
+                        
+                        <Slider Header="Interval (seconds)" 
+                                Minimum="5" Maximum="120" 
+                                Value="{x:Bind ViewModel.BackgroundPollingIntervalSeconds, Mode=TwoWay}" 
+                                StepFrequency="5"/>
+                        
+                        <RadioButtons Header="List Refresh Behavior">
+                            <RadioButton Content="Preserve scroll position" 
+                                         IsChecked="{x:Bind ViewModel.IsPreserveScrollSelected, Mode=TwoWay}"/>
+                            <RadioButton Content="Follow selected window" 
+                                         IsChecked="{x:Bind ViewModel.IsPreserveIdentitySelected, Mode=TwoWay}"/>
+                            <RadioButton Content="Keep selection index" 
+                                         IsChecked="{x:Bind ViewModel.IsPreserveIndexSelected, Mode=TwoWay}"/>
+                        </RadioButtons>
+                    </StackPanel>
+                </Expander>
+                
+                <!-- Excluded Processes Section -->
+                <Expander Header="Excluded Processes" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="12" Padding="12">
+                        <TextBlock Text="Process names to hide from results (e.g., SwitchBlade)" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   TextWrapping="Wrap"/>
+
+                        <ListView ItemsSource="{x:Bind ViewModel.ExcludedProcesses, Mode=OneWay}" 
+                                  SelectedItem="{x:Bind ViewModel.SelectedExcludedProcess, Mode=TwoWay}"
+                                  Height="150"/>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Text="{x:Bind ViewModel.NewExcludedProcessName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Button Grid.Column="1" Content="Add" Command="{x:Bind ViewModel.AddExcludedProcessCommand}"/>
+                            <Button Grid.Column="2" Content="Remove" Command="{x:Bind ViewModel.RemoveExcludedProcessCommand}"/>
+                        </Grid>
+                    </StackPanel>
+                </Expander>
+                
+                <!-- Loaded Plugins Section -->
+                <Expander Header="Loaded Plugins" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="12" Padding="12">
+                        <TextBlock Text="Active IWindowProvider modules" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        
+                        <ListView x:Name="PluginsListView" 
+                                  ItemsSource="{x:Bind ViewModel.LoadedPlugins, Mode=OneWay}" 
+                                  Height="200">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="8" ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="60"/>
+                                            <ColumnDefinition Width="60"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Version}" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <CheckBox Grid.Column="2" IsChecked="{Binding IsEnabled, Mode=TwoWay}" 
+                                                  IsEnabled="{Binding IsInternal, Converter={StaticResource InverseBoolConverter}}"/>
+                                        <Button Grid.Column="3" 
+                                                Content="&#xE713;" 
+                                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                                Click="PluginSettingsButton_Click"
+                                                Tag="{Binding}"
+                                                Visibility="{Binding HasSettings}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
 </Window>

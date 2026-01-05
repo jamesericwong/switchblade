@@ -1,33 +1,29 @@
-using System;
+using Microsoft.UI.Dispatching;
 
 namespace SwitchBlade.Services
 {
-    public class WpfDispatcherService : IDispatcherService
+    /// <summary>
+    /// WinUI implementation of IDispatcherService using DispatcherQueue.
+    /// </summary>
+    public class WinUIDispatcherService : IDispatcherService
     {
-        public void Invoke(Action action)
+        private readonly DispatcherQueue? _dispatcherQueue;
+
+        public WinUIDispatcherService()
         {
-            if (System.Windows.Application.Current != null)
-            {
-                System.Windows.Application.Current.Dispatcher.Invoke(action);
-            }
-            else
-            {
-                // Fallback for non-WPF contexts (unlikely in prod, but safe)
-                action();
-            }
+            _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         }
 
-
-        public async System.Threading.Tasks.Task InvokeAsync(Func<System.Threading.Tasks.Task> action)
+        public void InvokeAsync(Action action)
         {
-            if (System.Windows.Application.Current != null)
+            if (_dispatcherQueue != null)
             {
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(action);
+                _dispatcherQueue.TryEnqueue(() => action());
             }
             else
             {
-                // Fallback for non-WPF contexts
-                await action();
+                // Fallback: just invoke directly
+                action();
             }
         }
     }

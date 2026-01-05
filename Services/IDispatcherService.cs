@@ -1,10 +1,13 @@
 using System;
+using System.Threading.Tasks;
 
 namespace SwitchBlade.Services
 {
+    /// <summary>
+    /// Abstraction for UI thread dispatching - works with both WPF and WinUI.
+    /// </summary>
     public interface IDispatcherService
     {
-        void Invoke(Action action);
-        System.Threading.Tasks.Task InvokeAsync(Func<System.Threading.Tasks.Task> action);
+        void InvokeAsync(Action action);
     }
 }

@@ -1,12 +1,11 @@
 using System;
-using System.Globalization;
-using System.Windows.Data;
+using Microsoft.UI.Xaml.Data;
 
 namespace SwitchBlade.Core
 {
     public class InverseBooleanConverter : IValueConverter
     {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object value, Type targetType, object parameter, string language)
         {
             if (value is bool boolValue)
             {
@@ -15,7 +14,7 @@ namespace SwitchBlade.Core
             return value;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
         {
             if (value is bool boolValue)
             {

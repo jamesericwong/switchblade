@@ -1,23 +1,20 @@
-using System.Windows;
+using Microsoft.UI.Xaml;
 
 namespace SwitchBlade.Services
 {
-    public class WpfApplicationResourceHandler : IApplicationResourceHandler
+    /// <summary>
+    /// Handles access to WinUI application resources.
+    /// </summary>
+    public class WinUIApplicationResourceHandler : IApplicationResourceHandler
     {
         public void AddMergedDictionary(ResourceDictionary dictionary)
         {
-            if (System.Windows.Application.Current != null)
-            {
-                System.Windows.Application.Current.Resources.MergedDictionaries.Add(dictionary);
-            }
+            Application.Current?.Resources?.MergedDictionaries.Add(dictionary);
         }
 
         public void RemoveMergedDictionary(ResourceDictionary dictionary)
         {
-            if (System.Windows.Application.Current != null)
-            {
-                System.Windows.Application.Current.Resources.MergedDictionaries.Remove(dictionary);
-            }
+            Application.Current?.Resources?.MergedDictionaries.Remove(dictionary);
         }
     }
 }

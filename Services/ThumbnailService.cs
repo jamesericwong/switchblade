@@ -1,6 +1,6 @@
 using System;
-using System.Windows;
-using System.Windows.Interop;
+using Microsoft.UI.Xaml;
+using WinRT.Interop;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 
@@ -12,20 +12,20 @@ namespace SwitchBlade.Services
         private IntPtr _currentSourceHwnd = IntPtr.Zero;
         private readonly Window _targetWindow;
         private readonly ILogger _logger;
+        private readonly IntPtr _targetHwnd;
 
         public ThumbnailService(Window targetWindow, ILogger logger)
         {
             _targetWindow = targetWindow;
             _logger = logger;
+            _targetHwnd = WindowNative.GetWindowHandle(targetWindow);
 
-            // Subscribe to window size changes (handles horizontal resize where container position changes)
+            // Subscribe to window size changes
             _targetWindow.SizeChanged += TargetWindow_SizeChanged;
         }
 
-        private void TargetWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        private void TargetWindow_SizeChanged(object sender, WindowSizeChangedEventArgs e)
         {
-            // Refresh thumbnail properties when the window size changes
-            // This handles horizontal resizing where the preview container's position changes
             UpdateThumbnailProperties();
         }
 
@@ -40,17 +40,11 @@ namespace SwitchBlade.Services
             _currentSourceHwnd = sourceHwnd;
             if (sourceHwnd == IntPtr.Zero) return;
 
-            var helper = new WindowInteropHelper(_targetWindow);
-            int result = NativeInterop.DwmRegisterThumbnail(helper.Handle, sourceHwnd, out _currentThumbnail);
+            int result = NativeInterop.DwmRegisterThumbnail(_targetHwnd, sourceHwnd, out _currentThumbnail);
 
             if (result == 0 && _currentThumbnail != IntPtr.Zero)
             {
                 UpdateThumbnailProperties();
-            }
-            else
-            {
-                // Optional: log failure
-                // _logger.Log($"DwmRegisterThumbnail failed for HWND {sourceHwnd}. Result: {result}");
             }
         }
 
@@ -58,7 +52,6 @@ namespace SwitchBlade.Services
 
         public void SetPreviewContainer(FrameworkElement element)
         {
-            // Unsubscribe from previous container if any
             if (_previewContainer != null)
             {
                 _previewContainer.SizeChanged -= PreviewContainer_SizeChanged;
@@ -66,7 +59,6 @@ namespace SwitchBlade.Services
 
             _previewContainer = element;
 
-            // Subscribe to size changes to update thumbnail positioning
             if (_previewContainer != null)
             {
                 _previewContainer.SizeChanged += PreviewContainer_SizeChanged;
@@ -75,13 +67,9 @@ namespace SwitchBlade.Services
 
         private void PreviewContainer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // Refresh thumbnail properties when the container size changes
             UpdateThumbnailProperties();
         }
 
-        /// <summary>
-        /// Manually refresh the thumbnail positioning (e.g., after window resize).
-        /// </summary>
         public void RefreshThumbnail()
         {
             UpdateThumbnailProperties();
@@ -91,76 +79,53 @@ namespace SwitchBlade.Services
         {
             if (_currentThumbnail == IntPtr.Zero || _previewContainer == null) return;
 
-            // Get position of the container relative to the window
-            var transform = _previewContainer.TransformToAncestor(_targetWindow);
-            var rootPoint = transform.Transform(new System.Windows.Point(0, 0));
+            // Get DPI for the window
+            uint dpi = NativeInterop.GetDpiForWindow(_targetHwnd);
+            double scale = dpi / 96.0;
 
-            // Adjust for High DPI if necessary, but DWM usually expects physical pixels? 
-            // WPF works in logical pixels. DWM works in physical pixels.
-            // We need to convert.
-
-            var source = PresentationSource.FromVisual(_targetWindow);
-            double dpiX = 1.0;
-            double dpiY = 1.0;
-            if (source != null)
-            {
-                dpiX = source.CompositionTarget.TransformToDevice.M11;
-                dpiY = source.CompositionTarget.TransformToDevice.M22;
-            }
-
-            // 1. Get source window dimensions
+            // Get source window dimensions
             NativeInterop.Rect sourceRect;
             NativeInterop.GetWindowRect(_currentSourceHwnd, out sourceRect);
-            // Note: GetWindowRect might return 0 size if minimized? 
-            // DWM usually handles minimized windows fine, but we need the restored size for aspect ratio.
-            // If minimized, we might need GetWindowPlacement, but let's try GetWindowRect first.
-            // Actually, for DWM thumbnail, it shows the "live" content. If minimized, it might be 0 or small.
-            // However, typical Alt-Tab logic gets the "snapshot" size.
 
-            // Safe fallback width/height
             double sourceW = sourceRect.Right - sourceRect.Left;
             double sourceH = sourceRect.Bottom - sourceRect.Top;
 
             if (sourceW <= 0 || sourceH <= 0)
             {
-                sourceW = 800; // default assumption
+                sourceW = 800;
                 sourceH = 600;
             }
 
-            // 2. Get Container Dimensions (Logical)
+            // Get Container Dimensions
             double containerW = _previewContainer.ActualWidth;
             double containerH = _previewContainer.ActualHeight;
 
-            // 3. Calculate Scale to Fit (Uniform)
+            // Calculate Scale to Fit
             double scaleX = containerW / sourceW;
             double scaleY = containerH / sourceH;
-            double scale = Math.Min(scaleX, scaleY);
+            double fitScale = Math.Min(scaleX, scaleY);
 
-            // 4. Calculate Final Dimensions (Logical)
-            double destW = sourceW * scale;
-            double destH = sourceH * scale;
+            // Calculate Final Dimensions
+            double destW = sourceW * fitScale;
+            double destH = sourceH * fitScale;
 
-            // 5. Center it
+            // Center it
             double offsetX = (containerW - destW) / 2;
             double offsetY = (containerH - destH) / 2;
 
-            // 6. Convert to Physical Pixels for DWM
-            // DWM coordinates are relative to the *target window's client area* (if sourceClientAreaOnly is false?? no, relative to target window logic)
-            // But they must be in physical pixels.
-            // rootPoint from TransformToDevice is already in physical pixels?
-            // Wait, TransformToAncestor -> Transform(0,0) gives coordinates relative to TargetWindow *visual*.
-            // We need to apply DPI scaling to our calculated Logicals.
+            // Get window position for offset calculation
+            // For WinUI, we need to calculate the position differently
+            // Using approximate values for now
+            double rootX = 20; // Margin
+            double rootY = 52; // Title bar + margin
 
-            int finalLeft = (int)((rootPoint.X * dpiX) + (offsetX * dpiX));
-            int finalTop = (int)((rootPoint.Y * dpiY) + (offsetY * dpiY));
-            int finalRight = finalLeft + (int)(destW * dpiX);
-            int finalBottom = finalTop + (int)(destH * dpiY);
+            // Convert to Physical Pixels for DWM
+            int finalLeft = (int)((rootX + offsetX) * scale);
+            int finalTop = (int)((rootY + offsetY) * scale);
+            int finalRight = finalLeft + (int)(destW * scale);
+            int finalBottom = finalTop + (int)(destH * scale);
 
-            // Add padding (optional, applied inside the calculated rect?)
-            // Let's keep it tight or add small padding
-            int paddingPixels = (int)(10 * dpiX);
-            // Apply padding by shrinking the box slightly? Or leave as is.
-            // Scaling already fits it inside container.
+            int paddingPixels = (int)(10 * scale);
 
             NativeInterop.DWM_THUMBNAIL_PROPERTIES props = new NativeInterop.DWM_THUMBNAIL_PROPERTIES();
             props.dwFlags = NativeInterop.DWM_TNP_VISIBLE | NativeInterop.DWM_TNP_RECTDESTINATION | NativeInterop.DWM_TNP_OPACITY | NativeInterop.DWM_TNP_SOURCECLIENTAREAONLY;
@@ -181,13 +146,11 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
-            // Unsubscribe from size changes
             if (_previewContainer != null)
             {
                 _previewContainer.SizeChanged -= PreviewContainer_SizeChanged;
             }
 
-            // Unsubscribe from window size changes
             _targetWindow.SizeChanged -= TargetWindow_SizeChanged;
 
             if (_currentThumbnail != IntPtr.Zero)

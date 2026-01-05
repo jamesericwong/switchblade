@@ -68,13 +68,13 @@ namespace SwitchBlade.ViewModels
                             ? "This setting requires restarting SwitchBlade with Administrator privileges. Restart now?"
                             : "To run without Administrator privileges, SwitchBlade needs to restart. Restart now?";
 
-                        var result = System.Windows.MessageBox.Show(
+                        var result = System.Windows.Forms.MessageBox.Show(
                             message,
                             "Restart Required",
-                            System.Windows.MessageBoxButton.YesNo,
-                            System.Windows.MessageBoxImage.Question);
+                            System.Windows.Forms.MessageBoxButtons.YesNo,
+                            System.Windows.Forms.MessageBoxIcon.Question);
 
-                        if (result == System.Windows.MessageBoxResult.Yes)
+                        if (result == System.Windows.Forms.DialogResult.Yes)
                         {
                             // User confirmed - now save the setting and restart
                             _settingsService.Settings.RunAsAdministrator = value;
@@ -108,8 +108,8 @@ namespace SwitchBlade.ViewModels
 
             if (string.IsNullOrEmpty(processPath))
             {
-                System.Windows.MessageBox.Show("Unable to determine application path for restart.", "Restart Failed",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                System.Windows.Forms.MessageBox.Show("Unable to determine application path for restart.", "Restart Failed",
+                    System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
                 return;
             }
 
@@ -161,13 +161,13 @@ namespace SwitchBlade.ViewModels
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Failed to restart: {ex.Message}", "Restart Failed",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                System.Windows.Forms.MessageBox.Show($"Failed to restart: {ex.Message}", "Restart Failed",
+                    System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
                 return;
             }
 
             // Shutdown current application - the PowerShell script will wait for us to exit, then launch new instance
-            System.Windows.Application.Current.Shutdown();
+            System.Windows.Forms.Application.Exit();
         }
 
         public int FadeDurationMs

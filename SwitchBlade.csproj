@@ -2,22 +2,30 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
-    <Version>1.4.14</Version>
+    <TargetFramework>net9.0-windows10.0.17763.0</TargetFramework>
+    <Version>1.5.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <EnablePreviewMsixTooling>false</EnablePreviewMsixTooling>
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <AppxPackage>true</AppxPackage>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <PackageCertificateThumbprint>B91E1C4D768F7A6AB4E1BC1A791F9E30FEB9AA50</PackageCertificateThumbprint>
     <ApplicationIcon>icon.ico</ApplicationIcon>
-    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <EnableDefaultApplicationDefinition>true</EnableDefaultApplicationDefinition>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <StartupObject>SwitchBlade.Program</StartupObject>
     <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Tests\**</DefaultItemExcludes>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <Platforms>x64;ARM64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="icon.png" />
-    <Resource Include="Resources/search_icon.png" />
-    <ApplicationDefinition Include="App.xaml" />
+    <Content Include="icon.png" />
+    <Content Include="Resources/search_icon.png" />
+
   </ItemGroup>
   
   <ItemGroup>
@@ -32,14 +40,39 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240627000" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1" />
   </ItemGroup>
 
-  <Target Name="CopyPluginsToPublish" AfterTargets="Publish">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+  </ItemGroup>
+
+  <!-- Ensure Plugins are included in the MSIX Package -->
+  <Target Name="AddPluginsToPackage" BeforeTargets="AssignTargetPaths;GenerateAppxPackageRecipe">
     <ItemGroup>
-       <!-- Fix: Point to the actual location where Plugin project copies the files -->
-       <PluginFiles Include="$(MSBuildProjectDirectory)\bin\$(Configuration)\net9.0-windows\Plugins\**\*.*" />
+       <ChromePluginFiles Include="..\SwitchBlade.Plugins.Chrome\bin\**\net9.0-windows10.0.17763.0\SwitchBlade.Plugins.Chrome.dll" />
+       <TerminalPluginFiles Include="..\SwitchBlade.Plugins.WindowsTerminal\bin\**\net9.0-windows10.0.17763.0\SwitchBlade.Plugins.WindowsTerminal.dll" />
+       <FlaUIFiles Include="..\SwitchBlade.Plugins.Chrome\bin\**\net9.0-windows10.0.17763.0\FlaUI*.dll" />
     </ItemGroup>
-    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PublishDir)Plugins\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <Content Include="@(ChromePluginFiles)">
+        <Link>Plugins\SwitchBlade.Plugins.Chrome\%(Filename)%(Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <Visible>false</Visible>
+      </Content>
+      <Content Include="@(TerminalPluginFiles)">
+        <Link>Plugins\SwitchBlade.Plugins.WindowsTerminal\%(Filename)%(Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <Visible>false</Visible>
+      </Content>
+       <Content Include="@(FlaUIFiles)">
+        <Link>Plugins\SwitchBlade.Plugins.Chrome\%(Filename)%(Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <Visible>false</Visible>
+      </Content>
+    </ItemGroup>
   </Target>
 
 </Project>
+

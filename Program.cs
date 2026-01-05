@@ -2,18 +2,20 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Security.Principal;
-using System.Windows;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Dispatching;
+using Microsoft.Windows.AppLifecycle;
 using SwitchBlade.Contracts;
 using SwitchBlade.Services;
+using WinRT;
 
 namespace SwitchBlade
 {
     public static class Program
     {
         [STAThread]
-        public static void Main()
+        public static void Main(string[] args)
         {
             const string appName = "Global\\SwitchBlade_SingleInstance_Mutex";
             bool createdNew;
@@ -24,18 +26,16 @@ namespace SwitchBlade
                 if (!createdNew)
                 {
                     // Wait up to 2 seconds for previous instance to release mutex
-                    // This handles the case where we're restarting and the old process is shutting down
                     bool acquired = mutex.WaitOne(2000);
                     if (!acquired)
                     {
-                        System.Windows.MessageBox.Show("SwitchBlade is already running!", "SwitchBlade", MessageBoxButton.OK, MessageBoxImage.Information);
+                        System.Windows.Forms.MessageBox.Show("SwitchBlade is already running!", "SwitchBlade",
+                            System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
                         return;
                     }
-                    // Successfully acquired mutex after waiting, continue normally
                 }
 
                 // Check for /debug flag before anything else
-                var args = Environment.GetCommandLineArgs();
                 bool debugEnabled = Array.Exists(args, arg =>
                     arg.Equals("/debug", StringComparison.OrdinalIgnoreCase) ||
                     arg.Equals("--debug", StringComparison.OrdinalIgnoreCase) ||
@@ -64,7 +64,7 @@ namespace SwitchBlade
                             FileName = processPath ?? "SwitchBlade.exe",
                             UseShellExecute = true,
                             Verb = "runas",
-                            Arguments = string.Join(" ", args, 1, args.Length - 1), // Skip first arg (exe path)
+                            Arguments = string.Join(" ", args),
                             WorkingDirectory = Path.GetDirectoryName(processPath) ?? ""
                         };
 
@@ -78,18 +78,17 @@ namespace SwitchBlade
                     }
                     catch (System.ComponentModel.Win32Exception ex)
                     {
-                        // User cancelled UAC prompt or other elevation error
                         logger.Log($"Elevation failed/cancelled: {ex.Message}");
-                        // If we released the mutex and failed to start, we are in a bad state.
-                        // Better to exit than run without single-instance protection.
-                        System.Windows.MessageBox.Show($"Failed to restart as Administrator: {ex.Message}", "SwitchBlade", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                        System.Windows.Forms.MessageBox.Show($"Failed to restart as Administrator: {ex.Message}",
+                            "SwitchBlade", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
                         Environment.Exit(1);
                         return;
                     }
                     catch (Exception ex)
                     {
                         logger.LogError("Elevation Error", ex);
-                        System.Windows.MessageBox.Show($"Failed to restart as Administrator: {ex.Message}", "SwitchBlade", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                        System.Windows.Forms.MessageBox.Show($"Failed to restart as Administrator: {ex.Message}",
+                            "SwitchBlade", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
                         Environment.Exit(1);
                         return;
                     }
@@ -97,16 +96,14 @@ namespace SwitchBlade
 
                 try
                 {
-                    logger.Log("Process Started (Managed Entry Point Hit)");
+                    logger.Log("Process Started (WinUI Entry Point)");
 
-                    // Parse command-line arguments for /minimized
-
+                    // Parse command-line arguments
                     bool startMinimized = Array.Exists(args, arg =>
                         arg.Equals("/minimized", StringComparison.OrdinalIgnoreCase) ||
                         arg.Equals("--minimized", StringComparison.OrdinalIgnoreCase) ||
                         arg.Equals("-minimized", StringComparison.OrdinalIgnoreCase));
 
-                    // Parse command-line arguments for /enablestartup (set by MSI installer)
                     bool enableStartup = Array.Exists(args, arg =>
                         arg.Equals("/enablestartup", StringComparison.OrdinalIgnoreCase) ||
                         arg.Equals("--enablestartup", StringComparison.OrdinalIgnoreCase) ||
@@ -124,14 +121,20 @@ namespace SwitchBlade
                         logger.Log("Enable startup on first run requested");
                     }
 
-                    var app = new App(serviceProvider);
-                    app.InitializeComponent();
-                    app.Run();
+                    // Initialize WinUI
+                    ComWrappersSupport.InitializeComWrappers();
+                    Microsoft.UI.Xaml.Application.Start((p) =>
+                    {
+                        var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+                        SynchronizationContext.SetSynchronizationContext(context);
+                        new App(serviceProvider);
+                    });
                 }
                 catch (Exception ex)
                 {
                     logger.LogError("STARTUP CRASH", ex);
-                    System.Windows.MessageBox.Show($"Critical Startup Error: {ex.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log", "SwitchBlade Fatal", MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Windows.Forms.MessageBox.Show($"Critical Startup Error: {ex.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log",
+                        "SwitchBlade Fatal", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
                 }
             }
         }
@@ -155,7 +158,6 @@ namespace SwitchBlade
 
         /// <summary>
         /// Checks if the RunAsAdministrator setting is enabled in the registry.
-        /// This is read directly from registry to avoid loading full SettingsService before elevation.
         /// </summary>
         private static bool ShouldElevate()
         {

@@ -1,6 +1,6 @@
 using Xunit;
 using Moq;
-using System.Windows;
+using Microsoft.UI.Xaml;
 using System.Collections.Generic;
 using SwitchBlade.Services;
 

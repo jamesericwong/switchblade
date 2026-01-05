@@ -47,66 +47,42 @@ namespace SwitchBlade.Core
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
-            if (_settingsService == null) return results; // Add safety
+            if (_settingsService == null) return results;
 
             var excluded = new HashSet<string>(_settingsService.Settings.ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
 
-            // Note: Browser processes are now managed by the ChromeTabFinder plugin.
-            // To prevent duplicate windows, add browser process names to ExcludedProcesses in Settings.
-
-            NativeInterop.EnumWindows((hwnd, lParam) =>
+            // Explicit delegate to prevent GC issues
+            NativeInterop.EnumWindowsProc proc = (hwnd, lParam) =>
             {
-                if (!NativeInterop.IsWindowVisible(hwnd))
-                    return true;
+                if (!NativeInterop.IsWindowVisible(hwnd)) return true;
 
                 StringBuilder sb = new StringBuilder(256);
                 NativeInterop.GetWindowText(hwnd, sb, sb.Capacity);
                 string title = sb.ToString();
 
-                if (string.IsNullOrWhiteSpace(title))
-                    return true;
-
-                // Simple filter to remove common system windows usually not interesting to user
+                if (string.IsNullOrWhiteSpace(title)) return true;
                 if (title == "Program Manager") return true;
 
-                // Get Process Name
-                string processName = "Window";
-                try
-                {
-                    uint pid;
-                    NativeInterop.GetWindowThreadProcessId(hwnd, out pid);
-                    if (pid != 0)
-                    {
-                        var proc = Process.GetProcessById((int)pid);
-                        processName = proc.ProcessName;
-                    }
-                }
-                catch
-                {
-                    // Ignore access denied errors etc.
-                }
+                string processName = "Unknown_Debug";
 
-                // Filter Excluded Processes
-                if (excluded.Contains(processName) || _dynamicExclusions.Contains(processName, StringComparer.OrdinalIgnoreCase))
-                {
-                    // Do not log "excluded" for browsers to reduce noise, or log as debug if needed
-                    base.Logger?.Log($"Excluded Window '{title}' from process '{processName}' (Matched Exclusion)");
-                    return true;
-                }
+                // Filter Excluded Processes (simplified)
+                if (excluded.Contains(processName)) return true;
 
-                // Debug log
-                base.Logger?.Log($"Included Window: '{title}', Process: '{processName}' (Exclusions: {string.Join(",", _dynamicExclusions)})");
-
-                results.Add(new WindowItem
+                // TEST: Instantiate but DO NOT Add
+                var item = new WindowItem
                 {
                     Hwnd = hwnd,
                     Title = title,
                     ProcessName = processName,
-                    Source = this
-                });
+                    Source = null
+                };
+
+                // results.Add(item);
 
                 return true;
-            }, IntPtr.Zero);
+            };
+
+            NativeInterop.EnumWindows(proc, IntPtr.Zero);
 
             return results;
         }

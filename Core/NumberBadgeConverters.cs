@@ -1,37 +1,43 @@
 using System;
-using System.Globalization;
-using System.Windows;
-using System.Windows.Data;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Data;
 
 namespace SwitchBlade.Core
 {
     /// <summary>
-    /// Converts boolean inputs to Visibility.
-    /// Expects values[0]: bool IsShortcutVisible
-    /// Expects values[1]: bool EnableNumberShortcuts
-    /// Returns Visible if both are true, otherwise Collapsed.
+    /// Converts boolean inputs to Visibility - WinUI version.
+    /// Note: WinUI doesn't have IMultiValueConverter, so this is simplified.
+    /// Use x:Bind with a function instead in XAML for multi-value scenarios.
     /// </summary>
-    public class ShortcutVisibilityConverter : IMultiValueConverter
+    public class BoolToVisibilityConverter : IValueConverter
     {
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object value, Type targetType, object parameter, string language)
         {
-            if (values.Length < 2)
-                return Visibility.Collapsed;
-
-            // Check if shortcuts are globally enabled
-            if (values[1] is not bool enableShortcuts || !enableShortcuts)
-                return Visibility.Collapsed;
-
-            // Check if the individual item has a visible shortcut
-            if (values[0] is bool isVisible && isVisible)
+            if (value is bool boolValue && boolValue)
+            {
                 return Visibility.Visible;
-
+            }
             return Visibility.Collapsed;
         }
 
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
         {
-            throw new NotImplementedException();
+            if (value is Visibility visibility)
+            {
+                return visibility == Visibility.Visible;
+            }
+            return false;
         }
+    }
+
+    /// <summary>
+    /// For backwards compatibility - WinUI doesn't support IMultiValueConverter.
+    /// This converter just checks a single bool value.
+    /// The MainWindow uses x:Bind directly with the property now.
+    /// </summary>
+    public class ShortcutVisibilityConverter : BoolToVisibilityConverter
+    {
+        // Just inherit from BoolToVisibilityConverter - 
+        // actual multi-value logic moved to ViewModel
     }
 }

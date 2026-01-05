@@ -25,7 +25,7 @@ namespace SwitchBlade.Services
             services.AddSingleton<SettingsService>();
             services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<SettingsService>());
             services.AddSingleton<ThemeService>();
-            services.AddSingleton<IDispatcherService, WpfDispatcherService>();
+            services.AddSingleton<IDispatcherService, WinUIDispatcherService>();
 
             // Logger
             services.AddSingleton<ILogger>(Logger.Instance);
@@ -76,18 +76,18 @@ namespace SwitchBlade.Services
             providers.Add(sp.GetRequiredService<WindowFinder>());
 
             // 2. Load external plugins
-            try
-            {
-                var pluginPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
-                var loader = new PluginLoader(pluginPath);
-                var plugins = loader.LoadPlugins(context);
-
-                providers.AddRange(plugins);
-            }
-            catch (Exception ex)
-            {
-                SwitchBlade.Core.Logger.LogError("Error loading plugins", ex);
-            }
+            // try
+            // {
+            //     var pluginPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
+            //     var loader = new PluginLoader(pluginPath);
+            //     var plugins = loader.LoadPlugins(context);
+            // 
+            //     providers.AddRange(plugins);
+            // }
+            // catch (Exception ex)
+            // {
+            //     SwitchBlade.Core.Logger.LogError("Error loading plugins", ex);
+            // }
 
             return providers;
         }

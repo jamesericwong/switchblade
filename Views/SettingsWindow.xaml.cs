@@ -1,70 +1,59 @@
-using System.Windows;
-using System.Windows.Input;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Controls;
 using SwitchBlade.ViewModels;
 using SwitchBlade.Core;
 using SwitchBlade.Contracts;
+using Windows.System;
+using WinRT.Interop;
 
 namespace SwitchBlade.Views
 {
-    public partial class SettingsWindow : Window
+    public sealed partial class SettingsWindow : Window
     {
+        public SettingsViewModel? ViewModel { get; set; }
+
         public SettingsWindow()
         {
             InitializeComponent();
-            this.Loaded += SettingsWindow_Loaded;
         }
 
-        private void SettingsWindow_Loaded(object sender, RoutedEventArgs e)
-        {
-            // Ensure the window can receive keyboard input for ESC key
-            this.Focus();
-            Keyboard.Focus(this);
-        }
-
-        private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-        {
-            Logger.Log($"SettingsWindow KeyDown: {e.Key}");
-            if (e.Key == Key.Escape)
-            {
-                Logger.Log("SettingsWindow: Closing on ESC");
-                this.Close();
-                e.Handled = true;
-            }
-        }
-
-        private void HotKeyBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void HotKeyBox_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
         {
             Logger.Log($"HotKeyBox KeyDown: {e.Key}");
-            // Ignore Escape key if it wasn't handled by Window (double check)
-            if (e.Key == Key.Escape) return;
+
+            // Ignore Escape key
+            if (e.Key == VirtualKey.Escape) return;
 
             e.Handled = true;
 
             // Get modifiers
-            uint mods = 0;
-            if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt) mods |= NativeInterop.MOD_ALT;
-            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) mods |= NativeInterop.MOD_CONTROL;
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift) mods |= NativeInterop.MOD_SHIFT;
-            if ((Keyboard.Modifiers & ModifierKeys.Windows) == ModifierKeys.Windows) mods |= NativeInterop.MOD_WIN;
+            var modifiers = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu);
+            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
+            var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift);
+            var winState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.LeftWindows);
 
-            // Get the key
-            Key key = (e.Key == Key.System ? e.SystemKey : e.Key);
+            uint mods = 0;
+            if (modifiers.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) mods |= NativeInterop.MOD_ALT;
+            if (ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) mods |= NativeInterop.MOD_CONTROL;
+            if (shiftState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) mods |= NativeInterop.MOD_SHIFT;
+            if (winState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) mods |= NativeInterop.MOD_WIN;
 
             // Ignore modifier keys themselves
-            if (key == Key.LeftCtrl || key == Key.RightCtrl ||
-                key == Key.LeftAlt || key == Key.RightAlt ||
-                key == Key.LeftShift || key == Key.RightShift ||
-                key == Key.LWin || key == Key.RWin)
+            if (e.Key == VirtualKey.Control || e.Key == VirtualKey.LeftControl || e.Key == VirtualKey.RightControl ||
+                e.Key == VirtualKey.Menu || e.Key == VirtualKey.LeftMenu || e.Key == VirtualKey.RightMenu ||
+                e.Key == VirtualKey.Shift || e.Key == VirtualKey.LeftShift || e.Key == VirtualKey.RightShift ||
+                e.Key == VirtualKey.LeftWindows || e.Key == VirtualKey.RightWindows)
             {
                 return;
             }
 
-            // Convert WPF Key to Virtual Key
-            int virtualKey = KeyInterop.VirtualKeyFromKey(key);
+            // Convert to virtual key code
+            int virtualKey = (int)e.Key;
 
-            if (DataContext is SettingsViewModel vm)
+            if (ViewModel != null)
             {
-                vm.UpdateHotKey(mods, (uint)virtualKey);
+                ViewModel.UpdateHotKey(mods, (uint)virtualKey);
             }
         }
 
@@ -75,11 +64,11 @@ namespace SwitchBlade.Views
 
         private void PluginSettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is System.Windows.Controls.Button button && button.Tag is PluginInfo pluginInfo)
+            if (sender is Button button && button.Tag is PluginInfo pluginInfo)
             {
                 if (pluginInfo.Provider != null && pluginInfo.HasSettings)
                 {
-                    var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                    var hwnd = WindowNative.GetWindowHandle(this);
                     pluginInfo.Provider.ShowSettingsDialog(hwnd);
                 }
             }

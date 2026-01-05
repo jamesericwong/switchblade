@@ -1,7 +1,7 @@
 using Xunit;
 using Moq;
 using System;
-using System.Windows.Input;
+using Windows.System;
 using System.Collections.ObjectModel;
 using SwitchBlade.Handlers;
 using SwitchBlade.Services;
@@ -14,9 +14,8 @@ namespace SwitchBlade.Tests.Handlers
     {
         private readonly Mock<IWindowListViewModel> _mockViewModel;
         private readonly Mock<ISettingsService> _mockSettingsService;
-        private readonly Mock<Action> _mockHideWindow;
+        private readonly Mock<ILogger> _mockLogger;
         private readonly Mock<Action<WindowItem?>> _mockActivateWindow;
-        private readonly Mock<Func<double>> _mockGetListBoxHeight;
         private readonly UserSettings _settings;
         private readonly KeyboardInputHandler _handler;
 
@@ -24,38 +23,34 @@ namespace SwitchBlade.Tests.Handlers
         {
             _mockViewModel = new Mock<IWindowListViewModel>();
             _mockSettingsService = new Mock<ISettingsService>();
-            _mockHideWindow = new Mock<Action>();
+            _mockLogger = new Mock<ILogger>();
             _mockActivateWindow = new Mock<Action<WindowItem?>>();
-            _mockGetListBoxHeight = new Mock<Func<double>>();
 
             _settings = new UserSettings();
             _mockSettingsService.Setup(s => s.Settings).Returns(_settings);
-            _mockGetListBoxHeight.Setup(f => f()).Returns(500); // Default height
 
             _handler = new KeyboardInputHandler(
                 _mockViewModel.Object,
+                _mockLogger.Object,
                 _mockSettingsService.Object,
-                _mockHideWindow.Object,
-                _mockActivateWindow.Object,
-                _mockGetListBoxHeight.Object);
+                _mockActivateWindow.Object);
         }
 
         [Fact]
-        public void HandleKeyInput_Escape_HidesWindow()
+        public void HandleKeyInput_Escape_ReturnsFalse()
         {
             // Act
-            bool result = _handler.HandleKeyInput(Key.Escape, ModifierKeys.None);
+            bool result = _handler.HandleKeyInput(VirtualKey.Escape, SwitchBlade.Handlers.ModifierKeys.None);
 
             // Assert
-            _mockHideWindow.Verify(x => x(), Times.Once);
-            Assert.False(result); // Escape logic returns false in current impl (bubble up?)
+            Assert.False(result); // Escape handled by caller now
         }
 
         [Fact]
         public void HandleKeyInput_Down_MovesSelectionNext()
         {
             // Act
-            bool result = _handler.HandleKeyInput(Key.Down, ModifierKeys.None);
+            bool result = _handler.HandleKeyInput(VirtualKey.Down, SwitchBlade.Handlers.ModifierKeys.None);
 
             // Assert
             _mockViewModel.Verify(x => x.MoveSelection(1), Times.Once);
@@ -66,7 +61,7 @@ namespace SwitchBlade.Tests.Handlers
         public void HandleKeyInput_Up_MovesSelectionPrevious()
         {
             // Act
-            bool result = _handler.HandleKeyInput(Key.Up, ModifierKeys.None);
+            bool result = _handler.HandleKeyInput(VirtualKey.Up, SwitchBlade.Handlers.ModifierKeys.None);
 
             // Assert
             _mockViewModel.Verify(x => x.MoveSelection(-1), Times.Once);
@@ -81,7 +76,7 @@ namespace SwitchBlade.Tests.Handlers
             _mockViewModel.Setup(vm => vm.SelectedWindow).Returns(window);
 
             // Act
-            bool result = _handler.HandleKeyInput(Key.Enter, ModifierKeys.None);
+            bool result = _handler.HandleKeyInput(VirtualKey.Enter, SwitchBlade.Handlers.ModifierKeys.None);
 
             // Assert
             _mockActivateWindow.Verify(x => x(window), Times.Once);
@@ -92,7 +87,7 @@ namespace SwitchBlade.Tests.Handlers
         public void HandleKeyInput_CtrlHome_MovesToFirst()
         {
             // Act
-            bool result = _handler.HandleKeyInput(Key.Home, ModifierKeys.Control);
+            bool result = _handler.HandleKeyInput(VirtualKey.Home, SwitchBlade.Handlers.ModifierKeys.Control);
 
             // Assert
             _mockViewModel.Verify(x => x.MoveSelectionToFirst(), Times.Once);
@@ -103,7 +98,7 @@ namespace SwitchBlade.Tests.Handlers
         public void HandleKeyInput_CtrlEnd_MovesToLast()
         {
             // Act
-            bool result = _handler.HandleKeyInput(Key.End, ModifierKeys.Control);
+            bool result = _handler.HandleKeyInput(VirtualKey.End, SwitchBlade.Handlers.ModifierKeys.Control);
 
             // Assert
             _mockViewModel.Verify(x => x.MoveSelectionToLast(), Times.Once);
@@ -113,13 +108,8 @@ namespace SwitchBlade.Tests.Handlers
         [Fact]
         public void HandleKeyInput_PageUp_MovesByPage()
         {
-            // Arrange
-            _settings.ItemHeight = 50;
-            _mockGetListBoxHeight.Setup(f => f()).Returns(500); // 10 items
-            // Page size should be 10
-
             // Act
-            bool result = _handler.HandleKeyInput(Key.PageUp, ModifierKeys.None);
+            bool result = _handler.HandleKeyInput(VirtualKey.PageUp, SwitchBlade.Handlers.ModifierKeys.None);
 
             // Assert
             _mockViewModel.Verify(x => x.MoveSelectionByPage(-1, 10), Times.Once);
@@ -129,12 +119,8 @@ namespace SwitchBlade.Tests.Handlers
         [Fact]
         public void HandleKeyInput_PageDown_MovesByPage()
         {
-            // Arrange
-            _settings.ItemHeight = 50;
-            _mockGetListBoxHeight.Setup(f => f()).Returns(500); // 10 items
-
             // Act
-            bool result = _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
+            bool result = _handler.HandleKeyInput(VirtualKey.PageDown, SwitchBlade.Handlers.ModifierKeys.None);
 
             // Assert
             _mockViewModel.Verify(x => x.MoveSelectionByPage(1, 10), Times.Once);
@@ -158,7 +144,7 @@ namespace SwitchBlade.Tests.Handlers
 
             // Act
             // Alt+2 -> Index 1 ("Two")
-            bool result = _handler.HandleKeyInput(Key.D2, ModifierKeys.Alt);
+            bool result = _handler.HandleKeyInput(VirtualKey.Number2, SwitchBlade.Handlers.ModifierKeys.Alt);
 
             // Assert
             _mockActivateWindow.Verify(x => x(windows[1]), Times.Once);
@@ -172,7 +158,7 @@ namespace SwitchBlade.Tests.Handlers
             _settings.EnableNumberShortcuts = false;
 
             // Act
-            bool result = _handler.HandleKeyInput(Key.D2, ModifierKeys.Alt);
+            bool result = _handler.HandleKeyInput(VirtualKey.Number2, SwitchBlade.Handlers.ModifierKeys.Alt);
 
             // Assert
             _mockActivateWindow.Verify(x => x(It.IsAny<WindowItem>()), Times.Never);

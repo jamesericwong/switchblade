@@ -1,25 +1,30 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Windows;
+using Microsoft.UI.Xaml; // WinUI namespace
+using Microsoft.UI.Xaml.Controls;
 using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Plugins.Chrome
 {
-    public partial class ChromeSettingsWindow : Window
+    public sealed partial class ChromeSettingsWindow : Window
     {
         private readonly IPluginSettingsService _settingsService;
         private readonly ObservableCollection<string> _processes;
 
         public ChromeSettingsWindow(IPluginSettingsService settingsService, List<string> currentProcesses)
         {
-            InitializeComponent();
+            this.InitializeComponent();
+
+            // Set simple title
+            this.Title = "Chrome Plugin Settings";
+
+            // WinUI resizing/centering is manual unless configured via AppWindow. 
+            // For now, we let the OS position it or use default.
 
             _settingsService = settingsService;
             _processes = new ObservableCollection<string>(currentProcesses);
             ProcessList.ItemsSource = _processes;
-
-            // Enable dragging via MouseLeftButtonDown
-            this.MouseLeftButtonDown += (s, e) => this.DragMove();
         }
 
         private void AddButton_Click(object sender, RoutedEventArgs e)
@@ -28,7 +33,7 @@ namespace SwitchBlade.Plugins.Chrome
             if (!string.IsNullOrEmpty(processName) && !_processes.Contains(processName))
             {
                 _processes.Add(processName);
-                NewProcessTextBox.Clear();
+                NewProcessTextBox.Text = string.Empty;
             }
         }
 
@@ -40,17 +45,11 @@ namespace SwitchBlade.Plugins.Chrome
             }
         }
 
-        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
+            // Save on close
             _settingsService.SetStringList("BrowserProcesses", new List<string>(_processes));
-            DialogResult = true;
-            Close();
-        }
-
-        private void CancelButton_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
-            Close();
+            this.Close();
         }
     }
 }
