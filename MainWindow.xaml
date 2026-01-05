@@ -18,18 +18,23 @@
         <core:ShortcutVisibilityConverter x:Key="ShortcutVisibilityConverter"/>
     </Window.Resources>
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="5" GlassFrameThickness="0" CornerRadius="0" />
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="25" GlassFrameThickness="0" CornerRadius="0" />
     </WindowChrome.WindowChrome>
 
     <!-- Main Border with Dynamic Theme -->
-    <Border Background="{DynamicResource WindowBackground}" 
-            CornerRadius="12" 
-            BorderBrush="{DynamicResource BorderBrush}" 
-            BorderThickness="1"
-            Padding="0">
+    <!-- Outer container with margin for shadow to render in transparent space -->
+    <Border Margin="20" 
+            Background="Transparent">
+        <!-- Shadow layer - separate from content -->
         <Border.Effect>
             <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.5" Color="Black"/>
         </Border.Effect>
+        
+        <!-- Content border with rounded corners -->
+        <Border Background="{DynamicResource WindowBackground}" 
+                CornerRadius="12" 
+                BorderBrush="{DynamicResource BorderBrush}" 
+                BorderThickness="1">
         
         <Grid>
             <Grid.RowDefinitions>
@@ -275,5 +280,6 @@
                   />
             </Grid>
         </Grid>
+        </Border>
     </Border>
 </Window>
