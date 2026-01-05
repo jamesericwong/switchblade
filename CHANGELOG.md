@@ -1,3 +1,18 @@
+## [1.4.14] - 2026-01-04
+
+### Fixed
+- **Truly Rounded Corners**: Window corners are now genuinely rounded instead of square with grey corner fill.
+  - Restructured window layout with nested borders: outer transparent border provides shadow space, inner border renders rounded content.
+  - Removed the grey artifacts that appeared in the corner areas.
+- **Thumbnail Preview Resize**: Window preview thumbnails now properly adjust when the application is resized.
+  - Added `SizeChanged` event subscription in `ThumbnailService` to automatically update thumbnail positioning.
+  - DWM thumbnail destination rectangle is now recalculated when the preview container size changes.
+- **Window Resize Broken**: Fixed window resizing after structure changes for rounded corners.
+  - Increased `ResizeBorderThickness` from 5 to 25 to account for the 20px margin added for shadow space.
+- **Hotkey Spontaneously Changing**: Fixed a critical bug where the global hotkey could change to Ctrl+A unexpectedly.
+  - **Root cause**: Settings window was opened non-modally with `.Show()`, allowing it to linger in background while still capturing keyboard input.
+  - **Fix**: Changed to modal `.ShowDialog()` so the Settings window must be explicitly closed before returning to the main app.
+
 ## [1.4.13] - 2026-01-04
 
 ### Added

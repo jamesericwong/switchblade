@@ -199,7 +199,9 @@ public partial class App : Application
         {
             DataContext = settingsVm
         };
-        settingsWindow.Show();
+        // Use ShowDialog to make the settings window modal
+        // This prevents the window from lingering in background and accidentally capturing keyboard input
+        settingsWindow.ShowDialog();
     }
 
     protected override void OnExit(ExitEventArgs e)

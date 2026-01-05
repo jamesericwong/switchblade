@@ -17,6 +17,16 @@ namespace SwitchBlade.Services
         {
             _targetWindow = targetWindow;
             _logger = logger;
+
+            // Subscribe to window size changes (handles horizontal resize where container position changes)
+            _targetWindow.SizeChanged += TargetWindow_SizeChanged;
+        }
+
+        private void TargetWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // Refresh thumbnail properties when the window size changes
+            // This handles horizontal resizing where the preview container's position changes
+            UpdateThumbnailProperties();
         }
 
         public void UpdateThumbnail(IntPtr sourceHwnd)
@@ -48,7 +58,33 @@ namespace SwitchBlade.Services
 
         public void SetPreviewContainer(FrameworkElement element)
         {
+            // Unsubscribe from previous container if any
+            if (_previewContainer != null)
+            {
+                _previewContainer.SizeChanged -= PreviewContainer_SizeChanged;
+            }
+
             _previewContainer = element;
+
+            // Subscribe to size changes to update thumbnail positioning
+            if (_previewContainer != null)
+            {
+                _previewContainer.SizeChanged += PreviewContainer_SizeChanged;
+            }
+        }
+
+        private void PreviewContainer_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // Refresh thumbnail properties when the container size changes
+            UpdateThumbnailProperties();
+        }
+
+        /// <summary>
+        /// Manually refresh the thumbnail positioning (e.g., after window resize).
+        /// </summary>
+        public void RefreshThumbnail()
+        {
+            UpdateThumbnailProperties();
         }
 
         private void UpdateThumbnailProperties()
@@ -145,6 +181,15 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
+            // Unsubscribe from size changes
+            if (_previewContainer != null)
+            {
+                _previewContainer.SizeChanged -= PreviewContainer_SizeChanged;
+            }
+
+            // Unsubscribe from window size changes
+            _targetWindow.SizeChanged -= TargetWindow_SizeChanged;
+
             if (_currentThumbnail != IntPtr.Zero)
             {
                 NativeInterop.DwmUnregisterThumbnail(_currentThumbnail);
