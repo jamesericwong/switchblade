@@ -1,3 +1,12 @@
+## [1.4.15] - 2026-01-06
+
+### Added
+- **Notepad++ Plugin**: New plugin (`SwitchBlade.Plugins.NotepadPlusPlus`) that lists individual tabs within Notepad++ instances.
+  - Uses UI Automation to discover and activate specific tabs within each Notepad++ window.
+  - Follows the same pattern as Chrome and Windows Terminal plugins for consistency.
+  - Includes settings dialog to configure which process names to scan (default: `notepad++`).
+  - Settings UI matches the dark theme design of other plugin settings windows.
+
 ## [1.4.14] - 2026-01-04
 
 ### Fixed

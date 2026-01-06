@@ -37,12 +37,14 @@ graph TD
         IWindowProvider -.-> WindowFinder
         IWindowProvider -.-> ChromeTabFinder
         IWindowProvider -.-> TerminalPlugin
+        IWindowProvider -.-> NotepadPlusPlusPlugin
     end
 
     MainViewModel -->|Aggregates| WindowList[Filtered Window List]
     WindowFinder -->|Yields| WindowItem
     ChromeTabFinder -->|Yields| WindowItem
     TerminalPlugin -->|Yields| WindowItem
+    NotepadPlusPlusPlugin -->|Yields| WindowItem
 ```
 
 ## Development
@@ -53,7 +55,7 @@ For information on how to build the project and create plugins, please refer to 
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 - [Changelog](CHANGELOG.md): History of changes and versions.
 
-### Current Version: 1.4.14
+### Current Version: 1.4.15
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:
@@ -84,6 +86,7 @@ flowchart LR
     Start[Start Scan] --> Parallel{Parallel Execution}
     Parallel -->|Task 1| WF[WindowFinder]
     Parallel -->|Task 2| CTF[ChromeTabFinder]
+    Parallel -->|Task 3| NPP[NotepadPlusPlusPlugin]
     
     subgraph "Standard Windows"
         WF --> Enum[EnumWindows]
@@ -94,6 +97,7 @@ flowchart LR
 
     subgraph "Specialized Content (Tabs/Items)"
         CTF --> FindProcess[Find Target PIDs]
+        NPP --> FindProcess
         FindProcess --> Enum2[EnumWindows for PIDs]
         Enum2 --> BFS[UI Automation BFS]
         BFS --> Tab{Is Target Item?}

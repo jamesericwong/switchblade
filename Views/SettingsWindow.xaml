@@ -204,7 +204,7 @@
                                           BorderBrush="{DynamicResource BorderBrush}">
                                     <ListView.View>
                                         <GridView>
-                                            <GridViewColumn Header="Name" Width="100" DisplayMemberBinding="{Binding Name}"/>
+                                            <GridViewColumn Header="Name" Width="150" DisplayMemberBinding="{Binding Name}"/>
                                             <GridViewColumn Header="Version" Width="60" DisplayMemberBinding="{Binding Version}"/>
                                             <GridViewColumn Header="Enabled" Width="60">
                                                 <GridViewColumn.CellTemplate>
