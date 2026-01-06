@@ -1,7 +1,13 @@
 # SwitchBlade Technical Documentation
 
 ## Overview
-SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. It is built using **C# / WPF** and follows the **MVVM (Model-View-ViewModel)** architectural pattern. It is designed to be extensible via a robust Plugin System, allowing it to index not just top-level windows but also internal document tabs (like browser tabs) as searchable items.
+SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. It is built using **C# / WPF** and follows the **MVVM (Model-View-ViewModel)** architectural pattern. It is designed to be extensible via a robust Plugin System, allowing it to index not just top-level windows but also internal document tabs as searchable items.
+
+The package comes with several specialized plugins out of the box:
+- **Window Finder**: Discovers all standard top-level desktop application windows.
+- **Chrome Tab Finder**: Indexes individual tabs from Google Chrome, Microsoft Edge, and other Chromium-based browsers.
+- **Windows Terminal**: Discovers and allows switching between multiple tabs within Windows Terminal instances.
+- **Notepad++**: Indexes and switches between individual open files/tabs in Notepad++.
 
 
 ## Basic Usage
