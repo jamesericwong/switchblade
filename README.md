@@ -91,11 +91,11 @@ flowchart LR
         Exclude -- No --> Result1[Add WindowItem]
     end
 
-    subgraph "Browser Tabs"
-        CTF --> FindProcess[Find Chrome PIDs]
+    subgraph "Specialized Content (Tabs/Items)"
+        CTF --> FindProcess[Find Target PIDs]
         FindProcess --> Enum2[EnumWindows for PIDs]
         Enum2 --> BFS[UI Automation BFS]
-        BFS --> Tab{Is TabItem?}
+        BFS --> Tab{Is Target Item?}
         Tab -- Yes --> Result2[Add WindowItem]
     end
 
