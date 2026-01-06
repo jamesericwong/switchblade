@@ -14,6 +14,26 @@ This guide explains how to extend **SwitchBlade** by creating custom plugins. Sw
 
 A SwitchBlade plugin is simply a .NET Main Library (`.dll`) that contains one or more classes implementing the `IWindowProvider` interface.
 
+```mermaid
+sequenceDiagram
+    participant App as SwitchBlade App
+    participant Plugin as PluginLoader
+    participant Provider as Your Provider
+    
+    App->>Plugin: Startup
+    Plugin->>Provider: Load Assembly
+    Plugin->>Provider: Initialize(IPluginContext)
+    
+    loop Every Search Refresh
+        App->>Provider: GetWindows()
+        Provider-->>App: List<WindowItem>
+    end
+    
+    opt User Activates Item
+        App->>Provider: ActivateWindow(Item)
+    end
+```
+
 ### The Interface
 
 The contract is defined in `SwitchBlade.Contracts.dll`:

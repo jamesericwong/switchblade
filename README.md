@@ -21,6 +21,29 @@ SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. I
   - `HotKeyService`: Handles global low-level keyboard hooks for the toggle hotkey.
 - **Window Providers**: Independent modules responsible for scanning and returning `WindowItem` objects.
 
+```mermaid
+graph TD
+    User((User)) -->|Hotkey| HotKeyService
+    HotKeyService -->|Toggle| MainViewModel
+    
+    subgraph Core Application
+        MainViewModel -->|Manages| SearchState
+        MainViewModel -->|Reads/Writes| SettingsService
+        MainViewModel -->|Executes| PluginLoader
+    end
+
+    subgraph Data Sources
+        PluginLoader -->| loads | IWindowProvider
+        IWindowProvider <|-- WindowFinder
+        IWindowProvider <|-- ChromeTabFinder
+        IWindowProvider <|-- TerminalPlugin
+    end
+
+    MainViewModel -->|Aggregates| WindowList[Filtered Window List]
+    WindowFinder -->|Yields| WindowItem
+    ChromeTabFinder -->|Yields| WindowItem
+```
+
 ## Development
 
 For information on how to build the project and create plugins, please refer to the following guides:
@@ -54,6 +77,31 @@ SwitchBlade supports the following command-line parameters (prefixes `/`, `--`, 
 | `/enablestartup` | Used by the installer to enable "Launch on Startup" in the Windows Registry on first run. |
 
 ## Window Discovery Logic
+
+```mermaid
+flowchart LR
+    Start[Start Scan] --> Parallel{Parallel Execution}
+    Parallel -->|Task 1| WF[WindowFinder]
+    Parallel -->|Task 2| CTF[ChromeTabFinder]
+    
+    subgraph "Standard Windows"
+        WF --> Enum[EnumWindows]
+        Enum --> Filter{Is Visible?}
+        Filter -- Yes --> Exclude{Handling Plugin Exists?}
+        Exclude -- No --> Result1[Add WindowItem]
+    end
+
+    subgraph "Browser Tabs"
+        CTF --> FindProcess[Find Chrome PIDs]
+        FindProcess --> Enum2[EnumWindows for PIDs]
+        Enum2 --> BFS[UI Automation BFS]
+        BFS --> Tab{Is TabItem?}
+        Tab -- Yes --> Result2[Add WindowItem]
+    end
+
+    Result1 --> Merge(Merge Results)
+    Result2 --> Merge
+```
 
 ### 1. Core Window Finder (`WindowFinder.cs`)
 This is the built-in provider for standard desktop applications.
@@ -98,6 +146,27 @@ SwitchBlade uses a sophisticated incremental update strategy to keep the window 
 2. **Provider-Isolated Updates**: Each window provider (e.g., `WindowFinder`, `ChromeTabFinder`) updates its own slice of the list independently. Changes from one provider don't affect items from other providers.
 
 ### Incremental Merge Algorithm
+
+```mermaid
+sequenceDiagram
+    participant Provider as WindowProvider
+    participant Logic as Merge Logic
+    participant List as Search Results
+    participant UI as User Interface
+
+    Provider->>Logic: Returns New List
+    Logic->>Logic: Phase 1: Diff Check (Deep Equality)
+    alt No Changes
+        Logic-->>Provider: Stop (No UI Update)
+    else Changes Detected
+        Logic->>List: Phase 2: Atomic Swap
+        List->>List: Remove Old Items (Provider Source)
+        List->>List: Add New Items
+        List->>List: Phase 3: Stable Sort
+        List-->>UI: NotifyCollectionChanged
+        UI->>UI: Refresh View
+    end
+```
 
 When a provider completes scanning, the merge happens in three phases:
 
