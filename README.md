@@ -34,9 +34,9 @@ graph TD
 
     subgraph Data Sources
         PluginLoader -->| loads | IWindowProvider
-        IWindowProvider <|-- WindowFinder
-        IWindowProvider <|-- ChromeTabFinder
-        IWindowProvider <|-- TerminalPlugin
+        IWindowProvider -.-> WindowFinder
+        IWindowProvider -.-> ChromeTabFinder
+        IWindowProvider -.-> TerminalPlugin
     end
 
     MainViewModel -->|Aggregates| WindowList[Filtered Window List]
