@@ -42,6 +42,7 @@ graph TD
     MainViewModel -->|Aggregates| WindowList[Filtered Window List]
     WindowFinder -->|Yields| WindowItem
     ChromeTabFinder -->|Yields| WindowItem
+    TerminalPlugin -->|Yields| WindowItem
 ```
 
 ## Development
