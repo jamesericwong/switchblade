@@ -25,15 +25,33 @@ namespace SwitchBlade.Services
 
             _settingsService.SettingsChanged += OnSettingsChanged;
 
-            if (_window.IsLoaded)
+            // Check if the window already has a handle (e.g., from EnsureHandle()).
+            // IsLoaded is false until the window is shown, but we can still register
+            // the hotkey if the HWND exists (critical for /minimized startup).
+            var helper = new WindowInteropHelper(_window);
+            if (helper.Handle != IntPtr.Zero)
             {
-                Window_Loaded(_window, new RoutedEventArgs());
+                _logger.Log($"HotKeyService: Window already has handle {helper.Handle}, registering immediately");
+                InitializeHotKey(helper.Handle);
+            }
+            else if (_window.IsLoaded)
+            {
+                _logger.Log("HotKeyService: Window is loaded, registering hotkey");
+                InitializeHotKey(new WindowInteropHelper(_window).Handle);
             }
             else
             {
+                _logger.Log("HotKeyService: Window not ready, waiting for Loaded event");
                 _window.Loaded += Window_Loaded;
             }
             _window.Closing += Window_Closing;
+        }
+
+        private void InitializeHotKey(IntPtr handle)
+        {
+            _source = HwndSource.FromHwnd(handle);
+            _source.AddHook(HwndHook);
+            RegisterHotKey(handle);
         }
 
         private void OnSettingsChanged()
@@ -53,10 +71,16 @@ namespace SwitchBlade.Services
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Guard: If already initialized (e.g., from EnsureHandle()), skip
+            if (_source != null)
+            {
+                _logger.Log("HotKeyService: Window_Loaded called but already initialized, skipping");
+                return;
+            }
+
             var helper = new WindowInteropHelper(_window);
-            _source = HwndSource.FromHwnd(helper.Handle);
-            _source.AddHook(HwndHook);
-            RegisterHotKey(helper.Handle);
+            _logger.Log($"HotKeyService: Window_Loaded, initializing with handle {helper.Handle}");
+            InitializeHotKey(helper.Handle);
         }
 
         private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)

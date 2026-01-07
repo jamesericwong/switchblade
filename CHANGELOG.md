@@ -1,3 +1,13 @@
+## [1.4.16] - 2026-01-06
+
+### Fixed
+- **Hotkey Not Working When Starting Minimized**: Fixed a bug where the global hotkey would not work if the application was started with the `/minimized` switch.
+  - **Root cause**: The `HotKeyService` checked `Window.IsLoaded` which is only true after the window is shown, not just when the HWND exists.
+  - **Solution**: 
+    - `MainWindow` now calls `WindowInteropHelper.EnsureHandle()` in the constructor to create the window handle without showing it.
+    - `HotKeyService` now checks for an existing HWND first (via `WindowInteropHelper.Handle != IntPtr.Zero`) before falling back to the `Loaded` event.
+  - The hotkey now works immediately on startup, regardless of whether the window is visible.
+
 ## [1.4.15] - 2026-01-06
 
 ### Added
