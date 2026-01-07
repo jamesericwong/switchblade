@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using Microsoft.Extensions.DependencyInjection;
 using SwitchBlade.Core;
 using SwitchBlade.Services;
@@ -63,6 +64,16 @@ namespace SwitchBlade
 
             _resizeHandler = new WindowResizeHandler(this, _logger);
 
+            // Ensure the window handle (HWND) exists so we can register the global hotkey.
+            // This is critical for /minimized startup where the window is never shown initially.
+            var helper = new WindowInteropHelper(this);
+            helper.EnsureHandle();
+            _logger.Log($"EnsureHandle completed. HWND: {helper.Handle}");
+
+            // Initialize HotKeyService early so the global hotkey works even when starting minimized.
+            // This must happen after EnsureHandle() because HotKeyService needs a valid HWND.
+            _hotKeyService = new HotKeyService(this, _settingsService, _logger, OnHotKeyPressed);
+
             this.Loaded += MainWindow_Loaded;
             this.PreviewKeyDown += _keyboardHandler.HandleKeyDown;
         }
@@ -84,8 +95,7 @@ namespace SwitchBlade
         {
             _logger.Log($"MainWindow Loaded. Initial Size: {this.Width}x{this.Height}, ResizeMode: {this.ResizeMode}, Style: {this.WindowStyle}");
 
-            // Initialize Services that require Window handle
-            _hotKeyService = new HotKeyService(this, _settingsService, _logger, OnHotKeyPressed);
+            // Initialize ThumbnailService - needs PreviewCanvas which isn't available until loaded
             _thumbnailService = new ThumbnailService(this, _logger);
             _thumbnailService.SetPreviewContainer(PreviewCanvas);
 
