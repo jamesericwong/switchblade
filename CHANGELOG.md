@@ -1,9 +1,15 @@
-## [1.4.18] - 2026-01-10
+## [1.4.18] - 2026-01-11
+
+### Changed
+- **Always Re-animate**: Updated badge animation behavior to always play the "waterfall" effect whenever the search text is modified (typing, deleting, or clearing).
+  - This replaces the previous "Uniform Snap" behavior on search clear, ensuring a consistent, dynamic feel across all interactions.
 
 ### Fixed
+- **Search Clear Animation**: Fixed a bug where clearing the search via backspace would sometimes fail to re-animate the revealed windows (invisible badges).
+  - **Root cause**: The animation reset was applied to the *old* filtered list instead of the *new* full list.
+  - **Fix**: Implemented a **Deferred Reset** pattern to apply the animation state reset specifically to the newly updated list just before rendering.
 - **Badge Animation Not Replaying**: Fixed a bug where windows with unchanged HWNDs would not re-animate when toggling the hotkey.
-  - **Root cause**: `WindowItem` objects retained their `BadgeOpacity = 1.0` from the previous show, causing the animation to appear instant.
-  - **Fix**: Added `item.ResetBadgeAnimation()` call in `BadgeAnimationService.TriggerStaggeredAnimationAsync()` to reset each item to initial state (`BadgeOpacity = 0`, `BadgeTranslateX = -20`) before animating.
+  - **Fix**: Added `item.ResetBadgeAnimation()` call in `BadgeAnimationService` to force reset visual state before animating.
 
 ## [1.4.17] - 2026-01-10
 

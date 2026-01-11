@@ -54,8 +54,16 @@ namespace SwitchBlade.Contracts
         public bool IsShortcutVisible => _shortcutIndex >= 0 && _shortcutIndex <= 9;
 
         // Animation properties for staggered badge fade-in and slide-in
-        private double _badgeOpacity = 0;
-        private double _badgeTranslateX = -20;
+        // Default to VISIBLE so that if an item is replaced (e.g. title update) but shouldn't animate, it stays visible.
+        // We strictly RESET to hidden (0, -20) only when we determine an animation should run.
+        private double _badgeOpacity = 1;
+        private double _badgeTranslateX = 0;
+
+        /// <summary>
+        /// Tracks if this specific item execution has already animated its badge.
+        /// Unique per WindowItem instance -> allows multiple tabs (same HWND) to animate separately.
+        /// </summary>
+        public bool HasBeenAnimated { get; set; } = false;
 
         /// <summary>
         /// Opacity of the badge for fade-in animation (0 to 1).

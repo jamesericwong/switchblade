@@ -1,113 +1,116 @@
 using Xunit;
 using SwitchBlade.Services;
 using SwitchBlade.Contracts;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SwitchBlade.Tests.Services
 {
     public class BadgeAnimationServiceTests
     {
         [Fact]
-        public void BadgeAnimationService_DefaultAnimationDuration_Is150Ms()
+        public void BadgeAnimationService_DefaultProperties_AreSet()
         {
             var service = new BadgeAnimationService();
 
             Assert.Equal(150, service.AnimationDurationMs);
-        }
-
-        [Fact]
-        public void BadgeAnimationService_DefaultStaggerDelay_Is75Ms()
-        {
-            var service = new BadgeAnimationService();
-
             Assert.Equal(75, service.StaggerDelayMs);
-        }
-
-        [Fact]
-        public void BadgeAnimationService_DefaultStartingOffsetX_IsNegative20()
-        {
-            var service = new BadgeAnimationService();
-
             Assert.Equal(-20, service.StartingOffsetX);
         }
 
         [Fact]
-        public void ResetAnimationState_ClearsAnimatedHwnds()
+        public void ResetAnimationState_ResetsItemHasBeenAnimatedFlag()
         {
             var service = new BadgeAnimationService();
-            var hwnd = (IntPtr)12345;
+            var item = new WindowItem { HasBeenAnimated = true }; // Simulate already animated
+            var items = new List<WindowItem> { item };
 
-            // Mark as animated
-            service.MarkAsAnimated(hwnd);
-            Assert.False(service.ShouldAnimateItem(hwnd));
+            // Act
+            service.ResetAnimationState(items);
 
-            // Reset
-            service.ResetAnimationState();
-            Assert.True(service.ShouldAnimateItem(hwnd));
+            // Assert
+            Assert.False(item.HasBeenAnimated);
         }
 
         [Fact]
-        public void ShouldAnimateItem_ReturnsTrueForNewHwnd()
+        public void ResetAnimationState_HandlesNullOrEmptyListGracefully()
         {
             var service = new BadgeAnimationService();
-            var hwnd = (IntPtr)12345;
 
-            Assert.True(service.ShouldAnimateItem(hwnd));
+            // Should not throw
+            service.ResetAnimationState(null);
+            service.ResetAnimationState(new List<WindowItem>());
         }
 
         [Fact]
-        public void ShouldAnimateItem_ReturnsFalseAfterMarkedAsAnimated()
+        public async Task TriggerStaggeredAnimationAsync_SetsHasBeenAnimated_True()
         {
-            var service = new BadgeAnimationService();
-            var hwnd = (IntPtr)12345;
+            var service = new BadgeAnimationService { AnimationDurationMs = 1, StaggerDelayMs = 1 }; // Fast for test
+            var item = new WindowItem { ShortcutIndex = 0, HasBeenAnimated = false };
+            var items = new List<WindowItem> { item };
 
-            service.MarkAsAnimated(hwnd);
+            // Act
+            await service.TriggerStaggeredAnimationAsync(items);
 
-            Assert.False(service.ShouldAnimateItem(hwnd));
+            // Assert
+            Assert.True(item.HasBeenAnimated);
         }
 
         [Fact]
-        public void MarkAsAnimated_AllowsMultipleHwnds()
+        public async Task TriggerStaggeredAnimationAsync_SkipsAlreadyAnimatedItems()
         {
-            var service = new BadgeAnimationService();
-            var hwnd1 = (IntPtr)11111;
-            var hwnd2 = (IntPtr)22222;
-            var hwnd3 = (IntPtr)33333;
+            var service = new BadgeAnimationService { AnimationDurationMs = 1, StaggerDelayMs = 1 };
+            // Item marked as animated
+            var item = new WindowItem { ShortcutIndex = 0, HasBeenAnimated = true };
 
-            service.MarkAsAnimated(hwnd1);
-            service.MarkAsAnimated(hwnd2);
+            // Set opacity to 0.5 to check if it gets reset to 1.0 (visible) when skipped
+            item.BadgeOpacity = 0.5;
 
-            Assert.False(service.ShouldAnimateItem(hwnd1));
-            Assert.False(service.ShouldAnimateItem(hwnd2));
-            Assert.True(service.ShouldAnimateItem(hwnd3));
+            var items = new List<WindowItem> { item };
+
+            // Act
+            await service.TriggerStaggeredAnimationAsync(items);
+
+            // Assert
+            Assert.True(item.HasBeenAnimated, "Should stay animated");
+            Assert.Equal(1.0, item.BadgeOpacity); // Should be forced visible
+            // Note: We can't easily verify AnimateItemAsync was NOT called without mocking, 
+            // but checking logic paths indirectly via side effects (opacity set to 1.0 immediately vs animated)
+            // is a decent proxy.
         }
 
         [Fact]
-        public void MarkAsAnimated_IsIdempotent()
+        public async Task TriggerStaggeredAnimationAsync_SupportsMultipleItems_SharedHwnd()
         {
-            var service = new BadgeAnimationService();
-            var hwnd = (IntPtr)12345;
+            var service = new BadgeAnimationService { AnimationDurationMs = 1, StaggerDelayMs = 1 };
+            // Two items sharing the same HWND (e.g. browser tabs)
+            var item1 = new WindowItem { Hwnd = (IntPtr)12345, ShortcutIndex = 0, HasBeenAnimated = false };
+            var item2 = new WindowItem { Hwnd = (IntPtr)12345, ShortcutIndex = 1, HasBeenAnimated = false };
 
-            // Mark the same HWND multiple times
-            service.MarkAsAnimated(hwnd);
-            service.MarkAsAnimated(hwnd);
-            service.MarkAsAnimated(hwnd);
+            var items = new List<WindowItem> { item1, item2 };
 
-            // Should not throw and should still return false
-            Assert.False(service.ShouldAnimateItem(hwnd));
+            // Act
+            await service.TriggerStaggeredAnimationAsync(items);
+
+            // Assert
+            Assert.True(item1.HasBeenAnimated, "Item1 should animate");
+            Assert.True(item2.HasBeenAnimated, "Item2 should animate (distinct object)");
         }
 
         [Fact]
-        public void ResetAnimationState_IsIdempotent()
+        public async Task TriggerStaggeredAnimationAsync_IgnoresItems_WithoutShortcuts()
         {
-            var service = new BadgeAnimationService();
+            var service = new BadgeAnimationService { AnimationDurationMs = 1, StaggerDelayMs = 1 };
+            var item = new WindowItem { ShortcutIndex = -1, HasBeenAnimated = false };
+            var items = new List<WindowItem> { item };
 
-            // Multiple resets should not throw
-            service.ResetAnimationState();
-            service.ResetAnimationState();
+            // Act
+            await service.TriggerStaggeredAnimationAsync(items);
 
-            // New HWNDs should still animate
-            Assert.True(service.ShouldAnimateItem((IntPtr)12345));
+            // Assert
+            Assert.False(item.HasBeenAnimated, "Should NOT animate item without shortcut");
         }
     }
 }
+
 

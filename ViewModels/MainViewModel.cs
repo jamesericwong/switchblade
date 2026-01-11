@@ -27,6 +27,7 @@ namespace SwitchBlade.ViewModels
         private bool _isUpdating = false;
         private HashSet<string> _disabledPlugins = new HashSet<string>();
         private readonly object _lock = new object();
+        private Dictionary<IntPtr, List<WindowItem>> _windowItemCache;
 
         /// <summary>Event fired when filtered results are updated.</summary>
         public event EventHandler? ResultsUpdated;
@@ -43,6 +44,10 @@ namespace SwitchBlade.ViewModels
             _settingsService = settingsService;
             _dispatcherService = dispatcherService ?? new WpfDispatcherService();
             _filteredWindows = new ObservableCollection<WindowItem>();
+
+            // Cache for preserving WindowItem state (e.g. HasBeenAnimated) across filter operations
+            // Key: HWND. Value: List of items (to handle shared HWNDs like browser tabs)
+            _windowItemCache = new Dictionary<IntPtr, List<WindowItem>>();
 
             if (_settingsService != null)
             {
@@ -242,10 +247,11 @@ namespace SwitchBlade.ViewModels
                            }
 
                            // 2. Add fresh items
-                           foreach (var item in results)
-                           {
-                               _allWindows.Add(item);
-                           }
+                           var reconciled = ReconcileItems(results, provider);
+                            foreach (var item in reconciled)
+                            {
+                                _allWindows.Add(item);
+                            }
 
                            // 3. Refresh the view to show changes and SORT
                            UpdateSearch();
@@ -419,57 +425,119 @@ namespace SwitchBlade.ViewModels
             }
         }
 
-        private void SyncCollection(ObservableCollection<WindowItem> collection, IList<WindowItem> target)
+        private List<WindowItem> ReconcileItems(IList<WindowItem> incomingItems, IWindowProvider provider)
         {
-            // 0. Dedup target list to handle multiple providers returning same window
-            // Use Hwnd+Title as composite key for identity comparison
-            var uniqueTarget = target
-                .GroupBy(w => (w.Hwnd, w.Title))
-                .Select(g => g.First())
-                .ToList();
+            var resolvedItems = new List<WindowItem>();
+            var claimedItems = new HashSet<WindowItem>();
 
-            var targetDict = uniqueTarget.ToDictionary(w => (w.Hwnd, w.Title), w => w);
-            var existingKeysSet = new HashSet<(IntPtr, string)>(collection.Select(w => (w.Hwnd, w.Title)));
-            var targetKeysSet = new HashSet<(IntPtr, string)>(uniqueTarget.Select(w => (w.Hwnd, w.Title)));
+            // Only consider cache items belonging to this provider for removal tracking
+            var unusedCacheItems = new HashSet<WindowItem>(
+                _windowItemCache.Values.SelectMany(x => x).Where(w => w.Source == provider));
 
-            // 1. Remove items not in target (by key, not reference)
+            foreach (var incoming in incomingItems)
+            {
+                WindowItem? match = null;
+                List<WindowItem>? candidates = null;
+
+                // 1. Try exact match (Hwnd + Title)
+                if (_windowItemCache.TryGetValue(incoming.Hwnd, out candidates))
+                {
+                    // Filter candidates to find one that is NOT claimed
+                    match = candidates.FirstOrDefault(w => w.Title == incoming.Title && !claimedItems.Contains(w));
+                    
+                    if (match == null)
+                    {
+                         // Fallback logic for title changes
+                         // Try to find ANY unclaimed candidate (heuristic: simple reuse)
+                         match = candidates.FirstOrDefault(w => !claimedItems.Contains(w));
+                    }
+                }
+
+                if (match != null)
+                {
+                    // Update existing
+                    match.Title = incoming.Title;
+                    match.ProcessName = incoming.ProcessName;
+                    if (incoming.Source != null && match.Source != incoming.Source)
+                    {
+                        match.Source = incoming.Source;
+                    }
+                    else if (match.Source == null) 
+                    {
+                        match.Source = provider; 
+                    }
+                    
+                    resolvedItems.Add(match);
+                    claimedItems.Add(match);
+                    unusedCacheItems.Remove(match); // Mark as used
+                }
+                else
+                {
+                    // New Item. Reset state.
+                    incoming.ResetBadgeAnimation();
+                    incoming.Source = provider; 
+                    
+                    // Add to cache
+                    if (!_windowItemCache.TryGetValue(incoming.Hwnd, out var list))
+                    {
+                        list = new List<WindowItem>();
+                        _windowItemCache[incoming.Hwnd] = list;
+                    }
+                    
+                    if (!list.Contains(incoming))
+                    {
+                         list.Add(incoming);
+                    }
+
+                    resolvedItems.Add(incoming);
+                    claimedItems.Add(incoming);
+                }
+            }
+            
+            // Remove unused items from cache (for this provider only)
+             foreach (var unused in unusedCacheItems)
+            {
+                if (_windowItemCache.TryGetValue(unused.Hwnd, out var list))
+                {
+                    list.Remove(unused);
+                    if (list.Count == 0)
+                        _windowItemCache.Remove(unused.Hwnd);
+                }
+            }
+
+            return resolvedItems;
+        }
+
+        /// <summary>
+        /// Syncs the target collection to match the source list, preserving order.
+        /// Assumes objects in 'source' are the canonical instances we want in 'target'.
+        /// </summary>
+        private void SyncCollection(ObservableCollection<WindowItem> collection, IList<WindowItem> source)
+        {
+            // 1. Remove items not in source
+            var sourceSet = new HashSet<WindowItem>(source);
             for (int i = collection.Count - 1; i >= 0; i--)
             {
-                var key = (collection[i].Hwnd, collection[i].Title);
-                if (!targetKeysSet.Contains(key))
+                if (!sourceSet.Contains(collection[i]))
                 {
                     collection.RemoveAt(i);
                 }
             }
 
-            // 2. Add/Move items to match target order
-            for (int i = 0; i < uniqueTarget.Count; i++)
+            // 2. Add/Move items
+            for (int i = 0; i < source.Count; i++)
             {
-                var targetItem = uniqueTarget[i];
-                var targetKey = (targetItem.Hwnd, targetItem.Title);
-
-                // Find if an item with this key already exists in collection
-                int currentIndex = -1;
-                for (int j = 0; j < collection.Count; j++)
-                {
-                    if (collection[j].Hwnd == targetKey.Item1 && collection[j].Title == targetKey.Item2)
-                    {
-                        currentIndex = j;
-                        break;
-                    }
-                }
+                var item = source[i];
+                int currentIndex = collection.IndexOf(item);
 
                 if (currentIndex == -1)
                 {
-                    // Item not in collection, insert it
-                    collection.Insert(i, targetItem);
+                    collection.Insert(i, item);
                 }
                 else if (currentIndex != i)
                 {
-                    // Item exists but at wrong index, move it
                     collection.Move(currentIndex, i);
                 }
-                // If currentIndex == i, item is already in the correct position
             }
         }
 
