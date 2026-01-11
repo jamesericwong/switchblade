@@ -1,3 +1,11 @@
+## [1.5.4] - 2026-01-11
+### Changed
+- **Settings UI Reorganization**: Completely restructured the Settings window into logical, card-based categories for improved discoverability and clarity.
+  - **Appearance**: Groups themes, opacity, hotkeys, and system-level settings.
+  - **Search & Performance**: New section for Regex Cache Size, Number Shortcuts, Badge Animations, and List Refresh Behavior.
+  - **Background Polling**: Dedicated section for background scanning intervals.
+- **Improved UX**: Settings are now better grouped by intent, reducing visual clutter in the main Settings card.
+
 ## [1.5.3] - 2026-01-11
 ### Performance
 - **Configurable Regex Caching**: Implemented an LRU (Least Recently Used) cache for compiled regex objects to improve search responsiveness during typing.
