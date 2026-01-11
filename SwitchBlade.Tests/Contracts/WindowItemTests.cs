@@ -104,19 +104,19 @@ namespace SwitchBlade.Tests.Contracts
         }
 
         [Fact]
-        public void WindowItem_DefaultBadgeOpacity_IsZero()
+        public void WindowItem_DefaultBadgeOpacity_IsOne()
         {
             var item = new WindowItem();
 
-            Assert.Equal(0.0, item.BadgeOpacity);
+            Assert.Equal(1.0, item.BadgeOpacity);
         }
 
         [Fact]
-        public void WindowItem_DefaultBadgeTranslateX_IsNegative20()
+        public void WindowItem_DefaultBadgeTranslateX_IsZero()
         {
             var item = new WindowItem();
 
-            Assert.Equal(-20.0, item.BadgeTranslateX);
+            Assert.Equal(0.0, item.BadgeTranslateX);
         }
 
         [Fact]
@@ -136,7 +136,7 @@ namespace SwitchBlade.Tests.Contracts
         }
 
         [Fact]
-        public void ResetBadgeAnimation_ResetsToDefaults()
+        public void ResetBadgeAnimation_ResetsToHiddenState()
         {
             var item = new WindowItem { BadgeOpacity = 1.0, BadgeTranslateX = 0 };
 

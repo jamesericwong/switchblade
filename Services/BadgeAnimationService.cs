@@ -13,8 +13,8 @@ namespace SwitchBlade.Services
     /// </summary>
     public class BadgeAnimationService
     {
-        private readonly HashSet<IntPtr> _animatedHwnds = new();
-        private readonly object _lock = new();
+        // Removed: private readonly HashSet<IntPtr> _animatedHwnds = new();
+        // Removed: private readonly object _lock = new();
 
         /// <summary>
         /// Duration of each badge's animation in milliseconds.
@@ -32,38 +32,20 @@ namespace SwitchBlade.Services
         public double StartingOffsetX { get; set; } = -20;
 
         /// <summary>
-        /// Resets the animation state, clearing all tracked HWNDs.
-        /// Call this when the window is shown to allow fresh animations.
+        /// Resets the animation state for the provided items.
+        /// Use this when you want to force re-animation (e.g. on new search or window open).
         /// </summary>
-        public void ResetAnimationState()
+        public void ResetAnimationState(IEnumerable<WindowItem> items)
         {
-            lock (_lock)
-            {
-                _animatedHwnds.Clear();
-            }
-        }
+            if (items == null) return;
 
-        /// <summary>
-        /// Checks if an item should be animated based on its HWND.
-        /// Returns true only if this HWND hasn't been animated yet.
-        /// </summary>
-        public bool ShouldAnimateItem(IntPtr hwnd)
-        {
-            lock (_lock)
+            // We just reset the flag. We do NOT reset the visual Opacity/TranslateX here.
+            // Pushing visual state to hidden happens just-in-time in TriggerStaggeredAnimationAsync.
+            foreach (var item in items)
             {
-                return !_animatedHwnds.Contains(hwnd);
+                item.HasBeenAnimated = false;
             }
-        }
-
-        /// <summary>
-        /// Marks an HWND as animated to prevent re-animation on title changes.
-        /// </summary>
-        public void MarkAsAnimated(IntPtr hwnd)
-        {
-            lock (_lock)
-            {
-                _animatedHwnds.Add(hwnd);
-            }
+            SwitchBlade.Core.Logger.Log($"[BadgeAnimation] ResetAnimationState: Reset HasBeenAnimated flag for items");
         }
 
         /// <summary>
@@ -73,6 +55,11 @@ namespace SwitchBlade.Services
         public async Task TriggerStaggeredAnimationAsync(IEnumerable<WindowItem> items)
         {
             int maxShortcutIndex = -1;
+            int animatedCount = 0;
+            int skippedCount = 0;
+
+            SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Starting");
+
             foreach (var item in items)
             {
                 if (!item.IsShortcutVisible)
@@ -80,7 +67,10 @@ namespace SwitchBlade.Services
                     continue;
                 }
 
-                bool shouldAnimate = ShouldAnimateItem(item.Hwnd);
+                // Check item-level state instead of global HWND tracking
+                // This allows distinct tabs with same HWND to animate independently
+                bool shouldAnimate = !item.HasBeenAnimated;
+                SwitchBlade.Core.Logger.Log($"[BadgeAnimation] Item '{item.Title}' HWND={item.Hwnd}, ShortcutIndex={item.ShortcutIndex}, ShouldAnimate={shouldAnimate}");
 
                 if (shouldAnimate)
                 {
@@ -88,14 +78,15 @@ namespace SwitchBlade.Services
                     // This ensures Alt+1 (index 0) animates first, Alt+0 (index 9) animates last
                     int delay = item.ShortcutIndex * StaggerDelayMs;
 
-                    // Reset item to initial animation state before animating
-                    // This ensures fresh animation even if the item was previously shown
+                    // Reset item to initial animation state (hidden) just-in-time
                     item.ResetBadgeAnimation();
 
                     // Schedule the animation
                     _ = AnimateItemAsync(item, delay);
 
-                    MarkAsAnimated(item.Hwnd);
+                    // Mark as animated immediately so we don't re-animate on next pass
+                    item.HasBeenAnimated = true;
+                    animatedCount++;
 
                     if (item.ShortcutIndex > maxShortcutIndex)
                     {
@@ -107,8 +98,11 @@ namespace SwitchBlade.Services
                     // Already animated - ensure it's visible
                     item.BadgeOpacity = 1.0;
                     item.BadgeTranslateX = 0;
+                    skippedCount++;
                 }
             }
+
+            SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Animated={animatedCount}, Skipped={skippedCount}");
 
             // Wait for all animations to complete
             if (maxShortcutIndex >= 0)

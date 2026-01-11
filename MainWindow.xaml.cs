@@ -133,7 +133,7 @@ namespace SwitchBlade
             // Reset animation state once at start so all items can animate as they arrive
             if (_settingsService.Settings.EnableBadgeAnimations)
             {
-                _badgeAnimationService?.ResetAnimationState();
+                _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
             }
 
             // Let RefreshWindows run - ResultsUpdated will trigger animations as batches arrive
@@ -150,8 +150,21 @@ namespace SwitchBlade
             }
         }
 
+        private bool _pendingAnimationReset = false;
+
         private void OnResultsUpdated(object? sender, EventArgs e)
         {
+            _logger.Log($"[OnResultsUpdated] Called. IsVisible={this.IsVisible}, AnimationsEnabled={_settingsService.Settings.EnableBadgeAnimations}");
+
+            // Handle pending animation reset (e.g., from search text change)
+            // We do this HERE, on the new list, to ensure all currently visible items get reset.
+            if (_pendingAnimationReset && _badgeAnimationService != null && _viewModel.FilteredWindows != null)
+            {
+                _logger.Log($"[OnResultsUpdated] Applying pending animation reset to {_viewModel.FilteredWindows.Count} items.");
+                _badgeAnimationService.ResetAnimationState(_viewModel.FilteredWindows);
+                _pendingAnimationReset = false;
+            }
+
             // When search results update, trigger staggered animation for new items (if enabled)
             if (_badgeAnimationService != null && this.IsVisible && _settingsService.Settings.EnableBadgeAnimations)
             {
@@ -170,8 +183,10 @@ namespace SwitchBlade
 
         private void OnSearchTextChanged(object? sender, EventArgs e)
         {
-            // Reset animation state when user types so badges re-animate with fresh search results
-            _badgeAnimationService?.ResetAnimationState();
+            // Reset animation state on ANY text change (typing or clearing).
+            // User requested that re-animation happens on all modifications.
+            // Defer the reset to OnResultsUpdated so it applies to the NEW list (post-filter).
+            _pendingAnimationReset = true;
         }
 
         public void ForceOpen()
@@ -185,10 +200,18 @@ namespace SwitchBlade
             SwitchBlade.Contracts.NativeInterop.ForceForegroundWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
 
             SearchBox.Focus();
-            _viewModel.SearchText = "";
 
-            // Reset badge animation state so badges animate on show
-            _badgeAnimationService?.ResetAnimationState();
+            // Reset badge animation state BEFORE clearing search text
+            // (Clearing search text triggers ResultsUpdated which would mark items as animated)
+            _logger.Log($"[ForceOpen] Resetting animation state for fresh open");
+            _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
+
+            // REMOVED: Do NOT reset visual state of items here.
+            // Resetting here causes badges to be invisible while RefreshWindows is running (scanning).
+            // BadgeAnimationService handles the reset just-in-time before animating, keeping them visible otherwise.
+
+            _viewModel.SearchText = "";
+            _logger.Log($"[ForceOpen] Cleared SearchText");
 
             FadeIn();
             _ = ForceOpenAsync();
