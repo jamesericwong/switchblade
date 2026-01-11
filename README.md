@@ -18,6 +18,20 @@ The package comes with several specialized plugins out of the box:
 - **Activate**: Press `Enter` to switch to the selected window.
 - **Close**: Press `Escape` to hide SwitchBlade without switching.
 
+## Keyboard Shortcuts
+
+SwitchBlade supports the following keyboard shortcuts for navigation:
+
+| Key | Action |
+| :--- | :--- |
+| `↑` / `↓` | Move selection up/down by one item |
+| `Page Up` / `Page Down` | Move selection up/down by one visible page |
+| `Ctrl+Home` | Jump to the first item |
+| `Ctrl+End` | Jump to the last item |
+| `Enter` | Activate the selected window |
+| `Escape` | Hide the SwitchBlade window |
+| `Alt+1` to `Alt+0` | Quick-switch to windows 1-10 (configurable modifier) |
+
 ## Architecture
 
 ### Core Components
@@ -333,21 +347,3 @@ The `BadgeAnimationService` tracks which window handles (HWNDs) have been animat
 #### Configuration
 - **Enable Badge Animations**: Toggle in Settings (default: enabled)
 - When disabled, badges appear instantly at full opacity
-
-## Keyboard Shortcuts
-
-SwitchBlade supports the following keyboard shortcuts for navigation:
-
-| Key | Action |
-| :--- | :--- |
-| `↑` / `↓` | Move selection up/down by one item |
-| `Page Up` / `Page Down` | Move selection up/down by one visible page |
-| `Ctrl+Home` | Jump to the first item |
-| `Ctrl+End` | Jump to the last item |
-| `Enter` | Activate the selected window |
-| `Escape` | Hide the SwitchBlade window |
-| `Alt+1` to `Alt+0` | Quick-switch to windows 1-10 (configurable modifier) |
-
-### Configuration
-- **List Refresh Behavior**: Controls whether the list preserves scroll position (default), follows the selected window, or keeps the index position during background refresh.
-
