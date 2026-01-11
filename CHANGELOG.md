@@ -1,3 +1,7 @@
+## [1.5.5] - 2026-01-11
+### Fixed
+- **Settings UI Overlap**: Fixed a layout bug in the "Excluded Processes" section where the header and description text overlapped due to missing grid row assignments.
+
 ## [1.5.4] - 2026-01-11
 ### Changed
 - **Settings UI Reorganization**: Completely restructured the Settings window into logical, card-based categories for improved discoverability and clarity.

@@ -214,14 +214,14 @@
 
                                 <TextBlock Grid.Row="0" Text="Excluded Processes" Style="{StaticResource SectionHeaderStyle}"/>
 
-                                <TextBlock Text="Manage process names to hide from results (e.g., SwitchBlade):" 
+                                <TextBlock Grid.Row="1" Text="Manage process names to hide from results (e.g., SwitchBlade):" 
                                            Foreground="{DynamicResource ForegroundBrush}" TextWrapping="Wrap" Margin="0,0,0,10" Opacity="0.7"/>
 
-                                <ListBox Grid.Row="1" ItemsSource="{Binding ExcludedProcesses}" SelectedItem="{Binding SelectedExcludedProcess}" 
+                                <ListBox Grid.Row="2" ItemsSource="{Binding ExcludedProcesses}" SelectedItem="{Binding SelectedExcludedProcess}" 
                                          Background="{DynamicResource ControlBackground}" Foreground="{DynamicResource ForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
                                          Margin="0,0,0,10" Height="100"/>
 
-                                <Grid Grid.Row="2">
+                                <Grid Grid.Row="3">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
