@@ -116,6 +116,9 @@ namespace SwitchBlade.Services
 
                         // Refresh Behavior
                         Settings.RefreshBehavior = (RefreshBehavior)GetValue<int>("RefreshBehavior", (int)RefreshBehavior.PreserveScroll);
+
+                        // Regex Cache Size
+                        Settings.RegexCacheSize = GetValue("RegexCacheSize", 50);
                     }
                     catch (Exception ex)
                     {
@@ -231,6 +234,9 @@ namespace SwitchBlade.Services
 
                         // Refresh Behavior
                         key.SetValue("RefreshBehavior", (int)Settings.RefreshBehavior, RegistryValueKind.DWord);
+
+                        // Regex Cache Size
+                        key.SetValue("RegexCacheSize", Settings.RegexCacheSize, RegistryValueKind.DWord);
 
                         // Flush to ensure all writes are committed before any restart
                         key.Flush();

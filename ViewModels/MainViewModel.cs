@@ -28,6 +28,8 @@ namespace SwitchBlade.ViewModels
         private HashSet<string> _disabledPlugins = new HashSet<string>();
         private readonly object _lock = new object();
         private Dictionary<IntPtr, List<WindowItem>> _windowItemCache;
+        private readonly Dictionary<string, Regex> _regexCache = new();
+        private readonly LinkedList<string> _regexLruList = new();
 
         /// <summary>Event fired when filtered results are updated.</summary>
         public event EventHandler? ResultsUpdated;
@@ -329,10 +331,39 @@ namespace SwitchBlade.ViewModels
                 {
                     try
                     {
-                        Regex regex = new Regex(SearchText, RegexOptions.IgnoreCase);
+                        // LRU Regex Cache logic
+                        if (!_regexCache.TryGetValue(SearchText, out var regex))
+                        {
+                            // NonBacktracking is memory-efficient and prevents ReDoS for user-provided patterns
+                            // Available in .NET 7+. SwitchBlade 1.5.1+ uses .NET 9 features.
+                            regex = new Regex(SearchText, RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking);
+
+                            // Add to cache
+                            _regexCache[SearchText] = regex;
+                            _regexLruList.AddFirst(SearchText);
+
+                            // Evict if exceeded
+                            int maxSize = _settingsService?.Settings.RegexCacheSize ?? 50;
+                            while (_regexCache.Count > maxSize && _regexLruList.Count > 0)
+                            {
+                                var last = _regexLruList.Last;
+                                if (last != null)
+                                {
+                                    _regexCache.Remove(last.Value);
+                                    _regexLruList.RemoveLast();
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Move to front (LRU update)
+                            _regexLruList.Remove(SearchText);
+                            _regexLruList.AddFirst(SearchText);
+                        }
+
                         sortedResults = _allWindows.Where(w => regex.IsMatch(w.Title)).ToList();
                     }
-                    catch (ArgumentException)
+                    catch (Exception) // Catch all regex errors (e.g. invalid pattern)
                     {
                         sortedResults = _allWindows.Where(w => w.Title.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
                     }
