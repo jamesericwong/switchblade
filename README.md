@@ -75,7 +75,7 @@ For information on how to build the project and create plugins, please refer to 
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 - [Changelog](CHANGELOG.md): History of changes and versions.
 
-### Current Version: 1.4.21
+### Current Version: 1.5.0
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:
@@ -136,6 +136,7 @@ This is the built-in provider for standard desktop applications.
 - **Filtering**:
   - Checks `IsWindowVisible`.
   - Filters out known system noise (e.g., "Program Manager").
+  - **Zero-Allocation Process Lookup**: Uses specialized native APIs (`QueryFullProcessImageName`) instead of the heavy .NET `Process` class to identify window owners without allocating managed memory.
   - **Smart De-Duplication**: It automatically inspects the `IBrowserSettingsProvider` list. If a window belongs to a process that is handled by a specialized plugin (e.g., "chrome", "comet"), `WindowFinder` **excludes** it. This prevents double-entries where both the generic window title and the specific tabs would appear.
 
 ### 2. Chrome Tab Finder (`ChromeTabFinder.cs`)

@@ -152,6 +152,10 @@ namespace SwitchBlade.ViewModels
             // Do not clear _allWindows here. 
             // We want to keep the "old" state visible until the "new" state for each provider is ready.
             // This prevents the UI from flashing blank.
+
+            // Clear process name cache to ensure freshness for reused PIDs in this cycle
+            NativeInterop.ClearProcessCache();
+
             UpdateSearch();
 
             // 1. Reload settings and Collect Exclusions

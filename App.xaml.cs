@@ -160,7 +160,18 @@ public partial class App : Application
             {
                 using var stream = streamInfo.Stream;
                 using var bitmap = new Bitmap(stream);
-                return System.Drawing.Icon.FromHandle(bitmap.GetHicon());
+
+                // Properly handle GDI resource cleanup
+                IntPtr hIcon = bitmap.GetHicon();
+                try
+                {
+                    using var iconWrapper = System.Drawing.Icon.FromHandle(hIcon);
+                    return (System.Drawing.Icon)iconWrapper.Clone(); // Return a clone that owns its handle
+                }
+                finally
+                {
+                    NativeInterop.DestroyIcon(hIcon); // Destroy the original from GetHicon
+                }
             }
         }
         catch (Exception)
