@@ -106,7 +106,14 @@ namespace SwitchBlade.ViewModels
         public ObservableCollection<WindowItem> FilteredWindows
         {
             get => _filteredWindows;
-            set { _filteredWindows = value; OnPropertyChanged(); }
+            set
+            {
+                if (value != null)
+                {
+                    _filteredWindows = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
         public WindowItem? SelectedWindow
@@ -114,10 +121,13 @@ namespace SwitchBlade.ViewModels
             get => _selectedWindow;
             set
             {
-                _selectedWindow = value;
-                if (!_isUpdating)
+                if (_selectedWindow != value)
                 {
-                    OnPropertyChanged();
+                    _selectedWindow = value;
+                    if (!_isUpdating)
+                    {
+                        OnPropertyChanged();
+                    }
                 }
             }
         }
@@ -248,10 +258,10 @@ namespace SwitchBlade.ViewModels
 
                            // 2. Add fresh items
                            var reconciled = ReconcileItems(results, provider);
-                            foreach (var item in reconciled)
-                            {
-                                _allWindows.Add(item);
-                            }
+                           foreach (var item in reconciled)
+                           {
+                               _allWindows.Add(item);
+                           }
 
                            // 3. Refresh the view to show changes and SORT
                            UpdateSearch();
@@ -304,6 +314,7 @@ namespace SwitchBlade.ViewModels
 
                 // Apply stable sort: Process Name -> Title -> Hwnd
                 sortedResults = sortedResults
+                    .Distinct()
                     .OrderBy(w => w.ProcessName)
                     .ThenBy(w => w.Title)
                     .ThenBy(w => w.Hwnd.ToInt64())
@@ -366,6 +377,7 @@ namespace SwitchBlade.ViewModels
                         // 3. SCROLL:
                         // With in-place updates, the scroll position is naturally preserved.
                         // We update selection silently without triggering ScrollIntoView.
+                        // (View reacts to PropertyChanged on SelectedWindow by calling ScrollIntoView)
 
                         // If there was no previous selection (e.g., fresh search), auto-select first
                         if (selectedHwnd == null || selectedHwnd == IntPtr.Zero)
@@ -444,12 +456,12 @@ namespace SwitchBlade.ViewModels
                 {
                     // Filter candidates to find one that is NOT claimed
                     match = candidates.FirstOrDefault(w => w.Title == incoming.Title && !claimedItems.Contains(w));
-                    
+
                     if (match == null)
                     {
-                         // Fallback logic for title changes
-                         // Try to find ANY unclaimed candidate (heuristic: simple reuse)
-                         match = candidates.FirstOrDefault(w => !claimedItems.Contains(w));
+                        // Fallback logic for title changes
+                        // Try to find ANY unclaimed candidate (heuristic: simple reuse)
+                        match = candidates.FirstOrDefault(w => !claimedItems.Contains(w));
                     }
                 }
 
@@ -462,11 +474,11 @@ namespace SwitchBlade.ViewModels
                     {
                         match.Source = incoming.Source;
                     }
-                    else if (match.Source == null) 
+                    else if (match.Source == null)
                     {
-                        match.Source = provider; 
+                        match.Source = provider;
                     }
-                    
+
                     resolvedItems.Add(match);
                     claimedItems.Add(match);
                     unusedCacheItems.Remove(match); // Mark as used
@@ -475,27 +487,27 @@ namespace SwitchBlade.ViewModels
                 {
                     // New Item. Reset state.
                     incoming.ResetBadgeAnimation();
-                    incoming.Source = provider; 
-                    
+                    incoming.Source = provider;
+
                     // Add to cache
                     if (!_windowItemCache.TryGetValue(incoming.Hwnd, out var list))
                     {
                         list = new List<WindowItem>();
                         _windowItemCache[incoming.Hwnd] = list;
                     }
-                    
+
                     if (!list.Contains(incoming))
                     {
-                         list.Add(incoming);
+                        list.Add(incoming);
                     }
 
                     resolvedItems.Add(incoming);
                     claimedItems.Add(incoming);
                 }
             }
-            
+
             // Remove unused items from cache (for this provider only)
-             foreach (var unused in unusedCacheItems)
+            foreach (var unused in unusedCacheItems)
             {
                 if (_windowItemCache.TryGetValue(unused.Hwnd, out var list))
                 {
