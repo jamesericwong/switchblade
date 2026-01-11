@@ -67,6 +67,48 @@ graph TD
     NotepadPlusPlusPlugin -->|Yields| WindowItem
 ```
 
+## Performance
+
+SwitchBlade 1.5.1+ utilizes bleeding-edge .NET 9 features to ensure minimal resource footprint and maximum responsiveness.
+
+### Key Optimizations
+- **Zero-Allocation Window Scanning**: Uses `stackalloc` and `Unsafe` pointers to retrieve window titles without generating garbage (GC pressure).
+- **Source-Generated Interop**: Replaces slow `[DllImport]` with high-performance `[LibraryImport]` for Windows API calls.
+- **Modern Async Polling**: Uses `PeriodicTimer` for lock-free, efficient background updates.
+- **Smart Caching**: Process names and PIDs come from a concurrent cache to minimize kernel transitions.
+
+```mermaid
+graph TD
+    subgraph UI Thread
+        UI[Main Window]
+    end
+
+    subgraph Background Service
+        BP[BackgroundPollingService]
+        PT[PeriodicTimer (Async)]
+    end
+
+    subgraph Core Logic
+        WF[WindowFinder]
+        NI[NativeInterop]
+    end
+
+    subgraph Windows OS
+        API1[EnumWindows]
+        API2[GetWindowTextW]
+    end
+
+    UI -- Dispatcher --> BP
+    BP -- Await Tick --> PT
+    BP -- Refresh --> WF
+    WF -- StackAlloc Buffer --> NI
+    NI -- LibraryImport --> API1
+    NI -- Unsafe Pointer --> API2
+    
+    style NI fill:#f9f,stroke:#333,stroke-width:2px,color:black
+    style WF fill:#bbf,stroke:#333,stroke-width:2px,color:black
+```
+
 ## Development
 
 For information on how to build the project and create plugins, please refer to the following guides:
@@ -75,7 +117,7 @@ For information on how to build the project and create plugins, please refer to 
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 - [Changelog](CHANGELOG.md): History of changes and versions.
 
-### Current Version: 1.5.0
+### Current Version: 1.5.1
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:
