@@ -1,3 +1,15 @@
+## [1.4.19] - 2026-01-11
+
+### Fixed
+- **Inconsistent Scroll Position on Startup**: Fixed a bug where the search results list would sometimes start in the middle instead of at the top.
+  - Implemented an explicit scroll-to-top after the initial provider load is complete.
+  - Added scroll-to-top whenever the application is opened from the tray or hotkey to ensure a clean starting point.
+- **SyncCollection Move Exception**: Added `.Distinct()` to the search result filtering logic to ensure duplicate object references don't cause an out-of-bounds error during UI synchronization.
+
+### Changed
+- **Selection Performance**: Optimized `SelectedWindow` property to only trigger UI update notifications when the selection actually changes, reducing redundant layout cycles.
+- **Improved Code Documentation**: Added technical comments to `MainViewModel` explaining the interaction between selection state and list scrolling.
+
 ## [1.4.18] - 2026-01-11
 
 ### Changed

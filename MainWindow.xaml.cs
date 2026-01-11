@@ -148,6 +148,18 @@ namespace SwitchBlade
                     item.BadgeTranslateX = 0;
                 }
             }
+
+            // FORCE SCROLL TO TOP: After initial batches are loaded, ensure we are at the top.
+            // WPF's ListBox might have scrolled down if items were inserted at the top.
+            await _dispatcherService.InvokeAsync(async () =>
+            {
+                // Wait briefly for layout to settle
+                await Task.Delay(50);
+                if (_viewModel.FilteredWindows.Count > 0)
+                {
+                    ResultsConfig.ScrollIntoView(_viewModel.FilteredWindows[0]);
+                }
+            });
         }
 
         private bool _pendingAnimationReset = false;
@@ -166,11 +178,11 @@ namespace SwitchBlade
             }
 
             // When search results update, trigger staggered animation for new items (if enabled)
-            if (_badgeAnimationService != null && this.IsVisible && _settingsService.Settings.EnableBadgeAnimations)
+            if (_badgeAnimationService != null && this.IsVisible && _settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
             {
                 _ = _badgeAnimationService.TriggerStaggeredAnimationAsync(_viewModel.FilteredWindows);
             }
-            else if (this.IsVisible && !_settingsService.Settings.EnableBadgeAnimations)
+            else if (this.IsVisible && !_settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
             {
                 // Ensure badges are visible immediately when animation is disabled
                 foreach (var item in _viewModel.FilteredWindows)
@@ -233,6 +245,17 @@ namespace SwitchBlade
                     item.BadgeTranslateX = 0;
                 }
             }
+
+            // FORCE SCROLL TO TOP: Ensure we start at the top on every fresh open.
+            await _dispatcherService.InvokeAsync(async () =>
+            {
+                // Wait briefly for layout to settle
+                await Task.Delay(50);
+                if (_viewModel.FilteredWindows.Count > 0)
+                {
+                    ResultsConfig.ScrollIntoView(_viewModel.FilteredWindows[0]);
+                }
+            });
         }
 
         private void OnHotKeyPressed()

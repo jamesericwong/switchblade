@@ -35,7 +35,7 @@ namespace SwitchBlade.Services
         /// Resets the animation state for the provided items.
         /// Use this when you want to force re-animation (e.g. on new search or window open).
         /// </summary>
-        public void ResetAnimationState(IEnumerable<WindowItem> items)
+        public void ResetAnimationState(IEnumerable<WindowItem>? items)
         {
             if (items == null) return;
 
@@ -52,13 +52,14 @@ namespace SwitchBlade.Services
         /// Triggers staggered animations for the given window items.
         /// Only items with shortcuts (index 0-9) and not previously animated will animate.
         /// </summary>
-        public async Task TriggerStaggeredAnimationAsync(IEnumerable<WindowItem> items)
+        public async Task TriggerStaggeredAnimationAsync(IEnumerable<WindowItem>? items)
         {
             int maxShortcutIndex = -1;
             int animatedCount = 0;
             int skippedCount = 0;
 
             SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Starting");
+            if (items == null) return;
 
             foreach (var item in items)
             {

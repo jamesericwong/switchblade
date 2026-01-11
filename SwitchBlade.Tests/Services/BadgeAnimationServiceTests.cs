@@ -38,7 +38,7 @@ namespace SwitchBlade.Tests.Services
             var service = new BadgeAnimationService();
 
             // Should not throw
-            service.ResetAnimationState(null);
+            service.ResetAnimationState((IEnumerable<WindowItem>?)null);
             service.ResetAnimationState(new List<WindowItem>());
         }
 
