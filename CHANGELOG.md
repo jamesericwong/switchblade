@@ -1,3 +1,17 @@
+## [1.4.21] - 2026-01-11
+
+### Added
+- **"Super Light" Theme**: Introduced a new, even lighter theme with a pure white background (`#FFFFFF`) and refined contrast for maximum clarity.
+
+### Changed
+- **New Default Theme**: Set "Super Light" as the default theme for all new installations.
+- **Global Style Refactoring**: Refactored Button and TextBox styles to use dynamic resource-based coloring.
+  - Controls now automatically adapt their background and border colors based on the active theme.
+  - Improved visibility and contrast for all interactive elements on light backgrounds.
+
+### Fixed
+- **Theme Selection Tests**: Updated `UserSettingsTests` to reflect the new default theme.
+
 ## [1.4.20] - 2026-01-11
 
 ### Added

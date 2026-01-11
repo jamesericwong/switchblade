@@ -40,11 +40,11 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void UserSettings_DefaultCurrentTheme_IsLight()
+        public void UserSettings_DefaultCurrentTheme_IsSuperLight()
         {
             var settings = new UserSettings();
 
-            Assert.Equal("Light", settings.CurrentTheme);
+            Assert.Equal("Super Light", settings.CurrentTheme);
         }
 
         [Fact]

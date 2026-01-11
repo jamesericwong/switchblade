@@ -44,6 +44,8 @@ namespace SwitchBlade.Services
                 CreateTheme("Dracula", "#282a36", "#44475a", "#f8f8f2", "#6272a4"),
                 // Light (Clean)
                 CreateTheme("Light", "#F5F5F5", "#FFFFFF", "#333333", "#E0E0E0"),
+                // Super Light (Pure White)
+                CreateTheme("Super Light", "#FFFFFF", "#F8F8F8", "#111111", "#E5E5E5"),
             };
         }
 
