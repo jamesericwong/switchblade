@@ -7,10 +7,10 @@
 
     <!-- Modern Button Style -->
     <Style x:Key="ModernButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseStyle}">
-        <Setter Property="Background" Value="#1AFFFFFF"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
         <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
-        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="10,5"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Template">
@@ -52,9 +52,9 @@
 
     <!-- Modern TextBox Style -->
     <Style x:Key="ModernTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource BaseStyle}">
-        <Setter Property="Background" Value="#0DFFFFFF"/>
+        <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
         <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}"/>
-        <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="8,5"/>
         <Setter Property="CaretBrush" Value="{DynamicResource ForegroundBrush}"/>
@@ -78,8 +78,8 @@
                             <Setter TargetName="border" Property="Background" Value="#15FFFFFF"/>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource ForegroundBrush}"/>
-                            <Setter TargetName="border" Property="Background" Value="#1AFFFFFF"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource HighlightBrush}"/>
                             <Setter TargetName="border" Property="BorderThickness" Value="1.5"/>
                         </Trigger>
                     </ControlTemplate.Triggers>

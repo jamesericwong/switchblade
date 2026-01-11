@@ -21,7 +21,7 @@ namespace SwitchBlade.Services
         /// <summary>
         /// Current theme name (e.g., "Light", "Dark").
         /// </summary>
-        public string CurrentTheme { get; set; } = "Light";
+        public string CurrentTheme { get; set; } = "Super Light";
 
         // UI Options
 
