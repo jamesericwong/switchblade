@@ -126,6 +126,7 @@
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Launch on Windows Startup" IsChecked="{Binding LaunchOnStartup}" Margin="0,10,0,0"/>
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Run as Administrator" IsChecked="{Binding RunAsAdministrator}" Margin="0,10,0,0" ToolTip="Some plugins require Administrator privileges for full window inspection"/>
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Number Shortcuts (1-9, 0)" IsChecked="{Binding EnableNumberShortcuts}" Margin="0,10,0,0" ToolTip="Hold modifier + number to quickly switch to a window"/>
+                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Badge Animations" IsChecked="{Binding EnableBadgeAnimations}" Margin="0,10,0,0" ToolTip="Staggered fade-in and slide-in animations for Alt+Number badges"/>
                                 <Grid Margin="20,10,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150"/>

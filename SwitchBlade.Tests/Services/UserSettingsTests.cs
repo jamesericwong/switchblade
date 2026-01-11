@@ -118,5 +118,13 @@ namespace SwitchBlade.Tests.Services
 
             Assert.Equal(RefreshBehavior.PreserveScroll, settings.RefreshBehavior);
         }
+
+        [Fact]
+        public void UserSettings_DefaultEnableBadgeAnimations_IsTrue()
+        {
+            var settings = new UserSettings();
+
+            Assert.True(settings.EnableBadgeAnimations);
+        }
     }
 }

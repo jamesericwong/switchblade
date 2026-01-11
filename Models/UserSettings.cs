@@ -86,6 +86,11 @@ namespace SwitchBlade.Services
         public bool EnableNumberShortcuts { get; set; } = true;
 
         /// <summary>
+        /// Whether to enable staggered badge animations when showing window list.
+        /// </summary>
+        public bool EnableBadgeAnimations { get; set; } = true;
+
+        /// <summary>
         /// Modifier key for number shortcuts. Values: Alt=1, Ctrl=2, Shift=4, Win=8, None=0.
         /// </summary>
         public uint NumberShortcutModifier { get; set; } = ModifierKeyFlags.Alt;
