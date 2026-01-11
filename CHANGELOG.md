@@ -1,3 +1,10 @@
+## [1.4.18] - 2026-01-10
+
+### Fixed
+- **Badge Animation Not Replaying**: Fixed a bug where windows with unchanged HWNDs would not re-animate when toggling the hotkey.
+  - **Root cause**: `WindowItem` objects retained their `BadgeOpacity = 1.0` from the previous show, causing the animation to appear instant.
+  - **Fix**: Added `item.ResetBadgeAnimation()` call in `BadgeAnimationService.TriggerStaggeredAnimationAsync()` to reset each item to initial state (`BadgeOpacity = 0`, `BadgeTranslateX = -20`) before animating.
+
 ## [1.4.17] - 2026-01-10
 
 ### Added
