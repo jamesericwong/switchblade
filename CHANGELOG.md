@@ -1,3 +1,37 @@
+## [1.4.20] - 2026-01-11
+
+### Added
+- **Windows 11 Mica Backdrop**: Native Windows 11 backdrop effect with semi-transparent theme colors.
+  - Uses DWM `DWMWA_SYSTEMBACKDROP_TYPE` for Mica integration.
+  - Native rounded corners via `DWMWA_WINDOW_CORNER_PREFERENCE`.
+  - Provides a modern, OS-integrated glassmorphism aesthetic.
+- **Modern Typography**: Introduced "Inter" font family with fallbacks to Segoe UI and Roboto.
+  - Base style applied globally to all controls for consistent appearance.
+- **Modernized Settings Window**: Replaced `GroupBox` sections with card-based borders.
+  - Cleaner visual hierarchy with semi-transparent backgrounds.
+  - Added section header styles for improved readability.
+
+### Changed
+- **Theme Colors**: All theme brushes now use semi-transparent alpha values:
+  - Window background: 85% opacity
+  - Control background: 60% opacity
+  - Borders: 30% opacity
+  - Hover highlights: ~60% opacity for better contrast
+- **Hover Effect Simplified**: Mouse hover on list items now only changes the background color without any scale transformation, providing consistent spacing across all interaction modes.
+- **Native Window Chrome**: Integrated dragging into `WindowChrome` (28px caption height) for reliable window movement.
+- **Refined Control Styles**: Updated Button, TextBox, CheckBox, and RadioButton styles with modern padding, focus animations, and cleaner borders.
+
+### Fixed
+- **Dynamic Window Titles Not Updating**: Fixed a bug where windows with frequently changing titles (e.g., bandwidth monitors like BiglyBT) would not display updated titles in SwitchBlade.
+  - **Root cause 1**: The diff check compared both HWND and Title, so identical HWNDs with changed titles skipped the update path entirely.
+  - **Root cause 2**: `WindowItem.Title` was an auto-property that didn't fire `PropertyChanged`, so in-place updates weren't reflected in the UI.
+  - **Fix**: 
+    - Split structural changes (windows added/removed) from title-only updates in `MainViewModel.RefreshWindows()`.
+    - Made `WindowItem.Title` a notifying property that fires `PropertyChanged` on modification.
+  - Titles now update in real-time without triggering badge re-animation.
+- **Settings Window Crash**: Fixed XAML parse error when opening Settings caused by invalid style inheritance (`TextBlock` cannot inherit from `Control`-based style).
+- **Hover Highlight Extending Too Far**: Removed the `ScaleTransform` from the hover effect so highlight dimensions match keyboard selection exactly.
+
 ## [1.4.19] - 2026-01-11
 
 ### Fixed

@@ -164,6 +164,43 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal("Duplicate Window", vm.FilteredWindows[0].Title);
         }
 
+        [Fact]
+        public async System.Threading.Tasks.Task RefreshWindows_TitleChangeOnly_UpdatesTitleWithoutResetingBadgeAnimation()
+        {
+            // Arrange - This tests the fix for windows with frequently changing titles
+            // (e.g., bandwidth monitors) where we want titles to update but badges to NOT re-animate
+            var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
+
+            var hwnd = new IntPtr(123);
+            var win1 = new WindowItem { Hwnd = hwnd, Title = "Download: 50 KB/s", ProcessName = "NetMonitor", Source = _mockWindowProvider.Object };
+
+            _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1 });
+            await vm.RefreshWindows();
+
+            // Simulate badge animation has run
+            var itemAfterFirstRefresh = vm.FilteredWindows[0];
+            itemAfterFirstRefresh.HasBeenAnimated = true;
+            itemAfterFirstRefresh.BadgeOpacity = 1;
+            itemAfterFirstRefresh.BadgeTranslateX = 0;
+
+            // Act - Same window, different title (simulating frequent title updates)
+            var win1Updated = new WindowItem { Hwnd = hwnd, Title = "Download: 75 KB/s", ProcessName = "NetMonitor", Source = _mockWindowProvider.Object };
+            _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1Updated });
+            await vm.RefreshWindows();
+
+            // Assert
+            Assert.Single(vm.FilteredWindows);
+            var resultItem = vm.FilteredWindows[0];
+
+            // Title should be updated
+            Assert.Equal("Download: 75 KB/s", resultItem.Title);
+
+            // Badge animation state should be preserved (NOT reset)
+            Assert.True(resultItem.HasBeenAnimated, "HasBeenAnimated should remain true - badge should not re-animate");
+            Assert.Equal(1, resultItem.BadgeOpacity);
+            Assert.Equal(0, resultItem.BadgeTranslateX);
+        }
+
         private class SynchronousDispatcherService : IDispatcherService
         {
             public void Invoke(Action action) => action();

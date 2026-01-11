@@ -11,6 +11,8 @@ using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
 using SwitchBlade.Contracts;
 using SwitchBlade.Handlers;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks; // Added for Task
 
 namespace SwitchBlade
 {
@@ -24,9 +26,9 @@ namespace SwitchBlade
         private readonly WindowResizeHandler _resizeHandler;
 
         private HotKeyService? _hotKeyService;
-        private ThumbnailService? _thumbnailService;
         private BackgroundPollingService? _backgroundPollingService;
         private BadgeAnimationService? _badgeAnimationService;
+        private ThumbnailService? _thumbnailService;
         private IntPtr _lastThumbnailHwnd = IntPtr.Zero;
 
         public List<IWindowProvider> Providers { get; private set; } = new List<IWindowProvider>();
@@ -92,6 +94,44 @@ namespace SwitchBlade
             return null;
         }
 
+        private void ApplyBackdrop()
+        {
+            var helper = new WindowInteropHelper(this);
+            var hwnd = helper.Handle;
+
+            int darkMode = 1;
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+
+            int backdropType = (int)BackdropType.Mica;
+            DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, sizeof(int));
+
+            int cornerPreference = (int)CornerPreference.Round;
+            DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
+        }
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+
+        private enum BackdropType
+        {
+            None = 0,
+            Mica = 2,
+            Acrylic = 3,
+            Tabbed = 4
+        }
+
+        private enum CornerPreference
+        {
+            Default = 0,
+            DoNotRound = 1,
+            Round = 2,
+            RoundSmall = 3
+        }
+
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             _logger.Log($"MainWindow Loaded. Initial Size: {this.Width}x{this.Height}, ResizeMode: {this.ResizeMode}, Style: {this.WindowStyle}");
@@ -125,6 +165,7 @@ namespace SwitchBlade
             _logger.Log($"Applied Settings Size: {this.Width}x{this.Height}, Centered at: ({this.Left}, {this.Top})");
 
             SearchBox.Focus();
+            ApplyBackdrop();
             _ = InitialLoadAsync();
         }
 
@@ -358,13 +399,6 @@ namespace SwitchBlade
         private void ResizeGripBottomLeft_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
             => _resizeHandler.HandleBottomLeftGripMouseDown(sender, e);
 
-        private void DragBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                this.DragMove();
-            }
-        }
 
         private void ActivateWindow(WindowItem? windowItem)
         {
