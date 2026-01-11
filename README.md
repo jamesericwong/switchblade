@@ -287,6 +287,53 @@ SwitchBlade supports number shortcuts for instant window switching. When enabled
 ### Smooth Reordering
 The window list maintains a stable sort (by Process Name → Title → Handle) to minimize visual disruption when new windows appear. Combined with the incremental merge strategy, the numbered positions update smoothly without full list refreshes.
 
+### Badge Animation System
+
+The Alt+Number badges feature a staggered animation that provides visual polish when the window list appears. Each badge fades in and slides from left to right in sequence.
+
+```mermaid
+sequenceDiagram
+    participant UI as UI Thread
+    participant BAS as BadgeAnimationService
+    participant B1 as Badge Alt+1
+    participant B2 as Badge Alt+2
+    participant B0 as Badge Alt+0
+
+    UI->>BAS: TriggerStaggeredAnimationAsync()
+    BAS->>BAS: ResetAnimationState()
+    
+    Note over BAS: Stagger delay = 75ms per badge
+    
+    BAS->>B1: Start animation (0ms delay)
+    Note over B1: Opacity: 0→1<br/>TranslateX: -20px→0
+    
+    BAS->>B2: Start animation (75ms delay)
+    Note over B2: Opacity: 0→1<br/>TranslateX: -20px→0
+    
+    BAS->>B0: Start animation (675ms delay)
+    Note over B0: Last badge (index 9)
+    
+    Note over B1,B0: Each animation: 150ms duration, cubic ease-out
+```
+
+#### Animation Timing
+| Parameter | Value | Purpose |
+|:---|:---|:---|
+| **Stagger Delay** | 75ms | Time between each badge starting its animation |
+| **Duration** | 150ms | Total animation time per badge |
+| **Offset** | -20px | Starting X position (slides right to 0) |
+| **Easing** | Cubic ease-out | Smooth deceleration |
+
+#### HWND Tracking
+The `BadgeAnimationService` tracks which window handles (HWNDs) have been animated to prevent re-animation:
+- When a window's title changes but HWND remains the same → badge stays visible (no re-animation)
+- When search text changes → animation state resets, badges re-animate with filtered results
+- When window hides and shows again → full reset, all badges animate fresh
+
+#### Configuration
+- **Enable Badge Animations**: Toggle in Settings (default: enabled)
+- When disabled, badges appear instantly at full opacity
+
 ## Keyboard Shortcuts
 
 SwitchBlade supports the following keyboard shortcuts for navigation:

@@ -111,6 +111,9 @@ namespace SwitchBlade.Services
                         Settings.EnableNumberShortcuts = Convert.ToBoolean(GetValue<int>("EnableNumberShortcuts", 1));
                         Settings.NumberShortcutModifier = Convert.ToUInt32(GetValue<int>("NumberShortcutModifier", 1));
 
+                        // Badge Animations
+                        Settings.EnableBadgeAnimations = Convert.ToBoolean(GetValue<int>("EnableBadgeAnimations", 1));
+
                         // Refresh Behavior
                         Settings.RefreshBehavior = (RefreshBehavior)GetValue<int>("RefreshBehavior", (int)RefreshBehavior.PreserveScroll);
                     }
@@ -222,6 +225,9 @@ namespace SwitchBlade.Services
                         // Number Shortcuts
                         key.SetValue("EnableNumberShortcuts", Settings.EnableNumberShortcuts ? 1 : 0, RegistryValueKind.DWord);
                         key.SetValue("NumberShortcutModifier", Settings.NumberShortcutModifier, RegistryValueKind.DWord);
+
+                        // Badge Animations
+                        key.SetValue("EnableBadgeAnimations", Settings.EnableBadgeAnimations ? 1 : 0, RegistryValueKind.DWord);
 
                         // Refresh Behavior
                         key.SetValue("RefreshBehavior", (int)Settings.RefreshBehavior, RegistryValueKind.DWord);
