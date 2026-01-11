@@ -225,6 +225,7 @@ public override void ActivateWindow(WindowItem item)
 ## Best Practices
 
 - **Performance**: `GetWindows()` is called every time the search refreshes (or periodically). Keep it fast. If you are querying slow APIs, cache your results and return the cached list immediately.
+- **Memory Usage**: Avoid using `System.Diagnostics.Process` if possible, as it allocates significant memory. Use `NativeInterop.GetProcessName(pid)` for lightweight process name lookups.
 - **Error Handling**: Wrap your `GetWindows` logic in try/catch blocks. If your plugin throws an exception, it might be logged but won't crash the main app.
 - **Dependencies**: If your plugin relies on other DLLs, ensure they are also copied to the `Plugins` folder or available in the global path.
 
@@ -362,6 +363,7 @@ NativeInterop.ForceForegroundWindow(hwnd);
 
 Available methods include:
 - `EnumWindows()`, `IsWindowVisible()`, `GetWindowThreadProcessId()`
+- `GetProcessName(pid)` - lightweight process name lookup (avoids `Process` allocation)
 - `ForceForegroundWindow()` - robust focus stealing with thread attachment
 - `ShowWindow()`, `BringWindowToTop()`, `SetForegroundWindow()`
 - `IsIconic()`, `GetForegroundWindow()`

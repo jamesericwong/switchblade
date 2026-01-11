@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
-    <Version>1.4.21</Version>
+    <Version>1.5.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -12,6 +12,11 @@
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
     <StartupObject>SwitchBlade.Program</StartupObject>
     <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Plugins.NotepadPlusPlus\**;SwitchBlade.Tests\**</DefaultItemExcludes>
+    
+    <!-- Memory Optimization -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>

@@ -77,8 +77,7 @@ namespace SwitchBlade.Core
                     NativeInterop.GetWindowThreadProcessId(hwnd, out pid);
                     if (pid != 0)
                     {
-                        var proc = Process.GetProcessById((int)pid);
-                        processName = proc.ProcessName;
+                        processName = NativeInterop.GetProcessName(pid);
                     }
                 }
                 catch

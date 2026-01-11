@@ -104,17 +104,9 @@ namespace SwitchBlade.Plugins.Chrome
             var results = new List<WindowItem>();
             if (_settingsService == null || _browserProcesses.Count == 0) return results;
 
-            var targetProcessNames = new HashSet<string>(_browserProcesses, StringComparer.OrdinalIgnoreCase);
-            var targetPids = new HashSet<int>();
+            // Optimization: Don't pre-fetch PIDs using Process.GetProcessesByName (expensive).
+            // Instead, we will check process names dynamically inside the EnumWindows loop using our cached native helper.
 
-
-            foreach (var name in targetProcessNames)
-            {
-                foreach (var p in Process.GetProcessesByName(name))
-                {
-                    targetPids.Add(p.Id);
-                }
-            }
 
             var walker = TreeWalker.RawViewWalker;
             _logger?.Log($"--- Scan started at {DateTime.Now} ---");
@@ -125,10 +117,26 @@ namespace SwitchBlade.Plugins.Chrome
                 if (!NativeInterop.IsWindowVisible(hwnd)) return true;
 
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
-                if (targetPids.Contains((int)pid))
+                string procName = NativeInterop.GetProcessName(pid);
+
+                if (_browserProcesses.Contains(procName, StringComparer.OrdinalIgnoreCase)) // Extension methods might be needed or just simple validation
                 {
-                    // Found a visible window belonging to one of our target browsers
-                    ScanWindow(hwnd, (int)pid, walker, results);
+                    // Check if it matches one of our targets
+                    bool isMatch = false;
+                    foreach (var browser in _browserProcesses)
+                    {
+                        if (string.Equals(browser, procName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isMatch = true;
+                            break;
+                        }
+                    }
+
+                    if (isMatch)
+                    {
+                        // Found a visible window belonging to one of our target browsers
+                        ScanWindow(hwnd, (int)pid, walker, results);
+                    }
                 }
 
                 return true; // Continue enumeration
@@ -149,8 +157,7 @@ namespace SwitchBlade.Plugins.Chrome
             if (root == null) return;
 
             // Get Process Name for the result item (expensive? maybe just cache it or look it up)
-            string processName = "Unknown";
-            try { processName = Process.GetProcessById(pid).ProcessName; } catch { }
+            string processName = NativeInterop.GetProcessName((uint)pid);
 
             _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
 

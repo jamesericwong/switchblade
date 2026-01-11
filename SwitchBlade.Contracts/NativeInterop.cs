@@ -1,6 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.IO;
+using System.Collections.Concurrent;
 
 namespace SwitchBlade.Contracts
 {
@@ -88,6 +90,17 @@ namespace SwitchBlade.Contracts
         [DllImport("kernel32.dll")]
         public static extern uint GetCurrentThreadId();
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool QueryFullProcessImageName(IntPtr hProcess, int dwFlags, StringBuilder lpExeName, ref int lpdwSize);
+
         #endregion
 
         #region Structs
@@ -142,9 +155,80 @@ namespace SwitchBlade.Contracts
         public const int SC_SIZE_HTBOTTOMLEFT = 7;
         public const int HTBOTTOMRIGHT = 17;
 
+        // Process Access Flags
+        public const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+        public const int PROCESS_QUERY_INFORMATION = 0x0400;
+        public const int PROCESS_VM_READ = 0x0010;
+
         #endregion
 
         #region Helper Methods
+
+        private static readonly ConcurrentDictionary<uint, string> _processNameCache = new();
+
+        /// <summary>
+        /// Clears the process name cache. Should be called before a fresh scan cycle
+        /// to ensure that reused PIDs are re-resolved.
+        /// </summary>
+        public static void ClearProcessCache()
+        {
+            _processNameCache.Clear();
+        }
+
+        /// <summary>
+        /// Retrieves the process name for a given PID using lightweight native APIs.
+        /// Caches the result to avoid repeated lookups.
+        /// </summary>
+        public static string GetProcessName(uint pid)
+        {
+            if (pid == 0) return "System";
+
+            // Return cached name if available
+            if (_processNameCache.TryGetValue(pid, out var cachedName))
+            {
+                return cachedName;
+            }
+
+            string processName = "Unknown";
+            IntPtr hProcess = IntPtr.Zero;
+
+            try
+            {
+                // Open process with limited information access (much faster/lighter than Process class)
+                hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+
+                if (hProcess != IntPtr.Zero)
+                {
+                    StringBuilder buffer = new StringBuilder(1024);
+                    int size = buffer.Capacity;
+
+                    if (QueryFullProcessImageName(hProcess, 0, buffer, ref size))
+                    {
+                        var path = buffer.ToString();
+                        processName = Path.GetFileNameWithoutExtension(path);
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore errors (access denied, etc.)
+            }
+            finally
+            {
+                if (hProcess != IntPtr.Zero)
+                {
+                    CloseHandle(hProcess);
+                }
+            }
+
+            // Cache the result (even if "Unknown", to avoid retrying failed PIDs constantly)
+            // Note: PIDs are reused, so this cache might be stale if a process restarts with same PID.
+            // For a long-running app, we might want to clear this occasionally or check if process start time matches?
+            // For now, this is a significant optimization. PIDs recycle slowly enough for this to be fine.
+            _processNameCache.TryAdd(pid, processName);
+
+            return processName;
+        }
 
         /// <summary>
         /// Forcibly brings a window to the foreground, even if another application

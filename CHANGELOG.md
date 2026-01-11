@@ -1,3 +1,12 @@
+## [1.5.0] - 2026-01-11
+
+### Changed
+- **Significant Memory Optimization**: Reduced application memory footprint.
+  - **Native Process Lookups**: Replaced expensive `System.Diagnostics.Process` usage with lightweight native APIs (`OpenProcess` + `QueryFullProcessImageName`).
+  - **Smart Caching**: Implemented a short-lived process name cache to eliminate redundant kernel calls during window scans.
+  - **Garbage Collection**: Switched to `Workstation` GC mode and disabled VM retention to encourage more aggressive memory release.
+- **Icon Loading Optimization**: Fixed a GDI handle leak in the application icon loader.
+
 ## [1.4.21] - 2026-01-11
 
 ### Added
