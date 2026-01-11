@@ -206,6 +206,12 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.EnableNumberShortcuts = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool EnableBadgeAnimations
+        {
+            get => _settingsService.Settings.EnableBadgeAnimations;
+            set { _settingsService.Settings.EnableBadgeAnimations = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
         public bool IsPreserveScrollSelected
         {
             get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveScroll;

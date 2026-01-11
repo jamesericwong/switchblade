@@ -26,6 +26,7 @@ namespace SwitchBlade
         private HotKeyService? _hotKeyService;
         private ThumbnailService? _thumbnailService;
         private BackgroundPollingService? _backgroundPollingService;
+        private BadgeAnimationService? _badgeAnimationService;
         private IntPtr _lastThumbnailHwnd = IntPtr.Zero;
 
         public List<IWindowProvider> Providers { get; private set; } = new List<IWindowProvider>();
@@ -99,6 +100,11 @@ namespace SwitchBlade
             _thumbnailService = new ThumbnailService(this, _logger);
             _thumbnailService.SetPreviewContainer(PreviewCanvas);
 
+            // Initialize Badge Animation Service
+            _badgeAnimationService = new BadgeAnimationService();
+            _viewModel.ResultsUpdated += OnResultsUpdated;
+            _viewModel.SearchTextChanged += OnSearchTextChanged;
+
             // Initialize Background Polling Service
             _backgroundPollingService = new BackgroundPollingService(
                 _settingsService,
@@ -119,7 +125,53 @@ namespace SwitchBlade
             _logger.Log($"Applied Settings Size: {this.Width}x{this.Height}, Centered at: ({this.Left}, {this.Top})");
 
             SearchBox.Focus();
-            _ = _viewModel.RefreshWindows();
+            _ = InitialLoadAsync();
+        }
+
+        private async Task InitialLoadAsync()
+        {
+            // Reset animation state once at start so all items can animate as they arrive
+            if (_settingsService.Settings.EnableBadgeAnimations)
+            {
+                _badgeAnimationService?.ResetAnimationState();
+            }
+
+            // Let RefreshWindows run - ResultsUpdated will trigger animations as batches arrive
+            await _viewModel.RefreshWindows();
+
+            // If animation is disabled, ensure all badges are visible
+            if (!_settingsService.Settings.EnableBadgeAnimations)
+            {
+                foreach (var item in _viewModel.FilteredWindows)
+                {
+                    item.BadgeOpacity = 1.0;
+                    item.BadgeTranslateX = 0;
+                }
+            }
+        }
+
+        private void OnResultsUpdated(object? sender, EventArgs e)
+        {
+            // When search results update, trigger staggered animation for new items (if enabled)
+            if (_badgeAnimationService != null && this.IsVisible && _settingsService.Settings.EnableBadgeAnimations)
+            {
+                _ = _badgeAnimationService.TriggerStaggeredAnimationAsync(_viewModel.FilteredWindows);
+            }
+            else if (this.IsVisible && !_settingsService.Settings.EnableBadgeAnimations)
+            {
+                // Ensure badges are visible immediately when animation is disabled
+                foreach (var item in _viewModel.FilteredWindows)
+                {
+                    item.BadgeOpacity = 1.0;
+                    item.BadgeTranslateX = 0;
+                }
+            }
+        }
+
+        private void OnSearchTextChanged(object? sender, EventArgs e)
+        {
+            // Reset animation state when user types so badges re-animate with fresh search results
+            _badgeAnimationService?.ResetAnimationState();
         }
 
         public void ForceOpen()
@@ -135,9 +187,29 @@ namespace SwitchBlade
             SearchBox.Focus();
             _viewModel.SearchText = "";
 
+            // Reset badge animation state so badges animate on show
+            _badgeAnimationService?.ResetAnimationState();
+
             FadeIn();
-            _ = _viewModel.RefreshWindows();
+            _ = ForceOpenAsync();
             _logger.Log("Forced Open (Tray/Menu).");
+        }
+
+        private async Task ForceOpenAsync()
+        {
+            // Let RefreshWindows run - ResultsUpdated will trigger animations as batches arrive
+            // (Reset already done in ForceOpen before calling this)
+            await _viewModel.RefreshWindows();
+
+            // If animation is disabled, ensure all badges are visible
+            if (!_settingsService.Settings.EnableBadgeAnimations)
+            {
+                foreach (var item in _viewModel.FilteredWindows)
+                {
+                    item.BadgeOpacity = 1.0;
+                    item.BadgeTranslateX = 0;
+                }
+            }
         }
 
         private void OnHotKeyPressed()

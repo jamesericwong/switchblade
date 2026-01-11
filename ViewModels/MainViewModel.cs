@@ -28,6 +28,12 @@ namespace SwitchBlade.ViewModels
         private HashSet<string> _disabledPlugins = new HashSet<string>();
         private readonly object _lock = new object();
 
+        /// <summary>Event fired when filtered results are updated.</summary>
+        public event EventHandler? ResultsUpdated;
+
+        /// <summary>Event fired when search text changes (user typing).</summary>
+        public event EventHandler? SearchTextChanged;
+
         /// <summary>Gets the list of window providers for this ViewModel.</summary>
         public IReadOnlyList<IWindowProvider> WindowProviders => _windowProviders;
 
@@ -120,6 +126,7 @@ namespace SwitchBlade.ViewModels
                 {
                     _searchText = value;
                     OnPropertyChanged();
+                    SearchTextChanged?.Invoke(this, EventArgs.Empty);
                     UpdateSearch(resetSelection: true);
                 }
             }
@@ -407,6 +414,8 @@ namespace SwitchBlade.ViewModels
             finally
             {
                 _isUpdating = false;
+                // Fire event to notify listeners (e.g., for badge animation)
+                ResultsUpdated?.Invoke(this, EventArgs.Empty);
             }
         }
 

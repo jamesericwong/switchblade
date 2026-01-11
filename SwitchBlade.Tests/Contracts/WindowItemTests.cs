@@ -102,5 +102,48 @@ namespace SwitchBlade.Tests.Contracts
 
             Assert.Equal("Test ()", result);
         }
+
+        [Fact]
+        public void WindowItem_DefaultBadgeOpacity_IsZero()
+        {
+            var item = new WindowItem();
+
+            Assert.Equal(0.0, item.BadgeOpacity);
+        }
+
+        [Fact]
+        public void WindowItem_DefaultBadgeTranslateX_IsNegative20()
+        {
+            var item = new WindowItem();
+
+            Assert.Equal(-20.0, item.BadgeTranslateX);
+        }
+
+        [Fact]
+        public void WindowItem_SetBadgeOpacity_ReturnsCorrectValue()
+        {
+            var item = new WindowItem { BadgeOpacity = 0.5 };
+
+            Assert.Equal(0.5, item.BadgeOpacity);
+        }
+
+        [Fact]
+        public void WindowItem_SetBadgeTranslateX_ReturnsCorrectValue()
+        {
+            var item = new WindowItem { BadgeTranslateX = -10.0 };
+
+            Assert.Equal(-10.0, item.BadgeTranslateX);
+        }
+
+        [Fact]
+        public void ResetBadgeAnimation_ResetsToDefaults()
+        {
+            var item = new WindowItem { BadgeOpacity = 1.0, BadgeTranslateX = 0 };
+
+            item.ResetBadgeAnimation();
+
+            Assert.Equal(0.0, item.BadgeOpacity);
+            Assert.Equal(-20.0, item.BadgeTranslateX);
+        }
     }
 }

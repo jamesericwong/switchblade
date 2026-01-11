@@ -1,3 +1,22 @@
+## [1.4.17] - 2026-01-10
+
+### Added
+- **Staggered Badge Animations**: Alt+Number badges now animate with a smooth staggered fade-in and slide-in effect.
+  - Badges animate in order: Alt+1 first → Alt+0 last (75ms stagger delay).
+  - Animation: Fade from 0→1 opacity + Slide from -20px→0 offset (150ms duration, cubic ease-out).
+  - HWND tracking prevents re-animation when window titles change but HWNDs remain the same.
+  - Animations trigger on window show (startup/hotkey) and when search results update.
+- **Enable Badge Animations Setting**: New toggle in Settings (enabled by default) to enable/disable the badge animations.
+- **Preview Title Bar**: The preview panel now shows a "Previewing: [window title]" bar at the bottom with a semi-transparent dark background.
+
+### Changed
+- **List Item Spacing**: Increased right margin on list items for better visual separation from the scrollbar.
+
+### Technical
+- New `BadgeAnimationService.cs` coordinates animation state and timing.
+- `WindowItem` extended with `BadgeOpacity`, `BadgeTranslateX`, and `ResetBadgeAnimation()` for animation support.
+- `MainViewModel` extended with `ResultsUpdated` and `SearchTextChanged` events for animation triggers.
+
 ## [1.4.16] - 2026-01-06
 
 ### Fixed

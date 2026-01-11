@@ -117,7 +117,7 @@
                 <!-- Results List -->
                 <ListBox x:Name="ResultsConfig"
                          Grid.Row="1"
-                         Margin="0,20,0,0"
+                         Margin="0,20,10,0"
                          Background="Transparent"
                          BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -136,7 +136,7 @@
                                                 Background="Transparent" 
                                                 CornerRadius="6" 
                                                 Padding="10" 
-                                                Margin="0,2">
+                                                Margin="0,2,8,2">
                                             <Grid>
                                                  <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
@@ -150,7 +150,11 @@
                                                         CornerRadius="4"
                                                         Padding="6,4"
                                                         Margin="0,0,10,0"
-                                                        VerticalAlignment="Center">
+                                                        VerticalAlignment="Center"
+                                                        Opacity="{Binding BadgeOpacity}">
+                                                    <Border.RenderTransform>
+                                                        <TranslateTransform X="{Binding BadgeTranslateX}"/>
+                                                    </Border.RenderTransform>
                                                     <Border.Visibility>
                                                         <MultiBinding Converter="{StaticResource ShortcutVisibilityConverter}">
                                                             <Binding Path="IsShortcutVisible"/>
@@ -246,8 +250,25 @@
                     </Style>
                 </Border.Style>
                 
-                <!-- This Canvas is the target for DWM Thumbnail -->
-                <Canvas x:Name="PreviewCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- This Canvas is the target for DWM Thumbnail -->
+                    <Canvas x:Name="PreviewCanvas" Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                    
+                    <!-- Preview Title Bar -->
+                    <Border Grid.Row="1" 
+                            Background="#CC1A1A1A" 
+                            CornerRadius="0,0,7,7"
+                            Padding="10,6">
+                        <TextBlock Foreground="#E0E0E0" FontSize="12" TextTrimming="CharacterEllipsis">
+                            <Run Text="Previewing: " FontWeight="SemiBold" Foreground="#AAAAAA"/><Run Text="{Binding SelectedWindow.Title}"/>
+                        </TextBlock>
+                    </Border>
+                </Grid>
             </Border>
 
             <!-- Resize Grip (Bottom Right) - Moved to be last child for Z-Index -->
