@@ -88,6 +88,10 @@ namespace SwitchBlade.Services
                     // This ensures Alt+1 (index 0) animates first, Alt+0 (index 9) animates last
                     int delay = item.ShortcutIndex * StaggerDelayMs;
 
+                    // Reset item to initial animation state before animating
+                    // This ensures fresh animation even if the item was previously shown
+                    item.ResetBadgeAnimation();
+
                     // Schedule the animation
                     _ = AnimateItemAsync(item, delay);
 
