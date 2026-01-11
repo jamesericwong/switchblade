@@ -207,47 +207,69 @@ namespace SwitchBlade.ViewModels
                         results = provider.GetWindows().ToList();
                     }
 
-                    // Optimization: Diff check
-                    // Check if the current list for this provider is identical to the new results.
-                    // If so, skip the UI update entirely to prevent flicker.
-                    bool isIdentical = false;
 
-                    // We need a thread-safe snapshot or to lock, but _allWindows is bound to UI.
-                    // Reading it from a background thread is risky if it's being modified.
-                    // However, we can capture the items for this provider safely in the Invoke block logic
-                    // OR we can do the check inside Invoke. Doing it inside Invoke is safer.
+                    // Structural diff check: detect windows added/removed vs title-only changes
+                    // Title-only changes update in-place to preserve badge animation state
 
                     _dispatcherService.Invoke(() =>
                    {
                        var existingItems = _allWindows.Where(x => x.Source == provider).ToList();
 
-                       // Fast count check
+                       // Check STRUCTURAL change (only HWNDs, not titles)
+                       // This detects windows being added/removed, not title changes
+                       bool isStructurallyIdentical = false;
                        if (existingItems.Count == results.Count)
                        {
-                           // Deep check
-                           // We cannot use ToDictionary(Hwnd) because Chrome Tabs share the same Hwnd.
-                           // We need to compare the content of the collections (Bag Equality).
-                           // Simplest way for small lists: Sort and SequenceEqual.
-
-                           var existingKeys = existingItems
-                              .Select(x => new { x.Hwnd, x.Title })
-                              .OrderBy(x => x.Hwnd.ToInt64())
-                              .ThenBy(x => x.Title)
+                           // Compare HWNDs only (sorted for bag equality)
+                           // Note: Chrome tabs share the same HWND, so we compare the full bag
+                           var existingHwnds = existingItems
+                              .Select(x => x.Hwnd.ToInt64())
+                              .OrderBy(x => x)
                               .ToList();
 
-                           var newKeys = results
-                               .Select(x => new { x.Hwnd, x.Title })
-                               .OrderBy(x => x.Hwnd.ToInt64())
-                               .ThenBy(x => x.Title)
+                           var newHwnds = results
+                               .Select(x => x.Hwnd.ToInt64())
+                               .OrderBy(x => x)
                                .ToList();
 
-                           isIdentical = existingKeys.SequenceEqual(newKeys);
+                           isStructurallyIdentical = existingHwnds.SequenceEqual(newHwnds);
                        }
 
-                       if (!isIdentical)
+                       if (isStructurallyIdentical)
                        {
+                           // Same windows exist, just update titles in-place
+                           // This preserves HasBeenAnimated state (no badge re-animation)
+                           bool anyTitleChanged = false;
+                           foreach (var incoming in results)
+                           {
+                               // Find matching existing item by HWND
+                               // For shared HWNDs (e.g. browser tabs), match by title if possible
+                               var existing = existingItems.FirstOrDefault(e =>
+                                   e.Hwnd == incoming.Hwnd && e.Title == incoming.Title);
+
+                               if (existing == null)
+                               {
+                                   // Title changed - find by HWND only
+                                   existing = existingItems.FirstOrDefault(e => e.Hwnd == incoming.Hwnd);
+                               }
+
+                               if (existing != null && existing.Title != incoming.Title)
+                               {
+                                   existing.Title = incoming.Title;
+                                   anyTitleChanged = true;
+                               }
+                           }
+
+                           // Re-sort if any title changed (affects sort order)
+                           if (anyTitleChanged)
+                           {
+                               UpdateSearch();
+                           }
+                       }
+                       else
+                       {
+                           // Structural change: windows added or removed
                            // 1. Remove outdated items from this specific provider
-                           // Iterate backwards to safely remove
                            for (int i = _allWindows.Count - 1; i >= 0; i--)
                            {
                                if (_allWindows[i].Source == provider)
@@ -256,7 +278,7 @@ namespace SwitchBlade.ViewModels
                                }
                            }
 
-                           // 2. Add fresh items
+                           // 2. Add fresh items via ReconcileItems (handles badge state)
                            var reconciled = ReconcileItems(results, provider);
                            foreach (var item in reconciled)
                            {

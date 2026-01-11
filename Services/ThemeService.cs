@@ -50,17 +50,31 @@ namespace SwitchBlade.Services
         private ThemeInfo CreateTheme(string name, string background, string controlBackground, string foreground, string border)
         {
             var dict = new ResourceDictionary();
-            dict["WindowBackground"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(background));
-            dict["ControlBackground"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(controlBackground));
-            dict["ForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(foreground));
-            dict["BorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(border));
 
-            // Highlight: Use border color but with slight opacity for hover effects
-            var highlight = (Color)ColorConverter.ConvertFromString(border);
-            // If border is too dark, lighten it?? 
-            // Better: use Foreground with very low opacity
-            var fg = (Color)ColorConverter.ConvertFromString(foreground);
-            dict["HighlightBrush"] = new SolidColorBrush(fg) { Opacity = 0.1 };
+            // Background with 85% opacity for Glass effect
+            var bgCol = (Color)ColorConverter.ConvertFromString(background);
+            bgCol.A = 217; // ~85%
+            dict["WindowBackground"] = new SolidColorBrush(bgCol);
+
+            // Control background with 60% opacity
+            var ctrlCol = (Color)ColorConverter.ConvertFromString(controlBackground);
+            ctrlCol.A = 153; // ~60%
+            dict["ControlBackground"] = new SolidColorBrush(ctrlCol);
+
+            dict["ForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(foreground));
+
+            // Border with 30% opacity
+            var borderCol = (Color)ColorConverter.ConvertFromString(border);
+            borderCol.A = 77; // ~30%
+            dict["BorderBrush"] = new SolidColorBrush(borderCol);
+
+            // Highlight: Use border color with more opacity for better hover contrast
+            var highlightCol = (Color)ColorConverter.ConvertFromString(border);
+            highlightCol.A = 150; // ~60% for better contrast
+            dict["HighlightBrush"] = new SolidColorBrush(highlightCol);
+
+            // Accent Brush (Blue-ish defaults, can be customized per theme)
+            dict["AccentBrush"] = new SolidColorBrush(Color.FromRgb(0, 120, 215));
 
             return new ThemeInfo { Name = name, Resources = dict };
         }

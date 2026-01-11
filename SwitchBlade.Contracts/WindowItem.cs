@@ -6,9 +6,23 @@ namespace SwitchBlade.Contracts
     public class WindowItem : INotifyPropertyChanged
     {
         private int _shortcutIndex = -1;
+        private string _title = string.Empty;
 
         public IntPtr Hwnd { get; set; }
-        public string Title { get; set; } = string.Empty;
+
+        public string Title
+        {
+            get => _title;
+            set
+            {
+                if (_title != value)
+                {
+                    _title = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public string ProcessName { get; set; } = string.Empty;
 
         public IWindowProvider? Source { get; set; }
