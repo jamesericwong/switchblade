@@ -212,6 +212,12 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.EnableBadgeAnimations = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public int RegexCacheSize
+        {
+            get => _settingsService.Settings.RegexCacheSize;
+            set { _settingsService.Settings.RegexCacheSize = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
         public bool IsPreserveScrollSelected
         {
             get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveScroll;
