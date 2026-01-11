@@ -1,0 +1,44 @@
+Test run for d:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.0 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.5.6+bf9b858c26 (64-bit .NET 9.0.5)
+[xUnit.net 00:00:00.06]   Discovering: SwitchBlade.Tests
+[xUnit.net 00:00:00.10]   Discovered:  SwitchBlade.Tests
+[xUnit.net 00:00:00.10]   Starting:    SwitchBlade.Tests
+[xUnit.net 00:00:00.23]     SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_UsesRegexCache_SubsequentSearchesAreFast [FAIL]
+[xUnit.net 00:00:00.23]       Assert.Single() Failure: The collection was empty
+[xUnit.net 00:00:00.23]       Stack Trace:
+[xUnit.net 00:00:00.23]         d:\dev\switchblade\SwitchBlade.Tests\ViewModels\RegexCacheTests.cs(50,0): at SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_UsesRegexCache_SubsequentSearchesAreFast()
+[xUnit.net 00:00:00.23]            at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+[xUnit.net 00:00:00.23]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.24]     SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_InvalidRegex_FallsBackToIndexOf [FAIL]
+[xUnit.net 00:00:00.24]       Assert.Single() Failure: The collection was empty
+[xUnit.net 00:00:00.24]       Stack Trace:
+[xUnit.net 00:00:00.24]         d:\dev\switchblade\SwitchBlade.Tests\ViewModels\RegexCacheTests.cs(93,0): at SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_InvalidRegex_FallsBackToIndexOf()
+[xUnit.net 00:00:00.24]            at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+[xUnit.net 00:00:00.24]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.24]   Finished:    SwitchBlade.Tests
+  Failed SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_UsesRegexCache_SubsequentSearchesAreFast [87 ms]
+  Error Message:
+   Assert.Single() Failure: The collection was empty
+  Stack Trace:
+     at SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_UsesRegexCache_SubsequentSearchesAreFast() in d:\dev\switchblade\SwitchBlade.Tests\ViewModels\RegexCacheTests.cs:line 50
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Passed SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_RegexSafety_DoesNotHangOnComplexPatterns [5 ms]
+  Failed SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_InvalidRegex_FallsBackToIndexOf [< 1 ms]
+  Error Message:
+   Assert.Single() Failure: The collection was empty
+  Stack Trace:
+     at SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_InvalidRegex_FallsBackToIndexOf() in d:\dev\switchblade\SwitchBlade.Tests\ViewModels\RegexCacheTests.cs:line 93
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Passed SwitchBlade.Tests.ViewModels.RegexCacheTests.UpdateSearch_LruCache_EvictsOldestItems [< 1 ms]
+
+Test Run Failed.
+Total tests: 4
+     Passed: 2
+     Failed: 2
+ Total time: 0.9381 Seconds

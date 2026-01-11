@@ -44,10 +44,13 @@ SwitchBlade supports the following keyboard shortcuts for navigation:
 ```mermaid
 graph TD
     User((User)) -->|Hotkey| HotKeyService
+    User -->|Types| SearchText[Search Input]
+    SearchText -->|Triggers| MainViewModel
     HotKeyService -->|Toggle| MainViewModel
     
     subgraph Core Application
         MainViewModel -->|Manages| SearchState
+        MainViewModel -->|Hits| RegexCache[LRU Regex Cache]
         MainViewModel -->|Reads/Writes| SettingsService
         MainViewModel -->|Executes| PluginLoader
     end
@@ -65,6 +68,8 @@ graph TD
     ChromeTabFinder -->|Yields| WindowItem
     TerminalPlugin -->|Yields| WindowItem
     NotepadPlusPlusPlugin -->|Yields| WindowItem
+    
+    style RegexCache fill:#f9f,stroke:#333,stroke-width:2px,color:black
 ```
 
 ## Performance
@@ -76,11 +81,15 @@ SwitchBlade 1.5.1+ utilizes bleeding-edge .NET 9 features to ensure minimal reso
 - **Source-Generated Interop**: Replaces slow `[DllImport]` with high-performance `[LibraryImport]` for Windows API calls.
 - **Modern Async Polling**: Uses `PeriodicTimer` for lock-free, efficient background updates.
 - **Smart Caching**: Process names and PIDs come from a concurrent cache to minimize kernel transitions.
+- **Configurable Regex caching**: Implements an LRU (Least Recently Used) cache for compiled regex objects to ensure buttery-smooth search responsiveness during rapid typing.
+- **Immune to ReDoS**: Dynamically switches to the `.NET 9 NonBacktracking` engine for all user-provided patterns, providing guaranteed linear-time matching and protection against malicious regex hangs.
 
 ```mermaid
 graph TD
     subgraph UI Thread
         UI[Main Window]
+        RC[LRU Regex Cache]
+        NB[NonBacktracking Engine]
     end
 
     subgraph Background Service
@@ -98,15 +107,23 @@ graph TD
         API2[GetWindowTextW]
     end
 
+    %% Discovery Path
     UI -- Dispatcher --> BP
     BP -- Await Tick --> PT
     BP -- Refresh --> WF
     WF -- StackAlloc Buffer --> NI
     NI -- LibraryImport --> API1
     NI -- Unsafe Pointer --> API2
-    
+
+    %% Search Path
+    UI -- User Input --> RC
+    RC -- Cache Hit/Miss --> NB
+    NB -- Guaranteed O(n) --> UI
+
     style NI fill:#f9f,stroke:#333,stroke-width:2px,color:black
     style WF fill:#bbf,stroke:#333,stroke-width:2px,color:black
+    style RC fill:#f9f,stroke:#333,stroke-width:2px,color:black
+    style NB fill:#bbf,stroke:#333,stroke-width:1px,color:black
 ```
 
 ## Development
@@ -117,7 +134,7 @@ For information on how to build the project and create plugins, please refer to 
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 - [Changelog](CHANGELOG.md): History of changes and versions.
 
-### Current Version: 1.5.1
+### Current Version: 1.5.2
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:

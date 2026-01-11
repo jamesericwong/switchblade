@@ -123,5 +123,10 @@ namespace SwitchBlade.Services
         /// Virtual key code for the global hotkey.
         /// </summary>
         public uint HotKeyKey { get; set; } = 0x51; // VK_Q
+
+        /// <summary>
+        /// Maximum number of compiled regex objects to cache for search operations.
+        /// </summary>
+        public int RegexCacheSize { get; set; } = 50;
     }
 }

@@ -1,3 +1,9 @@
+## [1.5.2] - 2026-01-11
+### Performance
+- **Configurable Regex Caching**: Implemented an LRU (Least Recently Used) cache for compiled regex objects to improve search responsiveness during typing.
+- **Improved Regex Safety**: Migrated to `RegexOptions.NonBacktracking` for user-provided patterns to guarantee linear-time execution and prevent ReDoS vulnerabilities.
+- **Customizable Cache Size**: Added `RegexCacheSize` setting (default: 50) to control the memory footprint of the regex cache.
+
 ## [1.5.1] - 2026-01-11
 ### Performance
 - **Zero-Allocation Window Discovery**: Implemented `stackalloc` and `unsafe` P/Invoke to eliminate string allocations during window scanning.

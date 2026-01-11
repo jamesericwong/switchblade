@@ -126,5 +126,13 @@ namespace SwitchBlade.Tests.Services
 
             Assert.True(settings.EnableBadgeAnimations);
         }
+
+        [Fact]
+        public void UserSettings_DefaultRegexCacheSize_Is50()
+        {
+            var settings = new UserSettings();
+
+            Assert.Equal(50, settings.RegexCacheSize);
+        }
     }
 }
