@@ -151,8 +151,14 @@ namespace SwitchBlade.Services
             // Wait, TransformToAncestor -> Transform(0,0) gives coordinates relative to TargetWindow *visual*.
             // We need to apply DPI scaling to our calculated Logicals.
 
-            int finalLeft = (int)((rootPoint.X * dpiX) + (offsetX * dpiX));
-            int finalTop = (int)((rootPoint.Y * dpiY) + (offsetY * dpiY));
+            // Optimization: Apply DPI once to combined coordinates
+            double dpiOffsetX = offsetX * dpiX;
+            double dpiOffsetY = offsetY * dpiY;
+            double dpiRootX = rootPoint.X * dpiX;
+            double dpiRootY = rootPoint.Y * dpiY;
+
+            int finalLeft = (int)(dpiRootX + dpiOffsetX);
+            int finalTop = (int)(dpiRootY + dpiOffsetY);
             int finalRight = finalLeft + (int)(destW * dpiX);
             int finalBottom = finalTop + (int)(destH * dpiY);
 

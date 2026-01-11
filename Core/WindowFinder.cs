@@ -54,22 +54,37 @@ namespace SwitchBlade.Core
             // Note: Browser processes are now managed by the ChromeTabFinder plugin.
             // To prevent duplicate windows, add browser process names to ExcludedProcesses in Settings.
 
-            NativeInterop.EnumWindows((hwnd, lParam) =>
+            // Define callback as a local function to avoid lambda syntax issues with unsafe blocks
+            unsafe bool EnumCallback(IntPtr hwnd, IntPtr lParam)
             {
                 if (!NativeInterop.IsWindowVisible(hwnd))
                     return true;
 
-                StringBuilder sb = new StringBuilder(256);
-                NativeInterop.GetWindowText(hwnd, sb, sb.Capacity);
-                string title = sb.ToString();
+                // Bleeding edge optimization: Use stackalloc for zero-allocation title retrieval
+                // Max window title length is technically 256, but can be larger. 512 is safe.
+                const int simplifyTitleBuffer = 512;
+                char* buffer = stackalloc char[simplifyTitleBuffer];
 
-                if (string.IsNullOrWhiteSpace(title))
+                int length = NativeInterop.GetWindowTextUnsafe(hwnd, buffer, simplifyTitleBuffer);
+                if (length == 0)
                     return true;
 
-                // Simple filter to remove common system windows usually not interesting to user
-                if (title == "Program Manager") return true;
+                // Perform "Program Manager" check without allocating string
+                // Check if starts with "Program Manager" (length 15)
+                if (length == 15)
+                {
+                    // Fast manual check
+                    // "Program Manager"
+                    bool match = true;
+                    string pm = "Program Manager";
+                    for (int i = 0; i < 15; i++)
+                    {
+                        if (buffer[i] != pm[i]) { match = false; break; }
+                    }
+                    if (match) return true;
+                }
 
-                // Get Process Name
+                // Get Process Name (Optimized Interop handles caching and minimal allocations internally)
                 string processName = "Window";
                 try
                 {
@@ -85,13 +100,14 @@ namespace SwitchBlade.Core
                     // Ignore access denied errors etc.
                 }
 
-                // Filter Excluded Processes
+                // fast-path rejection before allocating title string
                 if (excluded.Contains(processName) || _dynamicExclusions.Contains(processName, StringComparer.OrdinalIgnoreCase))
                 {
-                    // Do not log "excluded" for browsers to reduce noise, or log as debug if needed
-                    base.Logger?.Log($"Excluded Window '{title}' from process '{processName}' (Matched Exclusion)");
                     return true;
                 }
+
+                // Only allocate string if we are keeping the window
+                string title = new string(buffer, 0, length);
 
                 // Debug log
                 base.Logger?.Log($"Included Window: '{title}', Process: '{processName}' (Exclusions: {string.Join(",", _dynamicExclusions)})");
@@ -105,7 +121,9 @@ namespace SwitchBlade.Core
                 });
 
                 return true;
-            }, IntPtr.Zero);
+            }
+
+            NativeInterop.EnumWindows(EnumCallback, IntPtr.Zero);
 
             return results;
         }

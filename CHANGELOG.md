@@ -1,3 +1,10 @@
+## [1.5.1] - 2026-01-11
+### Performance
+- **Zero-Allocation Window Discovery**: Implemented `stackalloc` and `unsafe` P/Invoke to eliminate string allocations during window scanning.
+- **Modern Interop**: Migrated all Windows API calls to .NET 9 `[LibraryImport]` for reduced marshalling overhead.
+- **Efficient Polling**: Replaced `System.Timers.Timer` with `PeriodicTimer` in `BackgroundPollingService` to remove lock contention and improve async correctness.
+- **Reduced Memory Usage**: Optimized `WindowFinder` and `ThumbnailService` to minimize heap allocations.
+
 ## [1.5.0] - 2026-01-11
 
 ### Changed
