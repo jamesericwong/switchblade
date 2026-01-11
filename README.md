@@ -106,7 +106,8 @@ flowchart LR
     Start[Start Scan] --> Parallel{Parallel Execution}
     Parallel -->|Task 1| WF[WindowFinder]
     Parallel -->|Task 2| CTF[ChromeTabFinder]
-    Parallel -->|Task 3| NPP[NotepadPlusPlusPlugin]
+    Parallel -->|Task 3| WTP[WindowsTerminalPlugin]
+    Parallel -->|Task 4| NPP[NotepadPlusPlusPlugin]
     
     subgraph "Standard Windows"
         WF --> Enum[EnumWindows]
@@ -117,6 +118,7 @@ flowchart LR
 
     subgraph "Specialized Content (Tabs/Items)"
         CTF --> FindProcess[Find Target PIDs]
+        WTP --> FindProcess
         NPP --> FindProcess
         FindProcess --> Enum2[EnumWindows for PIDs]
         Enum2 --> BFS[UI Automation BFS]
@@ -150,6 +152,22 @@ A specialized plugin for Chromium-based browsers (Chrome, Edge, Brave, Comet, et
 
 #### Thread Safety
 - **Logging**: Debug logging to `%TEMP%` is protected by a static `lock` object to prevent write contention during parallel scans.
+
+### 3. Windows Terminal Plugin (`WindowsTerminalPlugin.cs`)
+A specialized plugin for Microsoft's Windows Terminal.
+- **Discovery Strategy**:
+  1.  **Process Identification**: Identifies target processes by name (default: "WindowsTerminal", configurable via settings).
+  2.  **UI Automation**: Attaches to the main window handle (`MainWindowHandle`) of each identified process.
+  3.  **Tree Traversal (`ScanForTabs`)**: Performs a Breadth-First Search (BFS) of the automation tree up to a depth of 12 to find `ControlType.TabItem` elements.
+- **Fallback Mechanism**: If no tabs are discovered (often due to elevation/UIPI restrictions when SwitchBlade is not elevated), the plugin returns the main terminal window as a single searchable item.
+- **Activation**:
+  1.  Brings the main window to the foreground.
+  2.  Uses UI Automation patterns (`SelectionItemPattern` or `InvokePattern`) to programmatically select the specific tab requested by the user.
+
+### 4. Notepad++ Plugin (`NotepadPlusPlusPlugin.cs`)
+Indexes and switches between individual open files/tabs in Notepad++.
+- **Mechanism**: Similar to the Terminal plugin, it uses UI Automation to traverse the document tabs in Notepad++.
+- **Strategy**: Identifies `notepad++` processes and scans for tab items to allow direct file-level switching.
 
 ## Async & Threading Model
 
