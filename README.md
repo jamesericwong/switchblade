@@ -85,7 +85,7 @@ graph TD
 
     subgraph Background Service
         BP[BackgroundPollingService]
-        PT[PeriodicTimer (Async)]
+        PT["PeriodicTimer (Async)"]
     end
 
     subgraph Core Logic
