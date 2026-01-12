@@ -80,5 +80,44 @@ namespace SwitchBlade.Tests.Plugins
             Assert.Contains("new_browser", handled);
             Assert.Single(handled);
         }
+
+        [Fact]
+        public void GetHandledProcesses_IsCaseInsensitive()
+        {
+            // Arrange - Tests HashSet with StringComparer.OrdinalIgnoreCase
+            _mockSettingsService.Setup(s => s.KeyExists("BrowserProcesses")).Returns(true);
+            _mockSettingsService.Setup(s => s.GetStringList("BrowserProcesses", It.IsAny<List<string>>()))
+                .Returns(new List<string> { "Chrome", "MSEDGE", "brave" });
+
+            _plugin.Initialize(_mockContext.Object);
+
+            // Act
+            var handled = _plugin.GetHandledProcesses().ToList();
+
+            // Assert - All should be included regardless of case
+            Assert.Equal(3, handled.Count);
+            // The HashSet stores them as provided but lookups are case-insensitive
+            Assert.Contains("Chrome", handled);
+            Assert.Contains("MSEDGE", handled);
+            Assert.Contains("brave", handled);
+        }
+
+        [Fact]
+        public void ReloadSettings_DuplicateProcesses_AreDeduped()
+        {
+            // Arrange - HashSet should dedupe identical entries (case-insensitive)
+            _mockSettingsService.Setup(s => s.KeyExists("BrowserProcesses")).Returns(true);
+            _mockSettingsService.Setup(s => s.GetStringList("BrowserProcesses", It.IsAny<List<string>>()))
+                .Returns(new List<string> { "chrome", "Chrome", "CHROME" });
+
+            _plugin.Initialize(_mockContext.Object);
+
+            // Act
+            var handled = _plugin.GetHandledProcesses().ToList();
+
+            // Assert - HashSet with OrdinalIgnoreCase should dedupe
+            Assert.Single(handled);
+        }
     }
 }
+

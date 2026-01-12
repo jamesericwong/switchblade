@@ -16,7 +16,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
     {
         private ILogger? _logger;
         private IPluginSettingsService? _settingsService;
-        private List<string> _nppProcesses = new();
+        private HashSet<string> _nppProcesses = new(StringComparer.OrdinalIgnoreCase);
 
         // Default process names if no settings exist
         private static readonly List<string> DefaultNppProcesses = new()
@@ -60,13 +60,14 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             // Check if NppProcesses key exists in plugin Registry
             if (_settingsService.KeyExists("NppProcesses"))
             {
-                _nppProcesses = _settingsService.GetStringList("NppProcesses", DefaultNppProcesses);
+                var loadedList = _settingsService.GetStringList("NppProcesses", DefaultNppProcesses);
+                _nppProcesses = new HashSet<string>(loadedList, StringComparer.OrdinalIgnoreCase);
             }
             else
             {
                 // First run or missing key - use defaults and save them
-                _nppProcesses = new List<string>(DefaultNppProcesses);
-                _settingsService.SetStringList("NppProcesses", _nppProcesses);
+                _nppProcesses = new HashSet<string>(DefaultNppProcesses, StringComparer.OrdinalIgnoreCase);
+                _settingsService.SetStringList("NppProcesses", _nppProcesses.ToList());
             }
 
             _logger?.Log($"{PluginName}: Loaded {_nppProcesses.Count} Notepad++ processes");
@@ -80,7 +81,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
 
         public override void ShowSettingsDialog(IntPtr ownerHwnd)
         {
-            var dialog = new NotepadPlusPlusSettingsWindow(_settingsService!, _nppProcesses);
+            var dialog = new NotepadPlusPlusSettingsWindow(_settingsService!, _nppProcesses.ToList());
             if (ownerHwnd != IntPtr.Zero)
             {
                 var helper = new WindowInteropHelper(dialog);
@@ -95,66 +96,71 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
+            if (_nppProcesses.Count == 0) return results;
 
-            var targetProcessNames = new HashSet<string>(_nppProcesses, StringComparer.OrdinalIgnoreCase);
+            var walker = TreeWalker.RawViewWalker;
+            _logger?.Log($"{PluginName}: --- Scan started at {DateTime.Now} ---");
 
-            Process[] processes;
-            try
+            // Use native EnumWindows + cached GetProcessName for efficiency
+            // This replaces the expensive Process.GetProcessesByName() approach
+            NativeInterop.EnumWindows((hwnd, lParam) =>
             {
-                processes = targetProcessNames.SelectMany(name => Process.GetProcessesByName(name)).ToArray();
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError($"{PluginName}: Failed to get processes", ex);
-                return results;
-            }
+                // Check visibility first for speed
+                if (!NativeInterop.IsWindowVisible(hwnd)) return true;
 
-            foreach (var process in processes)
-            {
-                try
+                NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
+                string procName = NativeInterop.GetProcessName(pid); // Already cached!
+
+                // O(1) HashSet lookup instead of O(n) list search
+                if (_nppProcesses.Contains(procName))
                 {
-                    var hwnd = process.MainWindowHandle;
-                    if (hwnd == IntPtr.Zero) continue;
-
-                    string windowTitle = process.MainWindowTitle;
-                    if (string.IsNullOrEmpty(windowTitle)) continue;
-
-                    var tabs = ScanForTabs(hwnd);
-
-                    if (tabs.Count > 0)
-                    {
-                        _logger?.Log($"{PluginName}: Found {tabs.Count} tabs in PID {process.Id}");
-                        foreach (var tabName in tabs)
-                        {
-                            results.Add(new WindowItem
-                            {
-                                Hwnd = hwnd,
-                                Title = tabName,
-                                ProcessName = process.ProcessName,
-                                Source = this
-                            });
-                        }
-                    }
-                    else
-                    {
-                        // Fallback: return main window if no tabs found
-                        _logger?.Log($"{PluginName}: No tabs found for PID {process.Id}, returning main window");
-                        results.Add(new WindowItem
-                        {
-                            Hwnd = hwnd,
-                            Title = windowTitle,
-                            ProcessName = process.ProcessName,
-                            Source = this
-                        });
-                    }
+                    ScanWindow(hwnd, (int)pid, procName, walker, results);
                 }
-                catch (Exception ex)
-                {
-                    _logger?.LogError($"{PluginName}: Error scanning process {process.Id}", ex);
-                }
-            }
+
+                return true; // Continue enumeration
+            }, IntPtr.Zero);
 
             return results;
+        }
+
+        private void ScanWindow(IntPtr hwnd, int pid, string processName, TreeWalker walker, List<WindowItem> results)
+        {
+            var tabs = ScanForTabs(hwnd);
+
+            if (tabs.Count > 0)
+            {
+                _logger?.Log($"{PluginName}: Found {tabs.Count} tabs in PID {pid}");
+                foreach (var tabName in tabs)
+                {
+                    results.Add(new WindowItem
+                    {
+                        Hwnd = hwnd,
+                        Title = tabName,
+                        ProcessName = processName,
+                        Source = this
+                    });
+                }
+            }
+            else
+            {
+                // Fallback: return main window if no tabs found
+                // Get window title via native API for consistency
+                char[] buffer = new char[512];
+                int length = NativeInterop.GetWindowText(hwnd, buffer, buffer.Length);
+                string windowTitle = length > 0 ? new string(buffer, 0, length) : "";
+
+                if (!string.IsNullOrEmpty(windowTitle))
+                {
+                    _logger?.Log($"{PluginName}: No tabs found for PID {pid}, returning main window");
+                    results.Add(new WindowItem
+                    {
+                        Hwnd = hwnd,
+                        Title = windowTitle,
+                        ProcessName = processName,
+                        Source = this
+                    });
+                }
+            }
         }
 
         private List<string> ScanForTabs(IntPtr hwnd)

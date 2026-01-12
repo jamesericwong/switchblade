@@ -206,5 +206,72 @@ namespace SwitchBlade.Tests.ViewModels
             public void Invoke(Action action) => action();
             public async System.Threading.Tasks.Task InvokeAsync(Func<System.Threading.Tasks.Task> action) => await action();
         }
+
+        [Fact]
+        public async System.Threading.Tasks.Task RefreshWindows_StructurallyIdentical_DoesNotResetBadgeState()
+        {
+            // Arrange - Tests the optimized HashSet-based structural diff check
+            // When windows are structurally identical (same HWNDs), titles can update
+            // without triggering full reconciliation (badge state preserved)
+            var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
+
+            var hwnd1 = new IntPtr(100);
+            var hwnd2 = new IntPtr(200);
+
+            var win1 = new WindowItem { Hwnd = hwnd1, Title = "Window A v1", ProcessName = "App", Source = _mockWindowProvider.Object };
+            var win2 = new WindowItem { Hwnd = hwnd2, Title = "Window B v1", ProcessName = "App", Source = _mockWindowProvider.Object };
+
+            _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1, win2 });
+            await vm.RefreshWindows();
+
+            // Simulate badge animation completed
+            foreach (var item in vm.FilteredWindows)
+            {
+                item.HasBeenAnimated = true;
+                item.BadgeOpacity = 1.0;
+            }
+
+            // Act - Same HWNDs, different titles (structurally identical)
+            var win1Updated = new WindowItem { Hwnd = hwnd1, Title = "Window A v2", ProcessName = "App", Source = _mockWindowProvider.Object };
+            var win2Updated = new WindowItem { Hwnd = hwnd2, Title = "Window B v2", ProcessName = "App", Source = _mockWindowProvider.Object };
+            _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1Updated, win2Updated });
+            await vm.RefreshWindows();
+
+            // Assert - Badge state should be preserved (no full reconciliation)
+            Assert.Equal(2, vm.FilteredWindows.Count);
+            Assert.All(vm.FilteredWindows, item => Assert.True(item.HasBeenAnimated));
+            Assert.All(vm.FilteredWindows, item => Assert.Equal(1.0, item.BadgeOpacity));
+        }
+
+        [Fact]
+        public async System.Threading.Tasks.Task RefreshWindows_StructuralChange_TriggersReconciliation()
+        {
+            // Arrange - When HWNDs change (window added/removed), full reconciliation happens
+            var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
+
+            var hwnd1 = new IntPtr(100);
+            var hwnd2 = new IntPtr(200);
+            var hwnd3 = new IntPtr(300);
+
+            var win1 = new WindowItem { Hwnd = hwnd1, Title = "Window A", ProcessName = "App", Source = _mockWindowProvider.Object };
+            var win2 = new WindowItem { Hwnd = hwnd2, Title = "Window B", ProcessName = "App", Source = _mockWindowProvider.Object };
+
+            _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1, win2 });
+            await vm.RefreshWindows();
+
+            Assert.Equal(2, vm.FilteredWindows.Count);
+
+            // Act - Different HWNDs (structural change - one removed, one added)
+            var win3 = new WindowItem { Hwnd = hwnd3, Title = "Window C", ProcessName = "App", Source = _mockWindowProvider.Object };
+            _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1, win3 }); // win2 replaced by win3
+            await vm.RefreshWindows();
+
+            // Assert - Count changes and new window appears
+            Assert.Equal(2, vm.FilteredWindows.Count);
+            Assert.Contains(vm.FilteredWindows, w => w.Hwnd == hwnd1);
+            Assert.Contains(vm.FilteredWindows, w => w.Hwnd == hwnd3);
+            Assert.DoesNotContain(vm.FilteredWindows, w => w.Hwnd == hwnd2);
+        }
     }
 }
+

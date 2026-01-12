@@ -200,5 +200,57 @@ namespace SwitchBlade.Tests.Contracts
             // Assert
             Assert.Empty(result);
         }
+
+        [Fact]
+        public async Task CachedWindows_CanBeReadConcurrently()
+        {
+            // Arrange - Tests that ReaderWriterLockSlim allows concurrent reads
+            var expectedItems = new List<WindowItem>
+            {
+                new WindowItem { Title = "Window 1" },
+                new WindowItem { Title = "Window 2" },
+                new WindowItem { Title = "Window 3" }
+            };
+            var provider = new TestCachingWindowProvider(expectedItems);
+
+            // Initial scan to populate cache
+            provider.GetWindows();
+
+            // Act - Multiple concurrent reads should not block each other
+            var tasks = Enumerable.Range(0, 10).Select(_ => Task.Run(() =>
+            {
+                var cached = provider.CachedWindows;
+                return cached.Count;
+            })).ToArray();
+
+            var results = await Task.WhenAll(tasks);
+
+            // Assert - All concurrent reads should succeed with same count
+            Assert.All(results, count => Assert.Equal(3, count));
+        }
+
+        [Fact]
+        public async Task GetWindows_ConcurrentReads_AllReturnValidResults()
+        {
+            // Arrange - Tests that multiple GetWindows calls when scan is NOT running all trigger scans
+            var expectedItems = new List<WindowItem>
+            {
+                new WindowItem { Title = "Test Window" }
+            };
+            var provider = new TestCachingWindowProvider(expectedItems);
+
+            // Act - Multiple rapid GetWindows calls (sequential, not during scan)
+            var results = new List<int>();
+            for (int i = 0; i < 5; i++)
+            {
+                var windows = provider.GetWindows().ToList();
+                results.Add(windows.Count);
+            }
+
+            // Assert - Each call should return valid results
+            Assert.All(results, count => Assert.Equal(1, count));
+            Assert.Equal(5, provider.ScanCallCount); // Each call runs scan since previous completed
+        }
     }
 }
+

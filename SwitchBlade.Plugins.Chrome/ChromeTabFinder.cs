@@ -11,7 +11,7 @@ namespace SwitchBlade.Plugins.Chrome
     {
         private ILogger? _logger;
         private IPluginSettingsService? _settingsService;
-        private List<string> _browserProcesses = new();
+        private HashSet<string> _browserProcesses = new(StringComparer.OrdinalIgnoreCase);
 
         // Default browser processes if no settings exist
         private static readonly List<string> DefaultBrowserProcesses = new()
@@ -67,13 +67,14 @@ namespace SwitchBlade.Plugins.Chrome
             // Check if BrowserProcesses key exists in plugin Registry
             if (_settingsService.KeyExists("BrowserProcesses"))
             {
-                _browserProcesses = _settingsService.GetStringList("BrowserProcesses", DefaultBrowserProcesses);
+                var loadedList = _settingsService.GetStringList("BrowserProcesses", DefaultBrowserProcesses);
+                _browserProcesses = new HashSet<string>(loadedList, StringComparer.OrdinalIgnoreCase);
             }
             else
             {
                 // First run or missing key - use defaults and save them
-                _browserProcesses = new List<string>(DefaultBrowserProcesses);
-                _settingsService.SetStringList("BrowserProcesses", _browserProcesses);
+                _browserProcesses = new HashSet<string>(DefaultBrowserProcesses, StringComparer.OrdinalIgnoreCase);
+                _settingsService.SetStringList("BrowserProcesses", _browserProcesses.ToList());
             }
 
             _logger?.Log($"ChromeTabFinder: Loaded {_browserProcesses.Count} browser processes");
@@ -81,7 +82,7 @@ namespace SwitchBlade.Plugins.Chrome
 
         public override void ShowSettingsDialog(IntPtr ownerHwnd)
         {
-            var dialog = new ChromeSettingsWindow(_settingsService!, _browserProcesses);
+            var dialog = new ChromeSettingsWindow(_settingsService!, _browserProcesses.ToList());
             if (ownerHwnd != IntPtr.Zero)
             {
                 var helper = new WindowInteropHelper(dialog);
@@ -119,24 +120,11 @@ namespace SwitchBlade.Plugins.Chrome
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 string procName = NativeInterop.GetProcessName(pid);
 
-                if (_browserProcesses.Contains(procName, StringComparer.OrdinalIgnoreCase)) // Extension methods might be needed or just simple validation
+                // O(1) HashSet lookup (comparer set at construction)
+                if (_browserProcesses.Contains(procName))
                 {
-                    // Check if it matches one of our targets
-                    bool isMatch = false;
-                    foreach (var browser in _browserProcesses)
-                    {
-                        if (string.Equals(browser, procName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            isMatch = true;
-                            break;
-                        }
-                    }
-
-                    if (isMatch)
-                    {
-                        // Found a visible window belonging to one of our target browsers
-                        ScanWindow(hwnd, (int)pid, walker, results);
-                    }
+                    // Found a visible window belonging to one of our target browsers
+                    ScanWindow(hwnd, (int)pid, walker, results);
                 }
 
                 return true; // Continue enumeration

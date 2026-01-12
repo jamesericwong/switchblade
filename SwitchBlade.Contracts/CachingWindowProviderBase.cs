@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace SwitchBlade.Contracts
 {
@@ -12,12 +13,14 @@ namespace SwitchBlade.Contracts
     /// will return the cached results immediately instead of starting
     /// a duplicate scan.
     /// 
+    /// Uses ReaderWriterLockSlim for efficient concurrent cache reads.
+    /// 
     /// Plugin developers should inherit from this class and override
     /// <see cref="ScanWindowsCore"/> with their scanning logic.
     /// </summary>
     public abstract class CachingWindowProviderBase : IWindowProvider
     {
-        private readonly object _scanLock = new object();
+        private readonly ReaderWriterLockSlim _cacheLock = new(LockRecursionPolicy.NoRecursion);
         private volatile bool _isScanRunning = false;
         private IList<WindowItem> _cachedWindows = new List<WindowItem>();
 
@@ -36,7 +39,21 @@ namespace SwitchBlade.Contracts
         /// <summary>
         /// Returns the currently cached windows from the last successful scan.
         /// </summary>
-        public IReadOnlyList<WindowItem> CachedWindows => (IReadOnlyList<WindowItem>)_cachedWindows;
+        public IReadOnlyList<WindowItem> CachedWindows
+        {
+            get
+            {
+                _cacheLock.EnterReadLock();
+                try
+                {
+                    return (IReadOnlyList<WindowItem>)_cachedWindows;
+                }
+                finally
+                {
+                    _cacheLock.ExitReadLock();
+                }
+            }
+        }
 
         /// <inheritdoc />
         public abstract string PluginName { get; }
@@ -77,14 +94,24 @@ namespace SwitchBlade.Contracts
         /// </summary>
         public IEnumerable<WindowItem> GetWindows()
         {
-            // Fast path: if a scan is already running, return cached results
+            // Fast path: if a scan is already running, return cached results (read lock only)
             if (_isScanRunning)
             {
-                Logger?.Log($"{PluginName}: Scan in progress, returning {_cachedWindows.Count} cached results");
-                return _cachedWindows.ToList(); // Return a copy to avoid collection modification issues
+                _cacheLock.EnterReadLock();
+                try
+                {
+                    Logger?.Log($"{PluginName}: Scan in progress, returning {_cachedWindows.Count} cached results");
+                    return _cachedWindows.ToList(); // Return a copy to avoid collection modification issues
+                }
+                finally
+                {
+                    _cacheLock.ExitReadLock();
+                }
             }
 
-            lock (_scanLock)
+            // Acquire write lock to set scan running flag
+            _cacheLock.EnterWriteLock();
+            try
             {
                 // Double-check after acquiring lock
                 if (_isScanRunning)
@@ -95,15 +122,24 @@ namespace SwitchBlade.Contracts
 
                 _isScanRunning = true;
             }
+            finally
+            {
+                _cacheLock.ExitWriteLock();
+            }
 
             try
             {
                 Logger?.Log($"{PluginName}: Starting window scan");
                 var results = ScanWindowsCore().ToList();
 
-                lock (_scanLock)
+                _cacheLock.EnterWriteLock();
+                try
                 {
                     _cachedWindows = results;
+                }
+                finally
+                {
+                    _cacheLock.ExitWriteLock();
                 }
 
                 Logger?.Log($"{PluginName}: Scan complete, found {results.Count} windows");
@@ -112,14 +148,27 @@ namespace SwitchBlade.Contracts
             catch (Exception ex)
             {
                 Logger?.LogError($"{PluginName}: Error during scan", ex);
-                // Return cached results on error
-                return _cachedWindows.ToList();
+                // Return cached results on error (read lock only)
+                _cacheLock.EnterReadLock();
+                try
+                {
+                    return _cachedWindows.ToList();
+                }
+                finally
+                {
+                    _cacheLock.ExitReadLock();
+                }
             }
             finally
             {
-                lock (_scanLock)
+                _cacheLock.EnterWriteLock();
+                try
                 {
                     _isScanRunning = false;
+                }
+                finally
+                {
+                    _cacheLock.ExitWriteLock();
                 }
             }
         }
@@ -137,10 +186,16 @@ namespace SwitchBlade.Contracts
         /// </summary>
         protected void ClearCache()
         {
-            lock (_scanLock)
+            _cacheLock.EnterWriteLock();
+            try
             {
                 _cachedWindows = new List<WindowItem>();
+            }
+            finally
+            {
+                _cacheLock.ExitWriteLock();
             }
         }
     }
 }
+

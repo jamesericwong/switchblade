@@ -223,22 +223,13 @@ namespace SwitchBlade.ViewModels
 
                        // Check STRUCTURAL change (only HWNDs, not titles)
                        // This detects windows being added/removed, not title changes
+                       // Optimized: Use HashSet for O(n) comparison instead of sorting
                        bool isStructurallyIdentical = false;
                        if (existingItems.Count == results.Count)
                        {
-                           // Compare HWNDs only (sorted for bag equality)
-                           // Note: Chrome tabs share the same HWND, so we compare the full bag
-                           var existingHwnds = existingItems
-                              .Select(x => x.Hwnd.ToInt64())
-                              .OrderBy(x => x)
-                              .ToList();
-
-                           var newHwnds = results
-                               .Select(x => x.Hwnd.ToInt64())
-                               .OrderBy(x => x)
-                               .ToList();
-
-                           isStructurallyIdentical = existingHwnds.SequenceEqual(newHwnds);
+                           // Build set of existing HWNDs for O(1) lookup
+                           var existingHwndSet = new HashSet<long>(existingItems.Select(x => x.Hwnd.ToInt64()));
+                           isStructurallyIdentical = results.All(r => existingHwndSet.Contains(r.Hwnd.ToInt64()));
                        }
 
                        if (isStructurallyIdentical)
