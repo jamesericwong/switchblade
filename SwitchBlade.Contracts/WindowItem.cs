@@ -8,6 +8,17 @@ namespace SwitchBlade.Contracts
         private int _shortcutIndex = -1;
         private string _title = string.Empty;
 
+        // Cached PropertyChangedEventArgs to avoid allocations on every notification
+        private static class PropertyChangedCache
+        {
+            public static readonly PropertyChangedEventArgs Title = new(nameof(Title));
+            public static readonly PropertyChangedEventArgs ShortcutIndex = new(nameof(ShortcutIndex));
+            public static readonly PropertyChangedEventArgs ShortcutDisplay = new(nameof(ShortcutDisplay));
+            public static readonly PropertyChangedEventArgs IsShortcutVisible = new(nameof(IsShortcutVisible));
+            public static readonly PropertyChangedEventArgs BadgeOpacity = new(nameof(BadgeOpacity));
+            public static readonly PropertyChangedEventArgs BadgeTranslateX = new(nameof(BadgeTranslateX));
+        }
+
         public IntPtr Hwnd { get; set; }
 
         public string Title
@@ -18,7 +29,7 @@ namespace SwitchBlade.Contracts
                 if (_title != value)
                 {
                     _title = value;
-                    OnPropertyChanged();
+                    PropertyChanged?.Invoke(this, PropertyChangedCache.Title);
                 }
             }
         }
@@ -43,9 +54,9 @@ namespace SwitchBlade.Contracts
                 if (_shortcutIndex != value)
                 {
                     _shortcutIndex = value;
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(ShortcutDisplay));
-                    OnPropertyChanged(nameof(IsShortcutVisible));
+                    PropertyChanged?.Invoke(this, PropertyChangedCache.ShortcutIndex);
+                    PropertyChanged?.Invoke(this, PropertyChangedCache.ShortcutDisplay);
+                    PropertyChanged?.Invoke(this, PropertyChangedCache.IsShortcutVisible);
                 }
             }
         }
@@ -90,7 +101,7 @@ namespace SwitchBlade.Contracts
                 if (_badgeOpacity != value)
                 {
                     _badgeOpacity = value;
-                    OnPropertyChanged();
+                    PropertyChanged?.Invoke(this, PropertyChangedCache.BadgeOpacity);
                 }
             }
         }
@@ -106,7 +117,7 @@ namespace SwitchBlade.Contracts
                 if (_badgeTranslateX != value)
                 {
                     _badgeTranslateX = value;
-                    OnPropertyChanged();
+                    PropertyChanged?.Invoke(this, PropertyChangedCache.BadgeTranslateX);
                 }
             }
         }
@@ -118,8 +129,8 @@ namespace SwitchBlade.Contracts
         {
             _badgeOpacity = 0;
             _badgeTranslateX = -20;
-            OnPropertyChanged(nameof(BadgeOpacity));
-            OnPropertyChanged(nameof(BadgeTranslateX));
+            PropertyChanged?.Invoke(this, PropertyChangedCache.BadgeOpacity);
+            PropertyChanged?.Invoke(this, PropertyChangedCache.BadgeTranslateX);
         }
 
 
@@ -130,3 +141,4 @@ namespace SwitchBlade.Contracts
         }
     }
 }
+

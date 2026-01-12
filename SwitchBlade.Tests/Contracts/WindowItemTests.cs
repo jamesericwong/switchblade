@@ -1,5 +1,6 @@
 using Xunit;
 using SwitchBlade.Contracts;
+using System.Collections.Generic;
 
 namespace SwitchBlade.Tests.Contracts
 {
@@ -145,5 +146,104 @@ namespace SwitchBlade.Tests.Contracts
             Assert.Equal(0.0, item.BadgeOpacity);
             Assert.Equal(-20.0, item.BadgeTranslateX);
         }
+
+        [Fact]
+        public void Title_PropertyChanged_FiresCorrectEvent()
+        {
+            // Arrange - Tests that PropertyChangedEventArgs caching works correctly
+            var item = new WindowItem();
+            var firedPropertyNames = new List<string>();
+            item.PropertyChanged += (s, e) => firedPropertyNames.Add(e.PropertyName!);
+
+            // Act
+            item.Title = "New Title";
+
+            // Assert
+            Assert.Single(firedPropertyNames);
+            Assert.Equal("Title", firedPropertyNames[0]);
+        }
+
+        [Fact]
+        public void ShortcutIndex_PropertyChanged_FiresMultipleEvents()
+        {
+            // Arrange - ShortcutIndex should fire events for ShortcutIndex, ShortcutDisplay, and IsShortcutVisible
+            var item = new WindowItem();
+            var firedPropertyNames = new List<string>();
+            item.PropertyChanged += (s, e) => firedPropertyNames.Add(e.PropertyName!);
+
+            // Act
+            item.ShortcutIndex = 5;
+
+            // Assert
+            Assert.Equal(3, firedPropertyNames.Count);
+            Assert.Contains("ShortcutIndex", firedPropertyNames);
+            Assert.Contains("ShortcutDisplay", firedPropertyNames);
+            Assert.Contains("IsShortcutVisible", firedPropertyNames);
+        }
+
+        [Fact]
+        public void BadgeOpacity_PropertyChanged_FiresCorrectEvent()
+        {
+            // Arrange
+            var item = new WindowItem();
+            var firedPropertyNames = new List<string>();
+            item.PropertyChanged += (s, e) => firedPropertyNames.Add(e.PropertyName!);
+
+            // Act
+            item.BadgeOpacity = 0.5;
+
+            // Assert
+            Assert.Single(firedPropertyNames);
+            Assert.Equal("BadgeOpacity", firedPropertyNames[0]);
+        }
+
+        [Fact]
+        public void BadgeTranslateX_PropertyChanged_FiresCorrectEvent()
+        {
+            // Arrange
+            var item = new WindowItem();
+            var firedPropertyNames = new List<string>();
+            item.PropertyChanged += (s, e) => firedPropertyNames.Add(e.PropertyName!);
+
+            // Act
+            item.BadgeTranslateX = -15.0;
+
+            // Assert
+            Assert.Single(firedPropertyNames);
+            Assert.Equal("BadgeTranslateX", firedPropertyNames[0]);
+        }
+
+        [Fact]
+        public void ResetBadgeAnimation_PropertyChanged_FiresBothEvents()
+        {
+            // Arrange
+            var item = new WindowItem { BadgeOpacity = 1.0, BadgeTranslateX = 0 };
+            var firedPropertyNames = new List<string>();
+            item.PropertyChanged += (s, e) => firedPropertyNames.Add(e.PropertyName!);
+
+            // Act
+            item.ResetBadgeAnimation();
+
+            // Assert
+            Assert.Equal(2, firedPropertyNames.Count);
+            Assert.Contains("BadgeOpacity", firedPropertyNames);
+            Assert.Contains("BadgeTranslateX", firedPropertyNames);
+        }
+
+        [Fact]
+        public void Title_NoChange_DoesNotFireEvent()
+        {
+            // Arrange - Same value should not fire PropertyChanged
+            var item = new WindowItem { Title = "Same" };
+            var firedCount = 0;
+            item.PropertyChanged += (s, e) => firedCount++;
+
+            // Act
+            item.Title = "Same"; // No change
+
+            // Assert
+            Assert.Equal(0, firedCount);
+        }
     }
 }
+

@@ -1,3 +1,12 @@
+## [1.5.6] - 2026-01-11
+### Performance
+- **NotepadPlusPlusPlugin Native Discovery**: Migrated from `Process.GetProcessesByName()` to native `EnumWindows` + cached `GetProcessName()` pattern, significantly reducing allocations and improving scan speed.
+- **O(1) Process Lookups**: Both `ChromeTabFinder` and `NotepadPlusPlusPlugin` now use `HashSet<string>` with case-insensitive comparers for O(1) process name matching instead of O(n) list searches.
+- **Redundant Code Removal**: Removed duplicate Contains check in `ChromeTabFinder.ScanWindowsCore()` that was iterating the same list twice.
+- **PropertyChangedEventArgs Caching**: `WindowItem` now uses cached static `PropertyChangedEventArgs` instances, eliminating allocations on every property change notification.
+- **ReaderWriterLockSlim**: `CachingWindowProviderBase` now uses `ReaderWriterLockSlim` instead of exclusive `lock()`, allowing concurrent cache reads while maintaining exclusive write access.
+- **LINQ Hot Path Optimization**: Replaced sorting + `SequenceEqual` with `HashSet` comparison in `MainViewModel.RefreshWindows()` for O(n) structural diff checks instead of O(n log n).
+
 ## [1.5.5] - 2026-01-11
 ### Fixed
 - **Settings UI Overlap**: Fixed a layout bug in the "Excluded Processes" section where the header and description text overlapped due to missing grid row assignments.
