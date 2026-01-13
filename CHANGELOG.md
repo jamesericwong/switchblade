@@ -1,3 +1,7 @@
+## [1.5.7] - 2026-01-12
+### Performance
+- **ReadyToRun (R2R) Compilation**: Enabled R2R in the build process to pre-compile IL to native code, significantly reducing JIT overhead and improving application startup responsiveness.
+
 ## [1.5.6] - 2026-01-11
 ### Performance
 - **NotepadPlusPlusPlugin Native Discovery**: Migrated from `Process.GetProcessesByName()` to native `EnumWindows` + cached `GetProcessName()` pattern, significantly reducing allocations and improving scan speed.

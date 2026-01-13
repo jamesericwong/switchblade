@@ -83,6 +83,7 @@ SwitchBlade 1.5.1+ utilizes bleeding-edge .NET 9 features to ensure minimal reso
 - **Smart Caching**: Process names and PIDs come from a concurrent cache to minimize kernel transitions.
 - **Configurable Regex caching**: Implements an LRU (Least Recently Used) cache for compiled regex objects to ensure buttery-smooth search responsiveness during rapid typing.
 - **Immune to ReDoS**: Dynamically switches to the `.NET 9 NonBacktracking` engine for all user-provided patterns, providing guaranteed linear-time matching and protection against malicious regex hangs.
+- **ReadyToRun (R2R) Deployment**: Pre-compiled native code in the binary reduces startup time and eliminates JIT warm-up latency.
 
 ```mermaid
 graph TD
@@ -134,7 +135,7 @@ For information on how to build the project and create plugins, please refer to 
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 - [Changelog](CHANGELOG.md): History of changes and versions.
 
-### Current Version: 1.5.6
+### Current Version: 1.5.7
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:
