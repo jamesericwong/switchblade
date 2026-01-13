@@ -56,7 +56,7 @@ For computers where an MSI cannot be run, you can create a high-performance, sel
 Run the following command from the project root:
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+dotnet publish SwitchBlade.csproj -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
 **Key Parameters:**
@@ -71,7 +71,7 @@ The artifacts will be generated in:
 
 ### 3. Manual Installation
 1.  **Copy Files**: Copy the entire contents of the `publish` folder to the target machine (e.g., `C:\Tools\SwitchBlade`).
-2.  **Verify Plugins**: Ensure the `Plugins` subfolder is present and contains the plugin DLLs. The build system automatically copies these during the `publish` command.
+2.  **Verify Plugins**: Ensure the `Plugins` subfolder is present and contains the plugin DLLs. The build system automatically compiles and bundles these into the `Plugins` folder during the `publish` command, so no manual copying of individual plugin DLLs is required.
 3.  **Run**: Execute `SwitchBlade.exe`.
 
 ## Building the Installer
@@ -86,10 +86,21 @@ The installer project (`SwitchBlade.Installer.wixproj`) is configured to automat
 ### Using the CLI
 From the root directory:
 
+
 ```powershell
 cd Installer
 dotnet build -c Release
 ```
+
+### Building R2R Installer (MSI)
+
+To build an MSI installer that deploys the Single-File R2R executable (High Performance):
+
+```powershell
+cd Installer
+dotnet build -c Release -p:PublishR2R=true
+```
+
 
 ## Plugin Development
 

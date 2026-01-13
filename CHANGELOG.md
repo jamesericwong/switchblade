@@ -1,3 +1,8 @@
+## [1.5.9] - 2026-01-13
+### Fixed
+- **R2R Build Instructions**: Fixed the `dotnet publish` command in documentation to correctly target the project file instead of the solution, preventing single-file publish errors.
+- **R2R MSI Build**: Updated `SwitchBlade.Installer.wixproj` to support a `PublishR2R` property, allowing the creation of MSIs containing the optimized single-file ReadyToRun executable.
+
 ## [1.5.8] - 2026-01-13
 ### Added
 - **Application Icons**: Window list now displays application icons next to each entry.
