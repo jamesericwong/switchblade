@@ -24,9 +24,9 @@ namespace SwitchBlade.Contracts
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
 
-        // Optimized for zero-allocation when used with stackalloc
-        [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
-        public static partial int GetWindowText(IntPtr hWnd, [Out] char[] lpString, int nMaxCount);
+        // Optimized for zero-allocation when used with stackalloc or Span
+        [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW", SetLastError = true)]
+        public static partial int GetWindowText(IntPtr hWnd, Span<char> lpString, int nMaxCount);
 
         // Unsafe overload for maximum speed with stack pointers
         [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW", SetLastError = true)]
@@ -81,8 +81,23 @@ namespace SwitchBlade.Contracts
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool GetWindowRect(IntPtr hWnd, out Rect lpRect);
 
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool GetClientRect(IntPtr hWnd, out Rect lpRect);
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+
         [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
         public static partial IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        #endregion
+
+        #region shell32.dll
+
+        [LibraryImport("shell32.dll", EntryPoint = "ExtractIconExW", StringMarshalling = StringMarshalling.Utf16)]
+        public static partial uint ExtractIconEx(string lpszFile, int nIconIndex, IntPtr[] phiconLarge, IntPtr[] phiconSmall, uint nIcons);
 
         #endregion
 
@@ -96,6 +111,9 @@ namespace SwitchBlade.Contracts
 
         [LibraryImport("dwmapi.dll")]
         public static partial int DwmUpdateThumbnailProperties(IntPtr hThumb, ref DWM_THUMBNAIL_PROPERTIES props);
+
+        [LibraryImport("dwmapi.dll")]
+        public static partial int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out Rect pvAttribute, int cbAttribute);
 
         #endregion
 
@@ -111,9 +129,9 @@ namespace SwitchBlade.Contracts
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool CloseHandle(IntPtr hObject);
 
-        [LibraryImport("kernel32.dll", SetLastError = true, EntryPoint = "QueryFullProcessImageNameW", StringMarshalling = StringMarshalling.Utf16)]
+        [LibraryImport("kernel32.dll", SetLastError = true, EntryPoint = "QueryFullProcessImageNameW")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static partial bool QueryFullProcessImageName(IntPtr hProcess, int dwFlags, [Out] char[] lpExeName, ref int lpdwSize);
+        public static partial bool QueryFullProcessImageName(IntPtr hProcess, int dwFlags, Span<char> lpExeName, ref int lpdwSize);
 
         #endregion
 
@@ -141,6 +159,24 @@ namespace SwitchBlade.Contracts
             public int Bottom;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WINDOWPLACEMENT
+        {
+            public int length;
+            public int flags;
+            public int showCmd;
+            public Point ptMinPosition;
+            public Point ptMaxPosition;
+            public Rect rcNormalPosition;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct Point
+        {
+            public int X;
+            public int Y;
+        }
+
         #endregion
 
         #region Constants
@@ -161,6 +197,8 @@ namespace SwitchBlade.Contracts
         public const int DWM_TNP_VISIBLE = 0x00000008;
         public const int DWM_TNP_OPACITY = 0x00000004;
         public const int DWM_TNP_SOURCECLIENTAREAONLY = 0x00000010;
+
+        public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 
         // SysCommands
         public const int WM_SYSCOMMAND = 0x0112;
@@ -214,22 +252,15 @@ namespace SwitchBlade.Contracts
                 if (hProcess != IntPtr.Zero)
                 {
                     // Use a small buffer on the stack to avoid allocations
-                    // MAX_PATH is usually 260, but NTFS allows 32k. 
+                    // MAX_PATH is usually 260, but NTFS allows 32k.
                     // 1024 chars (2KB) on stack is safe and covers 99.9% of cases.
-                    char[] buffer = new char[1024]; // Used with P/Invoke that expects array
+                    Span<char> buffer = stackalloc char[1024];
                     int size = buffer.Length;
 
                     if (QueryFullProcessImageName(hProcess, 0, buffer, ref size))
                     {
                         // Create string only from the valid part
-                        // Path.GetFileNameWithoutExtension is handy but does allocation.
-                        // We can optimize if we really want to, but standard Path methods are robust.
-                        // For extreme optimization: manually find last separator.
-
-                        // We need a string key for the Dictionary anyway, so one allocation is inevitable
-                        // unless we use a custom string-interning pool, which is overkill here.
-                        var path = new string(buffer, 0, size);
-                        processName = Path.GetFileNameWithoutExtension(path);
+                        processName = Path.GetFileNameWithoutExtension(buffer[..size]).ToString();
                     }
                 }
             }
@@ -249,6 +280,48 @@ namespace SwitchBlade.Contracts
             _processNameCache.TryAdd(pid, processName);
 
             return processName;
+        }
+
+        /// <summary>
+        /// Retrieves both the process name and full executable path for a given PID.
+        /// </summary>
+        public static (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
+        {
+            if (pid == 0) return ("System", null);
+
+            string processName = "Unknown";
+            string? executablePath = null;
+            IntPtr hProcess = IntPtr.Zero;
+
+            try
+            {
+                hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+
+                if (hProcess != IntPtr.Zero)
+                {
+                    Span<char> buffer = stackalloc char[1024];
+                    int size = buffer.Length;
+
+                    if (QueryFullProcessImageName(hProcess, 0, buffer, ref size))
+                    {
+                        executablePath = new string(buffer[..size]);
+                        processName = Path.GetFileNameWithoutExtension(buffer[..size]).ToString();
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore errors (access denied, etc.)
+            }
+            finally
+            {
+                if (hProcess != IntPtr.Zero)
+                {
+                    CloseHandle(hProcess);
+                }
+            }
+
+            return (processName, executablePath);
         }
 
         /// <summary>

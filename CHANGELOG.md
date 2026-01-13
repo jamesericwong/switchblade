@@ -1,3 +1,32 @@
+## [1.5.8] - 2026-01-13
+### Added
+- **Application Icons**: Window list now displays application icons next to each entry.
+  - Icons extracted from executables using `ExtractIconEx` and cached by full path.
+  - Different versions of same-named executables (e.g., Chrome, Chrome Beta, Chrome Dev) display distinct icons.
+  - New `IconService` with path-based caching for efficient icon retrieval.
+- **Show Icons Setting**: New toggle in Settings → Appearance to enable/disable icon display (enabled by default).
+
+### Fixed
+- **Plugin Windows Missing Icons**: Fixed a bug where windows from plugins (Notepad++ tabs, Chrome tabs, Terminal tabs) did not display icons.
+  - All plugins now populate `ExecutablePath` using `GetProcessInfo()`.
+  - Icons are populated for both new items and existing cached items during list updates.
+- **Window Preview Aspect Ratio**: Fixed a bug where window previews were stretched or distorted, especially for smaller windows.
+  - **Correct Sizing**: Now uses `GetClientRect` to determine the source aspect ratio for visible windows.
+  - **Minimized Window Handling**: Added logic to use `GetWindowPlacement` for minimized windows to properly calculate their "restored" aspect ratio instead of using a default 4:3 box.
+  - **Padding Logic**: Refactored padding calculation to be subtracted *before* scaling, preserving the correct aspect ratio within the available space.
+
+### Performance
+- **Zero-Allocation Interop**: Refactored `NativeInterop` to use `Span<char>` and `stackalloc` for window title and process path lookups.
+- **Windows Terminal Plugin**: Refactored to use native `EnumWindows` + `GetProcessInfo()` pattern, eliminating expensive `Process.GetProcessesByName()` calls. Now consistent with Chrome and Notepad++ plugins.
+
+### Technical
+- **Modernized P/Invoke**: Migrated from `DllImport` to `LibraryImport` (Source Generators) for all native methods, improving AOT compatibility and performance.
+- Added `ExtractIconEx` P/Invoke to `NativeInterop.cs`.
+- Added `GetProcessInfo()` method returning both process name and executable path.
+- Extended `WindowItem` with `ExecutablePath` and `Icon` properties.
+- Created `IIconService` interface and `IconService` implementation.
+- Updated `MainWindow.xaml` list item template with 3-column grid (badge, icon, text).
+
 ## [1.5.7] - 2026-01-12
 ### Performance
 - **ReadyToRun (R2R) Compilation**: Enabled R2R in the build process to pre-compile IL to native code, significantly reducing JIT overhead and improving application startup responsiveness.

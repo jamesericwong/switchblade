@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Interop;
+using System.Runtime.InteropServices;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 
@@ -95,10 +96,7 @@ namespace SwitchBlade.Services
             var transform = _previewContainer.TransformToAncestor(_targetWindow);
             var rootPoint = transform.Transform(new System.Windows.Point(0, 0));
 
-            // Adjust for High DPI if necessary, but DWM usually expects physical pixels? 
-            // WPF works in logical pixels. DWM works in physical pixels.
-            // We need to convert.
-
+            // Get DPI scaling factors
             var source = PresentationSource.FromVisual(_targetWindow);
             double dpiX = 1.0;
             double dpiY = 1.0;
@@ -108,65 +106,84 @@ namespace SwitchBlade.Services
                 dpiY = source.CompositionTarget.TransformToDevice.M22;
             }
 
-            // 1. Get source window dimensions
-            NativeInterop.Rect sourceRect;
-            NativeInterop.GetWindowRect(_currentSourceHwnd, out sourceRect);
-            // Note: GetWindowRect might return 0 size if minimized? 
-            // DWM usually handles minimized windows fine, but we need the restored size for aspect ratio.
-            // If minimized, we might need GetWindowPlacement, but let's try GetWindowRect first.
-            // Actually, for DWM thumbnail, it shows the "live" content. If minimized, it might be 0 or small.
-            // However, typical Alt-Tab logic gets the "snapshot" size.
+            // 1. Get source window dimensions (Client Area to match fSourceClientAreaOnly = true)
+            double sourceW, sourceH;
 
-            // Safe fallback width/height
-            double sourceW = sourceRect.Right - sourceRect.Left;
-            double sourceH = sourceRect.Bottom - sourceRect.Top;
-
-            if (sourceW <= 0 || sourceH <= 0)
+            // Check if window is minimized
+            if (NativeInterop.IsIconic(_currentSourceHwnd))
             {
-                sourceW = 800; // default assumption
-                sourceH = 600;
+                // For minimized windows, GetClientRect returns 0x0.
+                // We must use GetWindowPlacement to find the "Restored" (Normal) position.
+                NativeInterop.WINDOWPLACEMENT placement = new NativeInterop.WINDOWPLACEMENT();
+                placement.length = Marshal.SizeOf(typeof(NativeInterop.WINDOWPLACEMENT));
+
+                NativeInterop.GetWindowPlacement(_currentSourceHwnd, ref placement);
+
+                // rcNormalPosition is the "Workspace Coordinates" of the restored window.
+                // It includes the window frame. This is "close enough" and infinitely better than 0x0.
+                // To be exact we'd need to subtract typical frame borders, but that varies by OS theme.
+                sourceW = placement.rcNormalPosition.Right - placement.rcNormalPosition.Left;
+                sourceH = placement.rcNormalPosition.Bottom - placement.rcNormalPosition.Top;
             }
+            else
+            {
+                NativeInterop.Rect rect;
+
+                // We use GetClientRect because we are limiting the thumbnail to the client area.
+                // Using GetWindowRect would include borders/titlebar which are not shown, causing distortion.
+                if (NativeInterop.GetClientRect(_currentSourceHwnd, out rect))
+                {
+                    sourceW = rect.Right - rect.Left;
+                    sourceH = rect.Bottom - rect.Top;
+                }
+                else
+                {
+                    // Fallback to Window Rect if GetClientRect fails
+                    NativeInterop.GetWindowRect(_currentSourceHwnd, out rect);
+                    sourceW = rect.Right - rect.Left;
+                    sourceH = rect.Bottom - rect.Top;
+                }
+            }
+
+            if (sourceW <= 0) sourceW = 800;
+            if (sourceH <= 0) sourceH = 600;
 
             // 2. Get Container Dimensions (Logical)
             double containerW = _previewContainer.ActualWidth;
             double containerH = _previewContainer.ActualHeight;
 
-            // 3. Calculate Scale to Fit (Uniform)
-            double scaleX = containerW / sourceW;
-            double scaleY = containerH / sourceH;
+            // 3. Apply Padding BEFORE scaling
+            // This ensures the aspect ratio is calculated against the available space, 
+            // properly preserving the original shape.
+            double padding = 10.0;
+            double availableW = containerW - (padding * 2);
+            double availableH = containerH - (padding * 2);
+
+            if (availableW <= 0) availableW = 1;
+            if (availableH <= 0) availableH = 1;
+
+            // 4. Calculate Scale to Fit (Uniform)
+            double scaleX = availableW / sourceW;
+            double scaleY = availableH / sourceH;
             double scale = Math.Min(scaleX, scaleY);
 
-            // 4. Calculate Final Dimensions (Logical)
+            // 5. Calculate Final Dimensions (Logical)
             double destW = sourceW * scale;
             double destH = sourceH * scale;
 
-            // 5. Center it
+            // 6. Center it within the full container
             double offsetX = (containerW - destW) / 2;
             double offsetY = (containerH - destH) / 2;
 
-            // 6. Convert to Physical Pixels for DWM
-            // DWM coordinates are relative to the *target window's client area* (if sourceClientAreaOnly is false?? no, relative to target window logic)
-            // But they must be in physical pixels.
-            // rootPoint from TransformToDevice is already in physical pixels?
-            // Wait, TransformToAncestor -> Transform(0,0) gives coordinates relative to TargetWindow *visual*.
-            // We need to apply DPI scaling to our calculated Logicals.
+            // 7. Convert to Physical Pixels for DWM
+            // DWM destination rect is relative to the target window's client area (in physical pixels).
+            // We need to add the container's offset (rootPoint) to our calculated offset.
 
-            // Optimization: Apply DPI once to combined coordinates
-            double dpiOffsetX = offsetX * dpiX;
-            double dpiOffsetY = offsetY * dpiY;
-            double dpiRootX = rootPoint.X * dpiX;
-            double dpiRootY = rootPoint.Y * dpiY;
-
-            int finalLeft = (int)(dpiRootX + dpiOffsetX);
-            int finalTop = (int)(dpiRootY + dpiOffsetY);
+            // Apply DPI to the final coordinates
+            int finalLeft = (int)((rootPoint.X + offsetX) * dpiX);
+            int finalTop = (int)((rootPoint.Y + offsetY) * dpiY);
             int finalRight = finalLeft + (int)(destW * dpiX);
             int finalBottom = finalTop + (int)(destH * dpiY);
-
-            // Add padding (optional, applied inside the calculated rect?)
-            // Let's keep it tight or add small padding
-            int paddingPixels = (int)(10 * dpiX);
-            // Apply padding by shrinking the box slightly? Or leave as is.
-            // Scaling already fits it inside container.
 
             NativeInterop.DWM_THUMBNAIL_PROPERTIES props = new NativeInterop.DWM_THUMBNAIL_PROPERTIES();
             props.dwFlags = NativeInterop.DWM_TNP_VISIBLE | NativeInterop.DWM_TNP_RECTDESTINATION | NativeInterop.DWM_TNP_OPACITY | NativeInterop.DWM_TNP_SOURCECLIENTAREAONLY;
@@ -176,10 +193,10 @@ namespace SwitchBlade.Services
 
             props.rcDestination = new NativeInterop.Rect
             {
-                Left = finalLeft + paddingPixels,
-                Top = finalTop + paddingPixels,
-                Right = finalRight - paddingPixels,
-                Bottom = finalBottom - paddingPixels
+                Left = finalLeft,
+                Top = finalTop,
+                Right = finalRight,
+                Bottom = finalBottom
             };
 
             NativeInterop.DwmUpdateThumbnailProperties(_currentThumbnail, ref props);

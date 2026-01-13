@@ -84,14 +84,18 @@ Your provider returns `WindowItem` objects:
 ```csharp
 public class WindowItem
 {
-    public IntPtr Hwnd { get; set; }          // Window Handle (if applicable, else IntPtr.Zero)
-    public string Title { get; set; }         // Text shown in search
-    public string ProcessName { get; set; }   // Subtitle / category app name
+    public IntPtr Hwnd { get; set; }            // Window Handle (if applicable, else IntPtr.Zero)
+    public string Title { get; set; }           // Text shown in search
+    public string ProcessName { get; set; }     // Subtitle / category app name
+    public string? ExecutablePath { get; set; } // Full path to exe (enables icon display)
     public IWindowProvider? Source { get; set; } // ALWAYS set this to 'this'
     
-    // ... other properties
+    // ... other properties (Icon is populated automatically by IconService)
 }
 ```
+
+> [!TIP]
+> **Icon Display**: To display application icons for your plugin's items, populate the `ExecutablePath` property with the full path to the executable (e.g., `C:\Program Files\MyApp\app.exe`). Use `NativeInterop.GetProcessInfo(pid)` which returns both the process name and executable path in one efficient call.
 
 ---
 
@@ -229,6 +233,7 @@ public override void ActivateWindow(WindowItem item)
 - **HashSet for Process Lists**: If your plugin tracks multiple target process names, use `HashSet<string>` with `StringComparer.OrdinalIgnoreCase` for O(1) lookups instead of O(n) list searches.
 - **Error Handling**: Wrap your `GetWindows` logic in try/catch blocks. If your plugin throws an exception, it might be logged but won't crash the main app.
 - **Dependencies**: If your plugin relies on other DLLs, ensure they are also copied to the `Plugins` folder or available in the global path.
+- **Icon Support**: Always populate `ExecutablePath` using `NativeInterop.GetProcessInfo(pid)` so that SwitchBlade can display the correct application icon for your items.
 
 ---
 
@@ -364,7 +369,9 @@ NativeInterop.ForceForegroundWindow(hwnd);
 
 Available methods include:
 - `EnumWindows()`, `IsWindowVisible()`, `GetWindowThreadProcessId()`
+- `GetWindowText(hwnd, span, maxCount)` - now uses `Span<char>` for zero-allocation
 - `GetProcessName(pid)` - lightweight process name lookup (avoids `Process` allocation)
+- `GetProcessInfo(pid)` - returns `(string ProcessName, string? ExecutablePath)` tuple for icon support
 - `ForceForegroundWindow()` - robust focus stealing with thread attachment
 - `ShowWindow()`, `BringWindowToTop()`, `SetForegroundWindow()`
 - `IsIconic()`, `GetForegroundWindow()`
@@ -399,6 +406,7 @@ public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
 
 | Version | Key Changes |
 |---------|-------------|
+| 1.5.8   | **Performance & Icons** - `ExecutablePath` on `WindowItem`, `LibraryImport` migration, zero-allocation `Span<char>` interop |
 | 1.5.6   | **Performance** - Native `EnumWindows` for Notepad++, `HashSet<string>` O(1) lookups, `ReaderWriterLockSlim` in caching base class |
 | 1.4.15  | **Notepad++ Plugin** - Lists individual tabs from Notepad++ instances using UI Automation |
 | 1.4.9   | **Windows Terminal Plugin** - Lists individual tabs from Terminal instances using UI Automation |

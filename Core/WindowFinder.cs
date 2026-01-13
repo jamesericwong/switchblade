@@ -84,15 +84,16 @@ namespace SwitchBlade.Core
                     if (match) return true;
                 }
 
-                // Get Process Name (Optimized Interop handles caching and minimal allocations internally)
+                // Get Process Name and Path (Optimized Interop handles caching and minimal allocations internally)
                 string processName = "Window";
+                string? executablePath = null;
                 try
                 {
                     uint pid;
                     NativeInterop.GetWindowThreadProcessId(hwnd, out pid);
                     if (pid != 0)
                     {
-                        processName = NativeInterop.GetProcessName(pid);
+                        (processName, executablePath) = NativeInterop.GetProcessInfo(pid);
                     }
                 }
                 catch
@@ -117,6 +118,7 @@ namespace SwitchBlade.Core
                     Hwnd = hwnd,
                     Title = title,
                     ProcessName = processName,
+                    ExecutablePath = executablePath,
                     Source = this
                 });
 

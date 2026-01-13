@@ -16,6 +16,7 @@
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <core:ShortcutVisibilityConverter x:Key="ShortcutVisibilityConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </Window.Resources>
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="28" ResizeBorderThickness="8" GlassFrameThickness="0" CornerRadius="0" />
@@ -128,8 +129,9 @@
                                                 Margin="0,2,8,2">
                                             <Grid>
                                                  <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>  <!-- Badge -->
+                                                    <ColumnDefinition Width="Auto"/>  <!-- Icon -->
+                                                    <ColumnDefinition Width="*"/>     <!-- Title/Process -->
                                                 </Grid.ColumnDefinitions>
                                                 
                                                 <!-- Number Badge - shows modifier + number (e.g., "Alt + 1") -->
@@ -194,7 +196,15 @@
                                                     </StackPanel>
                                                 </Border>
                                                 
-                                                <StackPanel Grid.Column="1">
+                                                <!-- Application Icon -->
+                                                <Image Grid.Column="1" 
+                                                       Source="{Binding Icon}" 
+                                                       Width="20" Height="20" 
+                                                       Margin="0,0,8,0"
+                                                       VerticalAlignment="Center"
+                                                       Visibility="{Binding DataContext.ShowIcons, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource BoolToVisibility}}"/>
+                                                
+                                                <StackPanel Grid.Column="2">
                                                     <TextBlock Text="{Binding Title}" Foreground="{DynamicResource ForegroundBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding ProcessName}" Foreground="{DynamicResource BorderBrush}" FontSize="12" Opacity="0.7"/>
                                                 </StackPanel>

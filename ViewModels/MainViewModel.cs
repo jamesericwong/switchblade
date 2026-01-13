@@ -19,6 +19,7 @@ namespace SwitchBlade.ViewModels
         private readonly List<IWindowProvider> _windowProviders;
         private readonly ISettingsService? _settingsService;
         private readonly IDispatcherService _dispatcherService;
+        private readonly IIconService? _iconService;
         private ObservableCollection<WindowItem> _allWindows = new ObservableCollection<WindowItem>();
         private ObservableCollection<WindowItem> _filteredWindows = new ObservableCollection<WindowItem>();
         private WindowItem? _selectedWindow;
@@ -40,11 +41,12 @@ namespace SwitchBlade.ViewModels
         /// <summary>Gets the list of window providers for this ViewModel.</summary>
         public IReadOnlyList<IWindowProvider> WindowProviders => _windowProviders;
 
-        public MainViewModel(IEnumerable<IWindowProvider> windowProviders, ISettingsService? settingsService = null, IDispatcherService? dispatcherService = null)
+        public MainViewModel(IEnumerable<IWindowProvider> windowProviders, ISettingsService? settingsService = null, IDispatcherService? dispatcherService = null, IIconService? iconService = null)
         {
             _windowProviders = windowProviders.ToList();
             _settingsService = settingsService;
             _dispatcherService = dispatcherService ?? new WpfDispatcherService();
+            _iconService = iconService;
             _filteredWindows = new ObservableCollection<WindowItem>();
 
             // Cache for preserving WindowItem state (e.g. HasBeenAnimated) across filter operations
@@ -68,6 +70,7 @@ namespace SwitchBlade.ViewModels
                 }
                 EnablePreviews = _settingsService.Settings.EnablePreviews;
                 OnPropertyChanged(nameof(ShowInTaskbar));
+                OnPropertyChanged(nameof(ShowIcons));
                 OnPropertyChanged(nameof(EnableNumberShortcuts));
                 OnPropertyChanged(nameof(ShortcutModifierText));
                 OnPropertyChanged(nameof(ItemHeight));
@@ -103,6 +106,11 @@ namespace SwitchBlade.ViewModels
         public bool ShowInTaskbar
         {
             get => !_settingsService?.Settings.HideTaskbarIcon ?? true;
+        }
+
+        public bool ShowIcons
+        {
+            get => _settingsService?.Settings.ShowIcons ?? true;
         }
 
         public ObservableCollection<WindowItem> FilteredWindows
@@ -250,10 +258,19 @@ namespace SwitchBlade.ViewModels
                                    existing = existingItems.FirstOrDefault(e => e.Hwnd == incoming.Hwnd);
                                }
 
-                               if (existing != null && existing.Title != incoming.Title)
+                               if (existing != null)
                                {
-                                   existing.Title = incoming.Title;
-                                   anyTitleChanged = true;
+                                   if (existing.Title != incoming.Title)
+                                   {
+                                       existing.Title = incoming.Title;
+                                       anyTitleChanged = true;
+                                   }
+
+                                   // Populate icon if missing
+                                   if (existing.Icon == null && _iconService != null && !string.IsNullOrEmpty(incoming.ExecutablePath))
+                                   {
+                                       existing.Icon = _iconService.GetIcon(incoming.ExecutablePath);
+                                   }
                                }
                            }
 
@@ -527,6 +544,12 @@ namespace SwitchBlade.ViewModels
                         match.Source = provider;
                     }
 
+                    // Populate icon if missing (e.g., cached item from before IconService was available)
+                    if (match.Icon == null && _iconService != null && !string.IsNullOrEmpty(incoming.ExecutablePath))
+                    {
+                        match.Icon = _iconService.GetIcon(incoming.ExecutablePath);
+                    }
+
                     resolvedItems.Add(match);
                     claimedItems.Add(match);
                     unusedCacheItems.Remove(match); // Mark as used
@@ -536,6 +559,12 @@ namespace SwitchBlade.ViewModels
                     // New Item. Reset state.
                     incoming.ResetBadgeAnimation();
                     incoming.Source = provider;
+
+                    // Populate icon from executable path
+                    if (_iconService != null && !string.IsNullOrEmpty(incoming.ExecutablePath))
+                    {
+                        incoming.Icon = _iconService.GetIcon(incoming.ExecutablePath);
+                    }
 
                     // Add to cache
                     if (!_windowItemCache.TryGetValue(incoming.Hwnd, out var list))

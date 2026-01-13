@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Windows.Automation;
 using System.Windows.Interop;
 using SwitchBlade.Contracts;
@@ -98,64 +96,67 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             var results = new List<WindowItem>();
 
             var targetProcessNames = new HashSet<string>(_terminalProcesses, StringComparer.OrdinalIgnoreCase);
+            if (targetProcessNames.Count == 0) return results;
 
-            Process[] processes;
-            try
+            // Use native EnumWindows + GetProcessInfo for efficiency (same pattern as other plugins)
+            NativeInterop.EnumWindows((hwnd, lParam) =>
             {
-                processes = targetProcessNames.SelectMany(name => Process.GetProcessesByName(name)).ToArray();
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError($"{PluginName}: Failed to get processes", ex);
-                return results;
-            }
+                // Check visibility first for speed
+                if (!NativeInterop.IsWindowVisible(hwnd)) return true;
 
-            foreach (var process in processes)
-            {
-                try
+                NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
+                var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
+
+                // O(1) HashSet lookup
+                if (targetProcessNames.Contains(procName))
                 {
-                    var hwnd = process.MainWindowHandle;
-                    if (hwnd == IntPtr.Zero) continue;
-
-                    string windowTitle = process.MainWindowTitle;
-                    if (string.IsNullOrEmpty(windowTitle)) continue;
-
-                    var tabs = ScanForTabs(hwnd);
-
-                    if (tabs.Count > 0)
-                    {
-                        _logger?.Log($"{PluginName}: Found {tabs.Count} tabs in PID {process.Id}");
-                        foreach (var tabName in tabs)
-                        {
-                            results.Add(new WindowItem
-                            {
-                                Hwnd = hwnd,
-                                Title = tabName,
-                                ProcessName = process.ProcessName,
-                                Source = this
-                            });
-                        }
-                    }
-                    else
-                    {
-                        // Fallback: return main window if no tabs found
-                        _logger?.Log($"{PluginName}: No tabs found for PID {process.Id}, returning main window");
-                        results.Add(new WindowItem
-                        {
-                            Hwnd = hwnd,
-                            Title = windowTitle,
-                            ProcessName = process.ProcessName,
-                            Source = this
-                        });
-                    }
+                    ScanWindow(hwnd, (int)pid, procName, execPath, results);
                 }
-                catch (Exception ex)
-                {
-                    _logger?.LogError($"{PluginName}: Error scanning process {process.Id}", ex);
-                }
-            }
+
+                return true; // Continue enumeration
+            }, IntPtr.Zero);
 
             return results;
+        }
+
+        private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, List<WindowItem> results)
+        {
+            // Get window title via native API
+            Span<char> buffer = stackalloc char[512];
+            int length = NativeInterop.GetWindowText(hwnd, buffer, buffer.Length);
+            string windowTitle = length > 0 ? new string(buffer[..length]) : "";
+            if (string.IsNullOrEmpty(windowTitle)) return;
+
+            var tabs = ScanForTabs(hwnd);
+
+            if (tabs.Count > 0)
+            {
+                _logger?.Log($"{PluginName}: Found {tabs.Count} tabs in PID {pid}");
+                foreach (var tabName in tabs)
+                {
+                    results.Add(new WindowItem
+                    {
+                        Hwnd = hwnd,
+                        Title = tabName,
+                        ProcessName = processName,
+                        ExecutablePath = executablePath,
+                        Source = this
+                    });
+                }
+            }
+            else
+            {
+                // Fallback: return main window if no tabs found
+                _logger?.Log($"{PluginName}: No tabs found for PID {pid}, returning main window");
+                results.Add(new WindowItem
+                {
+                    Hwnd = hwnd,
+                    Title = windowTitle,
+                    ProcessName = processName,
+                    ExecutablePath = executablePath,
+                    Source = this
+                });
+            }
         }
 
         private List<string> ScanForTabs(IntPtr hwnd)

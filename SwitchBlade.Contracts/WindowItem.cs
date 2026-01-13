@@ -36,6 +36,18 @@ namespace SwitchBlade.Contracts
 
         public string ProcessName { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Full path to the executable (used for icon caching by distinct path).
+        /// </summary>
+        public string? ExecutablePath { get; set; }
+
+        /// <summary>
+        /// Application icon extracted from the executable.
+        /// Type is object to avoid WPF dependency in contracts library.
+        /// Uses ImageSource at runtime in WPF context.
+        /// </summary>
+        public object? Icon { get; set; }
+
         public IWindowProvider? Source { get; set; }
 
         public override string ToString()

@@ -118,13 +118,13 @@ namespace SwitchBlade.Plugins.Chrome
                 if (!NativeInterop.IsWindowVisible(hwnd)) return true;
 
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
-                string procName = NativeInterop.GetProcessName(pid);
+                var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
 
                 // O(1) HashSet lookup (comparer set at construction)
                 if (_browserProcesses.Contains(procName))
                 {
                     // Found a visible window belonging to one of our target browsers
-                    ScanWindow(hwnd, (int)pid, walker, results);
+                    ScanWindow(hwnd, (int)pid, procName, execPath, walker, results);
                 }
 
                 return true; // Continue enumeration
@@ -133,7 +133,7 @@ namespace SwitchBlade.Plugins.Chrome
             return results;
         }
 
-        private void ScanWindow(IntPtr hwnd, int pid, TreeWalker walker, List<WindowItem> results)
+        private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, TreeWalker walker, List<WindowItem> results)
         {
             AutomationElement? root = null;
             try
@@ -143,9 +143,6 @@ namespace SwitchBlade.Plugins.Chrome
             catch { return; }
 
             if (root == null) return;
-
-            // Get Process Name for the result item (expensive? maybe just cache it or look it up)
-            string processName = NativeInterop.GetProcessName((uint)pid);
 
             _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
 
@@ -164,6 +161,7 @@ namespace SwitchBlade.Plugins.Chrome
                         Hwnd = hwnd,
                         Title = title,
                         ProcessName = processName,
+                        ExecutablePath = executablePath,
                         Source = this
                     });
                 }
@@ -178,6 +176,7 @@ namespace SwitchBlade.Plugins.Chrome
                         Hwnd = hwnd,
                         Title = tab,
                         ProcessName = processName,
+                        ExecutablePath = executablePath,
                         Source = this
                     });
                 }

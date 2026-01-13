@@ -101,7 +101,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             var walker = TreeWalker.RawViewWalker;
             _logger?.Log($"{PluginName}: --- Scan started at {DateTime.Now} ---");
 
-            // Use native EnumWindows + cached GetProcessName for efficiency
+            // Use native EnumWindows + cached GetProcessInfo for efficiency
             // This replaces the expensive Process.GetProcessesByName() approach
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
@@ -109,12 +109,12 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                 if (!NativeInterop.IsWindowVisible(hwnd)) return true;
 
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
-                string procName = NativeInterop.GetProcessName(pid); // Already cached!
+                var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
 
                 // O(1) HashSet lookup instead of O(n) list search
                 if (_nppProcesses.Contains(procName))
                 {
-                    ScanWindow(hwnd, (int)pid, procName, walker, results);
+                    ScanWindow(hwnd, (int)pid, procName, execPath, walker, results);
                 }
 
                 return true; // Continue enumeration
@@ -123,7 +123,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             return results;
         }
 
-        private void ScanWindow(IntPtr hwnd, int pid, string processName, TreeWalker walker, List<WindowItem> results)
+        private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, TreeWalker walker, List<WindowItem> results)
         {
             var tabs = ScanForTabs(hwnd);
 
@@ -137,6 +137,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                         Hwnd = hwnd,
                         Title = tabName,
                         ProcessName = processName,
+                        ExecutablePath = executablePath,
                         Source = this
                     });
                 }
@@ -145,9 +146,9 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             {
                 // Fallback: return main window if no tabs found
                 // Get window title via native API for consistency
-                char[] buffer = new char[512];
+                Span<char> buffer = stackalloc char[512];
                 int length = NativeInterop.GetWindowText(hwnd, buffer, buffer.Length);
-                string windowTitle = length > 0 ? new string(buffer, 0, length) : "";
+                string windowTitle = length > 0 ? new string(buffer[..length]) : "";
 
                 if (!string.IsNullOrEmpty(windowTitle))
                 {
@@ -157,6 +158,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                         Hwnd = hwnd,
                         Title = windowTitle,
                         ProcessName = processName,
+                        ExecutablePath = executablePath,
                         Source = this
                     });
                 }
