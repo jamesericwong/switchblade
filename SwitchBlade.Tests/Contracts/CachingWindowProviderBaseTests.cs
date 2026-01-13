@@ -230,7 +230,7 @@ namespace SwitchBlade.Tests.Contracts
         }
 
         [Fact]
-        public async Task GetWindows_ConcurrentReads_AllReturnValidResults()
+        public void GetWindows_ConcurrentReads_AllReturnValidResults()
         {
             // Arrange - Tests that multiple GetWindows calls when scan is NOT running all trigger scans
             var expectedItems = new List<WindowItem>
