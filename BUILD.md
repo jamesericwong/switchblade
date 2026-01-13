@@ -48,6 +48,32 @@ To build and publish the main application as a self-contained unit:
 dotnet publish SwitchBlade.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false
 ```
 
+## Manual High-Performance (R2R) Deployment
+
+For computers where an MSI cannot be run, you can create a high-performance, self-contained binary using ReadyToRun (R2R) compilation.
+
+### 1. Build the R2R Package
+Run the following command from the project root:
+
+```powershell
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+**Key Parameters:**
+- `-r win-x64`: Targets 64-bit Windows.
+- `--self-contained true`: Bundles the .NET runtime (app runs without .NET installed).
+- `-p:PublishReadyToRun=true`: Enables AOT-style native compilation for instant startup.
+- `-p:PublishSingleFile=true`: Merges the app and runtime into a single executable.
+
+### 2. Locate Published Files
+The artifacts will be generated in:
+`bin\Release\net9.0-windows\win-x64\publish\`
+
+### 3. Manual Installation
+1.  **Copy Files**: Copy the entire contents of the `publish` folder to the target machine (e.g., `C:\Tools\SwitchBlade`).
+2.  **Verify Plugins**: Ensure the `Plugins` subfolder is present and contains the plugin DLLs. The build system automatically copies these during the `publish` command.
+3.  **Run**: Execute `SwitchBlade.exe`.
+
 ## Building the Installer
 
 The installer project (`SwitchBlade.Installer.wixproj`) is configured to automatically publish the main application before building the MSI.
