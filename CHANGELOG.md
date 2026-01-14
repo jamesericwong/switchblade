@@ -1,3 +1,9 @@
+## [1.5.10] - 2026-01-13
+### Changed
+- **Refined Super Light Theme**: Updated the "Super Light" theme to be even lighter and more minimal.
+  - **Control Background**: Changed from Off-White (`#F8F8F8`) to Pure White (`#FFFFFF`).
+  - **Borders**: Lightened from `#E5E5E5` to `#F0F0F0` for a subtle, flat aesthetic.
+
 ## [1.5.9] - 2026-01-13
 ### Fixed
 - **R2R Build Instructions**: Fixed the `dotnet publish` command in documentation to correctly target the project file instead of the solution, preventing single-file publish errors.

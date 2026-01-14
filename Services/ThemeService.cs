@@ -45,7 +45,7 @@ namespace SwitchBlade.Services
                 // Light (Clean)
                 CreateTheme("Light", "#F5F5F5", "#FFFFFF", "#333333", "#E0E0E0"),
                 // Super Light (Pure White)
-                CreateTheme("Super Light", "#FFFFFF", "#F8F8F8", "#111111", "#E5E5E5"),
+                CreateTheme("Super Light", "#FFFFFF", "#FFFFFF", "#111111", "#F0F0F0"),
             };
         }
 
