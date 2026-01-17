@@ -187,5 +187,20 @@ namespace SwitchBlade.Tests.ViewModels
 
             Assert.Null(exception);
         }
+        [Fact]
+        public void MoveSelectionToFirst_WithItems_SelectsFirstItem()
+        {
+            var item1 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "1", ProcessName = "exe", Source = null };
+            var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
+            // MainViewModel constructor expects IEnumerable<IWindowProvider>
+            var vm = new MainViewModel(System.Linq.Enumerable.Empty<IWindowProvider>());
+
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
+            vm.SelectedWindow = item2;
+
+            vm.MoveSelectionToFirst();
+
+            Assert.Equal(item1, vm.SelectedWindow);
+        }
     }
 }

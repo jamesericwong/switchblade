@@ -198,7 +198,7 @@ namespace SwitchBlade
                 await Task.Delay(50);
                 if (_viewModel.FilteredWindows.Count > 0)
                 {
-                    ResultsConfig.ScrollIntoView(_viewModel.FilteredWindows[0]);
+                    _viewModel.MoveSelectionToFirst();
                 }
             });
         }
@@ -294,7 +294,7 @@ namespace SwitchBlade
                 await Task.Delay(50);
                 if (_viewModel.FilteredWindows.Count > 0)
                 {
-                    ResultsConfig.ScrollIntoView(_viewModel.FilteredWindows[0]);
+                    _viewModel.MoveSelectionToFirst();
                 }
             });
         }

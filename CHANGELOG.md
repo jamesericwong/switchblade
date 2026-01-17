@@ -1,3 +1,11 @@
+## [1.6.1] - 2026-01-16
+### Fixed
+- **Startup Scroll Position**: Fixed a bug where the window list would sometimes start scrolled to the middle instead of the top when opening the application.
+  - Reset the selection logic to explicitly select the first item on startup and force-open, ensuring the view scrolls to the top.
+- **Installer Build Stability**: Fixed a build failure (`WIX0103`) when switching between standard and ReadyToRun builds.
+  - Added automatic cleanup of the publish directory before building the installer to prevent harvesting stale debug files.
+  - Corrected build target ordering to ensure the application is re-published before the installer harvesting phase begins.
+
 ## [1.6.0] - 2026-01-16
 ### Added
 - **Fuzzy Search**: SwitchBlade now uses intelligent fuzzy matching for window searches.

@@ -21,8 +21,10 @@
       <PreprocessorVariable>var.PublishDir</PreprocessorVariable>
     </HarvestDirectory>
   </ItemGroup>
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+  <Target Name="PreBuild" BeforeTargets="BeforeBuild;CollectHarvestItems">
+    <!-- Clean the publish directory to prevent harvesting stale files -->
+    <RemoveDir Directories="$(PublishDir)" />
     <Exec Condition="'$(PublishR2R)' != 'true'" Command="dotnet publish ..\SwitchBlade.csproj -c Release -r win-x64 -p:PublishSingleFile=false --self-contained true" />
-    <Exec Condition="'$(PublishR2R)' == 'true'" Command="dotnet publish ..\SwitchBlade.csproj -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true" />
+    <Exec Condition="'$(PublishR2R)' == 'true'" Command="dotnet publish ..\SwitchBlade.csproj -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none" />
   </Target>
 </Project>
