@@ -207,8 +207,6 @@ For information on how to build the project and create plugins, please refer to 
 
 - [Build Instructions](BUILD.md): Detailed steps for setting up your environment, building SwitchBlade, and running unit tests.
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
-- [Build Instructions](BUILD.md): Detailed steps for setting up your environment, building SwitchBlade, and running unit tests.
-- [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:
