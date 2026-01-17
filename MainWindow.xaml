@@ -11,7 +11,7 @@
         AllowsTransparency="False"
         Background="Transparent"
         ResizeMode="CanResize"
-        Icon="/icon.png"
+        Icon="/Resources/icon.png"
         ShowInTaskbar="{Binding ShowInTaskbar}"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>

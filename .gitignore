@@ -58,3 +58,7 @@ $RECYCLE.BIN/
 *.wixpdb
 *.msi
 .wix/
+
+# Generated Reports
+*.html
+*.pdf

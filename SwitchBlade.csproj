@@ -3,13 +3,13 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
-    <Version>1.6.1</Version>
+    <Version>1.6.2</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
     <StartupObject>SwitchBlade.Program</StartupObject>
     <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Plugins.NotepadPlusPlus\**;SwitchBlade.Tests\**</DefaultItemExcludes>
@@ -24,7 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="icon.png" />
+    <Resource Include="Resources\icon.png" />
     <Resource Include="Resources/search_icon.png" />
     <ApplicationDefinition Include="App.xaml" />
   </ItemGroup>

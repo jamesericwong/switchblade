@@ -24,10 +24,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
 
         private void AddButton_Click(object sender, RoutedEventArgs e)
         {
-            var processName = NewProcessTextBox.Text.Trim();
-            if (!string.IsNullOrEmpty(processName) && !_processes.Contains(processName))
+            var sanitized = SanitizationUtils.SanitizeProcessName(NewProcessTextBox.Text);
+            if (!string.IsNullOrEmpty(sanitized) && !_processes.Contains(sanitized))
             {
-                _processes.Add(processName);
+                _processes.Add(sanitized);
                 NewProcessTextBox.Clear();
             }
         }

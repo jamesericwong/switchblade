@@ -1,3 +1,11 @@
+## [1.6.2] - 2026-01-16
+### Added
+- Centralized `SanitizationUtils` in `SwitchBlade.Contracts` for consistent input handling.
+- Input sanitization for "Excluded Processes" in global settings.
+- Input sanitization for "Browser Processes" in Chrome plugin.
+- Input sanitization for "Handled Processes" in Notepad++ and Windows Terminal plugins.
+- Comprehensive unit tests for process name sanitization.
+
 ## [1.6.1] - 2026-01-16
 ### Fixed
 - **Startup Scroll Position**: Fixed a bug where the window list would sometimes start scrolled to the middle instead of the top when opening the application.

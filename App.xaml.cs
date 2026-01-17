@@ -154,7 +154,7 @@ public partial class App : Application
         try
         {
             // Load from Embedded Resource
-            var uri = new Uri("pack://application:,,,/icon.png");
+            var uri = new Uri("pack://application:,,,/Resources/icon.png");
             var streamInfo = System.Windows.Application.GetResourceStream(uri);
             if (streamInfo != null)
             {

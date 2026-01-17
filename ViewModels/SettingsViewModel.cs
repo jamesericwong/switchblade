@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using SwitchBlade.Services;
 using SwitchBlade.Core;
+using SwitchBlade.Contracts;
 
 namespace SwitchBlade.ViewModels
 {
@@ -393,10 +394,11 @@ namespace SwitchBlade.ViewModels
 
         private void AddExcludedProcess()
         {
-            if (!ExcludedProcesses.Contains(NewExcludedProcessName))
+            var sanitized = SanitizationUtils.SanitizeProcessName(NewExcludedProcessName);
+            if (!string.IsNullOrEmpty(sanitized) && !ExcludedProcesses.Contains(sanitized))
             {
-                ExcludedProcesses.Add(NewExcludedProcessName);
-                _settingsService.Settings.ExcludedProcesses.Add(NewExcludedProcessName);
+                ExcludedProcesses.Add(sanitized);
+                _settingsService.Settings.ExcludedProcesses.Add(sanitized);
                 _settingsService.SaveSettings();
                 NewExcludedProcessName = "";
             }
