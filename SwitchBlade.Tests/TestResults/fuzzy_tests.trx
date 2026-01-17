@@ -1,0 +1,245 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="51c77a1d-6203-4a20-b0df-b662ffdc1d91" name="user@NODE002 2026-01-16 21:00:03" runUser="node002\user" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-01-16T21:00:03.6062892-05:00" queuing="2026-01-16T21:00:03.6062892-05:00" start="2026-01-16T21:00:03.2666743-05:00" finish="2026-01-16T21:00:03.6272672-05:00" />
+  <TestSettings name="default" id="8df7d6a8-a2d4-453c-990e-a46db81ef1e9">
+    <Deployment runDeploymentRoot="user_NODE002_2026-01-16_21_00_03" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="a8043cee-c004-4067-88b6-cb4d69f30329" testId="92459175-ceeb-08d6-050a-d3284b2579e2" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_SpaceMatchesUnderscore_ReturnsPositive" computerName="NODE002" duration="00:00:00.0000111" startTime="2026-01-16T21:00:03.5885221-05:00" endTime="2026-01-16T21:00:03.5885221-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a8043cee-c004-4067-88b6-cb4d69f30329" />
+    <UnitTestResult executionId="4c842d8c-21f9-4b02-a294-6031dc7abff3" testId="b6e578a9-6bda-0cd9-e492-aeb28b2ae47e" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_DashMatchesSpace_ReturnsPositive" computerName="NODE002" duration="00:00:00.0000102" startTime="2026-01-16T21:00:03.5887906-05:00" endTime="2026-01-16T21:00:03.5887906-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4c842d8c-21f9-4b02-a294-6031dc7abff3" />
+    <UnitTestResult executionId="c442b36b-34cb-4f01-8c1f-b6799d29a28d" testId="6ba1ceb3-d8e4-b94e-b597-b80e9a41d3a1" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.IsMatch_ReturnsFalse_WhenNoMatch" computerName="NODE002" duration="00:00:00.0000694" startTime="2026-01-16T21:00:03.5879243-05:00" endTime="2026-01-16T21:00:03.5879243-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c442b36b-34cb-4f01-8c1f-b6799d29a28d" />
+    <UnitTestResult executionId="65bfa117-64e6-41d0-ae3f-0f35db7a5192" testId="660f5afa-1698-7bfa-bb91-78c4c70f1b40" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_NonContiguous" computerName="NODE002" duration="00:00:00.0000134" startTime="2026-01-16T21:00:03.5878283-05:00" endTime="2026-01-16T21:00:03.5878283-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="65bfa117-64e6-41d0-ae3f-0f35db7a5192" />
+    <UnitTestResult executionId="85bef923-4f4d-4a9c-9cc1-9adc6e901584" testId="d545f0fb-e763-2d1a-455a-3057474f6748" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_NullQuery_ReturnsZero" computerName="NODE002" duration="00:00:00.0000490" startTime="2026-01-16T21:00:03.5690478-05:00" endTime="2026-01-16T21:00:03.5690479-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="85bef923-4f4d-4a9c-9cc1-9adc6e901584" />
+    <UnitTestResult executionId="57e28f3f-8a57-48c7-b347-42779bcf82bd" testId="23f0a555-9a60-96eb-b456-20db76389d8e" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_SingleCharacterTitle_Works" computerName="NODE002" duration="00:00:00.0000101" startTime="2026-01-16T21:00:03.5885448-05:00" endTime="2026-01-16T21:00:03.5885449-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="57e28f3f-8a57-48c7-b347-42779bcf82bd" />
+    <UnitTestResult executionId="6f8e2b65-760d-4264-b662-5bb12c74e788" testId="7d00fa06-d3e3-7fa4-67cc-a56344f798f7" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.IsMatch_ReturnsTrue_WhenScorePositive" computerName="NODE002" duration="00:00:00.0000218" startTime="2026-01-16T21:00:03.5879717-05:00" endTime="2026-01-16T21:00:03.5879717-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6f8e2b65-760d-4264-b662-5bb12c74e788" />
+    <UnitTestResult executionId="023f172e-1b3c-45a2-8995-a809c6414104" testId="c270538e-a001-0933-571a-666f89770b8d" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_CodeFile_PartialMatch" computerName="NODE002" duration="00:00:00.0000099" startTime="2026-01-16T21:00:03.5888837-05:00" endTime="2026-01-16T21:00:03.5888838-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="023f172e-1b3c-45a2-8995-a809c6414104" />
+    <UnitTestResult executionId="171b146e-df4b-48c2-bdd8-93f92750ac3e" testId="5d6c8c15-5d30-0477-7dca-bee3fcba4408" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_ExactMatchHighestScore" computerName="NODE002" duration="00:00:00.0018222" startTime="2026-01-16T21:00:03.5671419-05:00" endTime="2026-01-16T21:00:03.5671499-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="171b146e-df4b-48c2-bdd8-93f92750ac3e" />
+    <UnitTestResult executionId="09829eff-d4b5-4216-a0e3-dbc5a0bfe40f" testId="3b30419f-56e5-cedb-6f25-3c4777877fe3" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_MixedDelimiters_ReturnsPositive" computerName="NODE002" duration="00:00:00.0000393" startTime="2026-01-16T21:00:03.5688360-05:00" endTime="2026-01-16T21:00:03.5688360-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="09829eff-d4b5-4216-a0e3-dbc5a0bfe40f" />
+    <UnitTestResult executionId="239f7098-77d2-48d6-8210-b7cff31700ae" testId="1b33d4d3-5168-218a-a48d-09356c59c7e6" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_CaseInsensitive_MixedCase" computerName="NODE002" duration="00:00:00.0000164" startTime="2026-01-16T21:00:03.5884214-05:00" endTime="2026-01-16T21:00:03.5884214-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="239f7098-77d2-48d6-8210-b7cff31700ae" />
+    <UnitTestResult executionId="8ae9a302-287f-495f-87ba-4443d9c27298" testId="1f10dc7f-0b6f-d076-bb48-9552cd05e9dd" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_NoMatch_ReturnsZero" computerName="NODE002" duration="00:00:00.0015663" startTime="2026-01-16T21:00:03.5690228-05:00" endTime="2026-01-16T21:00:03.5690228-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8ae9a302-287f-495f-87ba-4443d9c27298" />
+    <UnitTestResult executionId="c8893a6c-69d0-4edf-8b94-7460b6daf6d3" testId="99d61432-88c5-b37e-d2fa-46aad81850fe" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_BrowserTab_PartialMatch" computerName="NODE002" duration="00:00:00.0000109" startTime="2026-01-16T21:00:03.5888142-05:00" endTime="2026-01-16T21:00:03.5888142-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c8893a6c-69d0-4edf-8b94-7460b6daf6d3" />
+    <UnitTestResult executionId="2bda4251-619b-4701-870f-7846b3ba5bf5" testId="fbacb38d-9a90-f43c-1a93-c0ba337cb351" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_OrderMatters" computerName="NODE002" duration="00:00:00.0004333" startTime="2026-01-16T21:00:03.5746077-05:00" endTime="2026-01-16T21:00:03.5746078-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2bda4251-619b-4701-870f-7846b3ba5bf5">
+      <Output>
+        <ErrorInfo>
+          <Message>Subsequence should match in order</Message>
+          <StackTrace>   at SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_OrderMatters() in D:\dev\switchblade\SwitchBlade.Tests\Core\FuzzyMatcherTests.cs:line 154&#xD;
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="70a19a5b-55db-4ebc-93c8-626632cf3e8c" testId="6e6062ab-0076-e194-7751-7345ec92a3b4" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Terminal_PartialMatch" computerName="NODE002" duration="00:00:00.0000132" startTime="2026-01-16T21:00:03.5878769-05:00" endTime="2026-01-16T21:00:03.5878769-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="70a19a5b-55db-4ebc-93c8-626632cf3e8c" />
+    <UnitTestResult executionId="7c69f276-fe6b-439d-acd8-6ff982f97edd" testId="bf7c8539-61d6-2275-a4a3-0321f858c087" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_CaseInsensitive_UpperToLower" computerName="NODE002" duration="00:00:00.0000108" startTime="2026-01-16T21:00:03.5884760-05:00" endTime="2026-01-16T21:00:03.5884761-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7c69f276-fe6b-439d-acd8-6ff982f97edd" />
+    <UnitTestResult executionId="58afe224-d62d-40f5-86f7-67531e6afaf2" testId="5b000f4e-fc1e-76c4-6732-4324a627fa69" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_WindowsExplorer_Path" computerName="NODE002" duration="00:00:00.0000110" startTime="2026-01-16T21:00:03.5888614-05:00" endTime="2026-01-16T21:00:03.5888614-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="58afe224-d62d-40f5-86f7-67531e6afaf2" />
+    <UnitTestResult executionId="db1d1bdb-6257-4bde-88dd-64b6ef99f09e" testId="aad25571-2fb2-7875-b81a-ceaacfd9c05b" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_UnicodeCharacters_Handled" computerName="NODE002" duration="00:00:00.0000486" startTime="2026-01-16T21:00:03.5746862-05:00" endTime="2026-01-16T21:00:03.5746863-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="db1d1bdb-6257-4bde-88dd-64b6ef99f09e" />
+    <UnitTestResult executionId="d47975dd-6593-42f0-a0c8-510d92b593cf" testId="a4af8203-4cba-bded-e4fa-706de929378c" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_ShortQuery" computerName="NODE002" duration="00:00:00.0000150" startTime="2026-01-16T21:00:03.5879474-05:00" endTime="2026-01-16T21:00:03.5879475-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d47975dd-6593-42f0-a0c8-510d92b593cf" />
+    <UnitTestResult executionId="5ca1680f-9d36-4bfe-ba3c-69b61a7e2ff1" testId="c80a19ff-d53a-80a0-3899-a1ec26deffa9" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_SpecialCharacters_Handled" computerName="NODE002" duration="00:00:00.0000127" startTime="2026-01-16T21:00:03.5691020-05:00" endTime="2026-01-16T21:00:03.5691021-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5ca1680f-9d36-4bfe-ba3c-69b61a7e2ff1" />
+    <UnitTestResult executionId="a47b566b-1fc5-4aac-b444-2a9728cf5677" testId="4feae5f8-7369-e5ea-17b9-e76a3898b7b7" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_StartsWithHigherThanContains" computerName="NODE002" duration="00:00:00.0000200" startTime="2026-01-16T21:00:03.5691323-05:00" endTime="2026-01-16T21:00:03.5691323-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a47b566b-1fc5-4aac-b444-2a9728cf5677" />
+    <UnitTestResult executionId="f7c8257d-a7e5-44ef-afc4-e423c9c492c5" testId="07a822d6-9870-f62f-df9e-24451daa5e60" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_EmptyTitle_ReturnsZero" computerName="NODE002" duration="00:00:00.0000120" startTime="2026-01-16T21:00:03.5888381-05:00" endTime="2026-01-16T21:00:03.5888382-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f7c8257d-a7e5-44ef-afc4-e423c9c492c5" />
+    <UnitTestResult executionId="2c6e2bda-0f82-48ac-a79f-b18efe3bd4a5" testId="3053a398-9dc0-a022-b1b0-a4df19b14b5f" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_CaseInsensitive_LowerToUpper" computerName="NODE002" duration="00:00:00.0000141" startTime="2026-01-16T21:00:03.5886136-05:00" endTime="2026-01-16T21:00:03.5886136-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2c6e2bda-0f82-48ac-a79f-b18efe3bd4a5" />
+    <UnitTestResult executionId="e08c3ef5-cd1e-42eb-bc51-f11c5404132e" testId="6e902724-85b3-7da6-b1d8-a00f53b80e2d" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_VsCode_WindowTitle" computerName="NODE002" duration="00:00:00.0000152" startTime="2026-01-16T21:00:03.5879012-05:00" endTime="2026-01-16T21:00:03.5879012-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e08c3ef5-cd1e-42eb-bc51-f11c5404132e" />
+    <UnitTestResult executionId="b5bd3857-f502-416a-a8d9-f0891f8fbec1" testId="ca36519d-9696-aa93-e7d6-41d0668776c7" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_AllCharactersRequired" computerName="NODE002" duration="00:00:00.0000290" startTime="2026-01-16T21:00:03.5877364-05:00" endTime="2026-01-16T21:00:03.5877364-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b5bd3857-f502-416a-a8d9-f0891f8fbec1" />
+    <UnitTestResult executionId="7c476f51-b711-4236-80ba-fff89fa1dcf0" testId="6e9dd6de-f2e7-12fd-4453-f4bdbe37ca46" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_DashMatchesUnderscore_ReturnsPositive" computerName="NODE002" duration="00:00:00.0000224" startTime="2026-01-16T21:00:03.5690727-05:00" endTime="2026-01-16T21:00:03.5690727-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7c476f51-b711-4236-80ba-fff89fa1dcf0" />
+    <UnitTestResult executionId="259ec160-d2b1-46e0-8516-82c80d7ea86d" testId="4c69de62-7011-1493-1cbe-f4aa513615c8" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_SingleCharacterQuery_Works" computerName="NODE002" duration="00:00:00.0000193" startTime="2026-01-16T21:00:03.5884521-05:00" endTime="2026-01-16T21:00:03.5884521-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="259ec160-d2b1-46e0-8516-82c80d7ea86d" />
+    <UnitTestResult executionId="cd981380-a105-4f1b-ac31-fb26a5bd422d" testId="e2a26f3b-f405-a5b5-480a-a63962eec672" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_UnderscoreMatchesSpace_ReturnsPositive" computerName="NODE002" duration="00:00:00.0000096" startTime="2026-01-16T21:00:03.5885686-05:00" endTime="2026-01-16T21:00:03.5885686-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cd981380-a105-4f1b-ac31-fb26a5bd422d" />
+    <UnitTestResult executionId="f21f3d6c-baad-48ba-960a-dc94dd230c45" testId="c4456527-84e5-10fa-d5c7-6b05c891d7d8" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_NullTitle_ReturnsZero" computerName="NODE002" duration="00:00:00.0000133" startTime="2026-01-16T21:00:03.5884991-05:00" endTime="2026-01-16T21:00:03.5884991-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f21f3d6c-baad-48ba-960a-dc94dd230c45" />
+    <UnitTestResult executionId="4fa892f6-25a9-4832-bd5f-0561b3f86ccc" testId="c338f78e-651b-d82f-960d-1c2fca8c6ae3" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_EmptyQuery_ReturnsZero" computerName="NODE002" duration="00:00:00.0000223" startTime="2026-01-16T21:00:03.5879960-05:00" endTime="2026-01-16T21:00:03.5879960-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4fa892f6-25a9-4832-bd5f-0561b3f86ccc" />
+    <UnitTestResult executionId="675edb33-672e-4765-83b4-8548993da826" testId="e497e4e2-1eef-b95a-ff78-f0e17ab6ae3f" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_ContiguousHigherThanNonContiguous" computerName="NODE002" duration="00:00:00.0000163" startTime="2026-01-16T21:00:03.5885915-05:00" endTime="2026-01-16T21:00:03.5885915-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="675edb33-672e-4765-83b4-8548993da826" />
+    <UnitTestResult executionId="a3a6d6cf-a377-452b-aba4-481f0ab29b18" testId="937a21b2-8d8f-62a8-e878-f283a48360ab" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_ExactMatch_ReturnsHighScore" computerName="NODE002" duration="00:00:00.0000095" startTime="2026-01-16T21:00:03.5887687-05:00" endTime="2026-01-16T21:00:03.5887688-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a3a6d6cf-a377-452b-aba4-481f0ab29b18" />
+    <UnitTestResult executionId="3f373c34-7145-4c12-9f54-2c8fd014e64d" testId="20a80a29-9b96-1bb6-2340-2e429a8f990f" testName="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_VeryLongTitle_DoesNotCrash" computerName="NODE002" duration="00:00:00.0000349" startTime="2026-01-16T21:00:03.5878533-05:00" endTime="2026-01-16T21:00:03.5878533-05:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3f373c34-7145-4c12-9f54-2c8fd014e64d" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_DashMatchesUnderscore_ReturnsPositive" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="6e9dd6de-f2e7-12fd-4453-f4bdbe37ca46">
+      <Execution id="7c476f51-b711-4236-80ba-fff89fa1dcf0" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_DashMatchesUnderscore_ReturnsPositive" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_NonContiguous" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="660f5afa-1698-7bfa-bb91-78c4c70f1b40">
+      <Execution id="65bfa117-64e6-41d0-ae3f-0f35db7a5192" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_Subsequence_NonContiguous" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_SingleCharacterTitle_Works" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="23f0a555-9a60-96eb-b456-20db76389d8e">
+      <Execution id="57e28f3f-8a57-48c7-b347-42779bcf82bd" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_SingleCharacterTitle_Works" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_ShortQuery" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="a4af8203-4cba-bded-e4fa-706de929378c">
+      <Execution id="d47975dd-6593-42f0-a0c8-510d92b593cf" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_Subsequence_ShortQuery" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_SpecialCharacters_Handled" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="c80a19ff-d53a-80a0-3899-a1ec26deffa9">
+      <Execution id="5ca1680f-9d36-4bfe-ba3c-69b61a7e2ff1" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_SpecialCharacters_Handled" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_NoMatch_ReturnsZero" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="1f10dc7f-0b6f-d076-bb48-9552cd05e9dd">
+      <Execution id="8ae9a302-287f-495f-87ba-4443d9c27298" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_NoMatch_ReturnsZero" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_ExactMatch_ReturnsHighScore" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="937a21b2-8d8f-62a8-e878-f283a48360ab">
+      <Execution id="a3a6d6cf-a377-452b-aba4-481f0ab29b18" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_ExactMatch_ReturnsHighScore" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.IsMatch_ReturnsFalse_WhenNoMatch" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="6ba1ceb3-d8e4-b94e-b597-b80e9a41d3a1">
+      <Execution id="c442b36b-34cb-4f01-8c1f-b6799d29a28d" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="IsMatch_ReturnsFalse_WhenNoMatch" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_OrderMatters" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="fbacb38d-9a90-f43c-1a93-c0ba337cb351">
+      <Execution id="2bda4251-619b-4701-870f-7846b3ba5bf5" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_Subsequence_OrderMatters" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_UnicodeCharacters_Handled" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="aad25571-2fb2-7875-b81a-ceaacfd9c05b">
+      <Execution id="db1d1bdb-6257-4bde-88dd-64b6ef99f09e" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_UnicodeCharacters_Handled" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_UnderscoreMatchesSpace_ReturnsPositive" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="e2a26f3b-f405-a5b5-480a-a63962eec672">
+      <Execution id="cd981380-a105-4f1b-ac31-fb26a5bd422d" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_UnderscoreMatchesSpace_ReturnsPositive" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_EmptyQuery_ReturnsZero" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="c338f78e-651b-d82f-960d-1c2fca8c6ae3">
+      <Execution id="4fa892f6-25a9-4832-bd5f-0561b3f86ccc" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_EmptyQuery_ReturnsZero" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_DashMatchesSpace_ReturnsPositive" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="b6e578a9-6bda-0cd9-e492-aeb28b2ae47e">
+      <Execution id="4c842d8c-21f9-4b02-a294-6031dc7abff3" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_DashMatchesSpace_ReturnsPositive" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_VeryLongTitle_DoesNotCrash" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="20a80a29-9b96-1bb6-2340-2e429a8f990f">
+      <Execution id="3f373c34-7145-4c12-9f54-2c8fd014e64d" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_VeryLongTitle_DoesNotCrash" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_CodeFile_PartialMatch" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="c270538e-a001-0933-571a-666f89770b8d">
+      <Execution id="023f172e-1b3c-45a2-8995-a809c6414104" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_CodeFile_PartialMatch" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_SpaceMatchesUnderscore_ReturnsPositive" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="92459175-ceeb-08d6-050a-d3284b2579e2">
+      <Execution id="a8043cee-c004-4067-88b6-cb4d69f30329" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_SpaceMatchesUnderscore_ReturnsPositive" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_MixedDelimiters_ReturnsPositive" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="3b30419f-56e5-cedb-6f25-3c4777877fe3">
+      <Execution id="09829eff-d4b5-4216-a0e3-dbc5a0bfe40f" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_MixedDelimiters_ReturnsPositive" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_CaseInsensitive_LowerToUpper" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="3053a398-9dc0-a022-b1b0-a4df19b14b5f">
+      <Execution id="2c6e2bda-0f82-48ac-a79f-b18efe3bd4a5" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_CaseInsensitive_LowerToUpper" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_BrowserTab_PartialMatch" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="99d61432-88c5-b37e-d2fa-46aad81850fe">
+      <Execution id="c8893a6c-69d0-4edf-8b94-7460b6daf6d3" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_BrowserTab_PartialMatch" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_WindowsExplorer_Path" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="5b000f4e-fc1e-76c4-6732-4324a627fa69">
+      <Execution id="58afe224-d62d-40f5-86f7-67531e6afaf2" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_WindowsExplorer_Path" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_EmptyTitle_ReturnsZero" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="07a822d6-9870-f62f-df9e-24451daa5e60">
+      <Execution id="f7c8257d-a7e5-44ef-afc4-e423c9c492c5" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_EmptyTitle_ReturnsZero" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_ContiguousHigherThanNonContiguous" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="e497e4e2-1eef-b95a-ff78-f0e17ab6ae3f">
+      <Execution id="675edb33-672e-4765-83b4-8548993da826" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_ContiguousHigherThanNonContiguous" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_VsCode_WindowTitle" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="6e902724-85b3-7da6-b1d8-a00f53b80e2d">
+      <Execution id="e08c3ef5-cd1e-42eb-bc51-f11c5404132e" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_VsCode_WindowTitle" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_ExactMatchHighestScore" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="5d6c8c15-5d30-0477-7dca-bee3fcba4408">
+      <Execution id="171b146e-df4b-48c2-bdd8-93f92750ac3e" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_ExactMatchHighestScore" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_SingleCharacterQuery_Works" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="4c69de62-7011-1493-1cbe-f4aa513615c8">
+      <Execution id="259ec160-d2b1-46e0-8516-82c80d7ea86d" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_SingleCharacterQuery_Works" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_NullTitle_ReturnsZero" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="c4456527-84e5-10fa-d5c7-6b05c891d7d8">
+      <Execution id="f21f3d6c-baad-48ba-960a-dc94dd230c45" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_NullTitle_ReturnsZero" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_CaseInsensitive_MixedCase" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="1b33d4d3-5168-218a-a48d-09356c59c7e6">
+      <Execution id="239f7098-77d2-48d6-8210-b7cff31700ae" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_CaseInsensitive_MixedCase" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_StartsWithHigherThanContains" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="4feae5f8-7369-e5ea-17b9-e76a3898b7b7">
+      <Execution id="a47b566b-1fc5-4aac-b444-2a9728cf5677" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_StartsWithHigherThanContains" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Terminal_PartialMatch" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="6e6062ab-0076-e194-7751-7345ec92a3b4">
+      <Execution id="70a19a5b-55db-4ebc-93c8-626632cf3e8c" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_Terminal_PartialMatch" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.IsMatch_ReturnsTrue_WhenScorePositive" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="7d00fa06-d3e3-7fa4-67cc-a56344f798f7">
+      <Execution id="6f8e2b65-760d-4264-b662-5bb12c74e788" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="IsMatch_ReturnsTrue_WhenScorePositive" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_NullQuery_ReturnsZero" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="d545f0fb-e763-2d1a-455a-3057474f6748">
+      <Execution id="85bef923-4f4d-4a9c-9cc1-9adc6e901584" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_NullQuery_ReturnsZero" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_AllCharactersRequired" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="ca36519d-9696-aa93-e7d6-41d0668776c7">
+      <Execution id="b5bd3857-f502-416a-a8d9-f0891f8fbec1" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_Subsequence_AllCharactersRequired" />
+    </UnitTest>
+    <UnitTest name="SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_CaseInsensitive_UpperToLower" storage="d:\dev\switchblade\switchblade.tests\bin\debug\net9.0-windows\switchblade.tests.dll" id="bf7c8539-61d6-2275-a4a3-0321f858c087">
+      <Execution id="7c69f276-fe6b-439d-acd8-6ff982f97edd" />
+      <TestMethod codeBase="D:\dev\switchblade\SwitchBlade.Tests\bin\Debug\net9.0-windows\SwitchBlade.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="SwitchBlade.Tests.Core.FuzzyMatcherTests" name="Score_CaseInsensitive_UpperToLower" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="92459175-ceeb-08d6-050a-d3284b2579e2" executionId="a8043cee-c004-4067-88b6-cb4d69f30329" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b6e578a9-6bda-0cd9-e492-aeb28b2ae47e" executionId="4c842d8c-21f9-4b02-a294-6031dc7abff3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6ba1ceb3-d8e4-b94e-b597-b80e9a41d3a1" executionId="c442b36b-34cb-4f01-8c1f-b6799d29a28d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="660f5afa-1698-7bfa-bb91-78c4c70f1b40" executionId="65bfa117-64e6-41d0-ae3f-0f35db7a5192" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d545f0fb-e763-2d1a-455a-3057474f6748" executionId="85bef923-4f4d-4a9c-9cc1-9adc6e901584" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="23f0a555-9a60-96eb-b456-20db76389d8e" executionId="57e28f3f-8a57-48c7-b347-42779bcf82bd" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7d00fa06-d3e3-7fa4-67cc-a56344f798f7" executionId="6f8e2b65-760d-4264-b662-5bb12c74e788" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c270538e-a001-0933-571a-666f89770b8d" executionId="023f172e-1b3c-45a2-8995-a809c6414104" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5d6c8c15-5d30-0477-7dca-bee3fcba4408" executionId="171b146e-df4b-48c2-bdd8-93f92750ac3e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3b30419f-56e5-cedb-6f25-3c4777877fe3" executionId="09829eff-d4b5-4216-a0e3-dbc5a0bfe40f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1b33d4d3-5168-218a-a48d-09356c59c7e6" executionId="239f7098-77d2-48d6-8210-b7cff31700ae" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1f10dc7f-0b6f-d076-bb48-9552cd05e9dd" executionId="8ae9a302-287f-495f-87ba-4443d9c27298" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="99d61432-88c5-b37e-d2fa-46aad81850fe" executionId="c8893a6c-69d0-4edf-8b94-7460b6daf6d3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="fbacb38d-9a90-f43c-1a93-c0ba337cb351" executionId="2bda4251-619b-4701-870f-7846b3ba5bf5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6e6062ab-0076-e194-7751-7345ec92a3b4" executionId="70a19a5b-55db-4ebc-93c8-626632cf3e8c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="bf7c8539-61d6-2275-a4a3-0321f858c087" executionId="7c69f276-fe6b-439d-acd8-6ff982f97edd" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5b000f4e-fc1e-76c4-6732-4324a627fa69" executionId="58afe224-d62d-40f5-86f7-67531e6afaf2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="aad25571-2fb2-7875-b81a-ceaacfd9c05b" executionId="db1d1bdb-6257-4bde-88dd-64b6ef99f09e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a4af8203-4cba-bded-e4fa-706de929378c" executionId="d47975dd-6593-42f0-a0c8-510d92b593cf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c80a19ff-d53a-80a0-3899-a1ec26deffa9" executionId="5ca1680f-9d36-4bfe-ba3c-69b61a7e2ff1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4feae5f8-7369-e5ea-17b9-e76a3898b7b7" executionId="a47b566b-1fc5-4aac-b444-2a9728cf5677" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="07a822d6-9870-f62f-df9e-24451daa5e60" executionId="f7c8257d-a7e5-44ef-afc4-e423c9c492c5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3053a398-9dc0-a022-b1b0-a4df19b14b5f" executionId="2c6e2bda-0f82-48ac-a79f-b18efe3bd4a5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6e902724-85b3-7da6-b1d8-a00f53b80e2d" executionId="e08c3ef5-cd1e-42eb-bc51-f11c5404132e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ca36519d-9696-aa93-e7d6-41d0668776c7" executionId="b5bd3857-f502-416a-a8d9-f0891f8fbec1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6e9dd6de-f2e7-12fd-4453-f4bdbe37ca46" executionId="7c476f51-b711-4236-80ba-fff89fa1dcf0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4c69de62-7011-1493-1cbe-f4aa513615c8" executionId="259ec160-d2b1-46e0-8516-82c80d7ea86d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e2a26f3b-f405-a5b5-480a-a63962eec672" executionId="cd981380-a105-4f1b-ac31-fb26a5bd422d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c4456527-84e5-10fa-d5c7-6b05c891d7d8" executionId="f21f3d6c-baad-48ba-960a-dc94dd230c45" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c338f78e-651b-d82f-960d-1c2fca8c6ae3" executionId="4fa892f6-25a9-4832-bd5f-0561b3f86ccc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e497e4e2-1eef-b95a-ff78-f0e17ab6ae3f" executionId="675edb33-672e-4765-83b4-8548993da826" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="937a21b2-8d8f-62a8-e878-f283a48360ab" executionId="a3a6d6cf-a377-452b-aba4-481f0ab29b18" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="20a80a29-9b96-1bb6-2340-2e429a8f990f" executionId="3f373c34-7145-4c12-9f54-2c8fd014e64d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="33" executed="33" passed="32" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.5.6+bf9b858c26 (64-bit .NET 9.0.5)&#xD;
+[xUnit.net 00:00:00.03]   Discovering: SwitchBlade.Tests&#xD;
+[xUnit.net 00:00:00.05]   Discovered:  SwitchBlade.Tests&#xD;
+[xUnit.net 00:00:00.06]   Starting:    SwitchBlade.Tests&#xD;
+[xUnit.net 00:00:00.09]       Subsequence should match in order&#xD;
+[xUnit.net 00:00:00.09]       Stack Trace:&#xD;
+[xUnit.net 00:00:00.09]         D:\dev\switchblade\SwitchBlade.Tests\Core\FuzzyMatcherTests.cs(154,0): at SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_OrderMatters()&#xD;
+[xUnit.net 00:00:00.09]            at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)&#xD;
+[xUnit.net 00:00:00.09]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)&#xD;
+[xUnit.net 00:00:00.10]   Finished:    SwitchBlade.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="NODE002" outcome="Error" timestamp="2026-01-16T21:00:03.5740135-05:00">
+        <Text>[xUnit.net 00:00:00.09]     SwitchBlade.Tests.Core.FuzzyMatcherTests.Score_Subsequence_OrderMatters [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

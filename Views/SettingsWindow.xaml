@@ -152,6 +152,8 @@
                             <StackPanel>
                                 <TextBlock Text="Search &amp; Performance" Style="{StaticResource SectionHeaderStyle}"/>
                                 
+                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Fuzzy Search" IsChecked="{Binding EnableFuzzySearch}" Margin="0,0,0,10" ToolTip="Intelligent search that matches 'hello there' to 'hello_there'. Treats spaces, underscores, and dashes as equivalent."/>
+                                
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Number Shortcuts (1-9, 0)" IsChecked="{Binding EnableNumberShortcuts}" Margin="0,0,0,0" ToolTip="Hold modifier + number to quickly switch to a window"/>
                                 
                                 <Grid Margin="20,10,0,10">

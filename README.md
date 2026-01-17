@@ -127,6 +127,78 @@ graph TD
     style NB fill:#bbf,stroke:#333,stroke-width:1px,color:black
 ```
 
+## Fuzzy Search
+
+SwitchBlade 1.6.0 introduces intelligent fuzzy search that makes finding windows effortless.
+
+### Features
+
+| Feature | Description | Example |
+|:--------|:------------|:--------|
+| **Delimiter Equivalence** | Spaces, underscores, and dashes are treated identically | `hello there` matches `hello_there` |
+| **Subsequence Matching** | Characters must appear in order but not consecutively | `gc` matches `Google Chrome` |
+| **Case Insensitive** | Matching ignores letter case | `CHROME` matches `chrome` |
+| **Relevance Sorting** | Best matches appear first based on scoring | Exact matches rank highest |
+
+### Scoring System
+
+Fuzzy search ranks results using a weighted scoring algorithm:
+
+| Bonus | Points | Awarded When |
+|:------|:------:|:-------------|
+| Base Match | +1 | Each matched character |
+| Contiguity | +2 | Consecutive character matches |
+| Word Boundary | +3 | Match at start of title |
+| Starts-With | +5 | Title begins with query |
+
+```mermaid
+flowchart TD
+    Start[User Types Query] --> FastPath{Exact Substring?}
+    FastPath -- Yes --> ExactScore[Calculate Exact Score + Bonuses]
+    FastPath -- No --> Normalize
+    
+    subgraph Zero-Allocation Pipeline
+        Normalize[Normalize Title & Query]
+        Normalize --> |stackalloc buffer| RemoveDelim[Remove Spaces/Underscores/Dashes]
+        RemoveDelim --> |Span char| ToLower[Convert to Lowercase]
+    end
+    
+    ToLower --> LengthCheck{Query <= Title?}
+    LengthCheck -- No --> NoMatch[Return 0]
+    LengthCheck -- Yes --> Subsequence
+    
+    subgraph Subsequence Matching
+        Subsequence[Find Characters in Order]
+        Subsequence --> |For each match| AddBase[+1 Base Score]
+        AddBase --> Contiguous{Previous was adjacent?}
+        Contiguous -- Yes --> AddCont[+2 Contiguity Bonus]
+        Contiguous -- No --> CheckStart
+        AddCont --> CheckStart{At position 0?}
+        CheckStart -- Yes --> AddBoundary[+3 Word Boundary]
+        CheckStart -- No --> NextChar[Continue]
+        AddBoundary --> NextChar
+    end
+    
+    NextChar --> AllFound{All chars found?}
+    AllFound -- No --> NoMatch
+    AllFound -- Yes --> StartsCheck{Started at pos 0?}
+    StartsCheck -- Yes --> AddStarts[+5 Starts-With Bonus]
+    StartsCheck -- No --> FinalScore
+    AddStarts --> FinalScore[Return Total Score]
+    ExactScore --> SortResults
+    FinalScore --> SortResults[Sort by Score DESC]
+    
+    style Normalize fill:#f9f,stroke:#333,stroke-width:2px,color:black
+    style RemoveDelim fill:#f9f,stroke:#333,stroke-width:2px,color:black
+    style ToLower fill:#f9f,stroke:#333,stroke-width:2px,color:black
+```
+
+### Configuration
+
+- **Enable/Disable**: Toggle in Settings → Search & Performance → "Enable Fuzzy Search"
+- **Default**: Enabled
+- **Fallback**: When disabled, uses legacy regex/substring matching
+
 ## Development
 
 For information on how to build the project and create plugins, please refer to the following guides:
@@ -135,7 +207,7 @@ For information on how to build the project and create plugins, please refer to 
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md): A comprehensive guide on building custom plugins for window discovery.
 - [Changelog](CHANGELOG.md): History of changes and versions.
 
-### Current Version: 1.5.10
+### Current Version: 1.6.0
 
 ### Unit Tests
 The project includes comprehensive xUnit tests in `SwitchBlade.Tests/`. Run tests with:

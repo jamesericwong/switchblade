@@ -1,8 +1,32 @@
+## [1.6.0] - 2026-01-16
+### Added
+- **Fuzzy Search**: SwitchBlade now uses intelligent fuzzy matching for window searches.
+  - **Delimiter Equivalence**: Spaces, underscores, and dashes are treated as equivalent. Searching "hello there" now matches "hello_there".
+  - **Subsequence Matching**: Characters must appear in order but not consecutively. "gc" matches "Google Chrome".
+  - **Relevance Scoring**: Results are sorted by match quality with bonuses for:
+    - Contiguous matches (consecutive characters)
+    - Starts-with matches (query at beginning of title)
+    - Word boundary matches (match at start of words)
+  - **Toggle Setting**: New "Enable Fuzzy Search" checkbox in Settings → Search & Performance (enabled by default).
+  - **Fallback**: When disabled, uses the previous regex/substring matching behavior.
+
+### Performance
+- **Zero-Allocation Fuzzy Matching**: The `FuzzyMatcher` service uses `Span<char>` and `stackalloc` for string normalization, avoiding heap allocations during search.
+- **Fast Path**: Exact substring matches bypass the full fuzzy algorithm for immediate results.
+- **Early Termination**: Matching stops as soon as all query characters are found.
+
+### Technical
+- New `FuzzyMatcher` static class in `SwitchBlade.Core` with `Score()` and `IsMatch()` methods.
+- Updated `MainViewModel.UpdateSearch()` to use fuzzy scoring when enabled.
+- Added `EnableFuzzySearch` property to `UserSettings`, `SettingsService`, and `SettingsViewModel`.
+- Added 33 unit tests in `FuzzyMatcherTests.cs` covering delimiter handling, case insensitivity, subsequence matching, and real-world scenarios.
+
 ## [1.5.10] - 2026-01-13
 ### Changed
 - **Refined Super Light Theme**: Updated the "Super Light" theme to be even lighter and more minimal.
   - **Control Background**: Changed from Off-White (`#F8F8F8`) to Pure White (`#FFFFFF`).
   - **Borders**: Lightened from `#E5E5E5` to `#F0F0F0` for a subtle, flat aesthetic.
+
 
 ## [1.5.9] - 2026-01-13
 ### Fixed

@@ -337,53 +337,89 @@ namespace SwitchBlade.ViewModels
                 }
                 else
                 {
-                    try
+                    bool useFuzzy = _settingsService?.Settings.EnableFuzzySearch ?? true;
+
+                    if (useFuzzy)
                     {
-                        // LRU Regex Cache logic
-                        if (!_regexCache.TryGetValue(SearchText, out var regex))
+                        // Fuzzy search: Score all items and filter/sort by score
+                        var scored = _allWindows
+                            .Select(w => new { Item = w, Score = FuzzyMatcher.Score(w.Title, SearchText) })
+                            .Where(x => x.Score > 0)
+                            .OrderByDescending(x => x.Score)
+                            .ThenBy(x => x.Item.ProcessName)
+                            .ThenBy(x => x.Item.Title)
+                            .Select(x => x.Item)
+                            .ToList();
+
+                        sortedResults = scored;
+                    }
+                    else
+                    {
+                        // Legacy regex/substring matching
+                        try
                         {
-                            // NonBacktracking is memory-efficient and prevents ReDoS for user-provided patterns
-                            // Available in .NET 7+. SwitchBlade 1.5.1+ uses .NET 9 features.
-                            regex = new Regex(SearchText, RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking);
-
-                            // Add to cache
-                            _regexCache[SearchText] = regex;
-                            _regexLruList.AddFirst(SearchText);
-
-                            // Evict if exceeded
-                            int maxSize = _settingsService?.Settings.RegexCacheSize ?? 50;
-                            while (_regexCache.Count > maxSize && _regexLruList.Count > 0)
+                            // LRU Regex Cache logic
+                            if (!_regexCache.TryGetValue(SearchText, out var regex))
                             {
-                                var last = _regexLruList.Last;
-                                if (last != null)
+                                // NonBacktracking is memory-efficient and prevents ReDoS for user-provided patterns
+                                // Available in .NET 7+. SwitchBlade 1.5.1+ uses .NET 9 features.
+                                regex = new Regex(SearchText, RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking);
+
+                                // Add to cache
+                                _regexCache[SearchText] = regex;
+                                _regexLruList.AddFirst(SearchText);
+
+                                // Evict if exceeded
+                                int maxSize = _settingsService?.Settings.RegexCacheSize ?? 50;
+                                while (_regexCache.Count > maxSize && _regexLruList.Count > 0)
                                 {
-                                    _regexCache.Remove(last.Value);
-                                    _regexLruList.RemoveLast();
+                                    var last = _regexLruList.Last;
+                                    if (last != null)
+                                    {
+                                        _regexCache.Remove(last.Value);
+                                        _regexLruList.RemoveLast();
+                                    }
                                 }
                             }
+                            else
+                            {
+                                // Move to front (LRU update)
+                                _regexLruList.Remove(SearchText);
+                                _regexLruList.AddFirst(SearchText);
+                            }
+
+                            sortedResults = _allWindows.Where(w => regex.IsMatch(w.Title)).ToList();
                         }
-                        else
+                        catch (Exception) // Catch all regex errors (e.g. invalid pattern)
                         {
-                            // Move to front (LRU update)
-                            _regexLruList.Remove(SearchText);
-                            _regexLruList.AddFirst(SearchText);
+                            sortedResults = _allWindows.Where(w => w.Title.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
                         }
 
-                        sortedResults = _allWindows.Where(w => regex.IsMatch(w.Title)).ToList();
-                    }
-                    catch (Exception) // Catch all regex errors (e.g. invalid pattern)
-                    {
-                        sortedResults = _allWindows.Where(w => w.Title.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                        // Apply stable sort for non-fuzzy results: Process Name -> Title -> Hwnd
+                        sortedResults = sortedResults
+                            .Distinct()
+                            .OrderBy(w => w.ProcessName)
+                            .ThenBy(w => w.Title)
+                            .ThenBy(w => w.Hwnd.ToInt64())
+                            .ToList();
                     }
                 }
 
-                // Apply stable sort: Process Name -> Title -> Hwnd
-                sortedResults = sortedResults
-                    .Distinct()
-                    .OrderBy(w => w.ProcessName)
-                    .ThenBy(w => w.Title)
-                    .ThenBy(w => w.Hwnd.ToInt64())
-                    .ToList();
+                // For fuzzy results, ensure deduplication (sorting already done above)
+                if (!string.IsNullOrWhiteSpace(SearchText) && (_settingsService?.Settings.EnableFuzzySearch ?? true))
+                {
+                    sortedResults = sortedResults.Distinct().ToList();
+                }
+                else if (string.IsNullOrWhiteSpace(SearchText))
+                {
+                    // Apply stable sort for empty search: Process Name -> Title -> Hwnd
+                    sortedResults = sortedResults
+                        .Distinct()
+                        .OrderBy(w => w.ProcessName)
+                        .ThenBy(w => w.Title)
+                        .ThenBy(w => w.Hwnd.ToInt64())
+                        .ToList();
+                }
 
                 // Synchronize FilteredWindows in-place to preserve UI state (scroll/selection)
                 SyncCollection(FilteredWindows, sortedResults);

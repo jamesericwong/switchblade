@@ -119,6 +119,9 @@ namespace SwitchBlade.Services
 
                         // Regex Cache Size
                         Settings.RegexCacheSize = GetValue("RegexCacheSize", 50);
+
+                        // Fuzzy Search
+                        Settings.EnableFuzzySearch = Convert.ToBoolean(GetValue<int>("EnableFuzzySearch", 1));
                     }
                     catch (Exception ex)
                     {
@@ -237,6 +240,9 @@ namespace SwitchBlade.Services
 
                         // Regex Cache Size
                         key.SetValue("RegexCacheSize", Settings.RegexCacheSize, RegistryValueKind.DWord);
+
+                        // Fuzzy Search
+                        key.SetValue("EnableFuzzySearch", Settings.EnableFuzzySearch ? 1 : 0, RegistryValueKind.DWord);
 
                         // Flush to ensure all writes are committed before any restart
                         key.Flush();

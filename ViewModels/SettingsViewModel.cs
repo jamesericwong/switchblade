@@ -224,6 +224,12 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.RegexCacheSize = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool EnableFuzzySearch
+        {
+            get => _settingsService.Settings.EnableFuzzySearch;
+            set { _settingsService.Settings.EnableFuzzySearch = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
         public bool IsPreserveScrollSelected
         {
             get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveScroll;

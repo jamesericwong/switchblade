@@ -128,5 +128,13 @@ namespace SwitchBlade.Services
         /// Maximum number of compiled regex objects to cache for search operations.
         /// </summary>
         public int RegexCacheSize { get; set; } = 50;
+
+        /// <summary>
+        /// Whether to enable fuzzy search for window matching.
+        /// When enabled, searches use intelligent subsequence matching that treats
+        /// spaces, underscores, and dashes as equivalent delimiters.
+        /// When disabled, uses exact substring/regex matching.
+        /// </summary>
+        public bool EnableFuzzySearch { get; set; } = true;
     }
 }
