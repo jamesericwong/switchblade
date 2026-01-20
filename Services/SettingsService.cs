@@ -11,14 +11,18 @@ namespace SwitchBlade.Services
     public class SettingsService : ISettingsService
     {
         private const string REGISTRY_KEY = @"Software\SwitchBlade";
-        private const string STARTUP_REGISTRY_KEY = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string STARTUP_VALUE_NAME = "SwitchBlade";
+        private readonly IWindowsStartupManager _startupManager;
         public UserSettings Settings { get; private set; }
 
         public event Action? SettingsChanged;
 
-        public SettingsService()
+        public SettingsService() : this(new WindowsStartupManager())
         {
+        }
+
+        public SettingsService(IWindowsStartupManager startupManager)
+        {
+            _startupManager = startupManager ?? throw new ArgumentNullException(nameof(startupManager));
             Settings = new UserSettings();
             LoadSettings();
         }
@@ -139,55 +143,24 @@ namespace SwitchBlade.Services
             }
 
             // Sync LaunchOnStartup with actual Windows Run registry state
-            bool actualStartupEnabled = IsStartupEnabled();
+            bool actualStartupEnabled = _startupManager.IsStartupEnabled();
             if (Settings.LaunchOnStartup != actualStartupEnabled)
             {
                 Settings.LaunchOnStartup = actualStartupEnabled;
                 settingsDirty = true;
             }
 
-            CheckAndApplyStartupMarker();
+            // Check for installer startup marker
+            if (_startupManager.CheckAndApplyStartupMarker())
+            {
+                Settings.LaunchOnStartup = true;
+                settingsDirty = true;
+            }
 
             // HEAL: If we found any missing/corrupt values, save the clean state now
             if (settingsDirty)
             {
                 SaveSettings();
-            }
-        }
-
-        /// <summary>
-        /// Checks for the EnableStartupOnFirstRun marker set by the MSI installer.
-        /// If found and equals 1, enables startup and clears the marker.
-        /// </summary>
-        private void CheckAndApplyStartupMarker()
-        {
-            try
-            {
-                using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(REGISTRY_KEY, writable: true))
-                {
-                    if (key != null)
-                    {
-                        object? markerValue = key.GetValue("EnableStartupOnFirstRun");
-                        if (markerValue != null)
-                        {
-                            // Check if it's "1" (string from MSI) or 1 (integer)
-                            string markerStr = markerValue.ToString() ?? "0";
-                            if (markerStr == "1")
-                            {
-                                // Enable startup
-                                Settings.LaunchOnStartup = true;
-                                SaveSettings(); // This will write to Windows Run registry
-                            }
-
-                            // Always delete the marker after checking (it's a one-time flag)
-                            key.DeleteValue("EnableStartupOnFirstRun", throwOnMissingValue: false);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                SwitchBlade.Core.Logger.LogError("Failed to read/delete EnableStartupOnFirstRun marker", ex);
             }
         }
 
@@ -255,63 +228,31 @@ namespace SwitchBlade.Services
                 SwitchBlade.Core.Logger.LogError("Failed to save settings to registry", ex);
             }
 
-            // Sync startup registry entry
+            // Sync startup registry entry via startup manager
             UpdateStartupRegistryEntry();
         }
 
-        /// <summary>
-        /// Updates the Windows Run registry key based on the LaunchOnStartup setting.
-        /// </summary>
         private void UpdateStartupRegistryEntry()
         {
-            try
+            if (Settings.LaunchOnStartup)
             {
-                using (RegistryKey? runKey = Registry.CurrentUser.OpenSubKey(STARTUP_REGISTRY_KEY, writable: true))
+                string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrEmpty(exePath))
                 {
-                    if (runKey == null) return;
-
-                    if (Settings.LaunchOnStartup)
-                    {
-                        // Get the path to the currently running executable
-                        string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
-                        if (!string.IsNullOrEmpty(exePath))
-                        {
-                            // Add /minimized so app starts in background on Windows startup
-                            runKey.SetValue(STARTUP_VALUE_NAME, $"\"{exePath}\" /minimized");
-                        }
-                    }
-                    else
-                    {
-                        // Remove the startup entry if it exists
-                        if (runKey.GetValue(STARTUP_VALUE_NAME) != null)
-                        {
-                            runKey.DeleteValue(STARTUP_VALUE_NAME, throwOnMissingValue: false);
-                        }
-                    }
+                    _startupManager.EnableStartup(exePath);
                 }
             }
-            catch (Exception ex)
+            else
             {
-                SwitchBlade.Core.Logger.LogError("Failed to update startup registry entry", ex);
+                _startupManager.DisableStartup();
             }
         }
 
         /// <summary>
-        /// Checks if SwitchBlade is currently set to run at startup.
+        /// Checks if the application is currently set to run at Windows startup.
+        /// Delegates to the startup manager.
         /// </summary>
-        public bool IsStartupEnabled()
-        {
-            try
-            {
-                using (RegistryKey? runKey = Registry.CurrentUser.OpenSubKey(STARTUP_REGISTRY_KEY))
-                {
-                    return runKey?.GetValue(STARTUP_VALUE_NAME) != null;
-                }
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        public bool IsStartupEnabled() => _startupManager.IsStartupEnabled();
     }
 }
+

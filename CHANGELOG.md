@@ -1,3 +1,30 @@
+## [1.6.3] - 2026-01-19
+### Changed
+- **SettingsService SRP Refactoring**: Extracted Windows startup registry operations into a dedicated `WindowsStartupManager` class.
+  - New `IWindowsStartupManager` interface for abstraction and testability.
+  - `SettingsService` now delegates startup operations via dependency injection.
+  - Reduced `SettingsService` from 318 to ~260 lines (removed ~60 lines of registry code).
+
+- **MainViewModel SRP Refactoring**: Extracted search and filtering logic into dedicated services.
+  - New `IWindowSearchService` and `WindowSearchService` for window search operations.
+  - New `IRegexCache` and `LruRegexCache` for thread-safe regex pattern caching.
+  - `MainViewModel` now delegates search via injected `IWindowSearchService`.
+  - Reduced `MainViewModel` from 725 to ~580 lines (removed ~145 lines of inline search logic).
+
+### Added
+- **New Abstractions**: Four new interfaces (`IWindowsStartupManager`, `IWindowSearchService`, `IRegexCache`) enable better testability and future extensibility.
+- **Comprehensive Unit Tests**: Added 28 new unit tests across three test files:
+  - `LruRegexCacheTests.cs`: 10 tests covering cache behavior, LRU eviction, and edge cases.
+  - `WindowSearchServiceTests.cs`: 13 tests covering fuzzy/regex search, sorting, and error handling.
+  - `WindowsStartupManagerTests.cs`: 5 tests for startup registry operations.
+
+### Technical
+- Follows Single Responsibility Principle (SRP) by separating:
+  - Settings persistence from startup registry management.
+  - Window list presentation from search/filter algorithms.
+- All new services are injectable via constructor for improved testability.
+- Backward compatible: No changes to public APIs or user-facing behavior.
+
 ## [1.6.2] - 2026-01-16
 ### Added
 - Centralized `SanitizationUtils` in `SwitchBlade.Contracts` for consistent input handling.

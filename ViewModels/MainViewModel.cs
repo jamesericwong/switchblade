@@ -5,7 +5,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using SwitchBlade.Core;
@@ -20,6 +19,7 @@ namespace SwitchBlade.ViewModels
         private readonly ISettingsService? _settingsService;
         private readonly IDispatcherService _dispatcherService;
         private readonly IIconService? _iconService;
+        private readonly IWindowSearchService _searchService;
         private ObservableCollection<WindowItem> _allWindows = new ObservableCollection<WindowItem>();
         private ObservableCollection<WindowItem> _filteredWindows = new ObservableCollection<WindowItem>();
         private WindowItem? _selectedWindow;
@@ -29,8 +29,6 @@ namespace SwitchBlade.ViewModels
         private HashSet<string> _disabledPlugins = new HashSet<string>();
         private readonly object _lock = new object();
         private Dictionary<IntPtr, List<WindowItem>> _windowItemCache;
-        private readonly Dictionary<string, Regex> _regexCache = new();
-        private readonly LinkedList<string> _regexLruList = new();
 
         /// <summary>Event fired when filtered results are updated.</summary>
         public event EventHandler? ResultsUpdated;
@@ -42,11 +40,17 @@ namespace SwitchBlade.ViewModels
         public IReadOnlyList<IWindowProvider> WindowProviders => _windowProviders;
 
         public MainViewModel(IEnumerable<IWindowProvider> windowProviders, ISettingsService? settingsService = null, IDispatcherService? dispatcherService = null, IIconService? iconService = null)
+            : this(windowProviders, settingsService, dispatcherService, iconService, CreateDefaultSearchService(settingsService))
+        {
+        }
+
+        public MainViewModel(IEnumerable<IWindowProvider> windowProviders, ISettingsService? settingsService, IDispatcherService? dispatcherService, IIconService? iconService, IWindowSearchService searchService)
         {
             _windowProviders = windowProviders.ToList();
             _settingsService = settingsService;
             _dispatcherService = dispatcherService ?? new WpfDispatcherService();
             _iconService = iconService;
+            _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
             _filteredWindows = new ObservableCollection<WindowItem>();
 
             // Cache for preserving WindowItem state (e.g. HasBeenAnimated) across filter operations
@@ -76,6 +80,12 @@ namespace SwitchBlade.ViewModels
                 OnPropertyChanged(nameof(ItemHeight));
             };
             }
+        }
+
+        private static IWindowSearchService CreateDefaultSearchService(ISettingsService? settingsService)
+        {
+            int cacheSize = settingsService?.Settings.RegexCacheSize ?? 50;
+            return new WindowSearchService(new LruRegexCache(cacheSize));
         }
 
         public double ItemHeight
@@ -329,97 +339,9 @@ namespace SwitchBlade.ViewModels
                     selectedIndex = 0;
                 }
 
-                List<WindowItem> sortedResults;
-
-                if (string.IsNullOrWhiteSpace(SearchText))
-                {
-                    sortedResults = _allWindows.ToList();
-                }
-                else
-                {
-                    bool useFuzzy = _settingsService?.Settings.EnableFuzzySearch ?? true;
-
-                    if (useFuzzy)
-                    {
-                        // Fuzzy search: Score all items and filter/sort by score
-                        var scored = _allWindows
-                            .Select(w => new { Item = w, Score = FuzzyMatcher.Score(w.Title, SearchText) })
-                            .Where(x => x.Score > 0)
-                            .OrderByDescending(x => x.Score)
-                            .ThenBy(x => x.Item.ProcessName)
-                            .ThenBy(x => x.Item.Title)
-                            .Select(x => x.Item)
-                            .ToList();
-
-                        sortedResults = scored;
-                    }
-                    else
-                    {
-                        // Legacy regex/substring matching
-                        try
-                        {
-                            // LRU Regex Cache logic
-                            if (!_regexCache.TryGetValue(SearchText, out var regex))
-                            {
-                                // NonBacktracking is memory-efficient and prevents ReDoS for user-provided patterns
-                                // Available in .NET 7+. SwitchBlade 1.5.1+ uses .NET 9 features.
-                                regex = new Regex(SearchText, RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking);
-
-                                // Add to cache
-                                _regexCache[SearchText] = regex;
-                                _regexLruList.AddFirst(SearchText);
-
-                                // Evict if exceeded
-                                int maxSize = _settingsService?.Settings.RegexCacheSize ?? 50;
-                                while (_regexCache.Count > maxSize && _regexLruList.Count > 0)
-                                {
-                                    var last = _regexLruList.Last;
-                                    if (last != null)
-                                    {
-                                        _regexCache.Remove(last.Value);
-                                        _regexLruList.RemoveLast();
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                // Move to front (LRU update)
-                                _regexLruList.Remove(SearchText);
-                                _regexLruList.AddFirst(SearchText);
-                            }
-
-                            sortedResults = _allWindows.Where(w => regex.IsMatch(w.Title)).ToList();
-                        }
-                        catch (Exception) // Catch all regex errors (e.g. invalid pattern)
-                        {
-                            sortedResults = _allWindows.Where(w => w.Title.IndexOf(SearchText, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
-                        }
-
-                        // Apply stable sort for non-fuzzy results: Process Name -> Title -> Hwnd
-                        sortedResults = sortedResults
-                            .Distinct()
-                            .OrderBy(w => w.ProcessName)
-                            .ThenBy(w => w.Title)
-                            .ThenBy(w => w.Hwnd.ToInt64())
-                            .ToList();
-                    }
-                }
-
-                // For fuzzy results, ensure deduplication (sorting already done above)
-                if (!string.IsNullOrWhiteSpace(SearchText) && (_settingsService?.Settings.EnableFuzzySearch ?? true))
-                {
-                    sortedResults = sortedResults.Distinct().ToList();
-                }
-                else if (string.IsNullOrWhiteSpace(SearchText))
-                {
-                    // Apply stable sort for empty search: Process Name -> Title -> Hwnd
-                    sortedResults = sortedResults
-                        .Distinct()
-                        .OrderBy(w => w.ProcessName)
-                        .ThenBy(w => w.Title)
-                        .ThenBy(w => w.Hwnd.ToInt64())
-                        .ToList();
-                }
+                // Delegate to search service
+                bool useFuzzy = _settingsService?.Settings.EnableFuzzySearch ?? true;
+                var sortedResults = _searchService.Search(_allWindows, SearchText, useFuzzy);
 
                 // Synchronize FilteredWindows in-place to preserve UI state (scroll/selection)
                 SyncCollection(FilteredWindows, sortedResults);
