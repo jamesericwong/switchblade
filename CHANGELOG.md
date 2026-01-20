@@ -1,3 +1,25 @@
+## [1.6.4] - 2026-01-19
+### Changed
+- **Complete MainViewModel SRP Refactoring**: Reduced `MainViewModel` from 647 to ~250 lines by extracting orchestration and navigation logic.
+  - New `IWindowOrchestrationService` and `WindowOrchestrationService`: Handles parallel provider execution, structural diffing, caching, and icon population.
+  - New `INavigationService` and `NavigationService`: Handles selection resolution and navigation calculations.
+  - New `IPluginService` and `PluginService`: Encapsulates plugin discovery and lifecycle.
+  - `MainViewModel` now acts as a pure UI-state binding layer.
+
+- **100% Factory-Driven DI**: Refactored `ServiceConfiguration.cs` to eliminate manual `Initialize` calls.
+  - All services are now registered via factories with proper dependency injection.
+  - `WindowFinder` now accepts `ISettingsService` interface instead of concrete `SettingsService`.
+
+### Added
+- **New Unit Tests**: Added 25 new tests across two test files:
+  - `NavigationServiceTests.cs`: 17 tests covering selection resolution and navigation calculations.
+  - `WindowOrchestrationServiceTests.cs`: 7 tests covering provider coordination and event firing.
+
+### Technical
+- Total test count increased from 246 to 271 (all passing).
+- Build clean: 0 warnings, 0 errors.
+- Achieved full architectural separation via strict SRP, service orchestration, and automated factory-driven initialization.
+
 ## [1.6.3] - 2026-01-19
 ### Changed
 - **SettingsService SRP Refactoring**: Extracted Windows startup registry operations into a dedicated `WindowsStartupManager` class.

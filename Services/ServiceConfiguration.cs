@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
@@ -9,7 +8,7 @@ namespace SwitchBlade.Services
 {
     /// <summary>
     /// Composition root for dependency injection configuration.
-    /// Registers all services and plugins.
+    /// All services are registered via factories for 100% constructor-driven initialization.
     /// </summary>
     public static class ServiceConfiguration
     {
@@ -20,78 +19,54 @@ namespace SwitchBlade.Services
         {
             var services = new ServiceCollection();
 
-            // Core Services - IMPORTANT: Use factory pattern to ensure SINGLE instance
-            // for both interface and concrete requests
+            // Core Services
             services.AddSingleton<SettingsService>();
             services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<SettingsService>());
             services.AddSingleton<ThemeService>();
             services.AddSingleton<IDispatcherService, WpfDispatcherService>();
             services.AddSingleton<IIconService, IconService>();
 
-            // Logger
+            // Logger & Plugin Context
             services.AddSingleton<ILogger>(Logger.Instance);
             services.AddSingleton<IPluginContext>(sp => new PluginContext(sp.GetRequiredService<ILogger>()));
 
-            // Window Providers
-            services.AddSingleton<WindowFinder>(sp =>
+            // New Services (v1.6.4)
+            services.AddSingleton<INavigationService, NavigationService>();
+            services.AddSingleton<IPluginService, PluginService>();
+
+            // Window Search Service (with LRU cache)
+            services.AddSingleton<IWindowSearchService>(sp =>
             {
-                var finder = new WindowFinder(sp.GetRequiredService<SettingsService>());
-                // No manual Initialize needed anymore as it's part of context
-                return finder;
+                var settings = sp.GetRequiredService<ISettingsService>();
+                int cacheSize = settings.Settings.RegexCacheSize;
+                return new WindowSearchService(new LruRegexCache(cacheSize));
+            });
+
+            // Window Orchestration Service (replaces manual provider coordination)
+            services.AddSingleton<IWindowOrchestrationService>(sp =>
+            {
+                var pluginService = sp.GetRequiredService<IPluginService>();
+                var iconService = sp.GetRequiredService<IIconService>();
+                return new WindowOrchestrationService(pluginService.Providers, iconService);
             });
 
             // ViewModels
-            services.AddTransient<MainViewModel>(sp =>
-            {
-                var providers = GetAllProviders(sp);
-                // Ensure WindowFinder is initialized properly with context!
-                // Wait, GetAllProviders handles plugins, but internal WindowFinder needs manual init?
-                // Actually, GetAllProviders adds WindowFinder manually.
-                // Let's make sure WindowFinder is initialized.
-                var finder = sp.GetRequiredService<WindowFinder>();
-                finder.Initialize(sp.GetRequiredService<IPluginContext>());
-
-                return new MainViewModel(
-                    providers,
-                    sp.GetRequiredService<ISettingsService>(),
-                    sp.GetRequiredService<IDispatcherService>(),
-                    sp.GetRequiredService<IIconService>()
-                );
-            });
+            services.AddTransient<MainViewModel>(sp => new MainViewModel(
+                sp.GetRequiredService<IWindowOrchestrationService>(),
+                sp.GetRequiredService<IWindowSearchService>(),
+                sp.GetRequiredService<INavigationService>(),
+                sp.GetRequiredService<ISettingsService>(),
+                sp.GetRequiredService<IDispatcherService>()
+            ));
 
             services.AddSingleton<MainWindow>();
-
-            services.AddTransient<SettingsViewModel>();
+            services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
+                sp.GetRequiredService<ISettingsService>(),
+                sp.GetRequiredService<ThemeService>(),
+                sp.GetRequiredService<IPluginService>()
+            ));
 
             return services.BuildServiceProvider();
-        }
-
-        /// <summary>
-        /// Gets all window providers including dynamically loaded plugins.
-        /// </summary>
-        private static List<IWindowProvider> GetAllProviders(IServiceProvider sp)
-        {
-            var providers = new List<IWindowProvider>();
-            var context = sp.GetRequiredService<IPluginContext>();
-
-            // 1. Internal: WindowFinder
-            providers.Add(sp.GetRequiredService<WindowFinder>());
-
-            // 2. Load external plugins
-            try
-            {
-                var pluginPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
-                var loader = new PluginLoader(pluginPath);
-                var plugins = loader.LoadPlugins(context);
-
-                providers.AddRange(plugins);
-            }
-            catch (Exception ex)
-            {
-                SwitchBlade.Core.Logger.LogError("Error loading plugins", ex);
-            }
-
-            return providers;
         }
     }
 }

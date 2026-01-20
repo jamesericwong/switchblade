@@ -13,7 +13,7 @@ namespace SwitchBlade.Tests.Core
             var regex = cache.GetOrCreate("test.*");
 
             Assert.NotNull(regex);
-            Assert.True(regex.IsMatch("test123"));
+            Assert.Matches(regex, "test123");
         }
 
         [Fact]
@@ -116,8 +116,8 @@ namespace SwitchBlade.Tests.Core
             var regex = cache.GetOrCreate("test");
 
             Assert.NotNull(regex);
-            Assert.True(regex.IsMatch("TEST"));
-            Assert.True(regex.IsMatch("Test"));
+            Assert.Matches(regex, "TEST");
+            Assert.Matches(regex, "Test");
         }
     }
 }

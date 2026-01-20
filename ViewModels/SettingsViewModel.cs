@@ -295,10 +295,12 @@ namespace SwitchBlade.ViewModels
 
 
 
-        public SettingsViewModel(SettingsService settingsService, ThemeService themeService, IEnumerable<PluginInfo> plugins)
+        public SettingsViewModel(ISettingsService settingsService, ThemeService themeService, IPluginService pluginService)
         {
-            _settingsService = settingsService;
+            _settingsService = (SettingsService)settingsService;
             _themeService = themeService;
+
+            var plugins = pluginService.GetPluginInfos().ToList();
 
             // Initialize enabled state
             foreach (var plugin in plugins)

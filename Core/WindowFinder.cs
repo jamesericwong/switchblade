@@ -9,7 +9,7 @@ namespace SwitchBlade.Core
 {
     public class WindowFinder : CachingWindowProviderBase
     {
-        private SettingsService? _settingsService;
+        private ISettingsService? _settingsService;
         private IEnumerable<string> _dynamicExclusions = new List<string>();
 
         public override string PluginName => "WindowFinder";
@@ -22,7 +22,7 @@ namespace SwitchBlade.Core
             _dynamicExclusions = exclusions;
         }
 
-        public WindowFinder(SettingsService settingsService)
+        public WindowFinder(ISettingsService settingsService)
         {
             _settingsService = settingsService;
         }

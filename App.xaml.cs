@@ -183,29 +183,7 @@ public partial class App : Application
 
     private void OpenSettings()
     {
-        var plugins = new System.Collections.Generic.List<PluginInfo>();
-        if (_mainWindow != null)
-        {
-            foreach (var provider in _mainWindow.Providers)
-            {
-                var type = provider.GetType();
-                var assembly = type.Assembly;
-                plugins.Add(new PluginInfo
-                {
-                    Name = provider.PluginName, // Use PluginName from interface
-                    TypeName = type.FullName ?? type.Name,
-                    AssemblyName = assembly.GetName().Name ?? "Unknown",
-                    Version = assembly.GetName().Version?.ToString() ?? "0.0.0",
-                    IsInternal = assembly == typeof(App).Assembly,
-                    HasSettings = provider.HasSettings,
-                    Provider = provider
-                });
-            }
-        }
-
-        var settingsService = _serviceProvider.GetRequiredService<SettingsService>();
-        var themeService = _serviceProvider.GetRequiredService<ThemeService>();
-        var settingsVm = new SettingsViewModel(settingsService, themeService, plugins);
+        var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
         var settingsWindow = new SettingsWindow
         {
             DataContext = settingsVm

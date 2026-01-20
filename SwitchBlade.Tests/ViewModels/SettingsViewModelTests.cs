@@ -26,14 +26,21 @@ namespace SwitchBlade.Tests.ViewModels
 
 
 
+        private Mock<IPluginService> CreateMockPluginService(IEnumerable<PluginInfo>? plugins = null)
+        {
+            var mock = new Mock<IPluginService>();
+            mock.Setup(p => p.GetPluginInfos()).Returns(plugins ?? Enumerable.Empty<PluginInfo>());
+            return mock;
+        }
+
         [Fact]
         public void Constructor_InitializesExcludedProcesses()
         {
             var settingsService = new SettingsService();
             var themeService = CreateThemeService(settingsService);
-            var plugins = Enumerable.Empty<PluginInfo>();
+            var pluginService = CreateMockPluginService();
 
-            var vm = new SettingsViewModel(settingsService, themeService, plugins);
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
             Assert.NotNull(vm.ExcludedProcesses);
         }
@@ -43,9 +50,9 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var settingsService = new SettingsService();
             var themeService = CreateThemeService(settingsService);
-            var plugins = Enumerable.Empty<PluginInfo>();
+            var pluginService = CreateMockPluginService();
 
-            var vm = new SettingsViewModel(settingsService, themeService, plugins);
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
             Assert.NotNull(vm.AvailableThemes);
             Assert.NotEmpty(vm.AvailableThemes);
@@ -60,21 +67,21 @@ namespace SwitchBlade.Tests.ViewModels
             {
                 new PluginInfo { Name = "TestPlugin" }
             };
+            var pluginService = CreateMockPluginService(plugins);
 
-            var vm = new SettingsViewModel(settingsService, themeService, plugins);
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
             Assert.Single(vm.LoadedPlugins);
             Assert.Equal("TestPlugin", vm.LoadedPlugins.First().Name);
         }
-
-
 
         [Fact]
         public void NewExcludedProcessName_SetValue_UpdatesProperty()
         {
             var settingsService = new SettingsService();
             var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
+            var pluginService = CreateMockPluginService();
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
             vm.NewExcludedProcessName = "notepad";
 
@@ -86,21 +93,21 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var settingsService = new SettingsService();
             var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
+            var pluginService = CreateMockPluginService();
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
             vm.SelectedExcludedProcess = "TextInputHost";
 
             Assert.Equal("TextInputHost", vm.SelectedExcludedProcess);
         }
 
-
-
         [Fact]
         public void AddExcludedProcessCommand_IsNotNull()
         {
             var settingsService = new SettingsService();
             var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
+            var pluginService = CreateMockPluginService();
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
             Assert.NotNull(vm.AddExcludedProcessCommand);
         }
@@ -110,7 +117,8 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var settingsService = new SettingsService();
             var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
+            var pluginService = CreateMockPluginService();
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
             Assert.NotNull(vm.RemoveExcludedProcessCommand);
         }
@@ -120,7 +128,8 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var settingsService = new SettingsService();
             var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
+            var pluginService = CreateMockPluginService();
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
             var propertyChangedRaised = false;
             vm.PropertyChanged += (s, e) =>
             {
@@ -138,9 +147,9 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var settingsService = new SettingsService();
             var themeService = CreateThemeService(settingsService);
-            var vm = new SettingsViewModel(settingsService, themeService, Enumerable.Empty<PluginInfo>());
+            var pluginService = CreateMockPluginService();
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
-            Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
             Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
         }
 
@@ -151,12 +160,13 @@ namespace SwitchBlade.Tests.ViewModels
             var themeService = CreateThemeService(settingsService);
             var plugin = new PluginInfo { Name = "TestPlugin" };
             var plugins = new List<PluginInfo> { plugin };
-            
-            var vm = new SettingsViewModel(settingsService, themeService, plugins);
+            var pluginService = CreateMockPluginService(plugins);
+
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
 
             // Simulate unchecking the box (IsEnabled goes false)
             plugin.IsEnabled = false;
-            
+
             // Execute command
             vm.TogglePluginCommand.Execute(plugin);
 
@@ -170,13 +180,14 @@ namespace SwitchBlade.Tests.ViewModels
             // Clear any existing settings from registry to avoid duplicates
             settingsService.Settings.DisabledPlugins.Clear();
             settingsService.Settings.DisabledPlugins.Add("TestPlugin");
-            
+
             var themeService = CreateThemeService(settingsService);
-            var plugin = new PluginInfo { Name = "TestPlugin" }; // Constructor should see it's disabled
+            var plugin = new PluginInfo { Name = "TestPlugin" };
             var plugins = new List<PluginInfo> { plugin };
-            
-            var vm = new SettingsViewModel(settingsService, themeService, plugins);
-            
+            var pluginService = CreateMockPluginService(plugins);
+
+            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
+
             // Verify initial state
             Assert.False(plugin.IsEnabled);
 
