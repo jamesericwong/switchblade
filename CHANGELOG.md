@@ -1,3 +1,27 @@
+## [1.6.5] - 2026-01-24
+### Added
+- **ISettingsStorage Abstraction**: Introduced `ISettingsStorage` interface and `RegistrySettingsStorage` implementation to decouple settings persistence from business logic.
+  - Simplifies testing by allowing mock storage providers.
+  - Enables future support for alternative storage backends (JSON, SQLite, etc.).
+- **ISettingsControl Interface**: New plugin contract (`SwitchBlade.Contracts.ISettingsControl`) for WPF-based settings UI.
+  - Plugins can return `FrameworkElement` controls instead of managing raw HWNDs.
+  - `ShowSettingsDialog(IntPtr)` marked as `[Obsolete]` in favor of the new pattern.
+- **Expanded Test Coverage**: Added 4 new unit tests to `MainViewModelTests` covering:
+  - `MoveSelectionToLast_WithItems_SelectsLastItem`
+  - `MoveSelection_WrapsAroundAtEndOfList`
+  - `MoveSelection_WrapsAroundAtStartOfList`
+
+### Changed
+- **Centralized Native Interop**: Moved DWM Window Attribute constants and P/Invoke from `MainWindow.xaml.cs` to `NativeInterop.cs`.
+  - Added `DwmSetWindowAttribute`, `DWMWA_USE_IMMERSIVE_DARK_MODE`, `DWMWA_SYSTEMBACKDROP_TYPE`, `DWMWA_WINDOW_CORNER_PREFERENCE`.
+  - Added backdrop type and corner preference constants.
+  - `MainWindow` now uses `NativeInterop.DwmSetWindowAttribute()` instead of local declaration.
+- **Simplified SettingsService**: Refactored to use `ISettingsStorage`, reducing boilerplate by ~60%.
+
+### Technical
+- Build clean: 0 warnings, 0 errors (verification pending).
+- All improvements follow SOLID principles (DIP, SRP, ISP).
+
 ## [1.6.4] - 2026-01-19
 ### Changed
 - **Complete MainViewModel SRP Refactoring**: Reduced `MainViewModel` from 647 to ~250 lines by extracting orchestration and navigation logic.

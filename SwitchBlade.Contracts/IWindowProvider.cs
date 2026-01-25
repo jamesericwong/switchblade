@@ -17,6 +17,12 @@ namespace SwitchBlade.Contracts
         bool HasSettings { get; }
 
         /// <summary>
+        /// Optional: Returns a settings control for modern WPF-based settings UI.
+        /// If implemented, this is preferred over <see cref="ShowSettingsDialog"/>.
+        /// </summary>
+        ISettingsControl? SettingsControl => null;
+
+        /// <summary>
         /// Called after instantiation to pass dependencies via context.
         /// </summary>
         /// <param name="context">Plugin context containing logger and other dependencies.</param>
@@ -50,6 +56,11 @@ namespace SwitchBlade.Contracts
         /// Opens a settings dialog for this plugin.
         /// </summary>
         /// <param name="ownerHwnd">Handle to the parent window for modal dialog.</param>
+        /// <remarks>
+        /// This method is maintained for backwards compatibility.
+        /// New plugins should implement <see cref="SettingsControl"/> instead.
+        /// </remarks>
+        [Obsolete("Use SettingsControl property instead. This method will be removed in a future version.")]
         void ShowSettingsDialog(IntPtr ownerHwnd);
     }
 }

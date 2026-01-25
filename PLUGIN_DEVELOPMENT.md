@@ -47,14 +47,19 @@ namespace SwitchBlade.Contracts
         string PluginName { get; }
         bool HasSettings { get; }
 
-        // 1. Initialization: Receive context with logger and other dependencies
+        // 1. Settings UI (NEW in 1.6.5)
+        // Preferred way to provide settings UI. Return null for legacy ShowSettingsDialog.
+        ISettingsControl? SettingsControl => null;
+
+        // 2. Initialization: Receive context with logger and other dependencies
         void Initialize(IPluginContext context);
 
-        // 2. Settings Management
+        // 3. Settings Management
+        [Obsolete("Use SettingsControl property instead. This method will be removed in a future version.")]
         void ShowSettingsDialog(IntPtr ownerHwnd);
         void ReloadSettings();
 
-        // 3. Dynamic Exclusions
+        // 4. Dynamic Exclusions
         // Return processes (names without extension) that this plugin handles exclusively.
         // The core WindowFinder will ignore these processes to prevent duplicates.
         IEnumerable<string> GetHandledProcesses();
@@ -62,11 +67,19 @@ namespace SwitchBlade.Contracts
         // Set exclusions (called by MainViewModel for all providers)
         void SetExclusions(IEnumerable<string> exclusions) { } // Default no-op
 
-        // 4. Refresh: Return a list of items to display in the user's search
+        // 5. Refresh: Return a list of items to display in the user's search
         IEnumerable<WindowItem> GetWindows();
 
-        // 5. Activation: Handle what happens when the user presses Enter on your item
+        // 6. Activation: Handle what happens when the user presses Enter on your item
         void ActivateWindow(WindowItem item);
+    }
+    
+    // Settings UI interface (NEW in 1.6.5)
+    public interface ISettingsControl
+    {
+        object CreateSettingsControl();  // Returns a WPF FrameworkElement
+        void SaveSettings();
+        void CancelSettings();
     }
     
     // Context object passed to Initialize()
@@ -310,6 +323,65 @@ public class MyCustomPlugin : IWindowProvider
 
 ---
 
+## Migration Guide: v1.6.4 → v1.6.5
+
+Version 1.6.5 introduces a new **ISettingsControl** interface for modern WPF-based plugin settings. The legacy `ShowSettingsDialog(IntPtr)` method is deprecated but will continue to work.
+
+### New: `ISettingsControl` Interface
+
+Instead of managing an HWND dialog, plugins can now return a WPF control:
+
+**Before (legacy):**
+```csharp
+public bool HasSettings => true;
+
+public void ShowSettingsDialog(IntPtr ownerHwnd)
+{
+    var dialog = new MySettingsWindow(ownerHwnd);
+    dialog.ShowDialog();
+}
+```
+
+**After (1.6.5+):**
+```csharp
+public bool HasSettings => true;
+
+// Return your settings UI control directly
+public ISettingsControl? SettingsControl => new MySettingsControlProvider();
+
+// Legacy method still required but can be empty when using ISettingsControl
+public void ShowSettingsDialog(IntPtr ownerHwnd) { }
+
+// In a separate file:
+public class MySettingsControlProvider : ISettingsControl
+{
+    private MySettingsUserControl _control;
+    
+    public object CreateSettingsControl()
+    {
+        _control = new MySettingsUserControl();
+        return _control;
+    }
+    
+    public void SaveSettings()
+    {
+        _control?.Save();
+    }
+    
+    public void CancelSettings()
+    {
+        // Discard changes
+    }
+}
+```
+
+### Benefits
+- **No HWND management**: The host application handles dialog creation
+- **Consistent styling**: Your control inherits the application theme
+- **Easier testing**: Unit test your control in isolation
+
+---
+
 ## Migration Guide: v1.4.1 → v1.4.2
 
 Version 1.4.2 introduces **breaking changes** to the plugin API. Follow this guide to update your plugins.
@@ -406,6 +478,7 @@ public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
 
 | Version | Key Changes |
 |---------|-------------|
+| 1.6.5   | **ISettingsControl** - New interface for WPF-based plugin settings UI, `ShowSettingsDialog` deprecated |
 | 1.5.8   | **Performance & Icons** - `ExecutablePath` on `WindowItem`, `LibraryImport` migration, zero-allocation `Span<char>` interop |
 | 1.5.6   | **Performance** - Native `EnumWindows` for Notepad++, `HashSet<string>` O(1) lookups, `ReaderWriterLockSlim` in caching base class |
 | 1.4.15  | **Notepad++ Plugin** - Lists individual tabs from Notepad++ instances using UI Automation |

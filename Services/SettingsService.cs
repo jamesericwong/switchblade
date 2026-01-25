@@ -1,27 +1,43 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
-using Microsoft.Win32;
 
 namespace SwitchBlade.Services
 {
     // UserSettings and RefreshBehavior have been moved to Models/ directory
 
+    /// <summary>
+    /// Manages user settings with support for pluggable storage backends.
+    /// </summary>
     public class SettingsService : ISettingsService
     {
         private const string REGISTRY_KEY = @"Software\SwitchBlade";
+        private readonly ISettingsStorage _storage;
         private readonly IWindowsStartupManager _startupManager;
-        public UserSettings Settings { get; private set; }
 
+        public UserSettings Settings { get; private set; }
         public event Action? SettingsChanged;
 
-        public SettingsService() : this(new WindowsStartupManager())
+        /// <summary>
+        /// Creates a SettingsService with the default Registry storage.
+        /// </summary>
+        public SettingsService() : this(new RegistrySettingsStorage(REGISTRY_KEY), new WindowsStartupManager())
         {
         }
 
+        /// <summary>
+        /// Creates a SettingsService with a custom startup manager (for testing).
+        /// </summary>
         public SettingsService(IWindowsStartupManager startupManager)
+            : this(new RegistrySettingsStorage(REGISTRY_KEY), startupManager)
         {
+        }
+
+        /// <summary>
+        /// Creates a SettingsService with custom storage and startup manager (for testing).
+        /// </summary>
+        public SettingsService(ISettingsStorage storage, IWindowsStartupManager startupManager)
+        {
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _startupManager = startupManager ?? throw new ArgumentNullException(nameof(startupManager));
             Settings = new UserSettings();
             LoadSettings();
@@ -30,117 +46,61 @@ namespace SwitchBlade.Services
         public void LoadSettings()
         {
             bool settingsDirty = false;
-            using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(REGISTRY_KEY))
-            {
-                if (key != null)
-                {
-                    try
-                    {
-                        // Helper to read/convert and mark dirty if missing
-                        T GetValue<T>(string name, T defaultValue)
-                        {
-                            object? val = key.GetValue(name);
-                            if (val == null)
-                            {
-                                settingsDirty = true;
-                                return defaultValue;
-                            }
-                            try
-                            {
-                                return (T)Convert.ChangeType(val, typeof(T));
-                            }
-                            catch
-                            {
-                                settingsDirty = true;
-                                return defaultValue;
-                            }
-                        }
 
-                        // Excluded Processes
-                        string? excludedJson = key.GetValue("ExcludedProcesses") as string;
-                        if (!string.IsNullOrEmpty(excludedJson))
-                        {
-                            var loaded = JsonSerializer.Deserialize<List<string>>(excludedJson);
-                            if (loaded != null && loaded.Count > 0) Settings.ExcludedProcesses = loaded;
-                        }
-                        else settingsDirty = true; // Ensure we save defaults if missing
+            // String Lists
+            var excludedProcesses = _storage.GetStringList("ExcludedProcesses");
+            if (!_storage.HasKey("ExcludedProcesses"))
+                settingsDirty = true;
 
-                        // Disabled Plugins
-                        string? disabledJson = key.GetValue("DisabledPlugins") as string;
-                        if (!string.IsNullOrEmpty(disabledJson))
-                        {
-                            var loaded = JsonSerializer.Deserialize<List<string>>(disabledJson);
-                            if (loaded != null) Settings.DisabledPlugins = loaded;
-                        }
-                        else settingsDirty = true;
+            if (excludedProcesses.Count > 0)
+                Settings.ExcludedProcesses = excludedProcesses;
 
-                        // Theme
-                        Settings.CurrentTheme = GetValue("CurrentTheme", "Light");
+            var disabledPlugins = _storage.GetStringList("DisabledPlugins");
+            if (!_storage.HasKey("DisabledPlugins"))
+                settingsDirty = true;
+            Settings.DisabledPlugins = disabledPlugins;
 
-                        // UI Options
-                        Settings.EnablePreviews = Convert.ToBoolean(GetValue<int>("EnablePreviews", 1));
-                        Settings.FadeDurationMs = GetValue("FadeDurationMs", 200);
+            // Theme
+            Settings.CurrentTheme = Load("CurrentTheme", "Super Light", ref settingsDirty);
 
-                        // Handle opacity/doubles
-                        string opacityStr = GetValue("WindowOpacity", "1.0");
-                        if (double.TryParse(opacityStr, out double opacity)) Settings.WindowOpacity = opacity;
+            // UI Options
+            Settings.EnablePreviews = Load("EnablePreviews", true, ref settingsDirty);
+            Settings.FadeDurationMs = Load("FadeDurationMs", 200, ref settingsDirty);
+            Settings.WindowOpacity = Load("WindowOpacity", 1.0, ref settingsDirty);
+            Settings.ItemHeight = Load("ItemHeight", 50.0, ref settingsDirty);
+            Settings.WindowWidth = Load("WindowWidth", 800.0, ref settingsDirty);
+            Settings.WindowHeight = Load("WindowHeight", 600.0, ref settingsDirty);
 
-                        string heightStr = GetValue("ItemHeight", "50.0");
-                        if (double.TryParse(heightStr, out double height)) Settings.ItemHeight = height;
+            Settings.ShowIcons = Load("ShowIcons", true, ref settingsDirty);
+            Settings.HideTaskbarIcon = Load("HideTaskbarIcon", true, ref settingsDirty);
+            Settings.LaunchOnStartup = Load("LaunchOnStartup", false, ref settingsDirty);
+            Settings.RunAsAdministrator = Load("RunAsAdministrator", false, ref settingsDirty);
+            SwitchBlade.Core.Logger.Log($"SettingsService: Loaded RunAsAdministrator = {Settings.RunAsAdministrator}");
 
-                        string widthStr = GetValue("WindowWidth", "800.0");
-                        if (double.TryParse(widthStr, out double w)) Settings.WindowWidth = w;
+            // Hotkey
+            Settings.HotKeyModifiers = Load<uint>("HotKeyModifiers", 6, ref settingsDirty);
+            Settings.HotKeyKey = Load<uint>("HotKeyKey", 0x51, ref settingsDirty);
+            SwitchBlade.Core.Logger.Log($"SettingsService: Loaded HotKeyKey = {Settings.HotKeyKey}");
 
-                        string winHeightStr = GetValue("WindowHeight", "600.0");
-                        if (double.TryParse(winHeightStr, out double h)) Settings.WindowHeight = h;
+            // Background Polling
+            Settings.EnableBackgroundPolling = Load("EnableBackgroundPolling", true, ref settingsDirty);
+            Settings.BackgroundPollingIntervalSeconds = Load("BackgroundPollingIntervalSeconds", 30, ref settingsDirty);
 
-                        Settings.ShowIcons = Convert.ToBoolean(GetValue<int>("ShowIcons", 1));
-                        Settings.HideTaskbarIcon = Convert.ToBoolean(GetValue<int>("HideTaskbarIcon", 1));
-                        Settings.LaunchOnStartup = Convert.ToBoolean(GetValue<int>("LaunchOnStartup", 0));
-                        Settings.RunAsAdministrator = Convert.ToBoolean(GetValue<int>("RunAsAdministrator", 0));
-                        SwitchBlade.Core.Logger.Log($"SettingsService: Loaded RunAsAdministrator = {Settings.RunAsAdministrator}");
+            // Number Shortcuts
+            Settings.EnableNumberShortcuts = Load("EnableNumberShortcuts", true, ref settingsDirty);
+            Settings.NumberShortcutModifier = Load<uint>("NumberShortcutModifier", 1, ref settingsDirty);
 
-                        // Hotkey - Critical Fix: Ensure defaults are enforced and saved if missing
-                        Settings.HotKeyModifiers = Convert.ToUInt32(GetValue<int>("HotKeyModifiers", 6));
+            // Badge Animations
+            Settings.EnableBadgeAnimations = Load("EnableBadgeAnimations", true, ref settingsDirty);
 
-                        var loadedKey = GetValue<int>("HotKeyKey", 0x51);
-                        SwitchBlade.Core.Logger.Log($"SettingsService: Loaded HotKeyKey from Registry: {loadedKey} (Default: 81/0x51)");
-                        Settings.HotKeyKey = Convert.ToUInt32(loadedKey);
+            // Refresh Behavior
+            Settings.RefreshBehavior = Load("RefreshBehavior", RefreshBehavior.PreserveScroll, ref settingsDirty);
 
-                        // Background Polling
-                        Settings.EnableBackgroundPolling = Convert.ToBoolean(GetValue<int>("EnableBackgroundPolling", 1));
-                        Settings.BackgroundPollingIntervalSeconds = GetValue("BackgroundPollingIntervalSeconds", 30);
+            // Regex Cache Size
+            Settings.RegexCacheSize = Load("RegexCacheSize", 50, ref settingsDirty);
 
-                        // Number Shortcuts
-                        Settings.EnableNumberShortcuts = Convert.ToBoolean(GetValue<int>("EnableNumberShortcuts", 1));
-                        Settings.NumberShortcutModifier = Convert.ToUInt32(GetValue<int>("NumberShortcutModifier", 1));
-
-                        // Badge Animations
-                        Settings.EnableBadgeAnimations = Convert.ToBoolean(GetValue<int>("EnableBadgeAnimations", 1));
-
-                        // Refresh Behavior
-                        Settings.RefreshBehavior = (RefreshBehavior)GetValue<int>("RefreshBehavior", (int)RefreshBehavior.PreserveScroll);
-
-                        // Regex Cache Size
-                        Settings.RegexCacheSize = GetValue("RegexCacheSize", 50);
-
-                        // Fuzzy Search
-                        Settings.EnableFuzzySearch = Convert.ToBoolean(GetValue<int>("EnableFuzzySearch", 1));
-                    }
-                    catch (Exception ex)
-                    {
-                        // Fatal read error? Reset to safe defaults and force save
-                        SwitchBlade.Core.Logger.LogError("Settings load failed, resetting to defaults", ex);
-                        Settings = new UserSettings(); // Reset
-                        settingsDirty = true;
-                    }
-                }
-                else
-                {
-                    // Key doesn't exist at all
-                    settingsDirty = true;
-                }
-            }
+            // Fuzzy Search
+            Settings.EnableFuzzySearch = Load("EnableFuzzySearch", true, ref settingsDirty);
 
             // Sync LaunchOnStartup with actual Windows Run registry state
             bool actualStartupEnabled = _startupManager.IsStartupEnabled();
@@ -164,68 +124,73 @@ namespace SwitchBlade.Services
             }
         }
 
+        private T Load<T>(string key, T defaultValue, ref bool dirty)
+        {
+            if (!_storage.HasKey(key))
+            {
+                dirty = true;
+                return defaultValue;
+            }
+            return _storage.GetValue(key, defaultValue);
+        }
+
         public void SaveSettings()
         {
             try
             {
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY))
-                {
-                    if (key != null)
-                    {
-                        // Browser Processes are now managed by plugins
+                // String Lists
+                _storage.SetStringList("ExcludedProcesses", Settings.ExcludedProcesses);
+                _storage.SetStringList("DisabledPlugins", Settings.DisabledPlugins);
 
-                        string excludedJson = JsonSerializer.Serialize(Settings.ExcludedProcesses);
-                        key.SetValue("ExcludedProcesses", excludedJson);
+                // Theme
+                _storage.SetValue("CurrentTheme", Settings.CurrentTheme);
 
-                        string disabledJson = JsonSerializer.Serialize(Settings.DisabledPlugins);
-                        key.SetValue("DisabledPlugins", disabledJson);
+                // UI Options
+                _storage.SetValue("EnablePreviews", Settings.EnablePreviews);
+                _storage.SetValue("FadeDurationMs", Settings.FadeDurationMs);
+                _storage.SetValue("WindowOpacity", Settings.WindowOpacity);
+                _storage.SetValue("ItemHeight", Settings.ItemHeight);
+                _storage.SetValue("WindowWidth", Settings.WindowWidth);
+                _storage.SetValue("WindowHeight", Settings.WindowHeight);
 
-                        key.SetValue("CurrentTheme", Settings.CurrentTheme);
-                        key.SetValue("EnablePreviews", Settings.EnablePreviews ? 1 : 0, RegistryValueKind.DWord);
-                        key.SetValue("FadeDurationMs", Settings.FadeDurationMs, RegistryValueKind.DWord);
-                        key.SetValue("WindowOpacity", Settings.WindowOpacity.ToString());
-                        key.SetValue("ItemHeight", Settings.ItemHeight.ToString());
-                        key.SetValue("WindowWidth", Settings.WindowWidth.ToString());
-                        key.SetValue("WindowHeight", Settings.WindowHeight.ToString());
-                        key.SetValue("ShowIcons", Settings.ShowIcons ? 1 : 0, RegistryValueKind.DWord);
-                        key.SetValue("HideTaskbarIcon", Settings.HideTaskbarIcon ? 1 : 0, RegistryValueKind.DWord);
-                        key.SetValue("LaunchOnStartup", Settings.LaunchOnStartup ? 1 : 0, RegistryValueKind.DWord);
-                        key.SetValue("RunAsAdministrator", Settings.RunAsAdministrator ? 1 : 0, RegistryValueKind.DWord);
+                _storage.SetValue("ShowIcons", Settings.ShowIcons);
+                _storage.SetValue("HideTaskbarIcon", Settings.HideTaskbarIcon);
+                _storage.SetValue("LaunchOnStartup", Settings.LaunchOnStartup);
+                _storage.SetValue("RunAsAdministrator", Settings.RunAsAdministrator);
+                SwitchBlade.Core.Logger.Log($"SettingsService: Saved RunAsAdministrator = {Settings.RunAsAdministrator}");
 
-                        SwitchBlade.Core.Logger.Log($"SettingsService: Saved RunAsAdministrator = {Settings.RunAsAdministrator}");
+                // Hotkey
+                _storage.SetValue("HotKeyModifiers", Settings.HotKeyModifiers);
+                _storage.SetValue("HotKeyKey", Settings.HotKeyKey);
 
-                        key.SetValue("HotKeyModifiers", Settings.HotKeyModifiers, RegistryValueKind.DWord);
-                        key.SetValue("HotKeyKey", Settings.HotKeyKey, RegistryValueKind.DWord);
+                // Background Polling
+                _storage.SetValue("EnableBackgroundPolling", Settings.EnableBackgroundPolling);
+                _storage.SetValue("BackgroundPollingIntervalSeconds", Settings.BackgroundPollingIntervalSeconds);
 
-                        // Background Polling
-                        key.SetValue("EnableBackgroundPolling", Settings.EnableBackgroundPolling ? 1 : 0, RegistryValueKind.DWord);
-                        key.SetValue("BackgroundPollingIntervalSeconds", Settings.BackgroundPollingIntervalSeconds, RegistryValueKind.DWord);
+                // Number Shortcuts
+                _storage.SetValue("EnableNumberShortcuts", Settings.EnableNumberShortcuts);
+                _storage.SetValue("NumberShortcutModifier", Settings.NumberShortcutModifier);
 
-                        // Number Shortcuts
-                        key.SetValue("EnableNumberShortcuts", Settings.EnableNumberShortcuts ? 1 : 0, RegistryValueKind.DWord);
-                        key.SetValue("NumberShortcutModifier", Settings.NumberShortcutModifier, RegistryValueKind.DWord);
+                // Badge Animations
+                _storage.SetValue("EnableBadgeAnimations", Settings.EnableBadgeAnimations);
 
-                        // Badge Animations
-                        key.SetValue("EnableBadgeAnimations", Settings.EnableBadgeAnimations ? 1 : 0, RegistryValueKind.DWord);
+                // Refresh Behavior
+                _storage.SetValue("RefreshBehavior", Settings.RefreshBehavior);
 
-                        // Refresh Behavior
-                        key.SetValue("RefreshBehavior", (int)Settings.RefreshBehavior, RegistryValueKind.DWord);
+                // Regex Cache Size
+                _storage.SetValue("RegexCacheSize", Settings.RegexCacheSize);
 
-                        // Regex Cache Size
-                        key.SetValue("RegexCacheSize", Settings.RegexCacheSize, RegistryValueKind.DWord);
+                // Fuzzy Search
+                _storage.SetValue("EnableFuzzySearch", Settings.EnableFuzzySearch);
 
-                        // Fuzzy Search
-                        key.SetValue("EnableFuzzySearch", Settings.EnableFuzzySearch ? 1 : 0, RegistryValueKind.DWord);
+                // Flush to ensure all writes are committed
+                _storage.Flush();
 
-                        // Flush to ensure all writes are committed before any restart
-                        key.Flush();
-                    }
-                }
                 SettingsChanged?.Invoke();
             }
             catch (Exception ex)
             {
-                SwitchBlade.Core.Logger.LogError("Failed to save settings to registry", ex);
+                SwitchBlade.Core.Logger.LogError("Failed to save settings", ex);
             }
 
             // Sync startup registry entry via startup manager
@@ -255,4 +220,3 @@ namespace SwitchBlade.Services
         public bool IsStartupEnabled() => _startupManager.IsStartupEnabled();
     }
 }
-

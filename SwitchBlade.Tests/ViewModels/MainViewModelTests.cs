@@ -202,5 +202,52 @@ namespace SwitchBlade.Tests.ViewModels
 
             Assert.Equal(item1, vm.SelectedWindow);
         }
+
+        [Fact]
+        public void MoveSelectionToLast_WithItems_SelectsLastItem()
+        {
+            var item1 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "1", ProcessName = "exe", Source = null };
+            var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
+            var vm = new MainViewModel(System.Linq.Enumerable.Empty<IWindowProvider>());
+
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
+            vm.SelectedWindow = item1;
+
+            vm.MoveSelectionToLast();
+
+            Assert.Equal(item2, vm.SelectedWindow);
+        }
+
+        [Fact]
+        public void MoveSelection_ClampsAtEndOfList()
+        {
+            var item1 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "1", ProcessName = "exe", Source = null };
+            var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
+            var vm = new MainViewModel(System.Linq.Enumerable.Empty<IWindowProvider>());
+
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
+            vm.SelectedWindow = item2;
+
+            vm.MoveSelection(1);
+
+            // Should stay at last item (clamp behavior)
+            Assert.Equal(item2, vm.SelectedWindow);
+        }
+
+        [Fact]
+        public void MoveSelection_ClampsAtStartOfList()
+        {
+            var item1 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "1", ProcessName = "exe", Source = null };
+            var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
+            var vm = new MainViewModel(System.Linq.Enumerable.Empty<IWindowProvider>());
+
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
+            vm.SelectedWindow = item1;
+
+            vm.MoveSelection(-1);
+
+            // Should stay at first item (clamp behavior)
+            Assert.Equal(item1, vm.SelectedWindow);
+        }
     }
 }

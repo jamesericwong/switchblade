@@ -99,37 +99,19 @@ namespace SwitchBlade
             var helper = new WindowInteropHelper(this);
             var hwnd = helper.Handle;
 
-            int darkMode = 1;
-            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+            string theme = _settingsService.Settings.CurrentTheme;
+            int darkMode = (theme.Contains("Dark", StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
 
-            int backdropType = (int)BackdropType.Mica;
-            DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, sizeof(int));
+            SwitchBlade.Contracts.NativeInterop.DwmSetWindowAttribute(hwnd,
+                SwitchBlade.Contracts.NativeInterop.DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
 
-            int cornerPreference = (int)CornerPreference.Round;
-            DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
-        }
+            int backdropType = SwitchBlade.Contracts.NativeInterop.DWM_BACKDROP_MICA;
+            SwitchBlade.Contracts.NativeInterop.DwmSetWindowAttribute(hwnd,
+                SwitchBlade.Contracts.NativeInterop.DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, sizeof(int));
 
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
-        private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
-        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-        private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
-
-        private enum BackdropType
-        {
-            None = 0,
-            Mica = 2,
-            Acrylic = 3,
-            Tabbed = 4
-        }
-
-        private enum CornerPreference
-        {
-            Default = 0,
-            DoNotRound = 1,
-            Round = 2,
-            RoundSmall = 3
+            int cornerPreference = SwitchBlade.Contracts.NativeInterop.DWMWCP_ROUND;
+            SwitchBlade.Contracts.NativeInterop.DwmSetWindowAttribute(hwnd,
+                SwitchBlade.Contracts.NativeInterop.DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
