@@ -83,7 +83,7 @@ namespace SwitchBlade.Contracts
         }
 
         /// <inheritdoc />
-        public abstract void ShowSettingsDialog(IntPtr ownerHwnd);
+        public virtual ISettingsControl? SettingsControl => null;
 
         /// <inheritdoc />
         public abstract void ActivateWindow(WindowItem item);

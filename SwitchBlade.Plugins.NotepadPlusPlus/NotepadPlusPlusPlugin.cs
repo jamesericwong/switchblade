@@ -27,6 +27,11 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
         public override string PluginName => "NotepadPlusPlusPlugin";
         public override bool HasSettings => true;
 
+        public override ISettingsControl? SettingsControl =>
+            _settingsService != null
+                ? new NotepadPlusPlusSettingsControlProvider(_settingsService, _nppProcesses.ToList())
+                : null;
+
         public NotepadPlusPlusPlugin()
         {
         }
@@ -77,20 +82,6 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
         {
             _logger?.Log($"{PluginName} Handled Processes: {string.Join(", ", _nppProcesses)}");
             return _nppProcesses;
-        }
-
-        public override void ShowSettingsDialog(IntPtr ownerHwnd)
-        {
-            var dialog = new NotepadPlusPlusSettingsWindow(_settingsService!, _nppProcesses.ToList());
-            if (ownerHwnd != IntPtr.Zero)
-            {
-                var helper = new WindowInteropHelper(dialog);
-                helper.Owner = ownerHwnd;
-            }
-            dialog.ShowDialog();
-
-            // Reload settings after dialog closes
-            ReloadSettings();
         }
 
         protected override IEnumerable<WindowItem> ScanWindowsCore()

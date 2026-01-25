@@ -9,10 +9,10 @@
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         PreviewKeyDown="Window_PreviewKeyDown">
-    <Border Background="{DynamicResource CardBackgroundBrush}" 
+    <Border Background="#202020" 
             CornerRadius="12"
             BorderThickness="1"
-            BorderBrush="{DynamicResource ControlBorderBrush}">
+            BorderBrush="#3F3F3F">
         <Grid Margin="20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -24,7 +24,7 @@
                        Text="Plugin Settings" 
                        FontSize="20" 
                        FontWeight="SemiBold" 
-                       Foreground="{DynamicResource TextForegroundBrush}"
+                       Foreground="White"
                        Margin="0,0,0,20"/>
 
             <ContentControl x:Name="SettingsContent" Grid.Row="1" Margin="0,0,0,20"/>

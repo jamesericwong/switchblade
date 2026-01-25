@@ -26,6 +26,11 @@ namespace SwitchBlade.Plugins.WindowsTerminal
         public override string PluginName => "WindowsTerminalPlugin";
         public override bool HasSettings => true;
 
+        public override ISettingsControl? SettingsControl =>
+            _settingsService != null
+                ? new TerminalSettingsControlProvider(_settingsService, _terminalProcesses)
+                : null;
+
         public WindowsTerminalPlugin()
         {
         }
@@ -75,20 +80,6 @@ namespace SwitchBlade.Plugins.WindowsTerminal
         {
             _logger?.Log($"{PluginName} Handled Processes: {string.Join(", ", _terminalProcesses)}");
             return _terminalProcesses;
-        }
-
-        public override void ShowSettingsDialog(IntPtr ownerHwnd)
-        {
-            var dialog = new TerminalSettingsWindow(_settingsService!, _terminalProcesses);
-            if (ownerHwnd != IntPtr.Zero)
-            {
-                var helper = new WindowInteropHelper(dialog);
-                helper.Owner = ownerHwnd;
-            }
-            dialog.ShowDialog();
-
-            // Reload settings after dialog closes
-            ReloadSettings();
         }
 
         protected override IEnumerable<WindowItem> ScanWindowsCore()

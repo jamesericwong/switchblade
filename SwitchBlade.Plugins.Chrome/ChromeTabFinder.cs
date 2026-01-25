@@ -34,6 +34,11 @@ namespace SwitchBlade.Plugins.Chrome
         public override string PluginName => "ChromeTabFinder";
         public override bool HasSettings => true;
 
+        public override ISettingsControl? SettingsControl =>
+            _settingsService != null
+                ? new ChromeSettingsControlProvider(_settingsService, _browserProcesses.ToList())
+                : null;
+
         public ChromeTabFinder()
         {
         }
@@ -78,20 +83,6 @@ namespace SwitchBlade.Plugins.Chrome
             }
 
             _logger?.Log($"ChromeTabFinder: Loaded {_browserProcesses.Count} browser processes");
-        }
-
-        public override void ShowSettingsDialog(IntPtr ownerHwnd)
-        {
-            var dialog = new ChromeSettingsWindow(_settingsService!, _browserProcesses.ToList());
-            if (ownerHwnd != IntPtr.Zero)
-            {
-                var helper = new WindowInteropHelper(dialog);
-                helper.Owner = ownerHwnd;
-            }
-            dialog.ShowDialog();
-
-            // Reload settings after dialog closes
-            ReloadSettings();
         }
 
         public override IEnumerable<string> GetHandledProcesses()

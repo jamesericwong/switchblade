@@ -51,16 +51,5 @@ namespace SwitchBlade.Contracts
         IEnumerable<WindowItem> GetWindows();
 
         void ActivateWindow(WindowItem item);
-
-        /// <summary>
-        /// Opens a settings dialog for this plugin.
-        /// </summary>
-        /// <param name="ownerHwnd">Handle to the parent window for modal dialog.</param>
-        /// <remarks>
-        /// This method is maintained for backwards compatibility.
-        /// New plugins should implement <see cref="SettingsControl"/> instead.
-        /// </remarks>
-        [Obsolete("Use SettingsControl property instead. This method will be removed in a future version.")]
-        void ShowSettingsDialog(IntPtr ownerHwnd);
     }
 }

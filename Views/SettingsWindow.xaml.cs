@@ -79,21 +79,12 @@ namespace SwitchBlade.Views
             {
                 if (pluginInfo.Provider != null && pluginInfo.HasSettings)
                 {
-                    // Prefer modern ISettingsControl if available
-                    if (pluginInfo.Provider.SettingsControl != null)
+                    var settingsControl = pluginInfo.Provider.SettingsControl;
+                    if (settingsControl != null)
                     {
-                        var hostWindow = new PluginSettingsHostWindow(pluginInfo.Name, pluginInfo.Provider.SettingsControl);
+                        var hostWindow = new PluginSettingsHostWindow(pluginInfo.Name, settingsControl);
                         hostWindow.Owner = this;
                         hostWindow.ShowDialog();
-                    }
-                    else
-                    {
-                        // Fallback to legacy ShowSettingsDialog
-                        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-
-#pragma warning disable CS0618 // Type or member is obsolete
-                        pluginInfo.Provider.ShowSettingsDialog(hwnd);
-#pragma warning restore CS0618
                     }
                 }
             }

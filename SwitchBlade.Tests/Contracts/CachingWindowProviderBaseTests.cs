@@ -25,7 +25,6 @@ namespace SwitchBlade.Tests.Contracts
             _scanDelayMs = scanDelayMs;
         }
 
-        public override void ShowSettingsDialog(nint ownerHwnd) { }
         public override void ActivateWindow(WindowItem item) { }
 
         protected override IEnumerable<WindowItem> ScanWindowsCore()

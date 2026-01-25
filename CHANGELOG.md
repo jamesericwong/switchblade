@@ -1,3 +1,23 @@
+## [1.6.6] - 2026-01-24
+### Changed
+- **BREAKING: `ShowSettingsDialog` Removed**: The deprecated `ShowSettingsDialog(IntPtr)` method has been removed from `IWindowProvider`.
+  - All plugins with settings must now implement the `ISettingsControl` interface.
+  - Bundled plugins (Chrome, Windows Terminal, Notepad++) migrated to `UserControl`-based settings.
+- **Plugin Settings UI Modernization**: All bundled plugin settings windows converted from standalone `Window` to embeddable `UserControl`.
+  - New files: `ChromeSettingsControl.xaml/.cs`, `TerminalSettingsControl.xaml/.cs`, `NotepadPlusPlusSettingsControl.xaml/.cs`
+  - Each plugin now exposes an `ISettingsControl` provider via the `SettingsControl` property.
+- **CachingWindowProviderBase Simplified**: Removed abstract `ShowSettingsDialog`, replaced with virtual `SettingsControl` property.
+- **Host Application Cleanup**: Removed legacy fallback path in `SettingsWindow.xaml.cs` since all plugins use modern contract.
+
+### Fixed
+- **Self-Healing Settings**: Implemented `HasKey` detection in `ISettingsStorage` to automatically recreate missing registry keys with defaults on startup.
+  - Fixes issue where deleted registry keys (like `HotKeyKey`) were not being restored.
+
+### Technical
+- Total test count: 281 (all passing).
+- Build clean: 0 warnings, 0 errors.
+- All plugin settings files converted to lightweight UserControls for better host integration.
+
 ## [1.6.5] - 2026-01-24
 ### Added
 - **ISettingsStorage Abstraction**: Introduced `ISettingsStorage` interface and `RegistrySettingsStorage` implementation to decouple settings persistence from business logic.

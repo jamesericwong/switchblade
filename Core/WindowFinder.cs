@@ -38,11 +38,6 @@ namespace SwitchBlade.Core
             // No plugin-specific settings to reload
         }
 
-        public override void ShowSettingsDialog(IntPtr ownerHwnd)
-        {
-            // No settings dialog for core WindowFinder
-        }
-
 
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {

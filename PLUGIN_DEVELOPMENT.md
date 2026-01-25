@@ -47,16 +47,14 @@ namespace SwitchBlade.Contracts
         string PluginName { get; }
         bool HasSettings { get; }
 
-        // 1. Settings UI (NEW in 1.6.5)
-        // Preferred way to provide settings UI. Return null for legacy ShowSettingsDialog.
+        // 1. Settings UI (Required in 1.6.6+ for plugins with settings)
+        // Return a settings control provider or null if no settings UI.
         ISettingsControl? SettingsControl => null;
 
         // 2. Initialization: Receive context with logger and other dependencies
         void Initialize(IPluginContext context);
 
         // 3. Settings Management
-        [Obsolete("Use SettingsControl property instead. This method will be removed in a future version.")]
-        void ShowSettingsDialog(IntPtr ownerHwnd);
         void ReloadSettings();
 
         // 4. Dynamic Exclusions
@@ -74,7 +72,7 @@ namespace SwitchBlade.Contracts
         void ActivateWindow(WindowItem item);
     }
     
-    // Settings UI interface (NEW in 1.6.5)
+    // Settings UI interface (Required in 1.6.6+ for plugins with HasSettings=true)
     public interface ISettingsControl
     {
         object CreateSettingsControl();  // Returns a WPF FrameworkElement
@@ -147,8 +145,6 @@ namespace MyCustomPlugin
             _logger?.Log("SimpleDemo plugin initialized");
         }
 
-        public void ShowSettingsDialog(IntPtr ownerHwnd) { /* No settings */ }
-        
         public void ReloadSettings() { /* Nothing to reload */ }
 
         public IEnumerable<WindowItem> GetWindows()
@@ -269,7 +265,6 @@ public class MySlowPlugin : CachingWindowProviderBase
     public override string PluginName => "MySlowPlugin";
     public override bool HasSettings => false;
 
-    public override void ShowSettingsDialog(IntPtr ownerHwnd) { }
     public override void ActivateWindow(WindowItem item) { /* ... */ }
 
     protected override IEnumerable<WindowItem> ScanWindowsCore()
@@ -323,15 +318,13 @@ public class MyCustomPlugin : IWindowProvider
 
 ---
 
-## Migration Guide: v1.6.4 → v1.6.5
+## Migration Guide: v1.6.5 → v1.6.6
 
-Version 1.6.5 introduces a new **ISettingsControl** interface for modern WPF-based plugin settings. The legacy `ShowSettingsDialog(IntPtr)` method is deprecated but will continue to work.
+Version 1.6.6 **removes** the deprecated `ShowSettingsDialog(IntPtr)` method. All plugins with settings must now implement the `ISettingsControl` interface.
 
-### New: `ISettingsControl` Interface
+### Breaking Change: `ShowSettingsDialog` Removed
 
-Instead of managing an HWND dialog, plugins can now return a WPF control:
-
-**Before (legacy):**
+**Before (v1.6.5 - deprecated):**
 ```csharp
 public bool HasSettings => true;
 
@@ -342,20 +335,17 @@ public void ShowSettingsDialog(IntPtr ownerHwnd)
 }
 ```
 
-**After (1.6.5+):**
+**After (v1.6.6+):**
 ```csharp
 public bool HasSettings => true;
 
-// Return your settings UI control directly
+// Required: Return your settings UI control provider
 public ISettingsControl? SettingsControl => new MySettingsControlProvider();
 
-// Legacy method still required but can be empty when using ISettingsControl
-public void ShowSettingsDialog(IntPtr ownerHwnd) { }
-
-// In a separate file:
+// Implement ISettingsControl:
 public class MySettingsControlProvider : ISettingsControl
 {
-    private MySettingsUserControl _control;
+    private MySettingsUserControl? _control;
     
     public object CreateSettingsControl()
     {
@@ -370,15 +360,22 @@ public class MySettingsControlProvider : ISettingsControl
     
     public void CancelSettings()
     {
-        // Discard changes
+        // Discard changes or restore original values
     }
 }
 ```
 
+### Key Changes
+1. **Remove** any `ShowSettingsDialog` override from your plugin
+2. **Convert** your settings `Window` to a `UserControl`
+3. **Implement** `ISettingsControl` to wrap your control with save/cancel logic
+4. **Return** an instance of your provider from the `SettingsControl` property
+
 ### Benefits
-- **No HWND management**: The host application handles dialog creation
-- **Consistent styling**: Your control inherits the application theme
-- **Easier testing**: Unit test your control in isolation
+- **No HWND management**: The host application handles dialog creation and lifecycle
+- **Consistent styling**: Your control inherits the application theme automatically
+- **Easier testing**: Unit test your control in isolation without Win32 dependencies
+- **Cleaner code**: No more `WindowInteropHelper` or manual parent window handling
 
 ---
 
@@ -478,6 +475,7 @@ public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
 
 | Version | Key Changes |
 |---------|-------------|
+| 1.6.6   | **BREAKING**: `ShowSettingsDialog` removed. All plugins must use `ISettingsControl` for settings UI. All bundled plugins migrated to `UserControl`-based settings. |
 | 1.6.5   | **ISettingsControl** - New interface for WPF-based plugin settings UI, `ShowSettingsDialog` deprecated |
 | 1.5.8   | **Performance & Icons** - `ExecutablePath` on `WindowItem`, `LibraryImport` migration, zero-allocation `Span<char>` interop |
 | 1.5.6   | **Performance** - Native `EnumWindows` for Notepad++, `HashSet<string>` O(1) lookups, `ReaderWriterLockSlim` in caching base class |
