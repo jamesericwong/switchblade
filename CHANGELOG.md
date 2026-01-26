@@ -1,3 +1,10 @@
+## [1.6.7] - 2026-01-26
+### Fixed
+- **Search Icon Theme Compatibility**: Replaced the raster search icon PNG with a vector `Path` icon.
+  - Fixes the "white box" visual glitch when using dark themes.
+  - Icon color now dynamically binds to the `ForegroundBrush` of the active theme.
+  - Improved visual clarity and scaling at all DPI levels.
+
 ## [1.6.6] - 2026-01-24
 ### Changed
 - **BREAKING: `ShowSettingsDialog` Removed**: The deprecated `ShowSettingsDialog(IntPtr)` method has been removed from `IWindowProvider`.
