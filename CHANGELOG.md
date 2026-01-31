@@ -6,23 +6,30 @@
   - Maintains strict stability for selection and animations by minimizing `Move` operations.
 
 #### Complexity Comparison
+
+| Aspect | Legacy (v1.6.8) | Current (v1.6.9) |
+|--------|-----------------|------------------|
+| **Algorithm** | `IndexOf` per item | Two-Pointer scan |
+| **Search Strategy** | Start from index 0 each time | Start from last pointer position |
+| **Complexity** | O(N²) - quadratic | O(N) - linear |
+| **100 Windows** | ~10,000 comparisons | ~100 comparisons |
+
 ```mermaid
-graph LR
-    subgraph "Legacy (v1.6.8 and prior)"
-        L1[Loop source] --> L2[collection.IndexOf item]
-        L2 -->|O N search| L1
-        Note1["Total: O(N²)"]
+flowchart LR
+    subgraph Before["❌ Before: O(N²)"]
+        B1["For each item"] --> B2["Search entire list"]
+        B2 --> B3["10,000 ops for 100 items"]
     end
     
-    subgraph "Current (v1.6.9+)"
-        C1[Two-Pointer Pass] --> C2{Match at ptr?}
-        C2 -- No --> C3[Forward Search only]
-        C3 --> C1
-        Note2["Total: O(N)"]
+    subgraph After["✅ After: O(N)"]
+        A1["Single pass"] --> A2["Pointer tracks position"]
+        A2 --> A3["100 ops for 100 items"]
     end
     
-    style Note2 fill:#dfd,stroke:#333,color:black
-    style Note1 fill:#fdd,stroke:#333,color:black
+    Before -.->|Optimized| After
+    
+    style B3 fill:#fdd,stroke:#c00,color:black
+    style A3 fill:#dfd,stroke:#0a0,color:black
 ```
 
 ## [1.6.8] - 2026-01-31
