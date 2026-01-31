@@ -334,7 +334,7 @@ flowchart TD
     Exists -- Yes --> NextDel[Next Item]
     
     Remove --> NextDel
-    NextDel -->|Done| Phase2[Phase 2: O(N) Two-Pointer Sync]
+    NextDel -->|Done| Phase2["Phase 2: O(N) Two-Pointer Sync"]
     
     Phase2 --> InitPtr[Set ptr = 0]
     InitPtr --> SourceLoop[Loop through Source]
