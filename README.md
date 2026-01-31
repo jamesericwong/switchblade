@@ -326,33 +326,33 @@ SwitchBlade uses a high-performance, two-phase synchronization algorithm to upda
 
 ```mermaid
 flowchart TD
-    Start[Source List Received] --> Phase1[Phase 1: Cleanup]
-    Phase1 --> BuildSet[Build HashSet of Source Items]
-    BuildSet --> ReverseLoop[Loop Collection Backwards]
-    ReverseLoop --> Exists{In SourceSet?}
-    Exists -- No --> Remove[RemoveAt i]
-    Exists -- Yes --> NextDel[Next Item]
+    Start["Source List Received"] --> Phase1["Phase 1: Cleanup"]
+    Phase1 --> BuildSet["Build HashSet of Source Items"]
+    BuildSet --> ReverseLoop["Loop Collection Backwards"]
+    ReverseLoop --> Exists{"In SourceSet?"}
+    Exists -- No --> Remove["RemoveAt i"]
+    Exists -- Yes --> NextDel["Next Item"]
     
     Remove --> NextDel
     NextDel -->|Done| Phase2["Phase 2: O(N) Two-Pointer Sync"]
     
-    Phase2 --> InitPtr[Set ptr = 0]
-    InitPtr --> SourceLoop[Loop through Source]
-    SourceLoop --> Match{collection[ptr] == source[i]?}
+    Phase2 --> InitPtr["Set ptr = 0"]
+    InitPtr --> SourceLoop["Loop through Source"]
+    SourceLoop --> Match{"collection[ptr] == source[i]?"}
     
-    Match -- Yes --> IncPtr[ptr++]
+    Match -- Yes --> IncPtr["ptr++"]
     IncPtr --> SourceLoop
     
-    Match -- No --> Find[Search Forward for Item]
-    Find --> Found{Found?}
+    Match -- No --> Find["Search Forward for Item"]
+    Find --> Found{"Found?"}
     
-    Found -- Yes --> Move[collection.Move foundAt -> ptr]
+    Found -- Yes --> Move["collection.Move foundAt -> ptr"]
     Move --> IncPtr
     
-    Found -- No --> Insert[collection.Insert ptr, item]
+    Found -- No --> Insert["collection.Insert ptr, item"]
     Insert --> IncPtr
     
-    SourceLoop -->|Complete| End[Sync Finished]
+    SourceLoop -->|Complete| End["Sync Finished"]
     
     style Phase2 fill:#f9f,stroke:#333,stroke-width:2px,color:black
     style Match fill:#bbf,stroke:#333,stroke-width:2px,color:black
