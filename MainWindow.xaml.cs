@@ -63,7 +63,7 @@ namespace SwitchBlade
                 _settingsService,
                 () => this.Hide(),
                 ActivateWindow,
-                () => ResultsConfig.ActualHeight);
+                () => ResultsConfig.ListActualHeight);
 
             _resizeHandler = new WindowResizeHandler(this, _logger);
 
@@ -120,12 +120,16 @@ namespace SwitchBlade
 
             // Initialize ThumbnailService - needs PreviewCanvas which isn't available until loaded
             _thumbnailService = new ThumbnailService(this, _logger);
-            _thumbnailService.SetPreviewContainer(PreviewCanvas);
+            _thumbnailService.SetPreviewContainer(PreviewPanel.PreviewCanvas);
 
             // Initialize Badge Animation Service
             _badgeAnimationService = new BadgeAnimationService();
             _viewModel.ResultsUpdated += OnResultsUpdated;
             _viewModel.SearchTextChanged += OnSearchTextChanged;
+
+            // Interaction handlers from UserControl
+            ResultsConfig.PreviewItemRequested += ResultList_PreviewItemRequested;
+            ResultsConfig.ActivateItemRequested += ResultList_ActivateItemRequested;
 
             // Initialize Background Polling Service
             _backgroundPollingService = new BackgroundPollingService(
@@ -146,7 +150,7 @@ namespace SwitchBlade
 
             _logger.Log($"Applied Settings Size: {this.Width}x{this.Height}, Centered at: ({this.Left}, {this.Top})");
 
-            SearchBox.Focus();
+            SearchBox.FocusInput();
             ApplyBackdrop();
             _ = InitialLoadAsync();
         }
@@ -234,7 +238,7 @@ namespace SwitchBlade
             this.Activate();
             SwitchBlade.Contracts.NativeInterop.ForceForegroundWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
 
-            SearchBox.Focus();
+            SearchBox.FocusInput();
 
             // Reset badge animation state BEFORE clearing search text
             // (Clearing search text triggers ResultsUpdated which would mark items as animated)
@@ -356,23 +360,17 @@ namespace SwitchBlade
             }
         }
 
-        private void ListBoxItem_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        private void ResultList_PreviewItemRequested(object? sender, WindowItem windowItem)
         {
             if (_settingsService.Settings.EnablePreviews)
             {
-                if (sender is ListBoxItem item && item.DataContext is WindowItem windowItem)
-                {
-                    _thumbnailService?.UpdateThumbnail(windowItem.Hwnd);
-                }
+                _thumbnailService?.UpdateThumbnail(windowItem.Hwnd);
             }
         }
 
-        private void ListBoxItem_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void ResultList_ActivateItemRequested(object? sender, WindowItem windowItem)
         {
-            if (sender is ListBoxItem item && item.DataContext is WindowItem windowItem)
-            {
-                ActivateWindow(windowItem);
-            }
+            ActivateWindow(windowItem);
         }
 
         private void ResizeGripBottomRight_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

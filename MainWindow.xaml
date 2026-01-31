@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SwitchBlade"
         xmlns:core="clr-namespace:SwitchBlade.Core"
+        xmlns:components="clr-namespace:SwitchBlade.Views.Components"
         mc:Ignorable="d"
         Title="SwitchBlade" Height="600" Width="800"
         WindowStyle="None"
@@ -68,6 +69,8 @@
 
             <!-- Main Grid content starts here -->
             
+            <!-- Main Grid content starts here -->
+            
             <!-- Left Pane (Search + Results) -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
@@ -75,203 +78,19 @@
                     <RowDefinition Height="*"/>    <!-- Results -->
                 </Grid.RowDefinitions>
 
-                <!-- Search Bar -->
-                <Border Grid.Row="0" 
-                        Background="{DynamicResource ControlBackground}" 
-                        CornerRadius="8" 
-                        Padding="10,5">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <Path Data="M12.5,11L11.7,11L11.4,10.7C12.4,9.5 13,8 13,6.5C13,2.9 10.1,0 6.5,0C2.9,0 0,2.9 0,6.5C0,10.1 2.9,13 6.5,13C8,13 9.5,12.4 10.7,11.4L11,11.7L11,12.5L16,17.5L17.5,16L12.5,11ZM6.5,11C4,11 2,9 2,6.5C2,4 4,2 6.5,2C9,2 11,4 11,6.5C11,9 9,11 6.5,11Z"
-                              Fill="{DynamicResource ForegroundBrush}"
-                              Width="18" Height="18"
-                              Stretch="Uniform"
-                              VerticalAlignment="Center"
-                              Margin="0,0,10,0"
-                              Opacity="0.6"/>
-                        
-                        <TextBox x:Name="SearchBox"
-                                 Grid.Column="1"
-                                 Style="{DynamicResource ModernTextBoxStyle}"
-                                 Foreground="{DynamicResource ForegroundBrush}"
-                                 FontSize="18"
-                                 CaretBrush="{DynamicResource ForegroundBrush}"
-                                 VerticalContentAlignment="Center"
-                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                                 />
-                    </Grid>
-                </Border>
+                <!-- Search Bar component -->
+                <components:SearchBar x:Name="SearchBox" Grid.Row="0"/>
 
-                <!-- Results List -->
-                <ListBox x:Name="ResultsConfig"
-                         Grid.Row="1"
-                         Margin="0,20,10,0"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ItemsSource="{Binding FilteredWindows}"
-                         SelectedItem="{Binding SelectedWindow, Mode=TwoWay}">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <!-- Interaction Events -->
-                            <EventSetter Event="MouseEnter" Handler="ListBoxItem_MouseEnter"/>
-                            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="ListBoxItem_PreviewMouseLeftButtonUp"/>
-                            <Setter Property="Height" Value="{Binding DataContext.ItemHeight, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="ItemBorder" 
-                                                Background="Transparent" 
-                                                CornerRadius="10" 
-                                                Padding="12,10" 
-                                                Margin="0,2,8,2">
-                                            <Grid>
-                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>  <!-- Badge -->
-                                                    <ColumnDefinition Width="Auto"/>  <!-- Icon -->
-                                                    <ColumnDefinition Width="*"/>     <!-- Title/Process -->
-                                                </Grid.ColumnDefinitions>
-                                                
-                                                <!-- Number Badge - shows modifier + number (e.g., "Alt + 1") -->
-                                                <Border x:Name="NumberBadge"
-                                                        Grid.Column="0"
-                                                        Background="{DynamicResource HighlightBrush}"
-                                                        CornerRadius="4"
-                                                        Padding="6,4"
-                                                        Margin="0,0,10,0"
-                                                        VerticalAlignment="Center"
-                                                        Opacity="{Binding BadgeOpacity}">
-                                                    <Border.RenderTransform>
-                                                        <TranslateTransform X="{Binding BadgeTranslateX}"/>
-                                                    </Border.RenderTransform>
-                                                    <Border.Visibility>
-                                                        <MultiBinding Converter="{StaticResource ShortcutVisibilityConverter}">
-                                                            <Binding Path="IsShortcutVisible"/>
-                                                            <Binding Path="DataContext.EnableNumberShortcuts" RelativeSource="{RelativeSource AncestorType=ListBox}"/>
-                                                        </MultiBinding>
-                                                    </Border.Visibility>
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <!-- Modifier Key (e.g., Alt, Ctrl, Shift) -->
-                                                        <TextBlock Text="{Binding DataContext.ShortcutModifierText, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                                   FontSize="9"
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="{DynamicResource ForegroundBrush}"
-                                                                   Opacity="0.7"
-                                                                   VerticalAlignment="Center">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding DataContext.ShortcutModifierText, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <!-- Plus Sign Separator -->
-                                                        <TextBlock Text="+"
-                                                                   FontSize="9"
-                                                                   Foreground="{DynamicResource ForegroundBrush}"
-                                                                   Opacity="0.5"
-                                                                   Margin="2,0"
-                                                                   VerticalAlignment="Center">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding DataContext.ShortcutModifierText, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <!-- Number Key -->
-                                                        <TextBlock Text="{Binding ShortcutDisplay}"
-                                                                   FontSize="11"
-                                                                   FontWeight="Bold"
-                                                                   Foreground="{DynamicResource ForegroundBrush}"
-                                                                   VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                
-                                                <!-- Application Icon -->
-                                                <Image Grid.Column="1" 
-                                                       Source="{Binding Icon}" 
-                                                       Width="20" Height="20" 
-                                                       Margin="0,0,8,0"
-                                                       VerticalAlignment="Center"
-                                                       Visibility="{Binding DataContext.ShowIcons, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource BoolToVisibility}}"/>
-                                                
-                                                <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="{Binding Title}" Foreground="{DynamicResource ForegroundBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding ProcessName}" Foreground="{DynamicResource BorderBrush}" FontSize="12" Opacity="0.7"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <!-- Hover effect - highlight only, no scale -->
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource HighlightBrush}"/>
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource HighlightBrush}"/>
-                                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                </ListBox>
+                <!-- Results List component -->
+                <components:ResultList x:Name="ResultsConfig" Grid.Row="1" Margin="0,20,0,0"/>
+
             </Grid>
 
-            <!-- Preview Panel -->
-            <Border x:Name="PreviewPanel"
+            <!-- Preview Panel component -->
+            <components:PreviewPanel x:Name="PreviewPanel"
                     Grid.Column="1"
                     Width="400"
-                    Margin="20,0,0,0"
-                    Background="Black"
-                    Opacity="0.8"
-                    CornerRadius="8"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="1">
-                <Border.Style>
-                    <Style TargetType="Border">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding EnablePreviews}" Value="True">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Border.Style>
-                
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    
-                    <!-- This Canvas is the target for DWM Thumbnail -->
-                    <Canvas x:Name="PreviewCanvas" Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-                    
-                    <!-- Preview Title Bar -->
-                    <Border Grid.Row="1" 
-                            Background="#CC1A1A1A" 
-                            CornerRadius="0,0,7,7"
-                            Padding="10,6">
-                        <TextBlock Foreground="#E0E0E0" FontSize="12" TextTrimming="CharacterEllipsis">
-                            <Run Text="Previewing: " FontWeight="SemiBold" Foreground="#AAAAAA"/><Run Text="{Binding SelectedWindow.Title}"/>
-                        </TextBlock>
-                    </Border>
-                </Grid>
-            </Border>
+                    Margin="20,0,0,0"/>
 
             <!-- Resize Grip (Bottom Right) - Moved to be last child for Z-Index -->
             <Path Data="M16,16 L16,0 L0,16 Z" 

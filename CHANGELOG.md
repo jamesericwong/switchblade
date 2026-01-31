@@ -1,3 +1,9 @@
+## [1.6.8] - 2026-01-31
+### Added
+- Modularized `MainWindow.xaml` by extracting `SearchBar`, `ResultList`, and `PreviewPanel` into separate UserControls.
+- Improved code maintainability by reducing `MainWindow.xaml` complexity.
+- Added unit tests for new UserControl components (`SearchBar`, `ResultList`, `PreviewPanel`).
+
 ## [1.6.7] - 2026-01-26
 ### Fixed
 - **Search Icon Theme Compatibility**: Replaced the raster search icon PNG with a vector `Path` icon.
