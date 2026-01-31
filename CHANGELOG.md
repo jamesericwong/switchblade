@@ -1,3 +1,30 @@
+## [1.6.9] - 2026-01-31
+### Changed
+- **Performance Optimization**: Completely overhauled the list synchronization algorithm (`SyncCollection`) in `MainViewModel`.
+  - Replaced the previous $O(N^2)$ architecture (based on nested `IndexOf` calls) with a high-efficiency **Two-Pointer** implementation.
+  - Achieved $O(N)$ linear complexity, significantly reducing UI thread stalling on systems with hundreds of open windows or high-frequency search updates.
+  - Maintains strict stability for selection and animations by minimizing `Move` operations.
+
+#### Complexity Comparison
+```mermaid
+graph LR
+    subgraph "Legacy (v1.6.8 and prior)"
+        L1[Loop source] --> L2[collection.IndexOf item]
+        L2 -->|O N search| L1
+        Note1["Total: O(N²)"]
+    end
+    
+    subgraph "Current (v1.6.9+)"
+        C1[Two-Pointer Pass] --> C2{Match at ptr?}
+        C2 -- No --> C3[Forward Search only]
+        C3 --> C1
+        Note2["Total: O(N)"]
+    end
+    
+    style Note2 fill:#dfd,stroke:#333,color:black
+    style Note1 fill:#fdd,stroke:#333,color:black
+```
+
 ## [1.6.8] - 2026-01-31
 ### Added
 - Modularized `MainWindow.xaml` by extracting `SearchBar`, `ResultList`, and `PreviewPanel` into separate UserControls.

@@ -1,6 +1,6 @@
 # SwitchBlade Technical Documentation
 
-**Current Version: 1.6.8** | [View Changelog](CHANGELOG.md)
+**Current Version: 1.6.9** | [View Changelog](CHANGELOG.md)
 
 ## Overview
 SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. It is built using **C# / WPF** and follows the **MVVM (Model-View-ViewModel)** architectural pattern. It is designed to be extensible via a robust Plugin System, allowing it to index not just top-level windows but also internal document tabs as searchable items.
@@ -320,58 +320,49 @@ SwitchBlade uses a sophisticated incremental update strategy to keep the window 
 1. **No Clear-On-Toggle**: When the Global Hotkey is pressed, the list is **NOT** cleared. The user immediately sees the results from the *previous* session while background scans run.
 2. **Provider-Isolated Updates**: Each window provider (e.g., `WindowFinder`, `ChromeTabFinder`) updates its own slice of the list independently. Changes from one provider don't affect items from other providers.
 
-### Incremental Merge Algorithm
+### Incremental Merge Algorithm (O(N) Optimized)
+
+SwitchBlade uses a high-performance, two-phase synchronization algorithm to update the UI collection without full list refreshes. This ensures selection persistence and buttery-smooth animations.
 
 ```mermaid
-sequenceDiagram
-    participant Provider as WindowProvider
-    participant Logic as Merge Logic
-    participant List as Search Results
-    participant UI as User Interface
-
-    Provider->>Logic: Returns New List
-    Logic->>Logic: Phase 1: Diff Check (Deep Equality)
-    alt No Changes
-        Logic-->>Provider: Stop (No UI Update)
-    else Changes Detected
-        Logic->>List: Phase 2: Atomic Swap
-        List->>List: Remove Old Items (Provider Source)
-        List->>List: Add New Items
-        List->>List: Phase 3: Stable Sort
-        List-->>UI: NotifyCollectionChanged
-        UI->>UI: Refresh View
-    end
+flowchart TD
+    Start[Source List Received] --> Phase1[Phase 1: Cleanup]
+    Phase1 --> BuildSet[Build HashSet of Source Items]
+    BuildSet --> ReverseLoop[Loop Collection Backwards]
+    ReverseLoop --> Exists{In SourceSet?}
+    Exists -- No --> Remove[RemoveAt i]
+    Exists -- Yes --> NextDel[Next Item]
+    
+    Remove --> NextDel
+    NextDel -->|Done| Phase2[Phase 2: O(N) Two-Pointer Sync]
+    
+    Phase2 --> InitPtr[Set ptr = 0]
+    InitPtr --> SourceLoop[Loop through Source]
+    SourceLoop --> Match{collection[ptr] == source[i]?}
+    
+    Match -- Yes --> IncPtr[ptr++]
+    IncPtr --> SourceLoop
+    
+    Match -- No --> Find[Search Forward for Item]
+    Find --> Found{Found?}
+    
+    Found -- Yes --> Move[collection.Move foundAt -> ptr]
+    Move --> IncPtr
+    
+    Found -- No --> Insert[collection.Insert ptr, item]
+    Insert --> IncPtr
+    
+    SourceLoop -->|Complete| End[Sync Finished]
+    
+    style Phase2 fill:#f9f,stroke:#333,stroke-width:2px,color:black
+    style Match fill:#bbf,stroke:#333,stroke-width:2px,color:black
 ```
 
-When a provider completes scanning, the merge happens in three phases:
+#### Phase 1: Reconciliation (Cleanup)
+Identifies and removes items that are no longer part of the current search results. Using a `HashSet<WindowItem>` ensures existence checks are $O(1)$.
 
-#### Phase 1: Diff Check (Optimization)
-Before modifying the list, we check if anything actually changed:
-```
-1. Count check: If existingItems.Count != newItems.Count, skip to Phase 2
-2. Deep equality: Compare (Hwnd, Title) tuples of existing vs new items
-3. If collections are identical → skip update entirely (no UI refresh)
-```
-This prevents unnecessary UI churn when background polling finds no changes.
-
-#### Phase 2: Atomic Remove + Add
-If changes are detected:
-```
-1. Remove all items where item.Source == currentProvider (iterating backwards)
-2. Add all new items from this provider
-3. Trigger UpdateSearch() to re-sort and refresh FilteredWindows
-```
-This is an atomic swap that ensures we never have a partially-updated state.
-
-#### Phase 3: Stable Sort
-After merging, items are sorted using a deterministic 3-key sort:
-```
-OrderBy(ProcessName) → ThenBy(Title) → ThenBy(Hwnd)
-```
-This ensures:
-- Items from the same application are grouped together
-- Within an application, items are alphabetically ordered
-- The sort is fully deterministic (using Hwnd as tiebreaker)
+#### Phase 2: Two-Pointer Sync (Order & Stability)
+Synchronizes the collection order with the source list using a single pass ($O(N)$). It minimizes UI thread workload by only issuing `Move` or `Insert` commands when structural changes are detected. By searching forward from the current pointer, it avoids the $O(N^2)$ penalty of multiple `IndexOf` calls.
 
 ### Selection Preservation
 

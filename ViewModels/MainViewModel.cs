@@ -225,14 +225,38 @@ namespace SwitchBlade.ViewModels
                     collection.RemoveAt(i);
             }
 
+            // Two-Pointer sync: O(N) complexity
+            int ptr = 0;
             for (int i = 0; i < source.Count; i++)
             {
                 var item = source[i];
-                int currentIndex = collection.IndexOf(item);
-                if (currentIndex == -1)
-                    collection.Insert(i, item);
-                else if (currentIndex != i)
-                    collection.Move(currentIndex, i);
+                if (ptr < collection.Count && collection[ptr] == item)
+                {
+                    ptr++;
+                }
+                else
+                {
+                    int foundAt = -1;
+                    for (int j = ptr + 1; j < collection.Count; j++)
+                    {
+                        if (collection[j] == item)
+                        {
+                            foundAt = j;
+                            break;
+                        }
+                    }
+
+                    if (foundAt != -1)
+                    {
+                        collection.Move(foundAt, ptr);
+                        ptr++;
+                    }
+                    else
+                    {
+                        collection.Insert(ptr, item);
+                        ptr++;
+                    }
+                }
             }
         }
 
