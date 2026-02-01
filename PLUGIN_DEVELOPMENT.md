@@ -46,6 +46,12 @@ namespace SwitchBlade.Contracts
         // 0. Metadata
         string PluginName { get; }
         bool HasSettings { get; }
+        
+        // 0b. Capability Flags (New in 1.8.0)
+        // Set to true if your plugin uses System.Windows.Automation.
+        // UIA plugins run in a separate process to prevent memory leaks.
+        // Default: false
+        bool IsUiaProvider { get; } 
 
         // 1. Settings UI (Required in 1.6.6+ for plugins with settings)
         // Return a settings control provider or null if no settings UI.

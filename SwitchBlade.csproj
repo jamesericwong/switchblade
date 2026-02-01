@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
-    <Version>1.7.8</Version>
+    <Version>1.8.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -12,7 +12,7 @@
     <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
     <StartupObject>SwitchBlade.Program</StartupObject>
-    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Plugins.NotepadPlusPlus\**;SwitchBlade.Tests\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Plugins.NotepadPlusPlus\**;SwitchBlade.Tests\**;SwitchBlade.UiaWorker\**</DefaultItemExcludes>
     
     <!-- Memory Optimization -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
@@ -21,6 +21,7 @@
     
     <!-- Startup Performance -->
     <PublishReadyToRun>true</PublishReadyToRun>
+    <DebugType>none</DebugType>
     
     <!-- Expose internal members to test project -->
     <InternalsVisibleTo>SwitchBlade.Tests</InternalsVisibleTo>
@@ -49,11 +50,22 @@
     <ProjectReference Include="SwitchBlade.Plugins.NotepadPlusPlus\SwitchBlade.Plugins.NotepadPlusPlus.csproj">
        <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
+    <!-- UIA Worker is built and published separately via MSBuild targets below -->
+    <!-- It runs out-of-process to eliminate UIA memory leaks -->
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
   </ItemGroup>
+
+  <!-- Copy UIA Worker to output directory after build (for local development/debugging) -->
+  <Target Name="CopyUiaWorkerToBuild" AfterTargets="Build">
+    <ItemGroup>
+       <!-- Copy all UiaWorker files for local dev (not single-file in debug) -->
+       <UiaWorkerFiles Include="$(MSBuildProjectDirectory)\SwitchBlade.UiaWorker\bin\$(Configuration)\net9.0-windows\win-x64\SwitchBlade.UiaWorker.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UiaWorkerFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
 
   <Target Name="CopyPluginsToPublish" AfterTargets="Publish">
     <ItemGroup>
@@ -61,6 +73,20 @@
        <PluginFiles Include="$(MSBuildProjectDirectory)\bin\$(Configuration)\net9.0-windows\Plugins\**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PublishDir)Plugins\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Copy UIA Worker PUBLISHED output (single-file self-contained exe) to publish directory -->
+  <Target Name="CopyUiaWorkerToPublish" AfterTargets="Publish" DependsOnTargets="PublishUiaWorker">
+    <ItemGroup>
+       <!-- Only copy the single-file exe - no DLLs needed (self-contained) -->
+       <UiaWorkerPublishFiles Include="$(MSBuildProjectDirectory)\SwitchBlade.UiaWorker\bin\$(Configuration)\net9.0-windows\win-x64\publish\SwitchBlade.UiaWorker.exe" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UiaWorkerPublishFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Publish UiaWorker before copying it -->
+  <Target Name="PublishUiaWorker" BeforeTargets="CopyUiaWorkerToPublish">
+    <Exec Command="dotnet publish $(MSBuildProjectDirectory)\SwitchBlade.UiaWorker\SwitchBlade.UiaWorker.csproj -c $(Configuration)" />
   </Target>
 
 </Project>

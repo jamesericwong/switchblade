@@ -14,6 +14,7 @@ namespace SwitchBlade.Core
 
         public override string PluginName => "WindowFinder";
         public override bool HasSettings => false;
+        public override bool IsUiaProvider => false; // Uses EnumWindows, not UIA
 
         public WindowFinder() { }
 

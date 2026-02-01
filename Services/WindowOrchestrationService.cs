@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Automation;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 
@@ -11,11 +13,14 @@ namespace SwitchBlade.Services
     /// <summary>
     /// Coordinates parallel execution of window providers.
     /// Handles structural diffing, caching, and icon population.
+    /// 
+    /// UIA providers (IsUiaProvider=true) run in a separate worker process to prevent memory leaks.
     /// </summary>
     public class WindowOrchestrationService : IWindowOrchestrationService
     {
         private readonly List<IWindowProvider> _providers;
         private readonly IIconService? _iconService;
+        private readonly UiaWorkerClient _uiaWorkerClient;
         private readonly List<WindowItem> _allWindows = new();
         private readonly Dictionary<IntPtr, List<WindowItem>> _windowItemCache = new();
         // Performance optimization: Secondary index for O(1) provider lookups
@@ -42,12 +47,12 @@ namespace SwitchBlade.Services
         {
             _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
             _iconService = iconService;
+            _uiaWorkerClient = new UiaWorkerClient(Logger.Instance);
         }
 
         public async Task RefreshAsync(ISet<string> disabledPlugins)
         {
             // Non-blocking re-entrancy guard: skip if another refresh is in progress.
-            // This prevents RCW creation from outpacing GC destruction.
             if (!await _refreshLock.WaitAsync(0))
             {
                 Logger.Log("RefreshAsync skipped: scan already in progress.");
@@ -61,7 +66,7 @@ namespace SwitchBlade.Services
                 // Clear process cache for fresh lookups
                 NativeInterop.ClearProcessCache();
 
-                // 1. Reload settings and gather handled processes
+                // 1. Reload settings and gather handled processes (for all providers)
                 var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var provider in _providers)
                 {
@@ -79,51 +84,115 @@ namespace SwitchBlade.Services
                     }
                 }
 
-                // 2. Inject exclusions
+                // 2. Inject exclusions (for all providers)
                 foreach (var provider in _providers)
                 {
                     provider.SetExclusions(handledProcesses);
                 }
 
-                // 3. Parallel fetch (runs on MTA thread pool)
-                var tasks = _providers.Select(provider => Task.Run(() =>
+                // 3. Split providers into UIA (out-of-process) and non-UIA (in-process)
+                var nonUiaProviders = _providers.Where(p => !p.IsUiaProvider).ToList();
+                var uiaProviders = _providers.Where(p => p.IsUiaProvider).ToList();
+
+                var allTasks = new List<Task>();
+
+                // 4a. Run NON-UIA providers in-process (fast, no memory leak issues)
+                foreach (var provider in nonUiaProviders)
                 {
-                    try
+                    allTasks.Add(Task.Run(() =>
                     {
-                        bool isDisabled = disabledPlugins.Contains(provider.PluginName);
-                        var results = isDisabled ? new List<WindowItem>() : provider.GetWindows().ToList();
+                        try
+                        {
+                            bool isDisabled = disabledPlugins.Contains(provider.PluginName);
+                            var results = isDisabled ? new List<WindowItem>() : provider.GetWindows().ToList();
+                            ProcessProviderResults(provider, results);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogError($"Provider {provider.PluginName} error: {ex.Message}", ex);
+                        }
+                    }));
+                }
 
-                        ProcessProviderResults(provider, results);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogError($"Provider error: {ex.Message}", ex);
-                    }
-                })).ToList();
-
-                await Task.WhenAll(tasks);
-
-                // 4. Cleanup COM RCWs on background thread
-                // This forced GC runs after EVERY scan to guarantee RCW cleanup.
-                // Without this, the small managed heap would cause lazy GC behavior,
-                // allowing native memory from COM wrappers to accumulate indefinitely.
-                await Task.Run(() =>
+                // 4b. Run UIA providers OUT-OF-PROCESS via UiaWorkerClient
+                // The worker process exits after scanning, which releases ALL UIA COM objects.
+                if (uiaProviders.Count > 0)
                 {
-                    // "Nuclear" GC cleanup as requested:
-                    // 1. Force GC of all generations, blocking, and COMPACTING (defrag)
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+                    var uiaDisabled = new HashSet<string>(
+                        uiaProviders.Where(p => disabledPlugins.Contains(p.PluginName)).Select(p => p.PluginName),
+                        StringComparer.OrdinalIgnoreCase);
 
-                    // 2. Wait for finalizers (critical for RCWs)
-                    GC.WaitForPendingFinalizers();
+                    allTasks.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            Logger.Log($"[UIA] Running {uiaProviders.Count} UIA providers out-of-process...");
 
-                    // 3. Force another compating collection to clean up the now-finalized RCWs
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
-                });
+                            var uiaResults = await _uiaWorkerClient.ScanAsync(uiaDisabled, handledProcesses);
+
+                            Logger.Log($"[UIA] Worker returned {uiaResults.Count} windows.");
+
+                            // Map results back to their respective providers
+                            // Group results by PluginName for proper Source assignment
+                            var resultsByPlugin = uiaResults.GroupBy(r => r.ProcessName).ToList();
+
+                            // For UIA results, we need a "virtual" provider reference for ActivateWindow
+                            // We'll use the first matching provider in _providers
+                            foreach (var uiaProvider in uiaProviders)
+                            {
+                                // The worker returns windows with pluginName already set
+                                // Filter results that came from this provider
+                                var providerResults = uiaResults
+                                    .Where(w => string.Equals(GetPluginNameForProcess(w.ProcessName), uiaProvider.PluginName, StringComparison.OrdinalIgnoreCase))
+                                    .Select(w => { w.Source = uiaProvider; return w; })
+                                    .ToList();
+
+                                ProcessProviderResults(uiaProvider, providerResults);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogError($"UIA Worker error: {ex.Message}", ex);
+                        }
+                    }));
+                }
+
+                await Task.WhenAll(allTasks);
+
+                // 5. No more in-process UIA cleanup needed - worker process handles it!
+                // We can remove the aggressive GC and Automation.RemoveAllEventHandlers()
+                // since we never create UIA objects in this process anymore.
             }
             finally
             {
                 _refreshLock.Release();
             }
+        }
+
+        /// <summary>
+        /// Maps a process name to the plugin that handles it.
+        /// Used to assign Source to windows returned from the UIA worker.
+        /// </summary>
+        private string GetPluginNameForProcess(string processName)
+        {
+            // ChromeTabFinder handles browsers
+            var browserProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "chrome", "msedge", "brave", "vivaldi", "opera", "opera_gx",
+                "chromium", "thorium", "iron", "epic", "yandex", "arc", "comet"
+            };
+            if (browserProcesses.Contains(processName))
+                return "ChromeTabFinder";
+
+            // WindowsTerminalPlugin handles terminals
+            if (string.Equals(processName, "WindowsTerminal", StringComparison.OrdinalIgnoreCase))
+                return "WindowsTerminalPlugin";
+
+            // NotepadPlusPlusPlugin handles Notepad++
+            if (string.Equals(processName, "notepad++", StringComparison.OrdinalIgnoreCase))
+                return "NotepadPlusPlusPlugin";
+
+            return "Unknown";
         }
 
 
@@ -219,6 +288,22 @@ namespace SwitchBlade.Services
         #region Encapsulated Cache Mutators
 
         /// <summary>
+        /// Gets the total number of cached window items (HWND + Provider records).
+        /// Used for memory diagnostics.
+        /// </summary>
+        public int CacheCount
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    // Sum of HWND cache keys (unique windows tracked) + unique items in provider buckets
+                    return _windowItemCache.Count + _providerItems.Values.Sum(s => s.Count);
+                }
+            }
+        }
+
+        /// <summary>
         /// Adds an item to both the HWND cache and the provider index atomically.
         /// Must be called within _lock.
         /// </summary>
@@ -276,6 +361,42 @@ namespace SwitchBlade.Services
             {
                 item.Icon = _iconService.GetIcon(executablePath);
             }
+        }
+
+        /// <summary>
+        /// Runs an action on a dedicated STA thread and returns when the thread exits.
+        /// 
+        /// CRITICAL FOR MEMORY MANAGEMENT:
+        /// UI Automation COM objects are apartment-threaded. When created on an MTA thread,
+        /// the RCW release is unpredictable - GC.Collect merely schedules the release, but
+        /// the actual COM Release may happen much later (or never if UIA caches hold refs).
+        /// 
+        /// By running on a dedicated STA thread that TERMINATES after the work is done,
+        /// we force Windows to immediately release ALL COM objects that were created on
+        /// that thread. This is the most reliable way to prevent UIA memory leaks.
+        /// </summary>
+        private static Task RunOnStaThreadAsync(Action action)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    action();
+                    tcs.SetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
+
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.IsBackground = true;
+            thread.Start();
+
+            return tcs.Task;
         }
 
         #region Test Helpers (Internal)

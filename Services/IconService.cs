@@ -17,6 +17,8 @@ namespace SwitchBlade.Services
         private readonly ConcurrentDictionary<string, ImageSource?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
         private readonly ISettingsService _settingsService;
 
+        public int CacheCount => _iconCache.Count;
+
         // Default to a safe limit if settings unavailable (though they should be)
         private const int FallbackMaxCacheSize = 200;
 

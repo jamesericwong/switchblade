@@ -84,6 +84,10 @@ public partial class App : Application
         var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
         var themeService = _serviceProvider.GetRequiredService<ThemeService>();
 
+        // Start Diagnostics Service (Investigation)
+        var diagService = _serviceProvider.GetRequiredService<MemoryDiagnosticsService>();
+        diagService.StartAsync(new System.Threading.CancellationToken());
+
         // Apply theme immediately
         themeService.LoadCurrentTheme();
 

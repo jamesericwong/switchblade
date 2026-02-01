@@ -62,6 +62,12 @@ namespace SwitchBlade.Contracts
         public abstract bool HasSettings { get; }
 
         /// <inheritdoc />
+        /// <remarks>
+        /// Base implementation returns false. Override to return true in UIA plugins.
+        /// </remarks>
+        public virtual bool IsUiaProvider => false;
+
+        /// <inheritdoc />
         public virtual void Initialize(IPluginContext context)
         {
             Logger = context.Logger;

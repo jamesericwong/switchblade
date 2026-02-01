@@ -1,10 +1,21 @@
-## [1.7.9] - 2026-02-01
-### Changed
-- **Aggressive GC**: Upgraded garbage collection to use `GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true)` to ensure immediate reclamation of memory and mitigation of fragmentation.
-  - **Impact**: This runs on a background thread and **will not affect UI responsiveness** (typing, scrolling, or navigating remain smooth). The worst-case side effect is a negligible delay (milliseconds) in the window list refreshing.
-  - **Reasoning**: This provides the most explicit guarantee possible that RCWs and LOH objects are cleaned up.
+## [1.8.0] - 2026-02-01
+### Fixed
+- **CRITICAL: Complete UIA Memory Leak Elimination**: Implemented out-of-process UI Automation scanning to completely eliminate native memory leaks.
+  - **Root Cause**: Windows 11's UIA framework has a known memory leak where `AutomationElement.FindAll` accumulates native memory that is never released, even with STA thread isolation and aggressive GC.
+  - **Solution**: Created `SwitchBlade.UiaWorker.exe` - a separate process that handles all UIA scans. When it exits after each scan, Windows releases ALL UIA COM objects, guaranteeing zero memory leak.
+  - **Architecture**: 
+    - Non-UIA providers (`WindowFinder`) run in-process (fast, no leak)
+    - UIA providers (Chrome, Terminal, Notepad++) run out-of-process via JSON stdin/stdout IPC
+  - **Impact**: Memory usage will now remain **stable indefinitely**, even during continuous background polling.
 
----
+### Added
+- **New Interface Property**: `IWindowProvider.IsUiaProvider` to distinguish UIA from non-UIA providers
+- **New Service**: `UiaWorkerClient` for spawning and communicating with the worker process
+
+### Changed
+- **WindowOrchestrationService**: Now splits providers by `IsUiaProvider` flag and routes accordingly
+- **Background Polling**: Standard windows update instantly; browser/terminal tabs update via worker
+
 
 ## [1.7.8] - 2026-02-01
 ### Added

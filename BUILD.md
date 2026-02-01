@@ -24,6 +24,7 @@ Before building SwitchBlade, ensure you have the following installed on your sys
 - `SwitchBlade.csproj`: The main WPF application project.
 - `SwitchBlade.Contracts/`: Interface definitions for plugins.
 - `SwitchBlade.Plugins.Chrome/`: The Chrome tab finder plugin.
+- `SwitchBlade.UiaWorker/`: The out-of-process worker for UIA scans.
 - `Installer/SwitchBlade.Installer.wixproj`: The WiX installer project.
 
 ## Building with Visual Studio

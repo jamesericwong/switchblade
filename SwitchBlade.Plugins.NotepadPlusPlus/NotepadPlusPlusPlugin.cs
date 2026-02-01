@@ -24,8 +24,13 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             "notepad++"
         };
 
+        // Optimization: Server-side filter to prevent creation of RCWs for heavy Document nodes
+        private static readonly Condition NotDocumentCondition = new NotCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document));
+
         public override string PluginName => "NotepadPlusPlusPlugin";
         public override bool HasSettings => true;
+        public override bool IsUiaProvider => true;
 
         public override ISettingsControl? SettingsControl =>
             _settingsService != null
@@ -187,7 +192,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                         containersChecked++;
 
                         AutomationElementCollection? children = null;
-                        try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                        try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
                         catch { continue; }
 
                         if (children == null || children.Count == 0) continue;
@@ -304,7 +309,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                     containersChecked++;
 
                     AutomationElementCollection? children = null;
-                    try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                    try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
                     catch { continue; }
 
                     if (children == null || children.Count == 0) continue;

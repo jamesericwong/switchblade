@@ -1,6 +1,6 @@
 # SwitchBlade Technical Documentation
 
-**Current Version: 1.7.8** | [View Changelog](CHANGELOG.md)
+**Current Version: 1.8.0** | [View Changelog](CHANGELOG.md)
 
 ## Overview
 SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. It is built using **C# / WPF** and follows the **MVVM (Model-View-ViewModel)** architectural pattern. It is designed to be extensible via a robust Plugin System, allowing it to index not just top-level windows but also internal document tabs as searchable items.
@@ -235,30 +235,33 @@ SwitchBlade supports the following command-line parameters (prefixes `/`, `--`, 
 ```mermaid
 flowchart LR
     Start[Start Scan] --> Parallel{Parallel Execution}
-    Parallel -->|Task 1| WF[WindowFinder]
-    Parallel -->|Task 2| CTF[ChromeTabFinder]
-    Parallel -->|Task 3| WTP[WindowsTerminalPlugin]
-    Parallel -->|Task 4| NPP[NotepadPlusPlusPlugin]
+    Parallel -->|Task 1| WF[WindowFinder (In-Process)]
+    Parallel -->|Task 2| UIA[UiaWorkerClient]
     
-    subgraph "Standard Windows"
+    subgraph "Main Process"
         WF --> Enum[EnumWindows]
         Enum --> Filter{Is Visible?}
         Filter -- Yes --> Exclude{Handling Plugin Exists?}
         Exclude -- No --> Result1[Add WindowItem]
     end
 
-    subgraph "Specialized Content (Tabs/Items)"
-        CTF --> FindProcess[Find Target PIDs]
-        WTP --> FindProcess
-        NPP --> FindProcess
-        FindProcess --> Enum2[EnumWindows for PIDs]
-        Enum2 --> BFS[UI Automation BFS]
-        BFS --> Tab{Is Target Item?}
-        Tab -- Yes --> Result2[Add WindowItem]
+    subgraph "Child Process (SwitchBlade.UiaWorker.exe)"
+        UIA -->|JSON over Stdin| Worker[Worker Loop]
+        Worker --> CTF[ChromeTabFinder]
+        Worker --> WTP[WindowsTerminalPlugin]
+        Worker --> NPP[NotepadPlusPlusPlugin]
+        
+        CTF --> Scan1[UIA Scan]
+        WTP --> Scan2[UIA Scan]
+        NPP --> Scan3[UIA Scan]
+        
+        Scan1 --> Result2[Yield WindowItems]
+        Scan2 --> Result2
+        Scan3 --> Result2
     end
-
+    
     Result1 --> Merge(Merge Results)
-    Result2 --> Merge
+    Result2 -->|JSON over Stdout| Merge
 ```
 
 ### 1. Core Window Finder (`WindowFinder.cs`)
@@ -272,21 +275,19 @@ This is the built-in provider for standard desktop applications.
 
 ### 2. Chrome Tab Finder (`ChromeTabFinder.cs`)
 A specialized plugin for Chromium-based browsers (Chrome, Edge, Brave, Comet, etc.).
+- **Execution Mode**: Runs **Out-of-Process** via `SwitchBlade.UiaWorker.exe` to prevent native memory leaks.
 - **Discovery Strategy**:
   1.  **Process Identification**: Identifies target processes by name (configurable).
-  2.  **Window Enumeration**: Uses `EnumWindows` (Win32) to find **ALL** top-level windows belonging to those PIDs. This is critical for supporting multi-window setups, as `Process.MainWindowHandle` often misses secondary windows.
+  2.  **Window Enumeration**: Uses `EnumWindows` (Win32) to find **ALL** top-level windows belonging to those PIDs.
   3.  **UI Automation**: Attaches to each window using `System.Windows.Automation`.
-  4.  **Tree Traversal (`FindTabsBFS`)**: Performs a Breadth-First Search (BFS) of the automation tree to find elements with `ControlType.TabItem`.
+  4.  **Tree Traversal**: Performs a Breadth-First Search (BFS) of the automation tree to find elements with `ControlType.TabItem`.
 
-#### Performance Optimization
-- **Document Pruning**: The scanner explicitly skips traversing into `ControlType.Document` nodes. This effectively ignores the millions of DOM elements inside the web page content, focusing the scan solely on the browser's UI "chrome". This reduces scan time from seconds to milliseconds.
-- **Depth Limiting**: Traversal is capped at a depth of 20 to prevent infinite recursion in complex UI trees.
-
-#### Thread Safety
-- **Logging**: Debug logging to `%TEMP%` is protected by a static `lock` object to prevent write contention during parallel scans.
+#### Thread Safety & Isolation
+Since this plugin runs in a separate process, it is immune to the "FindAll" memory leak inherent in Windows 11's UIA framework. When the worker process exits after scanning, all accumulated COM references are instantly released by the OS.
 
 ### 3. Windows Terminal Plugin (`WindowsTerminalPlugin.cs`)
 A specialized plugin for Microsoft's Windows Terminal.
+- **Execution Mode**: Runs **Out-of-Process** via `SwitchBlade.UiaWorker.exe`.
 - **Discovery Strategy**:
   1.  **Process Identification**: Identifies target processes by name (default: "WindowsTerminal", configurable via settings).
   2.  **UI Automation**: Attaches to the main window handle (`MainWindowHandle`) of each identified process.
@@ -298,6 +299,7 @@ A specialized plugin for Microsoft's Windows Terminal.
 
 ### 4. Notepad++ Plugin (`NotepadPlusPlusPlugin.cs`)
 Indexes and switches between individual open files/tabs in Notepad++.
+- **Execution Mode**: Runs **Out-of-Process** via `SwitchBlade.UiaWorker.exe`.
 - **Mechanism**: Similar to the Terminal plugin, it uses UI Automation to traverse the document tabs in Notepad++.
 - **Strategy**: Identifies `notepad++` processes and scans for tab items to allow direct file-level switching.
 

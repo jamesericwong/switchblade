@@ -17,6 +17,13 @@ namespace SwitchBlade.Contracts
         bool HasSettings { get; }
 
         /// <summary>
+        /// Indicates whether this plugin uses UI Automation (UIA) for scanning.
+        /// UIA providers run in a separate worker process to prevent memory leaks.
+        /// Default is false (in-process execution).
+        /// </summary>
+        bool IsUiaProvider => false;
+
+        /// <summary>
         /// Optional: Returns a settings control for modern WPF-based settings UI.
         /// If implemented, this is preferred over <see cref="ShowSettingsDialog"/>.
         /// </summary>

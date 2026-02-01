@@ -66,6 +66,9 @@ namespace SwitchBlade.Services
                 sp.GetRequiredService<IPluginService>()
             ));
 
+            // Diagnostics (Investigation)
+            services.AddSingleton<MemoryDiagnosticsService>();
+
             return services.BuildServiceProvider();
         }
     }

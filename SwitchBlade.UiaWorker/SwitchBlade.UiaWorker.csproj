@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- WinExe hides the console window -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    
+    <!-- Version information -->
+    <Version>1.8.0</Version>
+    <FileVersion>1.8.0</FileVersion>
+    <AssemblyVersion>1.8.0</AssemblyVersion>
+    <Product>SwitchBlade UIA Worker</Product>
+    <Company>James Wong</Company>
+    <Description>Out-of-process worker for UI Automation scans</Description>
+    
+    <!-- WPF is needed because Plugins reference PresentationFramework (ISettingsControl) -->
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
+    
+    <!-- Self-contained single-file deployment (no .NET install prompt) -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference the contracts for WindowItem and IWindowProvider -->
+    <!-- NOTE: Contracts are bundled into the single-file exe -->
+    <ProjectReference Include="..\SwitchBlade.Contracts\SwitchBlade.Contracts.csproj" />
+    
+    <!-- Plugins are loaded DYNAMICALLY from Plugins/ directory at runtime -->
+    <!-- NO static plugin references - this preserves the plugin architecture -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>
