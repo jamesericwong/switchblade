@@ -1,20 +1,18 @@
 ## [1.8.0] - 2026-02-01
 ### Fixed
 - **CRITICAL: Complete UIA Memory Leak Elimination**: Implemented out-of-process UI Automation scanning to completely eliminate native memory leaks.
-  - **Root Cause**: Windows 11's UIA framework has a known memory leak where `AutomationElement.FindAll` accumulates native memory that is never released, even with STA thread isolation and aggressive GC.
-  - **Solution**: Created `SwitchBlade.UiaWorker.exe` - a separate process that handles all UIA scans. When it exits after each scan, Windows releases ALL UIA COM objects, guaranteeing zero memory leak.
-  - **Architecture**: 
-    - Non-UIA providers (`WindowFinder`) run in-process (fast, no leak)
-    - UIA providers (Chrome, Terminal, Notepad++) run out-of-process via JSON stdin/stdout IPC
-  - **Impact**: Memory usage will now remain **stable indefinitely**, even during continuous background polling.
+  - **Root Cause**: Windows 11's UIA framework has a known memory leak where `AutomationElement.FindAll` accumulates native memory that is never released.
+  - **Solution**: Created `SwitchBlade.UiaWorker.exe` - a separate process that handles all UIA scans. When it exits after each scan, the OS releases ALL UIA COM objects.
+  - **Impact**: Memory usage remains stable indefinitely.
 
 ### Added
-- **New Interface Property**: `IWindowProvider.IsUiaProvider` to distinguish UIA from non-UIA providers
-- **New Service**: `UiaWorkerClient` for spawning and communicating with the worker process
+- **New Interface Property**: `IWindowProvider.IsUiaProvider` to identify UIA providers.
+- **New Service**: `UiaWorkerClient` for managing the child worker process.
 
 ### Changed
-- **WindowOrchestrationService**: Now splits providers by `IsUiaProvider` flag and routes accordingly
-- **Background Polling**: Standard windows update instantly; browser/terminal tabs update via worker
+- **Conditional Debug Logging**: The UIA Worker now only writes to the debug log (`%TEMP%\switchblade_uia_debug.log`) if explicitly launched with the `/debug` flag.
+- **Flag Propagation**: The main application automatically propagates the `/debug` flag to the worker process when debug mode is enabled.
+- **Improved Architecture**: `WindowOrchestrationService` now delegates UIA-heavy scans to the worker while keeping standard window discovery in-process for speed.
 
 
 ## [1.7.8] - 2026-02-01

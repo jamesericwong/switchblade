@@ -32,8 +32,8 @@ Before building SwitchBlade, ensure you have the following installed on your sys
 1. Open `SwitchBlade.sln` in Visual Studio 2022.
 2. Select the **Release** configuration and **x64** platform.
 3. Right-click on the `SwitchBlade` project and select **Build**.
-   - This will build the core application and trigger the build of referenced projects.
-   - Note: The Chrome plugin is set up to copy its output to the `bin\Release\net9.0-windows\Plugins` directory via a post-build event.
+   - This will build the core application and trigger the build of referenced projects, including `SwitchBlade.UiaWorker`.
+   - Note: Both the core app and the worker search for plugins in the `Plugins` sub-directory relative to their executable.
 
 ## Building with .NET CLI
 

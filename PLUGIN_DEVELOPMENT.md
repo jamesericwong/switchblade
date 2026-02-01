@@ -52,8 +52,28 @@ namespace SwitchBlade.Contracts
         // UIA plugins run in a separate process to prevent memory leaks.
         // Default: false
         bool IsUiaProvider { get; } 
+    }
+}
+```
 
-        // 1. Settings UI (Required in 1.6.6+ for plugins with settings)
+### UIA vs. Non-UIA Execution (New in 1.8.0)
+
+SwitchBlade 1.8.0 introduced a dual-process architecture to solve persistent memory leaks in the Windows UI Automation (UIA) framework.
+
+| Mode | `IsUiaProvider` | Execution Location | Best For |
+| :--- | :--- | :--- | :--- |
+| **In-Process** | `false` (Default) | `SwitchBlade.exe` | Win32, Performance, Simple windows |
+| **Out-of-Process** | `true` | `SwitchBlade.UiaWorker.exe` | Tab discovery, Web content, UIA-heavy logic |
+
+#### Why Out-of-Process?
+Windows 11's UIA framework has a significant native memory leak when using `AutomationElement.FindAll`. This memory is never released by the Garbage Collector or thread termination even when isolated. By running UIA code in a transient worker process that exits after every scan, SwitchBlade guarantees that the OS reclaims all leaked COM memory.
+
+#### Impact on Plugin Authors
+If `IsUiaProvider` is `true`:
+1. Your plugin DLL is loaded into `SwitchBlade.UiaWorker.exe` instead of the main app.
+2. The worker process has no GUI; it only performs the scan and returns results via JSON.
+3. Your code should be "Self-Contained" for the duration of `GetWindows()`.
+4. The `IPluginContext.Logger` in the worker process writes to `%TEMP%\switchblade_uia_debug.log` only if SwitchBlade is launched with `/debug`.
         // Return a settings control provider or null if no settings UI.
         ISettingsControl? SettingsControl => null;
 
