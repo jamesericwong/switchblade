@@ -17,6 +17,8 @@ namespace SwitchBlade.Services
         private readonly IIconService? _iconService;
         private readonly List<WindowItem> _allWindows = new();
         private readonly Dictionary<IntPtr, List<WindowItem>> _windowItemCache = new();
+        // Performance optimization: Secondary index for O(1) provider lookups
+        private readonly Dictionary<IWindowProvider, HashSet<WindowItem>> _providerItems = new();
         private readonly object _lock = new();
 
         public event EventHandler<WindowListUpdatedEventArgs>? WindowListUpdated;
@@ -121,8 +123,17 @@ namespace SwitchBlade.Services
         {
             var resolvedItems = new List<WindowItem>();
             var claimedItems = new HashSet<WindowItem>();
-            var unusedCacheItems = new HashSet<WindowItem>(
-                _windowItemCache.Values.SelectMany(x => x).Where(w => w.Source == provider));
+
+            // Performance optimization: O(1) lookup instead of O(N) SelectMany scan
+            HashSet<WindowItem> unusedCacheItems;
+            if (_providerItems.TryGetValue(provider, out var existing))
+            {
+                unusedCacheItems = new HashSet<WindowItem>(existing);
+            }
+            else
+            {
+                unusedCacheItems = new HashSet<WindowItem>();
+            }
 
             foreach (var incoming in incomingItems)
             {
@@ -151,32 +162,76 @@ namespace SwitchBlade.Services
                     incoming.Source = provider;
                     PopulateIconIfMissing(incoming, incoming.ExecutablePath);
 
-                    if (!_windowItemCache.TryGetValue(incoming.Hwnd, out var list))
-                    {
-                        list = new List<WindowItem>();
-                        _windowItemCache[incoming.Hwnd] = list;
-                    }
-                    if (!list.Contains(incoming))
-                        list.Add(incoming);
+                    // Use encapsulated mutator
+                    AddToCache(incoming);
 
                     resolvedItems.Add(incoming);
                     claimedItems.Add(incoming);
                 }
             }
 
-            // Cleanup
+            // Cleanup unused items using encapsulated mutator
             foreach (var unused in unusedCacheItems)
             {
-                if (_windowItemCache.TryGetValue(unused.Hwnd, out var list))
-                {
-                    list.Remove(unused);
-                    if (list.Count == 0)
-                        _windowItemCache.Remove(unused.Hwnd);
-                }
+                RemoveFromCache(unused);
             }
 
             return resolvedItems;
         }
+
+        #region Encapsulated Cache Mutators
+
+        /// <summary>
+        /// Adds an item to both the HWND cache and the provider index atomically.
+        /// Must be called within _lock.
+        /// </summary>
+        private void AddToCache(WindowItem item)
+        {
+            // 1. Update HWND lookup
+            if (!_windowItemCache.TryGetValue(item.Hwnd, out var list))
+            {
+                list = new List<WindowItem>();
+                _windowItemCache[item.Hwnd] = list;
+            }
+            if (!list.Contains(item))
+                list.Add(item);
+
+            // 2. Update Provider lookup
+            if (item.Source != null)
+            {
+                if (!_providerItems.TryGetValue(item.Source, out var set))
+                {
+                    set = new HashSet<WindowItem>();
+                    _providerItems[item.Source] = set;
+                }
+                set.Add(item);
+            }
+        }
+
+        /// <summary>
+        /// Removes an item from both the HWND cache and the provider index atomically.
+        /// Must be called within _lock.
+        /// </summary>
+        private void RemoveFromCache(WindowItem item)
+        {
+            // 1. Remove from HWND lookup
+            if (_windowItemCache.TryGetValue(item.Hwnd, out var list))
+            {
+                list.Remove(item);
+                if (list.Count == 0)
+                    _windowItemCache.Remove(item.Hwnd);
+            }
+
+            // 2. Remove from Provider lookup
+            if (item.Source != null && _providerItems.TryGetValue(item.Source, out var set))
+            {
+                set.Remove(item);
+                if (set.Count == 0)
+                    _providerItems.Remove(item.Source);
+            }
+        }
+
+        #endregion
 
         private void PopulateIconIfMissing(WindowItem item, string? executablePath)
         {
@@ -185,5 +240,31 @@ namespace SwitchBlade.Services
                 item.Icon = _iconService.GetIcon(executablePath);
             }
         }
+
+        #region Test Helpers (Internal)
+
+        /// <summary>
+        /// Gets the total count of items across all HWND cache lists (for testing).
+        /// </summary>
+        internal int GetInternalHwndCacheCount()
+        {
+            lock (_lock)
+            {
+                return _windowItemCache.Values.Sum(l => l.Count);
+            }
+        }
+
+        /// <summary>
+        /// Gets the total count of items across all provider sets (for testing).
+        /// </summary>
+        internal int GetInternalProviderCacheCount()
+        {
+            lock (_lock)
+            {
+                return _providerItems.Values.Sum(s => s.Count);
+            }
+        }
+
+        #endregion
     }
 }

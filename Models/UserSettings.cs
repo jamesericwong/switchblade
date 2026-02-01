@@ -43,7 +43,7 @@ namespace SwitchBlade.Services
         /// <summary>
         /// Height of each item in the window list in pixels.
         /// </summary>
-        public double ItemHeight { get; set; } = 50.0;
+        public double ItemHeight { get; set; } = 64.0;
 
         /// <summary>
         /// Whether to show window icons in the list.

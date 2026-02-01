@@ -41,7 +41,7 @@ namespace SwitchBlade.Services
                 // Moonlight (Cool Grey)
                 CreateTheme("Moonlight", "#22252A", "#2C3038", "#AABBC3", "#3C424D"),
                 // Dracula (Classic)
-                CreateTheme("Dracula", "#282a36", "#44475a", "#f8f8f2", "#6272a4"),
+                CreateTheme("Dracula", "#282a36", "#44475a", "#f8f8f2", "#7b88bd"),
                 // Light (Clean)
                 CreateTheme("Light", "#F5F5F5", "#FFFFFF", "#333333", "#E0E0E0"),
                 // Super Light (Pure White)
@@ -65,9 +65,9 @@ namespace SwitchBlade.Services
 
             dict["ForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(foreground));
 
-            // Border with 30% opacity
+            // Border with 60% opacity (Upgraded from 30% for secondary text contrast)
             var borderCol = (Color)ColorConverter.ConvertFromString(border);
-            borderCol.A = 77; // ~30%
+            borderCol.A = 153; // ~60%
             dict["BorderBrush"] = new SolidColorBrush(borderCol);
 
             // Highlight: Use border color with more opacity for better hover contrast

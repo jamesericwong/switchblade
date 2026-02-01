@@ -235,14 +235,16 @@ namespace SwitchBlade.Contracts
         #region Helper Methods
 
         private static readonly ConcurrentDictionary<uint, string> _processNameCache = new();
+        private static readonly ConcurrentDictionary<uint, (string ProcessName, string? ExecutablePath)> _processInfoCache = new();
 
         /// <summary>
-        /// Clears the process name cache. Should be called before a fresh scan cycle
+        /// Clears the process name and info caches. Should be called before a fresh scan cycle
         /// to ensure that reused PIDs are re-resolved.
         /// </summary>
         public static void ClearProcessCache()
         {
             _processNameCache.Clear();
+            _processInfoCache.Clear();
         }
 
         /// <summary>
@@ -302,10 +304,17 @@ namespace SwitchBlade.Contracts
 
         /// <summary>
         /// Retrieves both the process name and full executable path for a given PID.
+        /// Caches the result to avoid repeated lookups within a scan cycle.
         /// </summary>
         public static (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
         {
             if (pid == 0) return ("System", null);
+
+            // Check cache first
+            if (_processInfoCache.TryGetValue(pid, out var cached))
+            {
+                return cached;
+            }
 
             string processName = "Unknown";
             string? executablePath = null;
@@ -339,7 +348,10 @@ namespace SwitchBlade.Contracts
                 }
             }
 
-            return (processName, executablePath);
+            var result = (processName, executablePath);
+            _processInfoCache.TryAdd(pid, result);
+
+            return result;
         }
 
         /// <summary>

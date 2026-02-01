@@ -67,7 +67,9 @@ namespace SwitchBlade.Services
             Settings.EnablePreviews = Load("EnablePreviews", true, ref settingsDirty);
             Settings.FadeDurationMs = Load("FadeDurationMs", 200, ref settingsDirty);
             Settings.WindowOpacity = Load("WindowOpacity", 1.0, ref settingsDirty);
-            Settings.ItemHeight = Load("ItemHeight", 50.0, ref settingsDirty);
+
+            Settings.ItemHeight = Load("ItemHeight", 64.0, ref settingsDirty);
+
             Settings.WindowWidth = Load("WindowWidth", 800.0, ref settingsDirty);
             Settings.WindowHeight = Load("WindowHeight", 600.0, ref settingsDirty);
 

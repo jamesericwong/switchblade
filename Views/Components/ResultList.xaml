@@ -16,6 +16,9 @@
              Background="Transparent"
              BorderThickness="0"
              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+             VirtualizingStackPanel.IsVirtualizing="True"
+             VirtualizingStackPanel.VirtualizationMode="Recycling"
+             VirtualizingStackPanel.ScrollUnit="Pixel"
              ItemsSource="{Binding FilteredWindows}"
              SelectedItem="{Binding SelectedWindow, Mode=TwoWay}">
         <ListBox.ItemContainerStyle>
@@ -30,9 +33,9 @@
                             <Border x:Name="ItemBorder" 
                                     Background="Transparent" 
                                     CornerRadius="10" 
-                                    Padding="12,10" 
+                                    Padding="12,6" 
                                     Margin="0,2,8,2">
-                                <Grid>
+                                <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>  <!-- Badge -->
                                         <ColumnDefinition Width="Auto"/>  <!-- Icon -->
@@ -109,9 +112,9 @@
                                             VerticalAlignment="Center"
                                             Visibility="{Binding DataContext.ShowIcons, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource BoolToVisibility}}"/>
                                     
-                                    <StackPanel Grid.Column="2">
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Title}" Foreground="{DynamicResource ForegroundBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding ProcessName}" Foreground="{DynamicResource BorderBrush}" FontSize="12" Opacity="0.7"/>
+                                        <TextBlock Text="{Binding ProcessName}" Foreground="{DynamicResource BorderBrush}" FontSize="12" Opacity="0.85"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>

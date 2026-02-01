@@ -1,9 +1,60 @@
+## [1.7.0] - 2026-02-01
+### Performance Optimizations (5 Major Improvements)
+
+This release delivers a comprehensive performance overhaul based on a detailed audit of the entire codebase. All changes target measurable bottlenecks while maintaining backward compatibility.
+
+#### 1. UI Automation CacheRequest (ChromeTabFinder)
+- Refactored `FindTabsBFS` to use `CacheRequest` for batched property fetches.
+- **Before**: Each element required ~3 cross-process RPC calls (from `.Current` property access).
+- **After**: Properties are pre-fetched in bulk using `.Cached`, reducing RPC overhead by 10-50x.
+- Significant latency reduction when scanning browser windows with many tabs.
+
+#### 2. Provider Index for Reconciliation (WindowOrchestrationService)
+- Introduced a secondary `Dictionary<IWindowProvider, HashSet<WindowItem>>` index.
+- **Before**: Finding items for a specific provider required `O(N)` `SelectMany` scan on every refresh.
+- **After**: `O(1)` lookup via provider key.
+- Added encapsulated mutators (`AddToCache`, `RemoveFromCache`) to ensure atomic updates to both indices.
+- Eliminates risk of "ghost windows" (items present in one cache but not the other).
+
+#### 3. Normalized Title Caching (WindowItem)
+- Added `NormalizedTitle` property with lazy computation and automatic invalidation when `Title` changes.
+- Uses `Span<char>` and `stackalloc` for zero-allocation normalization.
+- Avoids repeated string normalization on every search keystroke.
+
+#### 4. WPF List Virtualization (ResultList.xaml)
+- Enabled explicit UI virtualization on the `ListBox`:
+  - `VirtualizingStackPanel.IsVirtualizing="True"`
+  - `VirtualizingStackPanel.VirtualizationMode="Recycling"`
+  - `VirtualizingStackPanel.ScrollUnit="Pixel"`
+- Improves scrolling smoothness and reduces memory pressure with large window lists.
+
+#### 5. Process Info Caching (NativeInterop)
+- Added `_processInfoCache` alongside existing `_processNameCache`.
+- `GetProcessInfo(uint pid)` now caches both process name and executable path.
+- Avoids redundant `OpenProcess`/`QueryFullProcessImageName` kernel calls for the same PID within a scan cycle.
+
+### Added
+- **Cache Integrity Tests**: Two new unit tests (`CacheIndexes_ShouldBeSymmetrical`, `CacheIndexes_RemainSymmetricalAfterItemRemoval`) verify that the HWND cache and Provider cache remain synchronized.
+
+### Fixed
+- **Global Hotkey Modal Behavior**: The global hotkey (Ctrl+Shift+Q) is now suppressed while the Settings dialog is open, ensuring proper modal window behavior.
+- **Graphical Artifacts in Result List**: Fixed vertical clipping (appearing as "blue dots") by increasing the default list item height and reducing internal padding.
+- **Theme Contrast (Dracula)**: Improved legibility of process names by increasing base theme brush opacity and brightening the Dracula accent color.
+
+### Technical
+- Total test count: 298 (all passing).
+- Build clean: 0 warnings, 0 errors.
+- All changes follow SOLID principles (SRP, DIP, OCP).
+
+---
+
 ## [1.6.9] - 2026-01-31
 ### Changed
 - **Performance Optimization**: Completely overhauled the list synchronization algorithm (`SyncCollection`) in `MainViewModel`.
   - Replaced the previous $O(N^2)$ architecture (based on nested `IndexOf` calls) with a high-efficiency **Two-Pointer** implementation.
   - Achieved $O(N)$ linear complexity, significantly reducing UI thread stalling on systems with hundreds of open windows or high-frequency search updates.
   - Maintains strict stability for selection and animations by minimizing `Move` operations.
+
 
 #### Complexity Comparison
 

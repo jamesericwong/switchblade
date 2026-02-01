@@ -97,7 +97,7 @@ namespace SwitchBlade.ViewModels
             _dispatcherService.Invoke(() => UpdateSearch());
         }
 
-        public double ItemHeight => _settingsService?.Settings.ItemHeight ?? 50.0;
+        public double ItemHeight => _settingsService?.Settings.ItemHeight ?? 64.0;
 
         public bool EnablePreviews
         {

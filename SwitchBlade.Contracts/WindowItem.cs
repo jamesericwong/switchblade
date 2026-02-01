@@ -7,6 +7,7 @@ namespace SwitchBlade.Contracts
     {
         private int _shortcutIndex = -1;
         private string _title = string.Empty;
+        private string? _normalizedTitle = null;
 
         // Cached PropertyChangedEventArgs to avoid allocations on every notification
         private static class PropertyChangedCache
@@ -29,9 +30,47 @@ namespace SwitchBlade.Contracts
                 if (_title != value)
                 {
                     _title = value;
+                    _normalizedTitle = null; // Invalidate cached normalized title
                     PropertyChanged?.Invoke(this, PropertyChangedCache.Title);
                 }
             }
+        }
+
+        /// <summary>
+        /// Lazily computed normalized title for fuzzy matching.
+        /// Caches the result to avoid repeated normalization on every search keystroke.
+        /// </summary>
+        public string NormalizedTitle
+        {
+            get
+            {
+                if (_normalizedTitle == null)
+                {
+                    _normalizedTitle = NormalizeForSearch(_title);
+                }
+                return _normalizedTitle;
+            }
+        }
+
+        /// <summary>
+        /// Normalizes a string for fuzzy matching: lowercase, remove delimiters.
+        /// </summary>
+        private static string NormalizeForSearch(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+
+            // Use Span for zero-allocation normalization
+            Span<char> buffer = input.Length <= 256 ? stackalloc char[input.Length] : new char[input.Length];
+            int writeIndex = 0;
+
+            for (int i = 0; i < input.Length && writeIndex < buffer.Length; i++)
+            {
+                char c = input[i];
+                if (c == ' ' || c == '_' || c == '-') continue;
+                buffer[writeIndex++] = char.ToLowerInvariant(c);
+            }
+
+            return new string(buffer[..writeIndex]);
         }
 
         public string ProcessName { get; set; } = string.Empty;

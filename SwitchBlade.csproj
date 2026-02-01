@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
-    <Version>1.6.9</Version>
+    <Version>1.7.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -21,7 +21,16 @@
     
     <!-- Startup Performance -->
     <PublishReadyToRun>true</PublishReadyToRun>
+    
+    <!-- Expose internal members to test project -->
+    <InternalsVisibleTo>SwitchBlade.Tests</InternalsVisibleTo>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>SwitchBlade.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Resources\icon.png" />

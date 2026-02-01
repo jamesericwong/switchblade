@@ -288,6 +288,14 @@ namespace SwitchBlade
         private void OnHotKeyPressed()
         {
             _logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
+
+            // Suppress hotkey when a modal dialog (e.g., Settings) is open
+            if (App.IsModalDialogOpen)
+            {
+                _logger.Log("Hotkey suppressed: Modal dialog is open.");
+                return;
+            }
+
             if (this.Visibility == Visibility.Visible)
             {
                 _logger.Log("Hiding Window.");

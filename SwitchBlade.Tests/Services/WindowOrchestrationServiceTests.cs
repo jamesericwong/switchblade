@@ -158,5 +158,64 @@ namespace SwitchBlade.Tests.Services
 
             Assert.NotSame(windows1, windows2); // Different instances
         }
+
+        [Fact]
+        public async Task CacheIndexes_ShouldBeSymmetrical()
+        {
+            // Arrange: Create a provider with multiple items (including shared HWND)
+            var sharedHwnd = (IntPtr)100;
+            var items = new List<WindowItem>
+            {
+                new() { Title = "App1", Hwnd = (IntPtr)1, ProcessName = "app1" },
+                new() { Title = "App2", Hwnd = (IntPtr)2, ProcessName = "app2" },
+                new() { Title = "Tab1", Hwnd = sharedHwnd, ProcessName = "chrome" },
+                new() { Title = "Tab2", Hwnd = sharedHwnd, ProcessName = "chrome" },
+            };
+            var provider = CreateMockProvider("TestProvider", items);
+
+            var service = new WindowOrchestrationService(new[] { provider.Object });
+
+            // Act: Refresh to populate caches
+            await service.RefreshAsync(new HashSet<string>());
+
+            // Assert: Cache counts should be equal
+            int hwndCacheCount = service.GetInternalHwndCacheCount();
+            int providerCacheCount = service.GetInternalProviderCacheCount();
+
+            Assert.Equal(4, service.AllWindows.Count);
+            Assert.Equal(hwndCacheCount, providerCacheCount);
+        }
+
+        [Fact]
+        public async Task CacheIndexes_RemainSymmetricalAfterItemRemoval()
+        {
+            // Arrange: Create provider with items
+            var provider = CreateMockProvider("TestProvider", new List<WindowItem>
+            {
+                new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app1" },
+                new() { Title = "Window2", Hwnd = (IntPtr)2, ProcessName = "app2" },
+            });
+
+            var service = new WindowOrchestrationService(new[] { provider.Object });
+
+            // First refresh: populate caches
+            await service.RefreshAsync(new HashSet<string>());
+            Assert.Equal(2, service.AllWindows.Count);
+
+            // Second refresh: remove one window
+            provider.Setup(p => p.GetWindows()).Returns(new List<WindowItem>
+            {
+                new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app1" }
+            });
+
+            await service.RefreshAsync(new HashSet<string>());
+
+            // Assert: Caches should still be symmetrical
+            int hwndCacheCount = service.GetInternalHwndCacheCount();
+            int providerCacheCount = service.GetInternalProviderCacheCount();
+
+            Assert.Single(service.AllWindows);
+            Assert.Equal(hwndCacheCount, providerCacheCount);
+        }
     }
 }

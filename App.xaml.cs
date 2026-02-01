@@ -33,6 +33,12 @@ public partial class App : Application
     public static bool EnableStartupOnFirstRun { get; set; } = false;
 
     /// <summary>
+    /// Tracks whether a modal dialog (e.g., Settings) is currently open.
+    /// When true, the global hotkey will not toggle the main window.
+    /// </summary>
+    public static bool IsModalDialogOpen { get; set; } = false;
+
+    /// <summary>
     /// Primary constructor that accepts the DI container from Program.cs.
     /// </summary>
     public App(IServiceProvider serviceProvider)
@@ -128,6 +134,9 @@ public partial class App : Application
     {
         if (_mainWindow == null) return;
 
+        // Suppress hotkey when a modal dialog (e.g., Settings) is open
+        if (IsModalDialogOpen) return;
+
         // If window is visible, hide it
         if (_mainWindow.IsVisible)
         {
@@ -188,9 +197,18 @@ public partial class App : Application
         {
             DataContext = settingsVm
         };
-        // Use ShowDialog to make the settings window modal
-        // This prevents the window from lingering in background and accidentally capturing keyboard input
-        settingsWindow.ShowDialog();
+
+        // Block global hotkey while settings is open (proper modal behavior)
+        IsModalDialogOpen = true;
+        try
+        {
+            // Use ShowDialog to make the settings window modal
+            settingsWindow.ShowDialog();
+        }
+        finally
+        {
+            IsModalDialogOpen = false;
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
