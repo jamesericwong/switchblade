@@ -31,6 +31,16 @@ namespace SwitchBlade.Plugins.Chrome
             "comet"
         };
 
+        private static readonly HashSet<string> ExcludedTabNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "All",
+            "Tab search",
+            "Search Tabs",
+            "Google Chrome",
+            "Chrome",
+            "Side panel"
+        };
+
         public override string PluginName => "ChromeTabFinder";
         public override bool HasSettings => true;
 
@@ -121,11 +131,6 @@ namespace SwitchBlade.Plugins.Chrome
                 return true; // Continue enumeration
             }, IntPtr.Zero);
 
-            // Memory cleanup: UI Automation creates many AutomationElement objects
-            // holding COM RCW references. Force a Gen2 collection to promptly release
-            // these wrappers and prevent memory accumulation between polling cycles.
-            GC.Collect(2, GCCollectionMode.Optimized, blocking: false);
-
             return results;
         }
 
@@ -183,53 +188,69 @@ namespace SwitchBlade.Plugins.Chrome
         {
             var results = new List<string>();
 
-            // Memory optimization: Use FindAll with Condition to let UIA do the traversal
-            // internally, returning only matching TabItem elements. This creates far fewer
-            // AutomationElement wrappers compared to manual BFS traversal.
-            // 
-            // The condition matches ControlType.TabItem (most browsers) OR elements with
-            // LocalizedControlType == "tab" (for browsers that use non-standard tab controls).
             try
             {
                 var cacheRequest = new CacheRequest();
                 cacheRequest.Add(AutomationElement.NameProperty);
                 cacheRequest.Add(AutomationElement.ControlTypeProperty);
+                cacheRequest.Add(AutomationElement.AutomationIdProperty);
+                cacheRequest.Add(AutomationElement.ClassNameProperty);
                 cacheRequest.TreeScope = TreeScope.Element;
 
                 using (cacheRequest.Activate())
                 {
-                    // Find all TabItem control types in the subtree
-                    var tabCondition = new PropertyCondition(
-                        AutomationElement.ControlTypeProperty,
-                        ControlType.TabItem);
-
-                    var tabElements = root.FindAll(TreeScope.Descendants, tabCondition);
-
-                    foreach (AutomationElement tab in tabElements)
-                    {
-                        try
-                        {
-                            string name = tab.Cached.Name;
-                            if (!string.IsNullOrWhiteSpace(name) && name != "New Tab" && name != "+")
-                            {
-                                results.Add(name);
-                                _logger?.Log($"    FOUND TAB: '{name}'");
-                            }
-                        }
-                        catch { /* Element might be stale */ }
-                    }
+                    FindTabsRecursive(root, results, 0, maxDepth);
                 }
 
-                _logger?.Log($"  Found {results.Count} tabs via FindAll");
+                _logger?.Log($"  Found {results.Count} tabs via Recursive FindAll");
             }
             catch (Exception ex)
             {
-                _logger?.Log($"  FindAll failed: {ex.Message}, falling back to BFS");
-                // Fallback to manual BFS if FindAll fails (rare edge case)
+                _logger?.Log($"  Recursive FindAll failed: {ex.Message}, falling back to BFS");
                 results = FindTabsBFSFallback(root, walker, maxDepth);
             }
 
             return results;
+        }
+
+        private void FindTabsRecursive(AutomationElement element, List<string> results, int depth, int maxDepth)
+        {
+            if (depth >= maxDepth) return;
+
+            // Find all children in one shot for this level
+            var children = element.FindAll(TreeScope.Children, Condition.TrueCondition);
+            if (children == null || children.Count == 0) return;
+
+            foreach (AutomationElement child in children)
+            {
+                try
+                {
+                    var controlType = child.Cached.ControlType;
+
+                    if (controlType == ControlType.TabItem)
+                    {
+                        string name = child.Cached.Name;
+                        if (!string.IsNullOrWhiteSpace(name) && !ExcludedTabNames.Contains(name) && name != "New Tab" && name != "+")
+                        {
+                            results.Add(name);
+                            _logger?.Log($"    FOUND TAB: '{name}' (ID: {child.Cached.AutomationId}, Class: {child.Cached.ClassName})");
+                        }
+                    }
+                    else if (controlType == ControlType.Document)
+                    {
+                        // PRUNING: Do not descend into web page content.
+                        // This prevents indexing of website-internal category chips (e.g. YouTube "All", "Cars")
+                        // that report as TabItems but are actually inside the DOM.
+                        continue;
+                    }
+                    else
+                    {
+                        // Recurse into other containers (Panes, Groups, etc.)
+                        FindTabsRecursive(child, results, depth + 1, maxDepth);
+                    }
+                }
+                catch { /* Element might be stale */ }
+            }
         }
 
         /// <summary>

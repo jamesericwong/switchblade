@@ -1,3 +1,15 @@
+## [1.7.2] - 2026-02-01
+### Fixed
+- **Ghost Tabs in Chrome**: Eliminated internal Chrome/YouTube UI elements (like "All" category chips or Side Panel items) from search results.
+  - **Recursive Pruning**: Redesigned tab traversal to explicitly skip `ControlType.Document` branches, ensuring web content is never indexed.
+  - **Enhanced Filtering**: Implemented a blacklist for common non-tab names and added `AutomationId`/`ClassName` diagnostics.
+- **Installer Upgrade Logic**: Fixed issue where multiple versions of SwitchBlade would appear in Add/Remove Programs. Explicitly configured Major Upgrade scheduling to ensure older versions are correctly replaced during installation.
+
+### Changed
+- **Chrome Plugin Refinement**: Removed manual `GC.Collect()` call added in v1.7.1. The `FindAll` optimizations are efficient enough for the default .NET GC to handle cleanup naturally.
+
+---
+
 ## [1.7.1] - 2026-02-01
 ### Fixed
 - **Memory Leak in Chrome Plugin**: Resolved steady memory growth caused by UI Automation `AutomationElement` objects accumulating between background polling cycles.
