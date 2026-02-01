@@ -1,22 +1,24 @@
+## [1.7.6] - 2026-02-01
+### Changed
+- **Removed RCW Throttle Mechanism**: Simplified memory management by removing the `FinalizableSentinel` throttle.
+  - **Problem**: The throttle introduced 2× latency (scans every 10s instead of 5s) because the sentinel was never naturally collected on the small managed heap.
+  - **Solution**: Removed the throttle entirely. The forced GC at the end of each scan is sufficient to guarantee RCW cleanup.
+  - **Result**: Scans now run at the full configured polling interval (e.g., 5s) with zero artificial delays.
+
+---
+
 ## [1.7.5] - 2026-02-01
 ### Fixed
-- **Native Memory Leak **: Resolved massive native memory growth caused by unbounded UI Automation tree traversals in the Windows Terminal and Notepad++ plugins.
+- **Native Memory Leak**: Resolved massive native memory growth caused by unbounded UI Automation tree traversals in the Windows Terminal and Notepad++ plugins.
   - **Root Cause**: Both plugins used basic `TreeWalker` BFS without pruning, scanning deep into `ControlType.Document` branches (which contain heavy text content) and creating thousands of COM RCWs per scan cycle.
   - **Solution**: Refactored both plugins to use the "Surgical BFS" pattern:
     - `CacheRequest` + `FindAll(TreeScope.Children)` for batched, efficient property access.
     - Explicit `ControlType.Document` pruning to avoid native memory exhaustion.
     - Safety limit of 50 containers per root window.
   - **Result**: COM RCW creation reduced by ~90%, keeping `System.__ComObject` count stable under 10,000 during active background polling.
-- **RCW Accumulation over Long Sessions**: Optimized adaptive throttle with `FinalizableSentinel`.
-  - Fixed logic error that caused 20-second latency (lock-step dependency on GC cycles).
-  - New implementation ensures throttle is cleared deterministicly before each polling tick.
-  - Reduced fallback threshold to 2 cycles; moved GC to background thread.
 - **Installer Duplicate Entries**: Fixed issue where installing a new version would create a duplicate entry in Add/Remove Programs instead of upgrading.
   - **Root Cause**: Redundant `<Upgrade>` element conflicted with `<MajorUpgrade>`, causing Windows Installer to misidentify previous installations.
   - **Solution**: Removed manual `Upgrade` table entry; `MajorUpgrade` element alone is sufficient for proper version detection.
-- **Badge Animation Delay on Hotkey**: Fixed delay where badge animations wouldn't play immediately when pressing the hotkey.
-  - **Root Cause**: The RCW throttle was blocking the explicit user-triggered refresh.
-  - **Solution**: Hotkey open now bypasses the throttle, ensuring an immediate scan.
 
 ---
 

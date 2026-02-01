@@ -141,7 +141,6 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Tab 2 Updated", Hwnd = hwnd, ProcessName = "chrome" }
             });
 
-            service.ResetThrottle();
             await service.RefreshAsync(new HashSet<string>());
 
             Assert.Equal(2, service.AllWindows.Count);
@@ -209,7 +208,6 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app1" }
             });
 
-            service.ResetThrottle();
             await service.RefreshAsync(new HashSet<string>());
 
             // Assert: Caches should still be symmetrical
@@ -235,7 +233,6 @@ namespace SwitchBlade.Tests.Services
             // Run multiple refreshes in succession (simulating background polling)
             for (int i = 0; i < 5; i++)
             {
-                service.ResetThrottle();
                 await service.RefreshAsync(new HashSet<string>());
             }
 

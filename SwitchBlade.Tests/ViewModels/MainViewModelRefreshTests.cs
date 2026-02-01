@@ -74,7 +74,6 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal("Target Window", vm.SelectedWindow.Title);
 
             // Act: Refresh again, order swaps
-            vm.ResetOrchestrationThrottle();
             await vm.RefreshWindows();
 
             // Assert: Selection should still be "Target Window" (Identity preserved)
@@ -106,7 +105,6 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal("Window B", vm.SelectedWindow.Title);
 
             // Act: Refresh. List becomes [B, C]. Index 1 is now C.
-            vm.ResetOrchestrationThrottle();
             await vm.RefreshWindows();
 
             // Assert: Selection should be at index 1 (Window C)
@@ -133,7 +131,6 @@ namespace SwitchBlade.Tests.ViewModels
             vm.SelectedWindow = vm.FilteredWindows[0]; // Select A
 
             // Act
-            vm.ResetOrchestrationThrottle();
             await vm.RefreshWindows();
 
             // Assert
@@ -189,7 +186,6 @@ namespace SwitchBlade.Tests.ViewModels
             // Act - Same window, different title (simulating frequent title updates)
             var win1Updated = new WindowItem { Hwnd = hwnd, Title = "Download: 75 KB/s", ProcessName = "NetMonitor", Source = _mockWindowProvider.Object };
             _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1Updated });
-            vm.ResetOrchestrationThrottle();
             await vm.RefreshWindows();
 
             // Assert
@@ -239,7 +235,6 @@ namespace SwitchBlade.Tests.ViewModels
             var win1Updated = new WindowItem { Hwnd = hwnd1, Title = "Window A v2", ProcessName = "App", Source = _mockWindowProvider.Object };
             var win2Updated = new WindowItem { Hwnd = hwnd2, Title = "Window B v2", ProcessName = "App", Source = _mockWindowProvider.Object };
             _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1Updated, win2Updated });
-            vm.ResetOrchestrationThrottle();
             await vm.RefreshWindows();
 
             // Assert - Badge state should be preserved (no full reconciliation)
@@ -269,7 +264,6 @@ namespace SwitchBlade.Tests.ViewModels
             // Act - Different HWNDs (structural change - one removed, one added)
             var win3 = new WindowItem { Hwnd = hwnd3, Title = "Window C", ProcessName = "App", Source = _mockWindowProvider.Object };
             _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new[] { win1, win3 }); // win2 replaced by win3
-            vm.ResetOrchestrationThrottle();
             await vm.RefreshWindows();
 
             // Assert - Count changes and new window appears
