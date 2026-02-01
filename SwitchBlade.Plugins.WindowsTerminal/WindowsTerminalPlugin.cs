@@ -150,6 +150,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             }
         }
 
+        /// <summary>
+        /// Surgical BFS: Uses CacheRequest + FindAll to minimize COM RCW creation.
+        /// Prunes Document branches to avoid deep web/text content traversal.
+        /// </summary>
         private List<string> ScanForTabs(IntPtr hwnd)
         {
             var tabs = new List<string>();
@@ -159,59 +163,68 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                 var root = AutomationElement.FromHandle(hwnd);
                 if (root == null) return tabs;
 
-                // Use BFS to find TabItem elements
-                var walker = TreeWalker.RawViewWalker;
-                var queue = new Queue<(AutomationElement Element, int Depth)>();
-                queue.Enqueue((root, 0));
+                var cacheRequest = new CacheRequest();
+                cacheRequest.Add(AutomationElement.NameProperty);
+                cacheRequest.Add(AutomationElement.ControlTypeProperty);
+                cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
+                cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
 
-                const int maxDepth = 12;
+                int containersChecked = 0;
+                const int MaxContainersToCheck = 50; // Safety limit
 
-                while (queue.Count > 0)
+                using (cacheRequest.Activate())
                 {
-                    var (current, depth) = queue.Dequeue();
-                    if (depth > maxDepth) continue;
+                    var queue = new Queue<AutomationElement>();
+                    queue.Enqueue(root);
 
-                    try
+                    while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
                     {
-                        var controlType = current.Current.ControlType;
-                        var name = current.Current.Name;
+                        var current = queue.Dequeue();
+                        containersChecked++;
 
-                        // Check if this is a tab
-                        bool isTab = controlType == ControlType.TabItem;
-                        if (!isTab)
+                        AutomationElementCollection? children = null;
+                        try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                        catch { continue; }
+
+                        if (children == null || children.Count == 0) continue;
+
+                        foreach (AutomationElement child in children)
                         {
-                            var localizedType = current.Current.LocalizedControlType;
-                            if (!string.IsNullOrEmpty(localizedType) &&
-                                localizedType.Equals("tab item", StringComparison.OrdinalIgnoreCase))
+                            try
                             {
-                                isTab = true;
+                                var controlType = child.Cached.ControlType;
+
+                                // PRUNE: Skip Document branches (web content, text areas)
+                                if (controlType == ControlType.Document) continue;
+
+                                // Check for TabItem
+                                bool isTab = controlType == ControlType.TabItem;
+                                if (!isTab)
+                                {
+                                    var localizedType = child.Cached.LocalizedControlType;
+                                    if (!string.IsNullOrEmpty(localizedType) &&
+                                        localizedType.Equals("tab item", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        isTab = true;
+                                    }
+                                }
+
+                                if (isTab)
+                                {
+                                    var name = child.Cached.Name;
+                                    if (!string.IsNullOrWhiteSpace(name))
+                                    {
+                                        tabs.Add(name);
+                                    }
+                                }
+                                else
+                                {
+                                    // Enqueue non-Document containers for further traversal
+                                    queue.Enqueue(child);
+                                }
                             }
+                            catch { /* Element invalidated */ }
                         }
-
-                        if (isTab && !string.IsNullOrWhiteSpace(name))
-                        {
-                            tabs.Add(name);
-                        }
-                    }
-                    catch
-                    {
-                        // Element may have become invalid
-                        continue;
-                    }
-
-                    // Enqueue children
-                    try
-                    {
-                        var child = walker.GetFirstChild(current);
-                        while (child != null)
-                        {
-                            queue.Enqueue((child, depth + 1));
-                            child = walker.GetNextSibling(child);
-                        }
-                    }
-                    catch
-                    {
-                        // Access denied or element invalid
                     }
                 }
             }
@@ -262,53 +275,70 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             }
         }
 
+        /// <summary>
+        /// Surgical BFS for tab activation: Uses CacheRequest + FindAll with Document pruning.
+        /// </summary>
         private AutomationElement? FindTabByName(AutomationElement root, string targetName)
         {
-            var walker = TreeWalker.RawViewWalker;
-            var queue = new Queue<(AutomationElement Element, int Depth)>();
-            queue.Enqueue((root, 0));
+            var cacheRequest = new CacheRequest();
+            cacheRequest.Add(AutomationElement.NameProperty);
+            cacheRequest.Add(AutomationElement.ControlTypeProperty);
+            cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
+            cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
 
-            const int maxDepth = 12;
+            int containersChecked = 0;
+            const int MaxContainersToCheck = 50;
 
-            while (queue.Count > 0)
+            using (cacheRequest.Activate())
             {
-                var (current, depth) = queue.Dequeue();
-                if (depth > maxDepth) continue;
+                var queue = new Queue<AutomationElement>();
+                queue.Enqueue(root);
 
-                try
+                while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
                 {
-                    var controlType = current.Current.ControlType;
-                    bool isTab = controlType == ControlType.TabItem;
-                    if (!isTab)
+                    var current = queue.Dequeue();
+                    containersChecked++;
+
+                    AutomationElementCollection? children = null;
+                    try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                    catch { continue; }
+
+                    if (children == null || children.Count == 0) continue;
+
+                    foreach (AutomationElement child in children)
                     {
-                        var localizedType = current.Current.LocalizedControlType;
-                        if (!string.IsNullOrEmpty(localizedType) &&
-                            localizedType.Equals("tab item", StringComparison.OrdinalIgnoreCase))
+                        try
                         {
-                            isTab = true;
+                            var controlType = child.Cached.ControlType;
+
+                            // PRUNE: Skip Document branches
+                            if (controlType == ControlType.Document) continue;
+
+                            bool isTab = controlType == ControlType.TabItem;
+                            if (!isTab)
+                            {
+                                var localizedType = child.Cached.LocalizedControlType;
+                                if (!string.IsNullOrEmpty(localizedType) &&
+                                    localizedType.Equals("tab item", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    isTab = true;
+                                }
+                            }
+
+                            if (isTab && child.Cached.Name == targetName)
+                            {
+                                return child;
+                            }
+
+                            // Enqueue non-Document containers
+                            if (!isTab)
+                            {
+                                queue.Enqueue(child);
+                            }
                         }
-                    }
-
-                    if (isTab && current.Current.Name == targetName)
-                    {
-                        return current;
+                        catch { }
                     }
                 }
-                catch
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var child = walker.GetFirstChild(current);
-                    while (child != null)
-                    {
-                        queue.Enqueue((child, depth + 1));
-                        child = walker.GetNextSibling(child);
-                    }
-                }
-                catch { }
             }
 
             return null;

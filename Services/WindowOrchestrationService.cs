@@ -21,6 +21,22 @@ namespace SwitchBlade.Services
         private readonly Dictionary<IWindowProvider, HashSet<WindowItem>> _providerItems = new();
         private readonly object _lock = new();
 
+        // Adaptive RCW Throttle: WeakReference to a FinalizableSentinel
+        // The sentinel only becomes unreachable AFTER its finalizer has run,
+        // which happens AFTER GC.WaitForPendingFinalizers() completes.
+        private WeakReference? _gcSentinel;
+        private int _throttledCycles;
+        private const int MaxThrottledCycles = 2;
+
+        /// <summary>
+        /// Sentinel class with a finalizer. The weak reference to this object
+        /// will only become dead AFTER the finalizer thread has processed it.
+        /// </summary>
+        private sealed class FinalizableSentinel
+        {
+            ~FinalizableSentinel() { /* No-op, but ensures finalizer queue processing */ }
+        }
+
         public event EventHandler<WindowListUpdatedEventArgs>? WindowListUpdated;
 
         public IReadOnlyList<WindowItem> AllWindows
@@ -43,6 +59,28 @@ namespace SwitchBlade.Services
         public async Task RefreshAsync(ISet<string> disabledPlugins)
         {
             disabledPlugins ??= new HashSet<string>();
+
+            // Adaptive RCW Throttle: Protect against overlapping scans
+            // (e.g., hotkey open triggered while background polling is active).
+            if (_gcSentinel != null && _gcSentinel.IsAlive)
+            {
+                _throttledCycles++;
+                if (_throttledCycles < MaxThrottledCycles)
+                {
+                    Logger.Log($"WindowOrchestrationService: Scan throttled - waiting for previous GC cycle to complete.");
+                    return;
+                }
+
+                // Fallback: If throttled for MaxThrottledCycles+ consecutive cycles, force a blocking GC
+                Logger.Log($"WindowOrchestrationService: Forcing GC fallback (cycle {_throttledCycles}).");
+                await Task.Run(() =>
+                {
+                    GC.Collect(2, GCCollectionMode.Forced, blocking: true);
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect(2);
+                });
+            }
+            _throttledCycles = 0;
 
             // Clear process cache for fresh lookups
             NativeInterop.ClearProcessCache();
@@ -71,7 +109,7 @@ namespace SwitchBlade.Services
                 provider.SetExclusions(handledProcesses);
             }
 
-            // 3. Parallel fetch
+            // 3. Parallel fetch (runs on MTA thread pool)
             var tasks = _providers.Select(provider => Task.Run(() =>
             {
                 try
@@ -89,13 +127,22 @@ namespace SwitchBlade.Services
 
             await Task.WhenAll(tasks);
 
-            // 4. Cleanup COM RCWs
-            // Use blocking GC + finalizer wait to ensure UI Automation COM proxies are released.
-            // Non-blocking was insufficient because the managed heap stays small, causing
-            // the GC to deprioritize collection while native memory accumulates.
-            GC.Collect(2, GCCollectionMode.Forced, blocking: true);
-            GC.WaitForPendingFinalizers();
-            GC.Collect(2); // Sweep the freed RCW wrappers
+            // 4. Create FinalizableSentinel for the RCWs created in THIS scan
+            var currentSentinel = new FinalizableSentinel();
+            _gcSentinel = new WeakReference(currentSentinel);
+
+            // 5. Cleanup THIS scan's RCWs on background thread
+            // We await this so the method returns ONLY after finalizers have run,
+            // ensuring the NEXT tick doesn't get throttled unnecessarily.
+            await Task.Run(() =>
+            {
+                // Set local ref to null so the sentinel is eligible for collection
+                currentSentinel = null;
+
+                GC.Collect(2, GCCollectionMode.Forced, blocking: true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(2); // Sweep the freed RCW wrappers
+            });
         }
 
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)
@@ -271,6 +318,16 @@ namespace SwitchBlade.Services
             {
                 return _providerItems.Values.Sum(s => s.Count);
             }
+        }
+
+        /// <summary>
+        /// Resets the GC throttle sentinel, allowing the next RefreshAsync to run immediately.
+        /// For unit testing only.
+        /// </summary>
+        internal void ResetThrottle()
+        {
+            _gcSentinel = null;
+            _throttledCycles = 0;
         }
 
         #endregion

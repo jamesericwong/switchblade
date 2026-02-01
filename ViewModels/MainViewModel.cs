@@ -295,5 +295,16 @@ namespace SwitchBlade.ViewModels
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
+
+        /// <summary>
+        /// Resets the orchestration service's RCW throttle, used for unit testing.
+        /// </summary>
+        internal void ResetOrchestrationThrottle()
+        {
+            if (_orchestrationService is WindowOrchestrationService wos)
+            {
+                wos.ResetThrottle();
+            }
+        }
     }
 }

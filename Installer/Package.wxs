@@ -1,5 +1,5 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="SwitchBlade" Manufacturer="James Wong" Version="1.7.4" UpgradeCode="a3543202-6014-486c-a964-15967d6f8c44" Scope="perUserOrMachine">
+  <Package Name="SwitchBlade" Manufacturer="James Wong" Version="1.7.5" UpgradeCode="a3543202-6014-486c-a964-15967d6f8c44" Scope="perMachine">
     <!-- 
       Major Upgrade Configuration:
       - Schedule="afterInstallValidate" runs RemoveExistingProducts earlier in the sequence
@@ -9,13 +9,8 @@
     <MajorUpgrade 
       DowngradeErrorMessage="A newer version of [ProductName] is already installed." 
       AllowSameVersionUpgrades="yes" 
-      Schedule="afterInstallValidate" 
+      Schedule="afterInstallInitialize" 
       MigrateFeatures="yes" />
-    
-    <!-- Explicit upgrade detection for ALL previous 1.x versions -->
-    <Upgrade Id="a3543202-6014-486c-a964-15967d6f8c44">
-      <UpgradeVersion Minimum="1.0.0" Maximum="1.7.4" IncludeMinimum="yes" IncludeMaximum="no" Property="PREVIOUSFOUND" />
-    </Upgrade>
 
     <Property Id="WixAppFolder" Value="WixPerMachineFolder" />
     <WixVariable Id="WixUISupportPerUser" Value="1" />
@@ -60,27 +55,7 @@
     <UI>
         <!-- Welcome -> License (Standard) -->
         
-        <!-- License -> InstallScope -->
-        <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallScopeDlg" Order="2" Condition="LicenseAccepted = &quot;1&quot;" />
-        
-        <!-- InstallScope -> License (Back) -->
-        <Publish Dialog="InstallScopeDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" Order="1" />
-        
-        <!-- InstallScope -> InstallDir (Next) -->
-        <!-- Logic: If WixAppFolder is WixPerUserFolder (Per User) -->
-        <Publish Dialog="InstallScopeDlg" Control="Next" Property="MSIINSTALLPERUSER" Value="1" Order="1" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
-        <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="2" Order="2" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
-        <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[LocalAppDataFolder]Programs\SwitchBlade" Order="3" Condition="WixAppFolder = &quot;WixPerUserFolder&quot;" />
-        
-        <!-- Logic: If WixAppFolder is WixPerMachineFolder (Per Machine) -->
-        <Publish Dialog="InstallScopeDlg" Control="Next" Property="MSIINSTALLPERUSER" Value="{}" Order="4" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
-        <Publish Dialog="InstallScopeDlg" Control="Next" Property="ALLUSERS" Value="1" Order="5" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
-        <Publish Dialog="InstallScopeDlg" Control="Next" Property="INSTALLFOLDER" Value="[ProgramFiles64Folder]SwitchBlade" Order="6" Condition="WixAppFolder = &quot;WixPerMachineFolder&quot;" />
-        
-        <Publish Dialog="InstallScopeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="7" />
-        
-        <!-- InstallDir -> InstallScope (Back) -->
-        <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="InstallScopeDlg" Order="2" Condition="NOT Installed" />
+
 
         <!-- Wire StartupOptionsDlg into the dialog sequence -->
         <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="StartupOptionsDlg" Order="9999" Condition="WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />

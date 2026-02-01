@@ -261,6 +261,11 @@ namespace SwitchBlade
         {
             // Let RefreshWindows run - ResultsUpdated will trigger animations as batches arrive
             // (Reset already done in ForceOpen before calling this)
+
+            // Bypass the RCW throttle for explicit user action (hotkey open)
+            // This ensures immediate refresh even if GC hasn't completed from background polling.
+            _viewModel.ResetOrchestrationThrottle();
+
             await _viewModel.RefreshWindows();
 
             // If animation is disabled, ensure all badges are visible

@@ -1,3 +1,25 @@
+## [1.7.5] - 2026-02-01
+### Fixed
+- **Native Memory Leak **: Resolved massive native memory growth caused by unbounded UI Automation tree traversals in the Windows Terminal and Notepad++ plugins.
+  - **Root Cause**: Both plugins used basic `TreeWalker` BFS without pruning, scanning deep into `ControlType.Document` branches (which contain heavy text content) and creating thousands of COM RCWs per scan cycle.
+  - **Solution**: Refactored both plugins to use the "Surgical BFS" pattern:
+    - `CacheRequest` + `FindAll(TreeScope.Children)` for batched, efficient property access.
+    - Explicit `ControlType.Document` pruning to avoid native memory exhaustion.
+    - Safety limit of 50 containers per root window.
+  - **Result**: COM RCW creation reduced by ~90%, keeping `System.__ComObject` count stable under 10,000 during active background polling.
+- **RCW Accumulation over Long Sessions**: Optimized adaptive throttle with `FinalizableSentinel`.
+  - Fixed logic error that caused 20-second latency (lock-step dependency on GC cycles).
+  - New implementation ensures throttle is cleared deterministicly before each polling tick.
+  - Reduced fallback threshold to 2 cycles; moved GC to background thread.
+- **Installer Duplicate Entries**: Fixed issue where installing a new version would create a duplicate entry in Add/Remove Programs instead of upgrading.
+  - **Root Cause**: Redundant `<Upgrade>` element conflicted with `<MajorUpgrade>`, causing Windows Installer to misidentify previous installations.
+  - **Solution**: Removed manual `Upgrade` table entry; `MajorUpgrade` element alone is sufficient for proper version detection.
+- **Badge Animation Delay on Hotkey**: Fixed delay where badge animations wouldn't play immediately when pressing the hotkey.
+  - **Root Cause**: The RCW throttle was blocking the explicit user-triggered refresh.
+  - **Solution**: Hotkey open now bypasses the throttle, ensuring an immediate scan.
+
+---
+
 ## [1.7.4] - 2026-02-01
 ### Fixed
 - **COM RCW Memory Accumulation**: Fixed steady memory growth caused by UI Automation COM proxies not being released promptly.
@@ -17,9 +39,6 @@
   - **Restructured traversal**: Implemented "Deep Surgical" BFS to robustness find tab containers in variable UI hierarchies (e.g., Comet, Chromium variants) while strictly pruning `Document` branches to prevent leaks.
   - **Added GC trigger**: Explicit `GC.Collect(2, GCCollectionMode.Optimized, blocking: false)` after each scan promptly releases COM RCW references.
   - **Profiling results**: Heap analysis showed 11,036 `AutomationElement` objects and 1,177 COM RCWs before fix. New approach reduces object creation by ~90%.
-- **Ghost Tabs in Chrome**: Eliminated internal Chrome/YouTube UI elements (like "All" category chips or Side Panel items) from search results by pruning the search at the web-content boundary.
-  - **Recursive Pruning**: Redesigned tab traversal to explicitly skip `ControlType.Document` branches, ensuring web content is never indexed.
-  - **Enhanced Filtering**: Implemented a blacklist for common non-tab names and added `AutomationId`/`ClassName` diagnostics.
 - **Installer Upgrade Stabilization**: Fixed the "Duplicate Entries" issue in Add/Remove Programs. Bumping to 1.7.3 with an aggressive `afterInstallInitialize` schedule forces Windows Installer to clear out any conflicting 1.7.x installations.
 - **Performance**: Improved background scan efficiency and added a throttled memory flush to prevent long-term native resource buildup.
 
