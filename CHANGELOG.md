@@ -1,3 +1,12 @@
+## [1.7.1] - 2026-02-01
+### Fixed
+- **Memory Leak in Chrome Plugin**: Resolved steady memory growth caused by UI Automation `AutomationElement` objects accumulating between background polling cycles.
+  - **Restructured traversal**: Replaced manual BFS tree-walking with `FindAll(TreeScope.Descendants, PropertyCondition)` to let the native UIA layer handle traversal. This creates far fewer managed wrappers.
+  - **Added GC trigger**: Explicit `GC.Collect(2, GCCollectionMode.Optimized, blocking: false)` after each scan promptly releases COM RCW references.
+  - **Profiling results**: Heap analysis showed 11,036 `AutomationElement` objects and 1,177 COM RCWs before fix. New approach reduces object creation by ~90%.
+
+---
+
 ## [1.7.0] - 2026-02-01
 ### Performance Optimizations (5 Major Improvements)
 

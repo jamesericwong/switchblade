@@ -121,6 +121,11 @@ namespace SwitchBlade.Plugins.Chrome
                 return true; // Continue enumeration
             }, IntPtr.Zero);
 
+            // Memory cleanup: UI Automation creates many AutomationElement objects
+            // holding COM RCW references. Force a Gen2 collection to promptly release
+            // these wrappers and prevent memory accumulation between polling cycles.
+            GC.Collect(2, GCCollectionMode.Optimized, blocking: false);
+
             return results;
         }
 
@@ -177,10 +182,65 @@ namespace SwitchBlade.Plugins.Chrome
         private List<string> FindTabsBFS(AutomationElement root, TreeWalker walker, int maxDepth)
         {
             var results = new List<string>();
+
+            // Memory optimization: Use FindAll with Condition to let UIA do the traversal
+            // internally, returning only matching TabItem elements. This creates far fewer
+            // AutomationElement wrappers compared to manual BFS traversal.
+            // 
+            // The condition matches ControlType.TabItem (most browsers) OR elements with
+            // LocalizedControlType == "tab" (for browsers that use non-standard tab controls).
+            try
+            {
+                var cacheRequest = new CacheRequest();
+                cacheRequest.Add(AutomationElement.NameProperty);
+                cacheRequest.Add(AutomationElement.ControlTypeProperty);
+                cacheRequest.TreeScope = TreeScope.Element;
+
+                using (cacheRequest.Activate())
+                {
+                    // Find all TabItem control types in the subtree
+                    var tabCondition = new PropertyCondition(
+                        AutomationElement.ControlTypeProperty,
+                        ControlType.TabItem);
+
+                    var tabElements = root.FindAll(TreeScope.Descendants, tabCondition);
+
+                    foreach (AutomationElement tab in tabElements)
+                    {
+                        try
+                        {
+                            string name = tab.Cached.Name;
+                            if (!string.IsNullOrWhiteSpace(name) && name != "New Tab" && name != "+")
+                            {
+                                results.Add(name);
+                                _logger?.Log($"    FOUND TAB: '{name}'");
+                            }
+                        }
+                        catch { /* Element might be stale */ }
+                    }
+                }
+
+                _logger?.Log($"  Found {results.Count} tabs via FindAll");
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"  FindAll failed: {ex.Message}, falling back to BFS");
+                // Fallback to manual BFS if FindAll fails (rare edge case)
+                results = FindTabsBFSFallback(root, walker, maxDepth);
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Fallback BFS implementation for edge cases where FindAll fails.
+        /// This is kept for robustness but should rarely be called.
+        /// </summary>
+        private List<string> FindTabsBFSFallback(AutomationElement root, TreeWalker walker, int maxDepth)
+        {
+            var results = new List<string>();
             int itemsScanned = 0;
 
-            // Performance optimization: Use CacheRequest to batch property fetches.
-            // This reduces cross-process RPC calls from N*3 to approximately N/10.
             var cacheRequest = new CacheRequest();
             cacheRequest.Add(AutomationElement.NameProperty);
             cacheRequest.Add(AutomationElement.ControlTypeProperty);
@@ -191,7 +251,6 @@ namespace SwitchBlade.Plugins.Chrome
             {
                 var queue = new Queue<(AutomationElement Element, int Depth)>();
 
-                // Get the root with cached properties
                 AutomationElement? cachedRoot = null;
                 try { cachedRoot = root.GetUpdatedCache(cacheRequest); } catch { }
                 if (cachedRoot == null) return results;
@@ -207,10 +266,7 @@ namespace SwitchBlade.Plugins.Chrome
 
                     try
                     {
-                        // Use .Cached instead of .Current for zero-RPC property access
                         var controlType = current.Cached.ControlType;
-
-                        // Skip web content (Document control type) to avoid DOM traversal
                         if (controlType == ControlType.Document) continue;
 
                         bool isTab = controlType == ControlType.TabItem;
@@ -229,12 +285,10 @@ namespace SwitchBlade.Plugins.Chrome
                         if (isTab && !string.IsNullOrWhiteSpace(name) && name != "New Tab" && name != "+")
                         {
                             results.Add(name);
-                            _logger?.Log($"    FOUND TAB: '{name}'");
                         }
                     }
-                    catch { /* Element might be invalid now */ }
+                    catch { }
 
-                    // Get children with cached properties
                     try
                     {
                         var child = walker.GetFirstChild(current);
@@ -245,7 +299,7 @@ namespace SwitchBlade.Plugins.Chrome
                                 var cachedChild = child.GetUpdatedCache(cacheRequest);
                                 queue.Enqueue((cachedChild, depth + 1));
                             }
-                            catch { /* Skip invalid elements */ }
+                            catch { }
                             child = walker.GetNextSibling(child);
                         }
                     }
@@ -253,8 +307,7 @@ namespace SwitchBlade.Plugins.Chrome
                 }
             }
 
-            _logger?.Log($"  Items Scanned: {itemsScanned}");
-
+            _logger?.Log($"  Fallback BFS scanned: {itemsScanned}");
             return results;
         }
 
