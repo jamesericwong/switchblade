@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
@@ -20,7 +21,8 @@ namespace SwitchBlade.Services
         // Performance optimization: Secondary index for O(1) provider lookups
         private readonly Dictionary<IWindowProvider, HashSet<WindowItem>> _providerItems = new();
         private readonly object _lock = new();
-
+        // Re-entrancy guard: Prevents concurrent RefreshAsync from creating RCWs faster than GC can clean
+        private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
 
         public event EventHandler<WindowListUpdatedEventArgs>? WindowListUpdated;
@@ -44,64 +46,80 @@ namespace SwitchBlade.Services
 
         public async Task RefreshAsync(ISet<string> disabledPlugins)
         {
-            disabledPlugins ??= new HashSet<string>();
-
-            // Clear process cache for fresh lookups
-            NativeInterop.ClearProcessCache();
-
-            // 1. Reload settings and gather handled processes
-            var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var provider in _providers)
+            // Non-blocking re-entrancy guard: skip if another refresh is in progress.
+            // This prevents RCW creation from outpacing GC destruction.
+            if (!await _refreshLock.WaitAsync(0))
             {
-                try
+                Logger.Log("RefreshAsync skipped: scan already in progress.");
+                return;
+            }
+
+            try
+            {
+                disabledPlugins ??= new HashSet<string>();
+
+                // Clear process cache for fresh lookups
+                NativeInterop.ClearProcessCache();
+
+                // 1. Reload settings and gather handled processes
+                var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var provider in _providers)
                 {
-                    provider.ReloadSettings();
-                    foreach (var p in provider.GetHandledProcesses())
+                    try
                     {
-                        handledProcesses.Add(p);
+                        provider.ReloadSettings();
+                        foreach (var p in provider.GetHandledProcesses())
+                        {
+                            handledProcesses.Add(p);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError($"Error reloading settings for {provider.PluginName}", ex);
                     }
                 }
-                catch (Exception ex)
+
+                // 2. Inject exclusions
+                foreach (var provider in _providers)
                 {
-                    Logger.LogError($"Error reloading settings for {provider.PluginName}", ex);
+                    provider.SetExclusions(handledProcesses);
                 }
+
+                // 3. Parallel fetch (runs on MTA thread pool)
+                var tasks = _providers.Select(provider => Task.Run(() =>
+                {
+                    try
+                    {
+                        bool isDisabled = disabledPlugins.Contains(provider.PluginName);
+                        var results = isDisabled ? new List<WindowItem>() : provider.GetWindows().ToList();
+
+                        ProcessProviderResults(provider, results);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError($"Provider error: {ex.Message}", ex);
+                    }
+                })).ToList();
+
+                await Task.WhenAll(tasks);
+
+                // 4. Cleanup COM RCWs on background thread
+                // This forced GC runs after EVERY scan to guarantee RCW cleanup.
+                // Without this, the small managed heap would cause lazy GC behavior,
+                // allowing native memory from COM wrappers to accumulate indefinitely.
+                await Task.Run(() =>
+                {
+                    GC.Collect(2, GCCollectionMode.Forced, blocking: true);
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect(2); // Sweep the freed RCW wrappers
+                });
             }
-
-            // 2. Inject exclusions
-            foreach (var provider in _providers)
+            finally
             {
-                provider.SetExclusions(handledProcesses);
+                _refreshLock.Release();
             }
-
-            // 3. Parallel fetch (runs on MTA thread pool)
-            var tasks = _providers.Select(provider => Task.Run(() =>
-            {
-                try
-                {
-                    bool isDisabled = disabledPlugins.Contains(provider.PluginName);
-                    var results = isDisabled ? new List<WindowItem>() : provider.GetWindows().ToList();
-
-                    ProcessProviderResults(provider, results);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError($"Provider error: {ex.Message}", ex);
-                }
-            })).ToList();
-
-            await Task.WhenAll(tasks);
-
-            // 4. Cleanup COM RCWs on background thread
-            // This forced GC runs after EVERY scan to guarantee RCW cleanup.
-            // Without this, the small managed heap would cause lazy GC behavior,
-            // allowing native memory from COM wrappers to accumulate indefinitely.
-            await Task.Run(() =>
-            {
-                GC.Collect(2, GCCollectionMode.Forced, blocking: true);
-                GC.WaitForPendingFinalizers();
-                GC.Collect(2); // Sweep the freed RCW wrappers
-            });
         }
+
 
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)
         {

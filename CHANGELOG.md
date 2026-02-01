@@ -1,3 +1,12 @@
+## [1.7.7] - 2026-02-01
+### Fixed
+- **RCW Memory Accumulation**: Fixed indefinite memory growth caused by concurrent `RefreshAsync` calls allowing RCW creation to outpace GC destruction.
+  - **Root Cause**: When background polling overlapped with hotkey-triggered refreshes, multiple scans would run simultaneously, creating COM wrappers faster than the post-scan GC could clean them.
+  - **Solution**: Added a `SemaphoreSlim`-based re-entrancy guard with non-blocking `WaitAsync(0)`. If a refresh is already in progress, subsequent calls return immediately with stale data.
+  - **UI Impact**: None. The guard is non-blocking—users experience no freezing; at worst, the window list shows slightly outdated entries until the next poll completes.
+
+---
+
 ## [1.7.6] - 2026-02-01
 ### Changed
 - **Removed RCW Throttle Mechanism**: Simplified memory management by removing the `FinalizableSentinel` throttle.
@@ -6,6 +15,7 @@
   - **Result**: Scans now run at the full configured polling interval (e.g., 5s) with zero artificial delays.
 
 ---
+
 
 ## [1.7.5] - 2026-02-01
 ### Fixed

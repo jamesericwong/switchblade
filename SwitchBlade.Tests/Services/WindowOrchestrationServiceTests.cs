@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using Xunit;
@@ -239,6 +240,54 @@ namespace SwitchBlade.Tests.Services
             // Should complete without exception and maintain correct state
             Assert.Single(service.AllWindows);
             Assert.Equal("Window1", service.AllWindows[0].Title);
+        }
+
+        [Fact]
+        public async Task RefreshAsync_SkipsIfAlreadyInProgress()
+        {
+            // Arrange: Create a slow provider that simulates a long-running scan
+            var slowProvider = new Mock<IWindowProvider>();
+            slowProvider.Setup(p => p.PluginName).Returns("SlowProvider");
+            slowProvider.Setup(p => p.GetHandledProcesses()).Returns(Enumerable.Empty<string>());
+
+            var callCount = 0;
+            slowProvider.Setup(p => p.GetWindows()).Returns(() =>
+            {
+                Interlocked.Increment(ref callCount);
+                Thread.Sleep(200); // Simulate slow scan
+                return new List<WindowItem>();
+            });
+
+            var service = new WindowOrchestrationService(new[] { slowProvider.Object });
+
+            // Act: Fire two concurrent refreshes
+            var task1 = service.RefreshAsync(new HashSet<string>());
+            await Task.Delay(50); // Let first one start
+            var task2 = service.RefreshAsync(new HashSet<string>()); // Should be skipped
+
+            await Task.WhenAll(task1, task2);
+
+            // Assert: GetWindows should only be called once (second call was skipped)
+            Assert.Equal(1, callCount);
+        }
+
+        [Fact]
+        public async Task RefreshAsync_AllowsSequentialCalls()
+        {
+            // Arrange
+            var provider = CreateMockProvider("Provider", new List<WindowItem>
+            {
+                new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app" }
+            });
+
+            var service = new WindowOrchestrationService(new[] { provider.Object });
+
+            // Act: Call RefreshAsync twice sequentially (not concurrently)
+            await service.RefreshAsync(new HashSet<string>());
+            await service.RefreshAsync(new HashSet<string>());
+
+            // Assert: Both calls should execute (GetWindows called twice)
+            provider.Verify(p => p.GetWindows(), Times.Exactly(2));
         }
     }
 }
