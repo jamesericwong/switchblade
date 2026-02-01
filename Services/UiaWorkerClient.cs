@@ -108,6 +108,7 @@ namespace SwitchBlade.Services
             var psi = new ProcessStartInfo
             {
                 FileName = _workerPath,
+                Arguments = SwitchBlade.Core.Logger.IsDebugEnabled ? "/debug" : "",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardInput = true,

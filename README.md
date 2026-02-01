@@ -235,7 +235,7 @@ SwitchBlade supports the following command-line parameters (prefixes `/`, `--`, 
 ```mermaid
 flowchart LR
     Start[Start Scan] --> Parallel{Parallel Execution}
-    Parallel -->|Task 1| WF[WindowFinder (In-Process)]
+    Parallel -->|Task 1| WF["WindowFinder (In-Process)"]
     Parallel -->|Task 2| UIA[UiaWorkerClient]
     
     subgraph "Main Process"

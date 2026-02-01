@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.IO;
+using System.Linq;
 using SwitchBlade.Contracts;
 
 namespace SwitchBlade.UiaWorker;
@@ -25,9 +26,11 @@ internal static class Program
     };
 
     private static readonly string LogFile = Path.Combine(Path.GetTempPath(), "switchblade_uia_debug.log");
+    private static bool _loggingEnabled = false;
 
     private static void DebugLog(string message)
     {
+        if (!_loggingEnabled) return;
         try
         {
             File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
@@ -36,10 +39,19 @@ internal static class Program
     }
 
     [STAThread] // Required for UI Automation
-    public static void Main()
+    public static void Main(string[] args)
     {
-        // Clear log on startup
-        try { File.WriteAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] UIA Worker Started. BaseDir: {AppContext.BaseDirectory}{Environment.NewLine}"); } catch { }
+        // Check for debug flag
+        _loggingEnabled = args.Any(arg =>
+            arg.Equals("/debug", StringComparison.OrdinalIgnoreCase) ||
+            arg.Equals("--debug", StringComparison.OrdinalIgnoreCase) ||
+            arg.Equals("-debug", StringComparison.OrdinalIgnoreCase));
+
+        if (_loggingEnabled)
+        {
+            // Clear log on startup if debug enabled
+            try { File.WriteAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] UIA Worker Started. BaseDir: {AppContext.BaseDirectory}{Environment.NewLine}"); } catch { }
+        }
 
         UiaResponse response;
 
