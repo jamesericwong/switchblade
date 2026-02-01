@@ -136,5 +136,12 @@ namespace SwitchBlade.Services
         /// When disabled, uses exact substring/regex matching.
         /// </summary>
         public bool EnableFuzzySearch { get; set; } = true;
+
+        /// <summary>
+        /// Maximum number of icons to cache in memory.
+        /// Caching prevents expensive icon extraction, but too many cached icons can cause memory growth.
+        /// Default: 200.
+        /// </summary>
+        public int IconCacheSize { get; set; } = 200;
     }
 }

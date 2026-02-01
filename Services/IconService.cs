@@ -15,6 +15,15 @@ namespace SwitchBlade.Services
     public class IconService : IIconService
     {
         private readonly ConcurrentDictionary<string, ImageSource?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ISettingsService _settingsService;
+
+        // Default to a safe limit if settings unavailable (though they should be)
+        private const int FallbackMaxCacheSize = 200;
+
+        public IconService(ISettingsService settingsService)
+        {
+            _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        }
 
         /// <summary>
         /// Gets the icon for the specified executable path.
@@ -24,6 +33,16 @@ namespace SwitchBlade.Services
         {
             if (string.IsNullOrEmpty(executablePath))
                 return null;
+
+            // Check cache size limit before adding new items
+            int limit = _settingsService?.Settings?.IconCacheSize ?? FallbackMaxCacheSize;
+
+            // If cache is full and this is a new item, clear it to prevent unbounded growth
+            if (_iconCache.Count >= limit && !_iconCache.ContainsKey(executablePath))
+            {
+                _iconCache.Clear();
+                Core.Logger.Log($"Icon cache limit ({limit}) reached. Cleared cache.");
+            }
 
             return _iconCache.GetOrAdd(executablePath, ExtractIcon);
         }

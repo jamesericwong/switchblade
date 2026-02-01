@@ -109,9 +109,15 @@ namespace SwitchBlade.Services
                 // allowing native memory from COM wrappers to accumulate indefinitely.
                 await Task.Run(() =>
                 {
-                    GC.Collect(2, GCCollectionMode.Forced, blocking: true);
+                    // "Nuclear" GC cleanup as requested:
+                    // 1. Force GC of all generations, blocking, and COMPACTING (defrag)
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+
+                    // 2. Wait for finalizers (critical for RCWs)
                     GC.WaitForPendingFinalizers();
-                    GC.Collect(2); // Sweep the freed RCW wrappers
+
+                    // 3. Force another compating collection to clean up the now-finalized RCWs
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
                 });
             }
             finally

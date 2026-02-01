@@ -24,7 +24,7 @@ namespace SwitchBlade.Services
             services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<SettingsService>());
             services.AddSingleton<ThemeService>();
             services.AddSingleton<IDispatcherService, WpfDispatcherService>();
-            services.AddSingleton<IIconService, IconService>();
+            services.AddSingleton<IIconService>(sp => new IconService(sp.GetRequiredService<ISettingsService>()));
 
             // Logger & Plugin Context
             services.AddSingleton<ILogger>(Logger.Instance);
