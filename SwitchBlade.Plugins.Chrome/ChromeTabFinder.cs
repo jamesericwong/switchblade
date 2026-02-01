@@ -190,67 +190,97 @@ namespace SwitchBlade.Plugins.Chrome
 
             try
             {
+                // DEEP SURGICAL DISCOVERY:
+                // 1. Perform a Breadth-First Search (BFS) to find the "Tab Strip" container.
+                // 2. Prune 'Document' branches to avoid web content and memory leaks.
+                // 3. Stop as soon as we find the first container with TabItem children.
+
                 var cacheRequest = new CacheRequest();
                 cacheRequest.Add(AutomationElement.NameProperty);
                 cacheRequest.Add(AutomationElement.ControlTypeProperty);
                 cacheRequest.Add(AutomationElement.AutomationIdProperty);
                 cacheRequest.Add(AutomationElement.ClassNameProperty);
-                cacheRequest.TreeScope = TreeScope.Element;
+                cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
+
+                int containersChecked = 0;
+                const int MaxContainersToCheck = 50; // Safety limit to prevent scanning entire UI
 
                 using (cacheRequest.Activate())
                 {
-                    FindTabsRecursive(root, results, 0, maxDepth);
-                }
+                    var queue = new Queue<AutomationElement>();
+                    queue.Enqueue(root);
 
-                _logger?.Log($"  Found {results.Count} tabs via Recursive FindAll");
+                    while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
+                    {
+                        var current = queue.Dequeue();
+                        containersChecked++;
+
+                        AutomationElementCollection? children = null;
+                        try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                        catch { continue; }
+
+                        if (children == null || children.Count == 0) continue;
+
+                        // Phase 1: Check if THIS container is the Tab Strip
+                        bool isTabStrip = false;
+                        foreach (AutomationElement child in children)
+                        {
+                            if (child.Cached.ControlType == ControlType.TabItem)
+                            {
+                                isTabStrip = true;
+                                break;
+                            }
+                        }
+
+                        if (isTabStrip)
+                        {
+                            //Found a container with TabItems. Try to harvest.
+                            var harvestedTabs = new List<string>();
+                            foreach (AutomationElement child in children)
+                            {
+                                if (child.Cached.ControlType == ControlType.TabItem)
+                                {
+                                    string name = child.Cached.Name;
+                                    if (!string.IsNullOrWhiteSpace(name) && !ExcludedTabNames.Contains(name) && name != "New Tab" && name != "+")
+                                    {
+                                        harvestedTabs.Add(name);
+                                        _logger?.Log($"    FOUND TAB: '{name}' (ID: {child.Cached.AutomationId}, Class: {child.Cached.ClassName})");
+                                    }
+                                }
+                            }
+
+                            if (harvestedTabs.Count > 0)
+                            {
+                                results.AddRange(harvestedTabs);
+                                _logger?.Log($"  Surgical discovery found {results.Count} tabs in container level {containersChecked}");
+                                return results; // EXIT success
+                            }
+                            else
+                            {
+                                _logger?.Log($"  Container level {containersChecked} appeared to be TabStrip but yielded 0 valid tabs. Continuing search...");
+                                // Do NOT return. This was likely a decoy or empty container. Continue BFS.
+                            }
+                        }
+
+                        // Phase 2: Enqueue children for deeper search (Pruning Document)
+                        foreach (AutomationElement child in children)
+                        {
+                            if (child.Cached.ControlType != ControlType.Document)
+                            {
+                                queue.Enqueue(child);
+                            }
+                        }
+                    }
+                }
+                _logger?.Log($"  Surgical discovery scan complete. Checked {containersChecked} containers. Results: {results.Count}");
             }
             catch (Exception ex)
             {
-                _logger?.Log($"  Recursive FindAll failed: {ex.Message}, falling back to BFS");
+                _logger?.Log($"  Surgical discovery failed: {ex.Message}, falling back to BFS");
                 results = FindTabsBFSFallback(root, walker, maxDepth);
             }
 
             return results;
-        }
-
-        private void FindTabsRecursive(AutomationElement element, List<string> results, int depth, int maxDepth)
-        {
-            if (depth >= maxDepth) return;
-
-            // Find all children in one shot for this level
-            var children = element.FindAll(TreeScope.Children, Condition.TrueCondition);
-            if (children == null || children.Count == 0) return;
-
-            foreach (AutomationElement child in children)
-            {
-                try
-                {
-                    var controlType = child.Cached.ControlType;
-
-                    if (controlType == ControlType.TabItem)
-                    {
-                        string name = child.Cached.Name;
-                        if (!string.IsNullOrWhiteSpace(name) && !ExcludedTabNames.Contains(name) && name != "New Tab" && name != "+")
-                        {
-                            results.Add(name);
-                            _logger?.Log($"    FOUND TAB: '{name}' (ID: {child.Cached.AutomationId}, Class: {child.Cached.ClassName})");
-                        }
-                    }
-                    else if (controlType == ControlType.Document)
-                    {
-                        // PRUNING: Do not descend into web page content.
-                        // This prevents indexing of website-internal category chips (e.g. YouTube "All", "Cars")
-                        // that report as TabItems but are actually inside the DOM.
-                        continue;
-                    }
-                    else
-                    {
-                        // Recurse into other containers (Panes, Groups, etc.)
-                        FindTabsRecursive(child, results, depth + 1, maxDepth);
-                    }
-                }
-                catch { /* Element might be stale */ }
-            }
         }
 
         /// <summary>

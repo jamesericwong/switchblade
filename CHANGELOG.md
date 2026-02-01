@@ -1,21 +1,18 @@
-## [1.7.2] - 2026-02-01
+## [1.7.3] - 2026-02-01
 ### Fixed
-- **Ghost Tabs in Chrome**: Eliminated internal Chrome/YouTube UI elements (like "All" category chips or Side Panel items) from search results.
-  - **Recursive Pruning**: Redesigned tab traversal to explicitly skip `ControlType.Document` branches, ensuring web content is never indexed.
-  - **Enhanced Filtering**: Implemented a blacklist for common non-tab names and added `AutomationId`/`ClassName` diagnostics.
-- **Installer Upgrade Logic**: Fixed issue where multiple versions of SwitchBlade would appear in Add/Remove Programs. Explicitly configured Major Upgrade scheduling to ensure older versions are correctly replaced during installation.
-
-### Changed
-- **Chrome Plugin Refinement**: Removed manual `GC.Collect()` call added in v1.7.1. The `FindAll` optimizations are efficient enough for the default .NET GC to handle cleanup naturally.
-
----
-
-## [1.7.1] - 2026-02-01
-### Fixed
-- **Memory Leak in Chrome Plugin**: Resolved steady memory growth caused by UI Automation `AutomationElement` objects accumulating between background polling cycles.
-  - **Restructured traversal**: Replaced manual BFS tree-walking with `FindAll(TreeScope.Descendants, PropertyCondition)` to let the native UIA layer handle traversal. This creates far fewer managed wrappers.
+- **Native Memory Leak**: Resolved a significant unmanaged memory leak (600MB+) in the Chrome plugin. Switched from recursive UI tree traversal to a surgical "Tab Strip" discovery model, drastically reducing the number of native COM proxies created.
+  - **Restructured traversal**: Implemented "Deep Surgical" BFS to robustness find tab containers in variable UI hierarchies (e.g., Comet, Chromium variants) while strictly pruning `Document` branches to prevent leaks.
   - **Added GC trigger**: Explicit `GC.Collect(2, GCCollectionMode.Optimized, blocking: false)` after each scan promptly releases COM RCW references.
   - **Profiling results**: Heap analysis showed 11,036 `AutomationElement` objects and 1,177 COM RCWs before fix. New approach reduces object creation by ~90%.
+- **Ghost Tabs in Chrome**: Eliminated internal Chrome/YouTube UI elements (like "All" category chips or Side Panel items) from search results by pruning the search at the web-content boundary.
+  - **Recursive Pruning**: Redesigned tab traversal to explicitly skip `ControlType.Document` branches, ensuring web content is never indexed.
+  - **Enhanced Filtering**: Implemented a blacklist for common non-tab names and added `AutomationId`/`ClassName` diagnostics.
+- **Installer Upgrade Stabilization**: Fixed the "Duplicate Entries" issue in Add/Remove Programs. Bumping to 1.7.3 with an aggressive `afterInstallInitialize` schedule forces Windows Installer to clear out any conflicting 1.7.x installations.
+- **Performance**: Improved background scan efficiency and added a throttled memory flush to prevent long-term native resource buildup.
+
+### Changed
+- **Chrome Discovery Logic**: Optimized the traversal algorithm to jump directly to the browser UI containers, skipping the heavy DOM examination entirely.
+- **Chrome Plugin Refinement**: Removed manual `GC.Collect()` call added in v1.7.1. The `FindAll` optimizations are efficient enough for the default .NET GC to handle cleanup naturally.
 
 ---
 

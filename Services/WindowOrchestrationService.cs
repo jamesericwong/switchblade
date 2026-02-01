@@ -88,6 +88,11 @@ namespace SwitchBlade.Services
             })).ToList();
 
             await Task.WhenAll(tasks);
+
+            // 4. Cleanup COM RCWs
+            // Force a non-blocking collection to release UI Automation COM proxies.
+            // This prevents native memory buildup when the managed heap is small.
+            GC.Collect(2, GCCollectionMode.Optimized, blocking: false);
         }
 
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)
