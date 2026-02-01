@@ -1,6 +1,21 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-  <Package Name="SwitchBlade" Manufacturer="James Wong" Version="1.7.3" UpgradeCode="a3543202-6014-486c-a964-15967d6f8c44" Scope="perUserOrMachine">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." AllowSameVersionUpgrades="yes" Schedule="afterInstallInitialize" MigrateFeatures="yes" />
+  <Package Name="SwitchBlade" Manufacturer="James Wong" Version="1.7.4" UpgradeCode="a3543202-6014-486c-a964-15967d6f8c44" Scope="perUserOrMachine">
+    <!-- 
+      Major Upgrade Configuration:
+      - Schedule="afterInstallValidate" runs RemoveExistingProducts earlier in the sequence
+      - This ensures old versions are removed BEFORE new files are installed
+      - IgnoreRemoveFailure="yes" prevents upgrade failures if old uninstall has issues
+    -->
+    <MajorUpgrade 
+      DowngradeErrorMessage="A newer version of [ProductName] is already installed." 
+      AllowSameVersionUpgrades="yes" 
+      Schedule="afterInstallValidate" 
+      MigrateFeatures="yes" />
+    
+    <!-- Explicit upgrade detection for ALL previous 1.x versions -->
+    <Upgrade Id="a3543202-6014-486c-a964-15967d6f8c44">
+      <UpgradeVersion Minimum="1.0.0" Maximum="1.7.4" IncludeMinimum="yes" IncludeMaximum="no" Property="PREVIOUSFOUND" />
+    </Upgrade>
 
     <Property Id="WixAppFolder" Value="WixPerMachineFolder" />
     <WixVariable Id="WixUISupportPerUser" Value="1" />

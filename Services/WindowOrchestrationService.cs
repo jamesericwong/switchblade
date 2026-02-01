@@ -90,9 +90,12 @@ namespace SwitchBlade.Services
             await Task.WhenAll(tasks);
 
             // 4. Cleanup COM RCWs
-            // Force a non-blocking collection to release UI Automation COM proxies.
-            // This prevents native memory buildup when the managed heap is small.
-            GC.Collect(2, GCCollectionMode.Optimized, blocking: false);
+            // Use blocking GC + finalizer wait to ensure UI Automation COM proxies are released.
+            // Non-blocking was insufficient because the managed heap stays small, causing
+            // the GC to deprioritize collection while native memory accumulates.
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2); // Sweep the freed RCW wrappers
         }
 
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)

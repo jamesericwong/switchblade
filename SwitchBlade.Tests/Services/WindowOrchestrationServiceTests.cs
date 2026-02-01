@@ -217,5 +217,28 @@ namespace SwitchBlade.Tests.Services
             Assert.Single(service.AllWindows);
             Assert.Equal(hwndCacheCount, providerCacheCount);
         }
+
+        [Fact]
+        public async Task RefreshAsync_CompletesMultipleTimesWithBlockingGC()
+        {
+            // This test verifies that the blocking GC + WaitForPendingFinalizers 
+            // doesn't cause issues when RefreshAsync is called repeatedly.
+            var provider = CreateMockProvider("TestProvider", new List<WindowItem>
+            {
+                new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app1" }
+            });
+
+            var service = new WindowOrchestrationService(new[] { provider.Object });
+
+            // Run multiple refreshes in succession (simulating background polling)
+            for (int i = 0; i < 5; i++)
+            {
+                await service.RefreshAsync(new HashSet<string>());
+            }
+
+            // Should complete without exception and maintain correct state
+            Assert.Single(service.AllWindows);
+            Assert.Equal("Window1", service.AllWindows[0].Title);
+        }
     }
 }

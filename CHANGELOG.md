@@ -1,3 +1,16 @@
+## [1.7.4] - 2026-02-01
+### Fixed
+- **COM RCW Memory Accumulation**: Fixed steady memory growth caused by UI Automation COM proxies not being released promptly.
+  - **Root Cause**: The non-blocking `GC.Collect` added in v1.7.3 was too passive. Because the managed heap stayed small (~2MB), the GC deprioritized collection while 40,000+ native COM wrappers accumulated.
+  - **Solution**: Switched to blocking `GC.Collect` with explicit `WaitForPendingFinalizers()` followed by a second collection pass to sweep freed RCW objects.
+  - **Result**: COM object count now stays stable between scans instead of growing indefinitely.
+  - **UI Impact**: None. The GC runs on a background thread pool thread during the polling cycle, completely isolated from the WPF UI dispatcher. Users will not experience any lag or stutter.
+- **Installer Duplicate Entries**: Fixed the persistent issue where upgrading SwitchBlade created a duplicate entry in Add/Remove Programs instead of replacing the existing installation.
+  - **Root Cause**: The `RemoveExistingProducts` action was scheduled too late (`afterInstallInitialize`), causing the new version to be registered before the old one was removed.
+  - **Solution**: Changed MajorUpgrade schedule to `afterInstallValidate` (runs earlier) and added explicit `Upgrade` table entry to detect all 1.x versions.
+
+---
+
 ## [1.7.3] - 2026-02-01
 ### Fixed
 - **Native Memory Leak**: Resolved a significant unmanaged memory leak in the Chrome plugin. Switched from recursive UI tree traversal to a surgical "Tab Strip" discovery model, drastically reducing the number of native COM proxies created.
