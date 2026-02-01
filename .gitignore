@@ -62,3 +62,10 @@ $RECYCLE.BIN/
 # Generated Reports
 *.html
 *.pdf
+heap_report*.txt
+
+# Diagnostics
+*.gcdump
+
+# WPF Temporary Files
+*_wpftmp.csproj
