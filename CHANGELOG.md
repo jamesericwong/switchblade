@@ -12,7 +12,6 @@
 
 ### Changed
 - **Chrome Discovery Logic**: Optimized the traversal algorithm to jump directly to the browser UI containers, skipping the heavy DOM examination entirely.
-- **Chrome Plugin Refinement**: Removed manual `GC.Collect()` call added in v1.7.1. The `FindAll` optimizations are efficient enough for the default .NET GC to handle cleanup naturally.
 
 ---
 
