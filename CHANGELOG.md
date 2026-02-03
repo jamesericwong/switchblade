@@ -1,3 +1,18 @@
+## [1.8.2] - 2026-02-02
+### Changed
+- **Streaming UIA Plugin Results**: Reimplemented the out-of-process UIA worker to stream results incrementally using NDJSON (Newline-Delimited JSON).
+  - **Problem**: Previously, the UIA worker waited for ALL plugins to complete before returning results. Fast plugins (e.g., Chrome tabs at 15ms) were blocked by slow plugins (e.g., complex Terminal scans at 2+ seconds).
+  - **Solution**: Each plugin now runs in parallel and emits its results immediately upon completion. The main process receives and displays results as each plugin finishes.
+  - **User Impact**: Faster perceived responsiveness—Chrome tabs appear almost instantly, even if other plugins take longer.
+
+### Technical
+- `SwitchBlade.UiaWorker.Program.cs`: Refactored to run plugins via `Task.WhenAll` with thread-safe streaming output.
+- `UiaWorkerClient.cs`: Added `ScanStreamingAsync` returning `IAsyncEnumerable<UiaPluginResult>` for incremental consumption.
+- `WindowOrchestrationService.cs`: Now consumes streaming results via `await foreach`, triggering `WindowListUpdated` events as each plugin completes.
+- New `UiaPluginResult` DTO for streaming protocol with `PluginName`, `Windows`, `Error`, and `IsFinal` fields.
+
+---
+
 ## [1.8.1] - 2026-02-02
 ### Added
 - **Configurable UIA Worker Timeout**: Added a user-configurable timeout for the UIA Worker process (default: 60 seconds).

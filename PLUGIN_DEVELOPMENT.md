@@ -56,7 +56,7 @@ namespace SwitchBlade.Contracts
 }
 ```
 
-### UIA vs. Non-UIA Execution (New in 1.8.0)
+### UIA vs. Non-UIA Execution (v1.8.0+)
 
 SwitchBlade 1.8.0 introduced a dual-process architecture to solve persistent memory leaks in the Windows UI Automation (UIA) framework.
 
@@ -65,15 +65,128 @@ SwitchBlade 1.8.0 introduced a dual-process architecture to solve persistent mem
 | **In-Process** | `false` (Default) | `SwitchBlade.exe` | Win32, Performance, Simple windows |
 | **Out-of-Process** | `true` | `SwitchBlade.UiaWorker.exe` | Tab discovery, Web content, UIA-heavy logic |
 
-#### Why Out-of-Process?
+---
+
+## UIA Worker Deep Dive
+
+### Why Out-of-Process?
+
 Windows 11's UIA framework has a significant native memory leak when using `AutomationElement.FindAll`. This memory is never released by the Garbage Collector or thread termination even when isolated. By running UIA code in a transient worker process that exits after every scan, SwitchBlade guarantees that the OS reclaims all leaked COM memory.
 
-#### Impact on Plugin Authors
-If `IsUiaProvider` is `true`:
-1. Your plugin DLL is loaded into `SwitchBlade.UiaWorker.exe` instead of the main app.
-2. The worker process has no GUI; it only performs the scan and returns results via JSON.
-3. Your code should be "Self-Contained" for the duration of `GetWindows()`.
-4. The `IPluginContext.Logger` in the worker process writes to `%TEMP%\switchblade_uia_debug.log` only if SwitchBlade is launched with `/debug`.
+### Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph Main["SwitchBlade.exe (Main Process)"]
+        Orch[WindowOrchestrationService]
+        Client[UiaWorkerClient]
+        UI["Search UI"]
+    end
+    
+    subgraph Worker["SwitchBlade.UiaWorker.exe (Child Process)"]
+        Loader[PluginLoader]
+        P1[ChromeTabFinder]
+        P2[WindowsTerminalPlugin]
+        P3[NotepadPlusPlusPlugin]
+    end
+    
+    Orch -->|1. Spawn Process| Client
+    Client -->|2. JSON Request via stdin| Worker
+    Loader -->|3. Load plugins from /Plugins| P1
+    Loader --> P2
+    Loader --> P3
+    
+    P1 -->|4a. Stream results| Client
+    P2 -->|4b. Stream results| Client
+    P3 -->|4c. Stream results| Client
+    
+    Client -->|5. Update UI immediately| UI
+    Worker -->|6. Exit - COM memory freed| Main
+```
+
+### Streaming Protocol (v1.8.2+)
+
+UIA plugins now run **in parallel** inside the worker, and results are streamed via **NDJSON** (Newline-Delimited JSON) as each plugin completes:
+
+```mermaid
+sequenceDiagram
+    participant Main as SwitchBlade.exe
+    participant Worker as UiaWorker.exe
+    participant Chrome as ChromeTabFinder
+    participant Terminal as WindowsTerminalPlugin
+
+    Main->>Worker: {"command":"scan",...}
+    
+    par Parallel Execution
+        Worker->>Chrome: GetWindows()
+        Worker->>Terminal: GetWindows()
+    end
+    
+    Chrome-->>Worker: 12 tabs (15ms)
+    Worker-->>Main: {"pluginName":"ChromeTabFinder","windows":[...]}
+    Note over Main: Chrome tabs visible immediately!
+    
+    Terminal-->>Worker: 5 tabs (2000ms)
+    Worker-->>Main: {"pluginName":"WindowsTerminal","windows":[...]}
+    Note over Main: Terminal tabs appear when ready
+    
+    Worker-->>Main: {"isFinal":true}
+    Worker->>Worker: Process exits, COM freed
+```
+
+> [!TIP]
+> **User Experience Impact**: Fast plugins (Chrome: ~15ms) display results almost instantly, even if slow plugins (Terminal: ~2s) are still running.
+
+### Timeout Configuration (v1.8.1+)
+
+The UIA Worker has a configurable timeout to prevent stuck plugins from blocking refreshes:
+
+| Setting | Location | Default | Description |
+|---------|----------|---------|-------------|
+| `UiaWorkerTimeoutMs` | Registry: `HKCU\Software\SwitchBlade` | `60000` (60s) | Maximum time before worker is killed |
+
+**What happens on timeout:**
+1. Any results already streamed are preserved
+2. Worker process is forcefully terminated
+3. Refresh cycle completes, allowing next poll to run fresh
+
+### Impact on Plugin Authors
+
+If your plugin has `IsUiaProvider = true`:
+
+1. **Execution Location**: Your plugin DLL is loaded into `SwitchBlade.UiaWorker.exe`, NOT the main app
+2. **No GUI Access**: The worker process has no window; it only performs scans and returns results via JSON
+3. **Self-Contained**: Your code should be stateless for the duration of `GetWindows()`
+4. **Logging**: `IPluginContext.Logger` writes to `%TEMP%\switchblade_uia_debug.log` only if launched with `/debug`
+5. **Parallel Execution**: Your `GetWindows()` may run concurrently with other UIA plugins
+6. **Thread Safety**: Use `CachingWindowProviderBase` or your own locking if needed
+
+### The Dual Loading Model
+
+One of the most common questions is: *"If the worker runs my plugin, does the main app still see it?"*
+
+**Yes.** SwitchBlade uses a dual-loading approach:
+
+1.  **Discovery (Main App)**: At startup, `SwitchBlade.exe` scans the `Plugins/` folder and loads **all** DLLs. It instantiates your class to read `PluginName`, `IsUiaProvider`, and `SettingsControl`. This is why your plugin still appears in the Settings UI and can be enabled/disabled.
+2.  **Execution (Worker)**: When a scan begins, the main app sends a list of enabled UIA plugins to `SwitchBlade.UiaWorker.exe`. The worker then scans the **same** `Plugins/` folder, loads the required DLLs, and executes their `GetWindows()` methods.
+
+```mermaid
+graph TD
+    DLL[Plugin.dll] -->|1. Scanned by| Main[SwitchBlade.exe]
+    Main -->|2. Used for| Meta[Metadata & Settings UI]
+    Main -->|3. Sends Names to| Worker[UiaWorker.exe]
+    DLL -->|4. Scanned by| Worker
+    Worker -->|5. Used for| Exec[Parallel Execution]
+```
+
+**What this means for you:**
+-   **Drop-in Deploy**: You still just drop your DLL into the `Plugins/` folder.
+-   **Full Control**: The main app handles Enable/Disable logic perfectly.
+-   **Settings Visibility**: Your settings UI always runs in the main app (so WPF works fine).
+-   **Execution Isolation**: Only the heavy UIA logic runs in the worker.
+
+---
+
         // Return a settings control provider or null if no settings UI.
         ISettingsControl? SettingsControl => null;
 
@@ -270,6 +383,38 @@ public override void ActivateWindow(WindowItem item)
 - **Dependencies**: If your plugin relies on other DLLs, ensure they are also copied to the `Plugins` folder or available in the global path.
 - **Icon Support**: Always populate `ExecutablePath` using `NativeInterop.GetProcessInfo(pid)` so that SwitchBlade can display the correct application icon for your items.
 
+### UIA Plugin Best Practices (v1.8.0+)
+
+If your plugin sets `IsUiaProvider = true`, follow these additional guidelines:
+
+```mermaid
+flowchart LR
+    subgraph DO["✅ DO"]
+        A[Use CachingWindowProviderBase]
+        B[Keep GetWindows fast]
+        C[Handle timeouts gracefully]
+        D[Log with IPluginContext.Logger]
+    end
+    
+    subgraph DONT["❌ DON'T"]
+        E[Access WPF/Windows.Forms UI]
+        F[Store state between scans]
+        G[Block indefinitely]
+        H[Use static mutable state]
+    end
+```
+
+| Guideline | Reason |
+|-----------|--------|
+| **Be Stateless** | Worker process exits after each scan; any state is lost |
+| **Avoid Blocking Calls** | 60s timeout will kill your plugin mid-scan |
+| **No UI Code** | Worker has no GUI; `MessageBox.Show` will hang |
+| **Use Try-Catch** | Exceptions are caught, but your results won't appear |
+| **Parallel-Safe** | Other UIA plugins run concurrently; don't share mutable statics |
+
+> [!WARNING]
+> **Timeout Behavior**: If your `GetWindows()` takes longer than the configured timeout (default 60s), the worker is killed and your results are lost. Results that were already streamed (from faster plugins) are preserved.
+
 ---
 
 ## Concurrency & Caching Best Practices
@@ -405,6 +550,52 @@ public class MySettingsControlProvider : ISettingsControl
 
 ---
 
+## Migration Guide: v1.7.x → v1.8.0 (UIA Out-of-Process)
+
+Version 1.8.0 introduces the **out-of-process UIA architecture**. Existing UIA plugins require minimal changes.
+
+### Non-Breaking: Just Add `IsUiaProvider`
+
+If your plugin uses `System.Windows.Automation`, add the flag to opt into out-of-process execution:
+
+```csharp
+// Before (v1.7.x) - runs in-process, may leak memory
+public class MyUiaPlugin : IWindowProvider
+{
+    public string PluginName => "MyUiaPlugin";
+    // ... no IsUiaProvider property
+}
+
+// After (v1.8.0+) - runs in SwitchBlade.UiaWorker.exe
+public class MyUiaPlugin : IWindowProvider
+{
+    public string PluginName => "MyUiaPlugin";
+    public bool IsUiaProvider => true;  // NEW: Enable out-of-process execution
+    // ...
+}
+```
+
+### Key Behavioral Changes
+
+| Before (v1.7.x) | After (v1.8.0+) |
+|-----------------|-----------------|
+| Runs in `SwitchBlade.exe` | Runs in `SwitchBlade.UiaWorker.exe` |
+| Memory leaks accumulate | Process exits after scan, memory freed |
+| Plugin state persists | Plugin is re-instantiated each scan |
+| No timeout protection | 60s configurable timeout |
+| Sequential execution | Parallel execution with streaming (v1.8.2) |
+
+### Required Code Changes
+
+1. **Remove Static State**: Any `static` mutable fields will not persist between scans
+2. **Remove UI Code**: No `MessageBox`, `Window`, or WPF elements (worker has no GUI)
+3. **Add Timeout Handling**: If your scan can be slow, consider caching or pagination
+
+> [!IMPORTANT]
+> If your plugin does NOT use `System.Windows.Automation`, you do NOT need to set `IsUiaProvider`. Keep it `false` (or omit it) for best performance.
+
+---
+
 ## Migration Guide: v1.4.1 → v1.4.2
 
 Version 1.4.2 introduces **breaking changes** to the plugin API. Follow this guide to update your plugins.
@@ -501,7 +692,10 @@ public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
 
 | Version | Key Changes |
 |---------|-------------|
-| 1.6.6   | **BREAKING**: `ShowSettingsDialog` removed. All plugins must use `ISettingsControl` for settings UI. All bundled plugins migrated to `UserControl`-based settings. |
+| 1.8.2   | **Streaming UIA Results** - Plugins run in parallel, results streamed via NDJSON for faster UI updates |
+| 1.8.1   | **UIA Worker Timeout** - Configurable timeout (default 60s) to prevent stuck plugins from blocking refreshes |
+| 1.8.0   | **Out-of-Process UIA** - `IsUiaProvider` flag, UIA plugins run in transient worker process to fix memory leaks |
+| 1.6.6   | **BREAKING**: `ShowSettingsDialog` removed. All plugins must use `ISettingsControl` for settings UI |
 | 1.6.5   | **ISettingsControl** - New interface for WPF-based plugin settings UI, `ShowSettingsDialog` deprecated |
 | 1.5.8   | **Performance & Icons** - `ExecutablePath` on `WindowItem`, `LibraryImport` migration, zero-allocation `Span<char>` interop |
 | 1.5.6   | **Performance** - Native `EnumWindows` for Notepad++, `HashSet<string>` O(1) lookups, `ReaderWriterLockSlim` in caching base class |

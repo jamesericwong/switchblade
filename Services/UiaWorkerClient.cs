@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
@@ -50,7 +51,124 @@ namespace SwitchBlade.Services
         }
 
         /// <summary>
+        /// Runs a UIA scan in the worker process with STREAMING results.
+        /// Each plugin's results are yielded immediately as they complete.
+        /// </summary>
+        /// <param name="disabledPlugins">Set of disabled plugin names to skip.</param>
+        /// <param name="excludedProcesses">Set of process names to exclude from scanning.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Async stream of plugin results as they arrive.</returns>
+        public async IAsyncEnumerable<UiaPluginResult> ScanStreamingAsync(
+            ISet<string>? disabledPlugins = null,
+            ISet<string>? excludedProcesses = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UiaWorkerClient));
+
+            if (!File.Exists(_workerPath))
+            {
+                _logger?.Log($"[UiaWorkerClient] Worker executable not found: {_workerPath}");
+                yield break;
+            }
+
+            var request = new UiaRequest
+            {
+                Command = "scan",
+                DisabledPlugins = disabledPlugins != null ? new List<string>(disabledPlugins) : null,
+                ExcludedProcesses = excludedProcesses != null ? new List<string>(excludedProcesses) : null
+            };
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(_timeout);
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = _workerPath,
+                Arguments = SwitchBlade.Core.Logger.IsDebugEnabled ? "/debug" : "",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using var process = new Process { StartInfo = psi };
+
+            _logger?.Log($"[UiaWorkerClient] Starting streaming worker: {_workerPath}");
+            var startTime = Stopwatch.GetTimestamp();
+
+            process.Start();
+
+            // Send request via stdin
+            string requestJson = JsonSerializer.Serialize(request, JsonOptions);
+            await process.StandardInput.WriteLineAsync(requestJson);
+            await process.StandardInput.FlushAsync();
+            process.StandardInput.Close();
+
+            // Read streaming responses line by line
+            while (!cts.Token.IsCancellationRequested)
+            {
+                string? line;
+                try
+                {
+                    line = await process.StandardOutput.ReadLineAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger?.Log("[UiaWorkerClient] Streaming read cancelled/timed out.");
+                    try { process.Kill(entireProcessTree: true); } catch { }
+                    yield break;
+                }
+
+                if (line == null)
+                {
+                    // Process ended or closed stdout
+                    break;
+                }
+
+                UiaPluginResult? result;
+                try
+                {
+                    result = JsonSerializer.Deserialize<UiaPluginResult>(line, JsonOptions);
+                }
+                catch (JsonException ex)
+                {
+                    _logger?.Log($"[UiaWorkerClient] Failed to parse streaming line: {ex.Message}");
+                    continue;
+                }
+
+                if (result == null)
+                    continue;
+
+                if (result.IsFinal)
+                {
+                    _logger?.Log("[UiaWorkerClient] Received final marker.");
+                    break;
+                }
+
+                _logger?.Log($"[UiaWorkerClient] Received {result.Windows?.Count ?? 0} windows from {result.PluginName}");
+                yield return result;
+            }
+
+            // Wait for process to exit
+            try
+            {
+                await process.WaitForExitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger?.Log("[UiaWorkerClient] Wait for exit cancelled, killing process.");
+                try { process.Kill(entireProcessTree: true); } catch { }
+            }
+
+            var elapsed = Stopwatch.GetElapsedTime(startTime);
+            _logger?.Log($"[UiaWorkerClient] Streaming worker completed in {elapsed.TotalMilliseconds:F0}ms");
+        }
+
+        /// <summary>
         /// Runs a UIA scan in the worker process.
+        /// Convenience wrapper that collects all streaming results into a single list.
         /// </summary>
         /// <param name="disabledPlugins">Set of disabled plugin names to skip.</param>
         /// <param name="excludedProcesses">Set of process names to exclude from scanning.</param>
@@ -77,89 +195,31 @@ namespace SwitchBlade.Services
                 ExcludedProcesses = excludedProcesses != null ? new List<string>(excludedProcesses) : null
             };
 
+            var allWindows = new List<WindowItem>();
+
             try
             {
-                var response = await ExecuteWorkerAsync(request, cancellationToken);
-
-                if (!response.Success)
+                await foreach (var result in ScanStreamingAsync(disabledPlugins, excludedProcesses, cancellationToken))
                 {
-                    _logger?.Log($"[UiaWorkerClient] Worker reported error: {response.Error}");
-                }
+                    if (result.Error != null)
+                    {
+                        _logger?.Log($"[UiaWorkerClient] Plugin {result.PluginName} error: {result.Error}");
+                    }
 
-                return ConvertToWindowItems(response.Windows);
+                    allWindows.AddRange(ConvertToWindowItems(result.Windows));
+                }
+                return allWindows;
             }
             catch (OperationCanceledException)
             {
                 _logger?.Log("[UiaWorkerClient] Scan cancelled.");
-                return new List<WindowItem>();
+                return allWindows; // Return any results collected before cancellation
             }
             catch (Exception ex)
             {
                 _logger?.Log($"[UiaWorkerClient] Error: {ex.Message}");
-                return new List<WindowItem>();
+                return allWindows; // Return any results collected before error
             }
-        }
-
-        private async Task<UiaResponse> ExecuteWorkerAsync(UiaRequest request, CancellationToken cancellationToken)
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(_timeout);
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = _workerPath,
-                Arguments = SwitchBlade.Core.Logger.IsDebugEnabled ? "/debug" : "",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-
-            using var process = new Process { StartInfo = psi };
-
-            _logger?.Log($"[UiaWorkerClient] Starting worker: {_workerPath}");
-            var startTime = Stopwatch.GetTimestamp();
-
-            process.Start();
-
-            // Send request via stdin
-            string requestJson = JsonSerializer.Serialize(request, JsonOptions);
-            await process.StandardInput.WriteLineAsync(requestJson);
-            await process.StandardInput.FlushAsync();
-            process.StandardInput.Close();
-
-            // Read response from stdout
-            string? responseJson = await process.StandardOutput.ReadLineAsync(cts.Token);
-
-            // Wait for process to exit (with timeout)
-            try
-            {
-                await process.WaitForExitAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                // Timeout - kill the process
-                _logger?.Log("[UiaWorkerClient] Worker timed out, killing process.");
-                try { process.Kill(entireProcessTree: true); } catch { }
-                throw;
-            }
-
-            var elapsed = Stopwatch.GetElapsedTime(startTime);
-            _logger?.Log($"[UiaWorkerClient] Worker completed in {elapsed.TotalMilliseconds:F0}ms, exit code: {process.ExitCode}");
-
-            if (string.IsNullOrWhiteSpace(responseJson))
-            {
-                var stderr = await process.StandardError.ReadToEndAsync(cts.Token);
-                return new UiaResponse
-                {
-                    Success = false,
-                    Error = $"No response from worker. Exit code: {process.ExitCode}. Stderr: {stderr}"
-                };
-            }
-
-            var response = JsonSerializer.Deserialize<UiaResponse>(responseJson, JsonOptions);
-            return response ?? new UiaResponse { Success = false, Error = "Failed to parse response JSON" };
         }
 
         private List<WindowItem> ConvertToWindowItems(List<UiaWindowResult>? results)
@@ -203,19 +263,21 @@ namespace SwitchBlade.Services
     }
 
     /// <summary>
-    /// Response DTO from UIA Worker (must match SwitchBlade.UiaWorker.UiaResponse).
+    /// Streaming response for a single plugin's results (NDJSON protocol).
+    /// Must match SwitchBlade.UiaWorker.UiaPluginResult.
     /// </summary>
-    internal sealed class UiaResponse
+    public sealed class UiaPluginResult
     {
-        public bool Success { get; set; }
-        public string? Error { get; set; }
+        public string PluginName { get; set; } = "";
         public List<UiaWindowResult>? Windows { get; set; }
+        public string? Error { get; set; }
+        public bool IsFinal { get; set; }
     }
 
     /// <summary>
     /// Window result from UIA Worker.
     /// </summary>
-    internal sealed class UiaWindowResult
+    public sealed class UiaWindowResult
     {
         public long Hwnd { get; set; }
         public string Title { get; set; } = "";

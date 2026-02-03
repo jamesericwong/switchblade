@@ -118,45 +118,78 @@ namespace SwitchBlade.Services
                     }));
                 }
 
-                // 4b. Run UIA providers OUT-OF-PROCESS via UiaWorkerClient
-                // The worker process exits after scanning, which releases ALL UIA COM objects.
+                // 4b. Run UIA providers OUT-OF-PROCESS via UiaWorkerClient with STREAMING
+                // Results are processed incrementally as each plugin completes.
                 if (uiaProviders.Count > 0)
                 {
                     var uiaDisabled = new HashSet<string>(
                         uiaProviders.Where(p => disabledPlugins.Contains(p.PluginName)).Select(p => p.PluginName),
                         StringComparer.OrdinalIgnoreCase);
 
+                    // Build a lookup for fast provider resolution by name
+                    var providerLookup = uiaProviders.ToDictionary(
+                        p => p.PluginName,
+                        p => p,
+                        StringComparer.OrdinalIgnoreCase);
+
                     allTasks.Add(Task.Run(async () =>
                     {
                         try
                         {
-                            Logger.Log($"[UIA] Running {uiaProviders.Count} UIA providers out-of-process...");
+                            Logger.Log($"[UIA] Starting streaming scan for {uiaProviders.Count} UIA providers...");
 
-                            var uiaResults = await _uiaWorkerClient.ScanAsync(uiaDisabled, handledProcesses);
-
-                            Logger.Log($"[UIA] Worker returned {uiaResults.Count} windows.");
-
-                            // Map results back to their respective providers
-                            // Group results by PluginName for proper Source assignment
-                            var resultsByPlugin = uiaResults.GroupBy(r => r.ProcessName).ToList();
-
-                            // For UIA results, we need a "virtual" provider reference for ActivateWindow
-                            // We'll use the first matching provider in _providers
-                            foreach (var uiaProvider in uiaProviders)
+                            // Stream results as each plugin completes
+                            await foreach (var pluginResult in _uiaWorkerClient.ScanStreamingAsync(uiaDisabled, handledProcesses))
                             {
-                                // The worker returns windows with pluginName already set
-                                // Filter results that came from this provider
-                                var providerResults = uiaResults
-                                    .Where(w => string.Equals(GetPluginNameForProcess(w.ProcessName), uiaProvider.PluginName, StringComparison.OrdinalIgnoreCase))
-                                    .Select(w => { w.Source = uiaProvider; return w; })
-                                    .ToList();
+                                if (pluginResult.Error != null)
+                                {
+                                    Logger.Log($"[UIA] Plugin {pluginResult.PluginName} error: {pluginResult.Error}");
+                                    continue;
+                                }
 
-                                ProcessProviderResults(uiaProvider, providerResults);
+                                // Find the provider for this plugin's results
+                                if (!providerLookup.TryGetValue(pluginResult.PluginName, out var uiaProvider))
+                                {
+                                    // Fallback: try to match by process name mapping
+                                    var matchedProviderName = pluginResult.Windows?.FirstOrDefault() is { } firstWindow
+                                        ? GetPluginNameForProcess(firstWindow.ProcessName)
+                                        : null;
+
+                                    if (matchedProviderName != null)
+                                    {
+                                        providerLookup.TryGetValue(matchedProviderName, out uiaProvider);
+                                    }
+                                }
+
+                                if (uiaProvider == null)
+                                {
+                                    Logger.Log($"[UIA] No provider found for plugin {pluginResult.PluginName}, skipping results.");
+                                    continue;
+                                }
+
+                                // Convert to WindowItems and set Source
+                                var windowItems = pluginResult.Windows?
+                                    .Select(w => new WindowItem
+                                    {
+                                        Hwnd = new IntPtr(w.Hwnd),
+                                        Title = w.Title,
+                                        ProcessName = w.ProcessName,
+                                        ExecutablePath = w.ExecutablePath,
+                                        Source = uiaProvider
+                                    })
+                                    .ToList() ?? new List<WindowItem>();
+
+                                Logger.Log($"[UIA] Plugin {pluginResult.PluginName} returned {windowItems.Count} windows - processing immediately.");
+
+                                // Process and emit event IMMEDIATELY
+                                ProcessProviderResults(uiaProvider, windowItems);
                             }
+
+                            Logger.Log("[UIA] Streaming scan complete.");
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError($"UIA Worker error: {ex.Message}", ex);
+                            Logger.LogError($"UIA Worker streaming error: {ex.Message}", ex);
                         }
                     }));
                 }

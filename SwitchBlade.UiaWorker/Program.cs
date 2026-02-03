@@ -101,7 +101,6 @@ internal static class Program
 
     private static UiaResponse ExecuteScan(UiaRequest request)
     {
-        var windows = new List<UiaWindowResult>();
         var errors = new List<string>();
 
         var disabledPlugins = new HashSet<string>(
@@ -133,15 +132,16 @@ internal static class Program
             }
         }
 
-        // Run each enabled plugin
-        foreach (var plugin in plugins)
-        {
-            if (disabledPlugins.Contains(plugin.PluginName))
-            {
-                DebugLog($"Skipping disabled plugin: {plugin.PluginName}");
-                continue;
-            }
+        // Get enabled plugins only
+        var enabledPlugins = plugins
+            .Where(p => !disabledPlugins.Contains(p.PluginName))
+            .ToList();
 
+        DebugLog($"Running {enabledPlugins.Count} enabled plugins in parallel...");
+
+        // Run plugins in PARALLEL and stream results as each completes
+        var tasks = enabledPlugins.Select(plugin => Task.Run(() =>
+        {
             try
             {
                 DebugLog($"Running plugin: {plugin.PluginName}");
@@ -151,33 +151,86 @@ internal static class Program
                 var pluginWindows = plugin.GetWindows().ToList();
                 DebugLog($"Plugin {plugin.PluginName} found {pluginWindows.Count} windows.");
 
-                foreach (var window in pluginWindows)
+                var windowResults = pluginWindows.Select(w => new UiaWindowResult
                 {
-                    windows.Add(new UiaWindowResult
-                    {
-                        Hwnd = window.Hwnd.ToInt64(),
-                        Title = window.Title,
-                        ProcessName = window.ProcessName,
-                        ExecutablePath = window.ExecutablePath,
-                        PluginName = plugin.PluginName
-                    });
-                }
+                    Hwnd = w.Hwnd.ToInt64(),
+                    Title = w.Title,
+                    ProcessName = w.ProcessName,
+                    ExecutablePath = w.ExecutablePath,
+                    PluginName = plugin.PluginName
+                }).ToList();
+
+                // Stream this plugin's results immediately
+                WritePluginResult(plugin.PluginName, windowResults);
             }
             catch (Exception ex)
             {
                 DebugLog($"Plugin {plugin.PluginName} failed: {ex}");
-                errors.Add($"Plugin {plugin.PluginName} failed: {ex.Message}");
+                WritePluginResult(plugin.PluginName, null, ex.Message);
+                lock (errors)
+                {
+                    errors.Add($"Plugin {plugin.PluginName} failed: {ex.Message}");
+                }
             }
-        }
+        })).ToArray();
 
-        var response = new UiaResponse
+        // Wait for all plugins to complete
+        Task.WaitAll(tasks);
+
+        // Write final marker
+        WriteFinalResult();
+
+        DebugLog($"All plugins completed. Errors: {errors.Count}");
+
+        // Return legacy response for compatibility (not used in streaming mode)
+        return new UiaResponse
         {
             Success = errors.Count == 0,
             Error = errors.Count > 0 ? string.Join("; ", errors) : null,
-            Windows = windows
+            Windows = new List<UiaWindowResult>() // Results already streamed
+        };
+    }
+
+    /// <summary>
+    /// Thread-safe writer lock to prevent output interleaving between parallel plugins.
+    /// </summary>
+    private static readonly object WriteLock = new();
+
+    /// <summary>
+    /// Writes a single plugin's results as one atomic JSON line.
+    /// Thread-safe: only one plugin can write at a time.
+    /// </summary>
+    private static void WritePluginResult(string pluginName, List<UiaWindowResult>? windows, string? error = null)
+    {
+        var result = new UiaPluginResult
+        {
+            PluginName = pluginName,
+            Windows = windows,
+            Error = error,
+            IsFinal = false
         };
 
-        return response;
+        lock (WriteLock)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+            Console.Out.Flush();
+        }
+
+        DebugLog($"Streamed {windows?.Count ?? 0} windows from {pluginName}");
+    }
+
+    /// <summary>
+    /// Writes the final marker indicating all plugins have completed.
+    /// </summary>
+    private static void WriteFinalResult()
+    {
+        var result = new UiaPluginResult { IsFinal = true };
+        lock (WriteLock)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+            Console.Out.Flush();
+        }
+        DebugLog("Wrote final marker.");
     }
 
     /// <summary>

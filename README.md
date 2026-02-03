@@ -1,6 +1,6 @@
 # SwitchBlade Technical Documentation
 
-**Current Version: 1.8.1** | [View Changelog](CHANGELOG.md)
+**Current Version: 1.8.2** | [View Changelog](CHANGELOG.md)
 
 ## Overview
 SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. It is built using **C# / WPF** and follows the **MVVM (Model-View-ViewModel)** architectural pattern. It is designed to be extensible via a robust Plugin System, allowing it to index not just top-level windows but also internal document tabs as searchable items.
@@ -232,6 +232,40 @@ SwitchBlade supports the following command-line parameters (prefixes `/`, `--`, 
 
 ## Window Discovery Logic
 
+SwitchBlade uses a two-tier architecture for window discovery: fast in-process scanning for standard windows, and out-of-process UIA scanning for specialized plugins with **streaming results**.
+
+### Streaming NDJSON Protocol (v1.8.2+)
+
+UIA plugins run in parallel and emit results immediately as each completes. This eliminates the blocking behavior where fast plugins waited for slow ones.
+
+```mermaid
+sequenceDiagram
+    participant Main as SwitchBlade (Main)
+    participant Worker as UiaWorker.exe
+    participant Chrome as ChromeTabFinder
+    participant Terminal as WindowsTerminal
+
+    Main->>Worker: Start process, send JSON request
+    
+    par Parallel Plugin Execution
+        Worker->>Chrome: GetWindows()
+        Worker->>Terminal: GetWindows()
+    end
+    
+    Chrome-->>Worker: Results (15ms)
+    Worker-->>Main: {"pluginName":"Chrome","windows":[...]}
+    Note over Main: UI updates immediately with Chrome tabs
+    
+    Terminal-->>Worker: Results (2000ms)
+    Worker-->>Main: {"pluginName":"Terminal","windows":[...]}
+    Note over Main: Terminal tabs appear when ready
+    
+    Worker-->>Main: {"isFinal":true}
+    Worker->>Worker: Exit (releases all COM objects)
+```
+
+### Architecture Overview
+
 ```mermaid
 flowchart LR
     Start[Start Scan] --> Parallel{Parallel Execution}
@@ -246,23 +280,28 @@ flowchart LR
     end
 
     subgraph "Child Process (SwitchBlade.UiaWorker.exe)"
-        UIA -->|JSON over Stdin| Worker[Worker Loop]
-        Worker --> CTF[ChromeTabFinder]
-        Worker --> WTP[WindowsTerminalPlugin]
-        Worker --> NPP[NotepadPlusPlusPlugin]
+        UIA -->|JSON over Stdin| Plugins[Parallel Plugins]
+        Plugins --> CTF[ChromeTabFinder]
+        Plugins --> WTP[WindowsTerminalPlugin]
+        Plugins --> NPP[NotepadPlusPlusPlugin]
         
-        CTF --> Scan1[UIA Scan]
-        WTP --> Scan2[UIA Scan]
-        NPP --> Scan3[UIA Scan]
-        
-        Scan1 --> Result2[Yield WindowItems]
-        Scan2 --> Result2
-        Scan3 --> Result2
+        CTF -->|Stream| NDJSON[NDJSON Output]
+        WTP -->|Stream| NDJSON
+        NPP -->|Stream| NDJSON
     end
     
-    Result1 --> Merge(Merge Results)
-    Result2 -->|JSON over Stdout| Merge
+    Result1 --> UI[Update UI]
+    NDJSON -->|IAsyncEnumerable| UI
 ```
+
+### Key Benefits
+
+| Aspect | Before (v1.8.1) | After (v1.8.2) |
+|--------|-----------------|----------------|
+| **Fast Plugin Visibility** | Blocked until all complete | Immediate |
+| **Plugin Execution** | Sequential | Parallel |
+| **Protocol** | Single JSON response | Streaming NDJSON |
+| **User Experience** | Delayed "all at once" | Progressive "pop-in" |
 
 ### 1. Core Window Finder (`WindowFinder.cs`)
 This is the built-in provider for standard desktop applications.
