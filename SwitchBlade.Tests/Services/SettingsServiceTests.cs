@@ -118,5 +118,18 @@ namespace SwitchBlade.Tests.Services
             Assert.False(service.Settings.LaunchOnStartup); // Should be synced to actual state
             _mockStorage.Verify(s => s.SetStringList(It.IsAny<string>(), It.IsAny<List<string>>()), Times.AtLeastOnce); // Should trigger a save (dirty)
         }
+
+        [Fact]
+        public void LoadSettings_LoadsUiaWorkerTimeoutSeconds()
+        {
+            // Arrange
+            _mockStorage.Setup(s => s.GetValue("UiaWorkerTimeoutSeconds", It.IsAny<int>())).Returns(120);
+
+            // Act
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+
+            // Assert
+            Assert.Equal(120, service.Settings.UiaWorkerTimeoutSeconds);
+        }
     }
 }

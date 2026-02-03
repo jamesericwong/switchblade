@@ -20,6 +20,7 @@ namespace SwitchBlade.Services
     {
         private readonly List<IWindowProvider> _providers;
         private readonly IIconService? _iconService;
+        private readonly ISettingsService _settingsService;
         private readonly UiaWorkerClient _uiaWorkerClient;
         private readonly List<WindowItem> _allWindows = new();
         private readonly Dictionary<IntPtr, List<WindowItem>> _windowItemCache = new();
@@ -43,11 +44,14 @@ namespace SwitchBlade.Services
             }
         }
 
-        public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IIconService? iconService = null)
+        public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IIconService? iconService = null, ISettingsService? settingsService = null)
         {
             _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
             _iconService = iconService;
-            _uiaWorkerClient = new UiaWorkerClient(Logger.Instance);
+            _settingsService = settingsService!; // Can be null in tests, we handle below
+            var timeoutSeconds = settingsService?.Settings.UiaWorkerTimeoutSeconds ?? 60;
+            var timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            _uiaWorkerClient = new UiaWorkerClient(Logger.Instance, timeout);
         }
 
         public async Task RefreshAsync(ISet<string> disabledPlugins)

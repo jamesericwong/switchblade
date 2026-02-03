@@ -84,7 +84,7 @@ namespace SwitchBlade.ViewModels
         // Legacy constructor for backward compatibility
         public MainViewModel(IEnumerable<IWindowProvider> windowProviders, ISettingsService? settingsService = null, IDispatcherService? dispatcherService = null, IIconService? iconService = null)
             : this(
-                new WindowOrchestrationService(windowProviders, iconService),
+                new WindowOrchestrationService(windowProviders, iconService, settingsService),
                 new WindowSearchService(new LruRegexCache(settingsService?.Settings.RegexCacheSize ?? 50)),
                 new NavigationService(),
                 settingsService,

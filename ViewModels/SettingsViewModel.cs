@@ -237,6 +237,12 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.IconCacheSize = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public int UiaWorkerTimeoutSeconds
+        {
+            get => _settingsService.Settings.UiaWorkerTimeoutSeconds;
+            set { _settingsService.Settings.UiaWorkerTimeoutSeconds = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
         public bool IsPreserveScrollSelected
         {
             get => _settingsService.Settings.RefreshBehavior == RefreshBehavior.PreserveScroll;

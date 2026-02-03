@@ -47,7 +47,8 @@ namespace SwitchBlade.Services
             {
                 var pluginService = sp.GetRequiredService<IPluginService>();
                 var iconService = sp.GetRequiredService<IIconService>();
-                return new WindowOrchestrationService(pluginService.Providers, iconService);
+                var settingsService = sp.GetRequiredService<ISettingsService>();
+                return new WindowOrchestrationService(pluginService.Providers, iconService, settingsService);
             });
 
             // ViewModels

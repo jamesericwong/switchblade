@@ -21,13 +21,20 @@ namespace SwitchBlade.Tests.Services
             return mock;
         }
 
+        private ISettingsService CreateMockSettingsService()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings());
+            return mockSettings.Object;
+        }
+
         [Fact]
         public async Task RefreshAsync_CallsGetWindowsOnAllProviders()
         {
             var provider1 = CreateMockProvider("Provider1", new List<WindowItem>());
             var provider2 = CreateMockProvider("Provider2", new List<WindowItem>());
 
-            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object });
+            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object }, null, CreateMockSettingsService());
 
             await service.RefreshAsync(new HashSet<string>());
 
@@ -41,7 +48,7 @@ namespace SwitchBlade.Tests.Services
             var provider1 = CreateMockProvider("Provider1", new List<WindowItem>());
             var provider2 = CreateMockProvider("Provider2", new List<WindowItem>());
 
-            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object });
+            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object }, null, CreateMockSettingsService());
 
             await service.RefreshAsync(new HashSet<string> { "Provider1" });
 
@@ -68,7 +75,7 @@ namespace SwitchBlade.Tests.Services
             items1[0].Source = provider1.Object;
             items2[0].Source = provider2.Object;
 
-            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object });
+            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object }, null, CreateMockSettingsService());
 
             await service.RefreshAsync(new HashSet<string>());
 
@@ -79,7 +86,7 @@ namespace SwitchBlade.Tests.Services
         public async Task RefreshAsync_FiresWindowListUpdatedEvent()
         {
             var provider = CreateMockProvider("Provider1", new List<WindowItem>());
-            var service = new WindowOrchestrationService(new[] { provider.Object });
+            var service = new WindowOrchestrationService(new[] { provider.Object }, null, CreateMockSettingsService());
 
             int eventCount = 0;
             service.WindowListUpdated += (s, e) => eventCount++;
@@ -93,7 +100,7 @@ namespace SwitchBlade.Tests.Services
         public async Task RefreshAsync_ReloadsSettingsForEachProvider()
         {
             var provider = CreateMockProvider("Provider1", new List<WindowItem>());
-            var service = new WindowOrchestrationService(new[] { provider.Object });
+            var service = new WindowOrchestrationService(new[] { provider.Object }, null, CreateMockSettingsService());
 
             await service.RefreshAsync(new HashSet<string>());
 
@@ -108,7 +115,7 @@ namespace SwitchBlade.Tests.Services
 
             provider1.Setup(p => p.GetHandledProcesses()).Returns(new[] { "chrome", "edge" });
 
-            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object });
+            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object }, null, CreateMockSettingsService());
 
             await service.RefreshAsync(new HashSet<string>());
 
@@ -127,7 +134,7 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Tab 2", Hwnd = hwnd, ProcessName = "chrome" }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object });
+            var service = new WindowOrchestrationService(new[] { provider.Object }, null, CreateMockSettingsService());
 
             // First refresh
             await service.RefreshAsync(new HashSet<string>());
@@ -152,7 +159,7 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public void AllWindows_ReturnsImmutableCopy()
         {
-            var service = new WindowOrchestrationService(new List<IWindowProvider>());
+            var service = new WindowOrchestrationService(new List<IWindowProvider>(), null, CreateMockSettingsService());
 
             var windows1 = service.AllWindows;
             var windows2 = service.AllWindows;
@@ -174,7 +181,7 @@ namespace SwitchBlade.Tests.Services
             };
             var provider = CreateMockProvider("TestProvider", items);
 
-            var service = new WindowOrchestrationService(new[] { provider.Object });
+            var service = new WindowOrchestrationService(new[] { provider.Object }, null, CreateMockSettingsService());
 
             // Act: Refresh to populate caches
             await service.RefreshAsync(new HashSet<string>());
@@ -197,7 +204,7 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Window2", Hwnd = (IntPtr)2, ProcessName = "app2" },
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object });
+            var service = new WindowOrchestrationService(new[] { provider.Object }, null, CreateMockSettingsService());
 
             // First refresh: populate caches
             await service.RefreshAsync(new HashSet<string>());
@@ -229,7 +236,7 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app1" }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object });
+            var service = new WindowOrchestrationService(new[] { provider.Object }, null, CreateMockSettingsService());
 
             // Run multiple refreshes in succession (simulating background polling)
             for (int i = 0; i < 5; i++)
@@ -258,7 +265,7 @@ namespace SwitchBlade.Tests.Services
                 return new List<WindowItem>();
             });
 
-            var service = new WindowOrchestrationService(new[] { slowProvider.Object });
+            var service = new WindowOrchestrationService(new[] { slowProvider.Object }, null, CreateMockSettingsService());
 
             // Act: Fire two concurrent refreshes
             var task1 = service.RefreshAsync(new HashSet<string>());
@@ -280,7 +287,7 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app" }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object });
+            var service = new WindowOrchestrationService(new[] { provider.Object }, null, CreateMockSettingsService());
 
             // Act: Call RefreshAsync twice sequentially (not concurrently)
             await service.RefreshAsync(new HashSet<string>());

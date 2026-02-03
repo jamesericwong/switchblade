@@ -143,5 +143,12 @@ namespace SwitchBlade.Services
         /// Default: 200.
         /// </summary>
         public int IconCacheSize { get; set; } = 200;
+
+        /// <summary>
+        /// Timeout in seconds for the UIA Worker process.
+        /// Increase this value if tab discovery fails on slower systems.
+        /// Default: 60.
+        /// </summary>
+        public int UiaWorkerTimeoutSeconds { get; set; } = 60;
     }
 }

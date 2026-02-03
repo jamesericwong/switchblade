@@ -8,6 +8,9 @@
 ### Added
 - **New Interface Property**: `IWindowProvider.IsUiaProvider` to identify UIA providers.
 - **New Service**: `UiaWorkerClient` for managing the child worker process.
+- **Configurable UIA Worker Timeout**: Added a user-configurable timeout for the UIA Worker process (default: 60 seconds).
+  - Accessible in Settings → Background Polling.
+  - Increase for slower systems or complex browser tabs.
 
 ### Changed
 - **Conditional Debug Logging**: The UIA Worker now only writes to the debug log (`%TEMP%\switchblade_uia_debug.log`) if explicitly launched with the `/debug` flag.

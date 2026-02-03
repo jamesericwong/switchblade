@@ -104,6 +104,9 @@ namespace SwitchBlade.Services
             // Fuzzy Search
             Settings.EnableFuzzySearch = Load("EnableFuzzySearch", true, ref settingsDirty);
 
+            // UIA Worker Timeout
+            Settings.UiaWorkerTimeoutSeconds = Load("UiaWorkerTimeoutSeconds", 60, ref settingsDirty);
+
             // Sync LaunchOnStartup with actual Windows Run registry state
             bool actualStartupEnabled = _startupManager.IsStartupEnabled();
             if (Settings.LaunchOnStartup != actualStartupEnabled)
@@ -184,6 +187,9 @@ namespace SwitchBlade.Services
 
                 // Fuzzy Search
                 _storage.SetValue("EnableFuzzySearch", Settings.EnableFuzzySearch);
+
+                // UIA Worker Timeout
+                _storage.SetValue("UiaWorkerTimeoutSeconds", Settings.UiaWorkerTimeoutSeconds);
 
                 // Flush to ensure all writes are committed
                 _storage.Flush();

@@ -134,5 +134,13 @@ namespace SwitchBlade.Tests.Services
 
             Assert.Equal(50, settings.RegexCacheSize);
         }
+
+        [Fact]
+        public void UserSettings_DefaultUiaWorkerTimeoutSeconds_Is60()
+        {
+            var settings = new UserSettings();
+
+            Assert.Equal(60, settings.UiaWorkerTimeoutSeconds);
+        }
     }
 }
