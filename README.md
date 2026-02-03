@@ -1,6 +1,16 @@
 # SwitchBlade Technical Documentation
 
-**Current Version: 1.8.2** | [View Changelog](CHANGELOG.md)
+**Current Version: 1.8.2**
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+| [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) | Guide for creating custom plugins |
+| [BUILD.md](BUILD.md) | Build instructions and project setup |
+
+---
 
 ## Overview
 SwitchBlade is a high-performance Keyboard-Driven Window Switcher for Windows. It is built using **C# / WPF** and follows the **MVVM (Model-View-ViewModel)** architectural pattern. It is designed to be extensible via a robust Plugin System, allowing it to index not just top-level windows but also internal document tabs as searchable items.
