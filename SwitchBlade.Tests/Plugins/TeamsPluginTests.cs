@@ -64,6 +64,7 @@ namespace SwitchBlade.Tests.Plugins
             _mockSettings.Verify(s => s.SetStringList("TeamsProcesses", It.IsAny<List<string>>()), Times.Once);
             var handled = _plugin.GetHandledProcesses().ToList();
             Assert.Contains("ms-teams", handled);
+            Assert.Contains("Teams", handled);
         }
 
         [Theory]
@@ -72,6 +73,8 @@ namespace SwitchBlade.Tests.Plugins
         [InlineData("Chat Boss Man Do not disturb", "Boss Man", "Individual", false)]
         [InlineData("Chat Colleague Appear offline", "Colleague", "Individual", false)]
         [InlineData("Chat Pinner Has pinned", "Pinner", "Individual", false)]
+        [InlineData("CHAT Alice Available", "Alice", "Individual", false)]
+        [InlineData("chat Bob Busy", "Bob", "Individual", false)]
         public void ParseChatName_IndividualChats_ParsesCorrectly(string raw, string expectedName, string expectedType, bool expectedUnread)
         {
             var result = _plugin.ParseChatName(raw);
@@ -84,6 +87,7 @@ namespace SwitchBlade.Tests.Plugins
         [Theory]
         [InlineData("Group chat Project Alpha Last message yesterday", "Project Alpha", "Group", false)]
         [InlineData("Group chat Lunch Crew Last message 10:00 AM", "Lunch Crew", "Group", false)]
+        [InlineData("GROUP CHAT alpha Last message yesterday", "alpha", "Group", false)]
         public void ParseChatName_GroupChats_ParsesCorrectly(string raw, string expectedName, string expectedType, bool expectedUnread)
         {
             var result = _plugin.ParseChatName(raw);
@@ -109,6 +113,7 @@ namespace SwitchBlade.Tests.Plugins
         [InlineData("Unread message Chat Alice Available", "Alice", "Individual", true)]
         [InlineData("Unread message Group chat Dev Team Last message now", "Dev Team", "Group", true)]
         [InlineData("Unread message Meeting chat All Hands Last message now", "All Hands", "Meeting", true)]
+        [InlineData("UNREAD MESSAGE Chat Secret Service Busy", "Secret Service", "Individual", true)]
         public void ParseChatName_UnreadMessages_DetectedCorrectly(string raw, string expectedName, string expectedType, bool expectedUnread)
         {
             var result = _plugin.ParseChatName(raw);

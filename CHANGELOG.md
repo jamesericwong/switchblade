@@ -1,3 +1,12 @@
+## [1.8.4] - 2026-02-07
+### Fixed
+- Improved Microsoft Teams chat discovery logic to use descendant-based UIA search.
+- Added support for "Teams" process name alongside "ms-teams".
+- Enabled case-insensitive regex parsing for Teams chat items.
+- Fixed issue where the Teams plugin's BFS discovery was pruning "Document" elements (Chromium-specific).
+- Improved Windows Terminal tab discovery to use a hybrid approach (Manual BFS as primary, native Descendants as fallback).
+- Added `COMException` (E_FAIL) handling for Terminal windows to prevent crashes and log diagnostics.
+
 ## [1.8.3] - 2026-02-06
 ### Fixed
 - **Comet/Chrome Recursive Discovery Faults**: Fixed `RPC_E_SERVERFAULT` (0x80010105) crashes when scanning complex browser UI trees (e.g., Comet).

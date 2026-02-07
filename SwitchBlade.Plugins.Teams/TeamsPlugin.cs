@@ -26,7 +26,8 @@ namespace SwitchBlade.Plugins.Teams
 
         private static readonly List<string> DefaultTeamsProcesses = new()
         {
-            "ms-teams"
+            "ms-teams",
+            "Teams"
         };
 
         public override string PluginName => "TeamsPlugin";
@@ -40,28 +41,29 @@ namespace SwitchBlade.Plugins.Teams
 
         private static readonly HashSet<string> TeamsProcesses = new(StringComparer.OrdinalIgnoreCase)
         {
-            "ms-teams"
+            "ms-teams",
+            "Teams"
         };
 
         #region Regex Patterns
 
         // Extracted from user's PowerShell UIA scripts
-        private static readonly Regex UnreadPrefixRegex = new(@"^Unread message ", RegexOptions.Compiled);
+        private static readonly Regex UnreadPrefixRegex = new(@"^Unread message ", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // "Chat [Name] [Status]" - Individual chats
         private static readonly Regex IndividualChatRegex = new(
             @"^Chat (.+?) (Available|Away|Busy|Do not disturb|Offline|Be right back|Appear offline|Has pinned)",
-            RegexOptions.Compiled);
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // "Group chat [Name] Last message..." - Group chats
         private static readonly Regex GroupChatRegex = new(
             @"^Group chat (.+?) Last message",
-            RegexOptions.Compiled);
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // "Meeting chat [Name] Last message..." - Meeting chats
         private static readonly Regex MeetingChatRegex = new(
             @"^Meeting chat (.+?) Last message",
-            RegexOptions.Compiled);
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         #endregion
 
@@ -146,7 +148,9 @@ namespace SwitchBlade.Plugins.Teams
                 var root = AutomationElement.FromHandle(hwnd);
                 if (root == null) return;
 
-                // Use surgical BFS to find TreeItem elements (chat entries)
+                // Use descendants search for TreeItem elements (chat entries)
+                // This matches the working PowerShell script and handles Teams (Chromium) better
+                // as it avoids pruning "Document" elements which often house the chat list.
                 var cacheRequest = new CacheRequest();
                 cacheRequest.Add(AutomationElement.NameProperty);
                 cacheRequest.Add(AutomationElement.ControlTypeProperty);
@@ -154,49 +158,25 @@ namespace SwitchBlade.Plugins.Teams
 
                 using (cacheRequest.Activate())
                 {
-                    var queue = new Queue<AutomationElement>();
-                    queue.Enqueue(root);
+                    var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
+                    var elements = root.FindAll(TreeScope.Descendants, condition);
 
-                    int checkedCount = 0;
-                    const int MaxElements = 500;
-
-                    while (queue.Count > 0 && checkedCount < MaxElements)
+                    foreach (AutomationElement element in elements)
                     {
-                        var current = queue.Dequeue();
-                        checkedCount++;
-
-                        AutomationElementCollection? children = null;
-                        try
+                        var rawName = element.Cached.Name;
+                        if (!string.IsNullOrWhiteSpace(rawName))
                         {
-                            children = current.FindAll(TreeScope.Children, Condition.TrueCondition);
-                        }
-                        catch { continue; }
-
-                        foreach (AutomationElement child in children)
-                        {
-                            var controlType = child.Cached.ControlType;
-                            var rawName = child.Cached.Name;
-
-                            if (controlType == ControlType.TreeItem && !string.IsNullOrWhiteSpace(rawName))
+                            var chatInfo = ParseChatName(rawName);
+                            if (chatInfo != null)
                             {
-                                var chatInfo = ParseChatName(rawName);
-                                if (chatInfo != null)
+                                results.Add(new WindowItem
                                 {
-                                    results.Add(new WindowItem
-                                    {
-                                        Hwnd = hwnd,
-                                        Title = chatInfo.Value.Name,
-                                        ProcessName = $"Teams ({chatInfo.Value.Type})",
-                                        ExecutablePath = executablePath,
-                                        Source = this
-                                    });
-                                }
-                            }
-
-                            // Prune known dead-end control types
-                            if (controlType != ControlType.Document && controlType != ControlType.Header)
-                            {
-                                queue.Enqueue(child);
+                                    Hwnd = hwnd,
+                                    Title = chatInfo.Value.Name,
+                                    ProcessName = $"Teams ({chatInfo.Value.Type})",
+                                    ExecutablePath = executablePath,
+                                    Source = this
+                                });
                             }
                         }
                     }
@@ -357,38 +337,18 @@ namespace SwitchBlade.Plugins.Teams
 
             using (cacheRequest.Activate())
             {
-                var queue = new Queue<AutomationElement>();
-                queue.Enqueue(root);
+                var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
+                var elements = root.FindAll(TreeScope.Descendants, condition);
 
-                int checkedCount = 0;
-                const int MaxElements = 500;
-
-                while (queue.Count > 0 && checkedCount < MaxElements)
+                foreach (AutomationElement element in elements)
                 {
-                    var current = queue.Dequeue();
-                    checkedCount++;
-
-                    AutomationElementCollection? children = null;
-                    try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
-                    catch { continue; }
-
-                    foreach (AutomationElement child in children)
+                    var rawName = element.Cached.Name;
+                    if (!string.IsNullOrWhiteSpace(rawName))
                     {
-                        var controlType = child.Cached.ControlType;
-                        var rawName = child.Cached.Name;
-
-                        if (controlType == ControlType.TreeItem && !string.IsNullOrWhiteSpace(rawName))
+                        var chatInfo = ParseChatName(rawName);
+                        if (chatInfo != null && chatInfo.Value.Name == targetTitle)
                         {
-                            var chatInfo = ParseChatName(rawName);
-                            if (chatInfo != null && chatInfo.Value.Name == targetTitle)
-                            {
-                                return child;
-                            }
-                        }
-
-                        if (controlType != ControlType.Document && controlType != ControlType.Header)
-                        {
-                            queue.Enqueue(child);
+                            return element;
                         }
                     }
                 }

@@ -165,7 +165,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
 
             try
             {
-                var root = AutomationElement.FromHandle(hwnd);
+                var root = TryGetAutomationElement(hwnd);
                 if (root == null) return tabs;
 
                 var cacheRequest = new CacheRequest();
@@ -174,61 +174,72 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                 cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
                 cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
 
-                int containersChecked = 0;
-                const int MaxContainersToCheck = 50; // Safety limit
-
                 using (cacheRequest.Activate())
                 {
-                    var queue = new Queue<AutomationElement>();
-                    queue.Enqueue(root);
-
-                    while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
+                    // PRIMARY: Manual BFS traversal (user preferred)
+                    try
                     {
-                        var current = queue.Dequeue();
-                        containersChecked++;
+                        var queue = new Queue<AutomationElement>();
+                        queue.Enqueue(root);
 
-                        AutomationElementCollection? children = null;
-                        try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
-                        catch { continue; }
+                        int containersChecked = 0;
+                        const int MaxContainersToCheck = 50;
 
-                        if (children == null || children.Count == 0) continue;
-
-                        foreach (AutomationElement child in children)
+                        while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
                         {
-                            try
+                            var current = queue.Dequeue();
+                            containersChecked++;
+
+                            AutomationElementCollection? children = null;
+                            try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
+                            catch { continue; }
+
+                            if (children == null) continue;
+
+                            foreach (AutomationElement child in children)
                             {
-                                var controlType = child.Cached.ControlType;
-
-                                // PRUNE: Skip Document branches (web content, text areas)
-                                if (controlType == ControlType.Document) continue;
-
-                                // Check for TabItem
-                                bool isTab = controlType == ControlType.TabItem;
-                                if (!isTab)
+                                try
                                 {
-                                    var localizedType = child.Cached.LocalizedControlType;
-                                    if (!string.IsNullOrEmpty(localizedType) &&
-                                        localizedType.Equals("tab item", StringComparison.OrdinalIgnoreCase))
+                                    var controlType = child.Cached.ControlType;
+
+                                    if (controlType == ControlType.TabItem || 
+                                        child.Cached.LocalizedControlType?.Equals("tab item", StringComparison.OrdinalIgnoreCase) == true)
                                     {
-                                        isTab = true;
+                                        var name = child.Cached.Name;
+                                        if (!string.IsNullOrWhiteSpace(name)) tabs.Add(name);
+                                    }
+                                    else if (controlType != ControlType.Document)
+                                    {
+                                        queue.Enqueue(child);
                                     }
                                 }
-
-                                if (isTab)
-                                {
-                                    var name = child.Cached.Name;
-                                    if (!string.IsNullOrWhiteSpace(name))
-                                    {
-                                        tabs.Add(name);
-                                    }
-                                }
-                                else
-                                {
-                                    // Enqueue non-Document containers for further traversal
-                                    queue.Enqueue(child);
-                                }
+                                catch { }
                             }
-                            catch { /* Element invalidated */ }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Log($"{PluginName}: BFS scan failed, falling back to Descendants search. Error: {ex.Message}");
+                    }
+
+                    // FALLBACK: Native Descendants search if BFS found nothing or failed
+                    if (tabs.Count == 0)
+                    {
+                        var condition = new OrCondition(
+                            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem),
+                            new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab item")
+                        );
+
+                        var elements = root.FindAll(TreeScope.Descendants, condition);
+                        foreach (AutomationElement element in elements)
+                        {
+                            var name = element.Cached.Name;
+                            if (!string.IsNullOrWhiteSpace(name)) tabs.Add(name);
+                        }
+                        
+                        if (tabs.Count > 0)
+                        {
+                            _logger?.Log($"{PluginName}: BFS found 0 tabs, but Descendants fallback found {tabs.Count}.");
                         }
                     }
                 }
@@ -253,7 +264,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
 
                 try
                 {
-                    var root = AutomationElement.FromHandle(item.Hwnd);
+                    var root = TryGetAutomationElement(item.Hwnd);
                     if (root == null) return;
 
                     var tabElement = FindTabByName(root, item.Title);
@@ -291,62 +302,88 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
             cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
 
-            int containersChecked = 0;
-            const int MaxContainersToCheck = 50;
-
             using (cacheRequest.Activate())
             {
-                var queue = new Queue<AutomationElement>();
-                queue.Enqueue(root);
-
-                while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
+                // PRIMARY: Manual BFS
+                try
                 {
-                    var current = queue.Dequeue();
-                    containersChecked++;
+                    var queue = new Queue<AutomationElement>();
+                    queue.Enqueue(root);
 
-                    AutomationElementCollection? children = null;
-                    try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
-                    catch { continue; }
+                    int containersChecked = 0;
+                    const int MaxContainersToCheck = 50;
 
-                    if (children == null || children.Count == 0) continue;
-
-                    foreach (AutomationElement child in children)
+                    while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
                     {
-                        try
+                        var current = queue.Dequeue();
+                        containersChecked++;
+
+                        AutomationElementCollection? children = null;
+                        try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
+                        catch { continue; }
+
+                        if (children == null) continue;
+
+                        foreach (AutomationElement child in children)
                         {
-                            var controlType = child.Cached.ControlType;
-
-                            // PRUNE: Skip Document branches
-                            if (controlType == ControlType.Document) continue;
-
-                            bool isTab = controlType == ControlType.TabItem;
-                            if (!isTab)
+                            try
                             {
-                                var localizedType = child.Cached.LocalizedControlType;
-                                if (!string.IsNullOrEmpty(localizedType) &&
-                                    localizedType.Equals("tab item", StringComparison.OrdinalIgnoreCase))
+                                var controlType = child.Cached.ControlType;
+                                bool isTab = controlType == ControlType.TabItem || 
+                                             child.Cached.LocalizedControlType?.Equals("tab item", StringComparison.OrdinalIgnoreCase) == true;
+
+                                if (isTab && child.Cached.Name == targetName)
                                 {
-                                    isTab = true;
+                                    return child;
+                                }
+
+                                if (!isTab && controlType != ControlType.Document)
+                                {
+                                    queue.Enqueue(child);
                                 }
                             }
-
-                            if (isTab && child.Cached.Name == targetName)
-                            {
-                                return child;
-                            }
-
-                            // Enqueue non-Document containers
-                            if (!isTab)
-                            {
-                                queue.Enqueue(child);
-                            }
+                            catch { }
                         }
-                        catch { }
+                    }
+                }
+                catch { }
+
+                // FALLBACK: Native Descendants search
+                var condition = new OrCondition(
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem),
+                    new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab item")
+                );
+
+                var elements = root.FindAll(TreeScope.Descendants, condition);
+                foreach (AutomationElement element in elements)
+                {
+                    if (element.Cached.Name == targetName)
+                    {
+                        return element;
                     }
                 }
             }
 
             return null;
+        }
+
+        private AutomationElement? TryGetAutomationElement(IntPtr hwnd)
+        {
+            try
+            {
+                return AutomationElement.FromHandle(hwnd);
+            }
+            catch (System.Runtime.InteropServices.COMException ex) when ((uint)ex.HResult == 0x80004005)
+            {
+                // E_FAIL (0x80004005) is common for elevated windows or windows in a transitional state
+                _logger?.Log($"{PluginName}: UIA Access failed for HWND {hwnd} (E_FAIL). Likely elevation/UIPI restrictions.");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"{PluginName}: Failed to get UIA root for HWND {hwnd}: {ex.Message}");
+                return null;
+            }
         }
     }
 }
