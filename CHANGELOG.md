@@ -1,3 +1,11 @@
+## [1.8.8] - 2026-02-07
+### Fixed
+- **Teams Plugin**: Implemented a robust 3-tier fallback strategy (Direct HWND -> Desktop FindFirst -> Desktop TreeWalker) to resolve `E_FAIL` errors when accessing Teams windows.
+- **Terminal Plugin**: Added the same 3-tier fallback strategy to fix missing tabs when running in mixed elevation contexts.
+- **Plugin Resilience**: Improved UIA error handling to prevent single restricted windows from crashing the entire discovery process.
+
+---
+
 ## [1.8.7] - 2026-02-07
 ### Fixed
 - **Teams Plugin UIA Access**: Implemented a robust "Desktop Root Search" fallback for acquiring the UIA root element.
