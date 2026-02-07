@@ -147,6 +147,7 @@ flowchart LR
 - **Flag Propagation**: The main application automatically propagates the `/debug` flag to the worker process when debug mode is enabled.
 - **Improved Architecture**: `WindowOrchestrationService` now delegates UIA-heavy scans to the worker while keeping standard window discovery in-process for speed.
 
+---
 
 ## [1.7.8] - 2026-02-01
 ### Added
@@ -323,11 +324,15 @@ flowchart LR
     style A3 fill:#dfd,stroke:#0a0,color:black
 ```
 
+---
+
 ## [1.6.8] - 2026-01-31
 ### Added
 - Modularized `MainWindow.xaml` by extracting `SearchBar`, `ResultList`, and `PreviewPanel` into separate UserControls.
 - Improved code maintainability by reducing `MainWindow.xaml` complexity.
 - Added unit tests for new UserControl components (`SearchBar`, `ResultList`, `PreviewPanel`).
+
+---
 
 ## [1.6.7] - 2026-01-26
 ### Fixed
@@ -335,6 +340,8 @@ flowchart LR
   - Fixes the "white box" visual glitch when using dark themes.
   - Icon color now dynamically binds to the `ForegroundBrush` of the active theme.
   - Improved visual clarity and scaling at all DPI levels.
+
+---
 
 ## [1.6.6] - 2026-01-24
 ### Changed
@@ -355,6 +362,8 @@ flowchart LR
 - Total test count: 281 (all passing).
 - Build clean: 0 warnings, 0 errors.
 - All plugin settings files converted to lightweight UserControls for better host integration.
+
+---
 
 ## [1.6.5] - 2026-01-24
 ### Added
@@ -380,6 +389,8 @@ flowchart LR
 - Build clean: 0 warnings, 0 errors (verification pending).
 - All improvements follow SOLID principles (DIP, SRP, ISP).
 
+---
+
 ## [1.6.4] - 2026-01-19
 ### Changed
 - **Complete MainViewModel SRP Refactoring**: Reduced `MainViewModel` from 647 to ~250 lines by extracting orchestration and navigation logic.
@@ -401,6 +412,8 @@ flowchart LR
 - Total test count increased from 246 to 271 (all passing).
 - Build clean: 0 warnings, 0 errors.
 - Achieved full architectural separation via strict SRP, service orchestration, and automated factory-driven initialization.
+
+---
 
 ## [1.6.3] - 2026-01-19
 ### Changed
@@ -429,6 +442,8 @@ flowchart LR
 - All new services are injectable via constructor for improved testability.
 - Backward compatible: No changes to public APIs or user-facing behavior.
 
+---
+
 ## [1.6.2] - 2026-01-16
 ### Added
 - Centralized `SanitizationUtils` in `SwitchBlade.Contracts` for consistent input handling.
@@ -437,6 +452,8 @@ flowchart LR
 - Input sanitization for "Handled Processes" in Notepad++ and Windows Terminal plugins.
 - Comprehensive unit tests for process name sanitization.
 
+---
+
 ## [1.6.1] - 2026-01-16
 ### Fixed
 - **Startup Scroll Position**: Fixed a bug where the window list would sometimes start scrolled to the middle instead of the top when opening the application.
@@ -444,6 +461,8 @@ flowchart LR
 - **Installer Build Stability**: Fixed a build failure (`WIX0103`) when switching between standard and ReadyToRun builds.
   - Added automatic cleanup of the publish directory before building the installer to prevent harvesting stale debug files.
   - Corrected build target ordering to ensure the application is re-published before the installer harvesting phase begins.
+
+---
 
 ## [1.6.0] - 2026-01-16
 ### Added
@@ -468,17 +487,22 @@ flowchart LR
 - Added `EnableFuzzySearch` property to `UserSettings`, `SettingsService`, and `SettingsViewModel`.
 - Added 33 unit tests in `FuzzyMatcherTests.cs` covering delimiter handling, case insensitivity, subsequence matching, and real-world scenarios.
 
+---
+
 ## [1.5.10] - 2026-01-13
 ### Changed
 - **Refined Super Light Theme**: Updated the "Super Light" theme to be even lighter and more minimal.
   - **Control Background**: Changed from Off-White (`#F8F8F8`) to Pure White (`#FFFFFF`).
   - **Borders**: Lightened from `#E5E5E5` to `#F0F0F0` for a subtle, flat aesthetic.
 
+---
 
 ## [1.5.9] - 2026-01-13
 ### Fixed
 - **R2R Build Instructions**: Fixed the `dotnet publish` command in documentation to correctly target the project file instead of the solution, preventing single-file publish errors.
 - **R2R MSI Build**: Updated `SwitchBlade.Installer.wixproj` to support a `PublishR2R` property, allowing the creation of MSIs containing the optimized single-file ReadyToRun executable.
+
+---
 
 ## [1.5.8] - 2026-01-13
 ### Added
@@ -509,9 +533,13 @@ flowchart LR
 - Created `IIconService` interface and `IconService` implementation.
 - Updated `MainWindow.xaml` list item template with 3-column grid (badge, icon, text).
 
+---
+
 ## [1.5.7] - 2026-01-12
 ### Performance
 - **ReadyToRun (R2R) Compilation**: Enabled R2R in the build process to pre-compile IL to native code, significantly reducing JIT overhead and improving application startup responsiveness.
+
+---
 
 ## [1.5.6] - 2026-01-11
 ### Performance
@@ -522,9 +550,13 @@ flowchart LR
 - **ReaderWriterLockSlim**: `CachingWindowProviderBase` now uses `ReaderWriterLockSlim` instead of exclusive `lock()`, allowing concurrent cache reads while maintaining exclusive write access.
 - **LINQ Hot Path Optimization**: Replaced sorting + `SequenceEqual` with `HashSet` comparison in `MainViewModel.RefreshWindows()` for O(n) structural diff checks instead of O(n log n).
 
+---
+
 ## [1.5.5] - 2026-01-11
 ### Fixed
 - **Settings UI Overlap**: Fixed a layout bug in the "Excluded Processes" section where the header and description text overlapped due to missing grid row assignments.
+
+---
 
 ## [1.5.4] - 2026-01-11
 ### Changed
@@ -534,6 +566,8 @@ flowchart LR
   - **Background Polling**: Dedicated section for background scanning intervals.
 - **Improved UX**: Settings are now better grouped by intent, reducing visual clutter in the main Settings card.
 
+---
+
 ## [1.5.3] - 2026-01-11
 ### Performance
 - **Configurable Regex Caching**: Implemented an LRU (Least Recently Used) cache for compiled regex objects to improve search responsiveness during typing.
@@ -542,12 +576,16 @@ flowchart LR
 ### Added
 - **Regex Cache UI**: Exposed the `RegexCacheSize` setting in the Settings window, allowing users to tune the cache between 10 and 500 items via a new slider.
 
+---
+
 ## [1.5.1] - 2026-01-11
 ### Performance
 - **Zero-Allocation Window Discovery**: Implemented `stackalloc` and `unsafe` P/Invoke to eliminate string allocations during window scanning.
 - **Modern Interop**: Migrated all Windows API calls to .NET 9 `[LibraryImport]` for reduced marshalling overhead.
 - **Efficient Polling**: Replaced `System.Timers.Timer` with `PeriodicTimer` in `BackgroundPollingService` to remove lock contention and improve async correctness.
 - **Reduced Memory Usage**: Optimized `WindowFinder` and `ThumbnailService` to minimize heap allocations.
+
+---
 
 ## [1.5.0] - 2026-01-11
 
@@ -557,6 +595,8 @@ flowchart LR
   - **Smart Caching**: Implemented a short-lived process name cache to eliminate redundant kernel calls during window scans.
   - **Garbage Collection**: Switched to `Workstation` GC mode and disabled VM retention to encourage more aggressive memory release.
 - **Icon Loading Optimization**: Fixed a GDI handle leak in the application icon loader.
+
+---
 
 ## [1.4.21] - 2026-01-11
 
@@ -571,6 +611,8 @@ flowchart LR
 
 ### Fixed
 - **Theme Selection Tests**: Updated `UserSettingsTests` to reflect the new default theme.
+
+---
 
 ## [1.4.20] - 2026-01-11
 
@@ -606,6 +648,8 @@ flowchart LR
 - **Settings Window Crash**: Fixed XAML parse error when opening Settings caused by invalid style inheritance (`TextBlock` cannot inherit from `Control`-based style).
 - **Hover Highlight Extending Too Far**: Removed the `ScaleTransform` from the hover effect so highlight dimensions match keyboard selection exactly.
 
+---
+
 ## [1.4.19] - 2026-01-11
 
 ### Fixed
@@ -617,6 +661,8 @@ flowchart LR
 ### Changed
 - **Selection Performance**: Optimized `SelectedWindow` property to only trigger UI update notifications when the selection actually changes, reducing redundant layout cycles.
 - **Improved Code Documentation**: Added technical comments to `MainViewModel` explaining the interaction between selection state and list scrolling.
+
+---
 
 ## [1.4.18] - 2026-01-11
 
@@ -630,6 +676,8 @@ flowchart LR
   - **Fix**: Implemented a **Deferred Reset** pattern to apply the animation state reset specifically to the newly updated list just before rendering.
 - **Badge Animation Not Replaying**: Fixed a bug where windows with unchanged HWNDs would not re-animate when toggling the hotkey.
   - **Fix**: Added `item.ResetBadgeAnimation()` call in `BadgeAnimationService` to force reset visual state before animating.
+
+---
 
 ## [1.4.17] - 2026-01-10
 
@@ -650,6 +698,8 @@ flowchart LR
 - `WindowItem` extended with `BadgeOpacity`, `BadgeTranslateX`, and `ResetBadgeAnimation()` for animation support.
 - `MainViewModel` extended with `ResultsUpdated` and `SearchTextChanged` events for animation triggers.
 
+---
+
 ## [1.4.16] - 2026-01-06
 
 ### Fixed
@@ -660,6 +710,8 @@ flowchart LR
     - `HotKeyService` now checks for an existing HWND first (via `WindowInteropHelper.Handle != IntPtr.Zero`) before falling back to the `Loaded` event.
   - The hotkey now works immediately on startup, regardless of whether the window is visible.
 
+---
+
 ## [1.4.15] - 2026-01-06
 
 ### Added
@@ -668,6 +720,8 @@ flowchart LR
   - Follows the same pattern as Chrome and Windows Terminal plugins for consistency.
   - Includes settings dialog to configure which process names to scan (default: `notepad++`).
   - Settings UI matches the dark theme design of other plugin settings windows.
+
+---
 
 ## [1.4.14] - 2026-01-04
 
@@ -684,6 +738,8 @@ flowchart LR
   - **Root cause**: Settings window was opened non-modally with `.Show()`, allowing it to linger in background while still capturing keyboard input.
   - **Fix**: Changed to modal `.ShowDialog()` so the Settings window must be explicitly closed before returning to the main app.
 
+---
+
 ## [1.4.13] - 2026-01-04
 
 ### Added
@@ -696,6 +752,8 @@ flowchart LR
 - **Smart Centering on Startup**: Window now correctly centers on screen based on the persisted size.
   - Previously, `WindowStartupLocation="CenterScreen"` centered based on default size, then the saved size was applied, causing offset positioning.
   - Now calculates true center after applying saved dimensions using `SystemParameters.WorkArea`.
+
+---
 
 ## [1.4.12] - 2026-01-04
 
@@ -716,7 +774,7 @@ flowchart LR
   - **Typing a search term now immediately selects and visually highlights the first matching row**, providing instant keyboard navigation feedback.
   - This matches standard app launcher behavior (Windows PowerToys Run, Alfred, Raycast).
 
-
+---
 
 ## [1.4.11] - 2026-01-03
 
@@ -734,6 +792,8 @@ flowchart LR
   - **Checkbox/state mismatch**: The setting is now only persisted after the user confirms the restart. Clicking "No" on the restart dialog now correctly reverts the checkbox.
   - **De-elevation support**: When turning admin OFF, uses `explorer.exe` to launch the new instance. This ensures the new process runs at the user's normal privilege level instead of inheriting elevation from the current process.
 
+---
+
 ## [1.4.10] - 2026-01-03
 
 ### Fixed
@@ -741,6 +801,8 @@ flowchart LR
   - Resolves "SwitchBlade is already running" error when toggling "Run as Administrator" from settings
   - New process now waits for the previous instance to complete shutdown before acquiring the mutex
   - Gracefully handles asynchronous shutdown timing issues
+
+---
 
 ## [1.4.9] - 2026-01-03
 
@@ -777,6 +839,7 @@ flowchart LR
   - Standard applications: Visible to SwitchBlade running as User.
   - Elevated (Administrator) applications: Requires SwitchBlade to also run as Administrator to see internal details. Otherwise, only the main window is listed.
 
+  ---
 
 ## [1.4.8] - 2026-01-03
 
@@ -785,6 +848,8 @@ flowchart LR
   - Updated `MainWindow` to modify the ViewModel's `SearchText` property directly instead of the View's `TextBox`, ensuring state consistency.
 - **Stability**: Fixed an `ArgumentException` crash ("An item with the same key has already been added") in `MainViewModel`.
   - Updated `SyncCollection` to correctly handle and deduplicate window items with identical Hwnd and Title returned by multiple plugins.
+
+---
 
 ## [1.4.7] - 2026-01-03
 
@@ -800,6 +865,8 @@ flowchart LR
 - **Logging**: Fixed duplicate `ILogger` method definitions and potential file lock contention.
 - **Unit Tests**: Updated test suite to use `Moq` for `IPluginContext` and `ILogger`, achieving greater isolation and reliability.
 
+---
+
 ## [1.4.6] - 2026-01-03
 
 ### Changed
@@ -807,6 +874,8 @@ flowchart LR
   - Consolidated all Win32 P/Invoke declarations into `SwitchBlade.Contracts.NativeInterop`.
   - Deleted the redundant `SwitchBlade.Core.Interop` class.
   - Updated all core components (`WindowFinder`, `ThumbnailService`, `HotKeyService`) and plugins to use the shared Contracts library, establishing a "Single Source of Truth" for OS interactions.
+
+---
 
 ## [1.4.5] - 2026-01-03
 
@@ -816,12 +885,16 @@ flowchart LR
   - The application now explicitly assigns shortcut indices (0-9) to the top 10 filtered results, ensuring the UI number badges always match the actual activation logic.
 - **Unit Test Stability**: Suppressed a nullable warning in `ConverterTests` to cleanly pass strict validaton checks.
 
+---
+
 ## [1.4.4] - 2026-01-03
 
 ### Fixed
 - **Window Duplication**: Fixed a bug where browser windows (e.g., Comet) were listed twice in results—once by the specialized plugin (e.g., ChromeTabFinder) and once by the core WindowFinder.
   - Implemented proper `SetExclusions` override in `WindowFinder` to listen for excluded processes.
   - Added virtual `SetExclusions` support to `CachingWindowProviderBase` to ensure exclusions are correctly propagated from the main application.
+
+---
 
 ## [1.4.3] - 2026-01-03
 
@@ -833,6 +906,8 @@ flowchart LR
 - **Unit Tests**:
   - Refactored `ConverterTests` to remove dependency on WPF `ListBoxItem`, resolving `STAThread` errors.
   - Fixed async/await implementation in `BackgroundPollingServiceTests`.
+
+---
 
 ## [1.4.2] - 2026-01-03
 
@@ -867,6 +942,8 @@ flowchart LR
 ### Removed
 - **Duplicated Native Methods**: Removed ~70 lines of duplicated P/Invoke code from `ChromeTabFinder` plugin.
 
+---
+
 ## [1.4.1] - 2026-01-03
 
 ### Added
@@ -886,6 +963,8 @@ flowchart LR
 - **Plugins**: `ChromeTabFinder` and `WindowFinder` now inherit from `CachingWindowProviderBase` for improved concurrency handling.
 - **Docs**: Updated `PLUGIN_DEVELOPMENT.md` with concurrency and caching best practices section.
 - **Docs**: Added comprehensive "Smart Refresh & List Merge Strategy" section to README.
+
+---
 
 ## [1.4.0] - 2026-01-02
 
@@ -910,6 +989,8 @@ flowchart LR
 - **Default Hotkey**: Fixed issue where default hotkey could fallback to `Ctrl+Shift+Tab` instead of `Ctrl+Shift+Q`.
 - **Performance**: Optimized window list updates to reduce flicker.
 - **Reliability**: Fixed potential crashes when switching windows.
+
+---
 
 ## [1.3.0] - 2026-01-01
 - Initial public release components.
