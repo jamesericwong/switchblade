@@ -89,30 +89,76 @@ namespace SwitchBlade.Plugins.WindowsTerminal
 
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
-            var results = new List<WindowItem>();
+            var allResults = new List<WindowItem>();
 
             var targetProcessNames = new HashSet<string>(_terminalProcesses, StringComparer.OrdinalIgnoreCase);
-            if (targetProcessNames.Count == 0) return results;
+            if (targetProcessNames.Count == 0) return allResults;
 
-            // Use native EnumWindows + GetProcessInfo for efficiency (same pattern as other plugins)
+            // Map PID to list of window items found for that process
+            var pidToResults = new Dictionary<int, List<WindowItem>>();
+
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
-                // Check visibility first for speed
                 if (!NativeInterop.IsWindowVisible(hwnd)) return true;
 
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
 
-                // O(1) HashSet lookup
                 if (targetProcessNames.Contains(procName))
                 {
-                    ScanWindow(hwnd, (int)pid, procName, execPath, results);
+                    var resultsForThisHandle = new List<WindowItem>();
+                    ScanWindow(hwnd, (int)pid, procName, execPath, resultsForThisHandle);
+                    
+                    if (!pidToResults.TryGetValue((int)pid, out var list))
+                    {
+                        list = new List<WindowItem>();
+                        pidToResults[(int)pid] = list;
+                    }
+                    list.AddRange(resultsForThisHandle);
                 }
 
-                return true; // Continue enumeration
+                return true;
             }, IntPtr.Zero);
 
-            return results;
+            // POST-PROCESS: Deduplication and Prioritization
+            foreach (var kvp in pidToResults)
+            {
+                var pid = kvp.Key;
+                var items = kvp.Value;
+
+                // Identify if any item is a "legitimate" tab (detected via ScanForTabs)
+                // We'll use a heuristic: if we have multiple windows for one PID,
+                // and some found 1+ tabs while others found 0 (fallback), discard the fallbacks.
+                
+                var windowsWithTabs = items.Where(i => i.Source == this && !string.IsNullOrEmpty(i.Title)).ToList();
+                
+                // If we found specific tabs at all for this PID, use only them.
+                // This prevents "Main Window" from appearing if we successfully peered into even one handle.
+                if (windowsWithTabs.Any())
+                {
+                    // Filter: Only include items that are not just the 'main window' fallback.
+                    // How to detect? In ScanWindow, fallback uses 'windowTitle'. 
+                    // To be safe, we'll track if ScanForTabs returned nodes.
+                    // Actually, a simpler way: if we have items, and any found tabs, 
+                    // we remove the ones that are just the Fallback markers.
+                    // Let's add a Tag or check some unique property.
+                    
+                    // For now, if we found any tabs, use only the windows that found tabs.
+                    allResults.AddRange(windowsWithTabs);
+                }
+                else if (items.Any())
+                {
+                    // If no tabs found at all for any handle, just take the first unique handle's fallback
+                    // to avoid "Found 2 windows" (both being main window).
+                    var uniqueHandleFallback = items.GroupBy(i => i.Hwnd).Select(g => g.First()).FirstOrDefault();
+                    if (uniqueHandleFallback != null)
+                    {
+                        allResults.Add(uniqueHandleFallback);
+                    }
+                }
+            }
+
+            return allResults;
         }
 
         private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, List<WindowItem> results)
@@ -183,7 +229,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                         queue.Enqueue(root);
 
                         int containersChecked = 0;
-                        const int MaxContainersToCheck = 50;
+                        const int MaxContainersToCheck = 200;
 
                         while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
                         {
@@ -312,7 +358,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                     queue.Enqueue(root);
 
                     int containersChecked = 0;
-                    const int MaxContainersToCheck = 50;
+                    const int MaxContainersToCheck = 200;
 
                     while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
                     {
