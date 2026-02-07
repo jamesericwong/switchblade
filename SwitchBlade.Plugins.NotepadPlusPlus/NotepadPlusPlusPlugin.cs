@@ -171,7 +171,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             {
                 // Safe UIA access to handle E_FAIL
                 var root = TryGetAutomationElement(hwnd);
-                if (root == null) return tabs;
+                if (root == null) return tabs; // Caller handles empty list by adding main window fallback
 
                 var cacheRequest = new CacheRequest();
                 cacheRequest.Add(AutomationElement.NameProperty);

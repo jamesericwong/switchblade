@@ -1,3 +1,10 @@
+## [1.8.6] - 2026-02-07
+### Fixed
+- **Plugin Fallback Logic**: Fixed a regression where `E_FAIL` UIA errors caused the Teams and Notepad++ plugins to abort discovery entirely.
+  - **Solution**: Refactored the scan logic to ensure the main window is always returned as a fallback if UIA access fails, preventing "missing windows" in elevated/mixed-privilege scenarios.
+
+---
+
 ## [1.8.5] - 2026-02-07
 ### Changed
 - Improved Microsoft Teams chat discovery to use a hybrid approach (Manual BFS as primary, native Descendants as fallback).

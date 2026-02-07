@@ -147,106 +147,108 @@ namespace SwitchBlade.Plugins.Teams
 
                 // Safe UIA access to handle E_FAIL
                 var root = TryGetAutomationElement(hwnd);
-                if (root == null) return;
-
+                
                 // Hybrid Discovery:
                 // 1. Try Manual BFS (surgical pruning) - User Preference
                 // 2. Fallback to Descendants (robust native search)
-                var cacheRequest = new CacheRequest();
-                cacheRequest.Add(AutomationElement.NameProperty);
-                cacheRequest.Add(AutomationElement.ControlTypeProperty);
-                cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
-
-                using (cacheRequest.Activate())
+                if (root != null)
                 {
-                    // PRIMARY: Manual BFS traversal
-                    try
+                    var cacheRequest = new CacheRequest();
+                    cacheRequest.Add(AutomationElement.NameProperty);
+                    cacheRequest.Add(AutomationElement.ControlTypeProperty);
+                    cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
+
+                    using (cacheRequest.Activate())
                     {
-                        var queue = new Queue<AutomationElement>();
-                        queue.Enqueue(root);
-
-                        int checkedCount = 0;
-                        const int MaxElements = 500;
-
-                        while (queue.Count > 0 && checkedCount < MaxElements)
+                        // PRIMARY: Manual BFS traversal
+                        try
                         {
-                            var current = queue.Dequeue();
-                            checkedCount++;
+                            var queue = new Queue<AutomationElement>();
+                            queue.Enqueue(root);
 
-                            AutomationElementCollection? children = null;
-                            try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
-                            catch { continue; }
+                            int checkedCount = 0;
+                            const int MaxElements = 500;
 
-                            if (children == null) continue;
-
-                            foreach (AutomationElement child in children)
+                            while (queue.Count > 0 && checkedCount < MaxElements)
                             {
-                                try
-                                {
-                                    var controlType = child.Cached.ControlType;
-                                    var rawName = child.Cached.Name;
+                                var current = queue.Dequeue();
+                                checkedCount++;
 
-                                    if (controlType == ControlType.TreeItem && !string.IsNullOrWhiteSpace(rawName))
+                                AutomationElementCollection? children = null;
+                                try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                                catch { continue; }
+
+                                if (children == null) continue;
+
+                                foreach (AutomationElement child in children)
+                                {
+                                    try
                                     {
-                                        var chatInfo = ParseChatName(rawName);
-                                        if (chatInfo != null)
+                                        var controlType = child.Cached.ControlType;
+                                        var rawName = child.Cached.Name;
+
+                                        if (controlType == ControlType.TreeItem && !string.IsNullOrWhiteSpace(rawName))
                                         {
-                                            results.Add(new WindowItem
+                                            var chatInfo = ParseChatName(rawName);
+                                            if (chatInfo != null)
                                             {
-                                                Hwnd = hwnd,
-                                                Title = chatInfo.Value.Name,
-                                                ProcessName = $"Teams ({chatInfo.Value.Type})",
-                                                ExecutablePath = executablePath,
-                                                Source = this
-                                            });
+                                                results.Add(new WindowItem
+                                                {
+                                                    Hwnd = hwnd,
+                                                    Title = chatInfo.Value.Name,
+                                                    ProcessName = $"Teams ({chatInfo.Value.Type})",
+                                                    ExecutablePath = executablePath,
+                                                    Source = this
+                                                });
+                                            }
+                                        }
+
+                                        // Prune known dead-end control types
+                                        // NOTE: We don't prune everything to ensure we find nested iterators
+                                        if (controlType != ControlType.Header && controlType != ControlType.ScrollBar)
+                                        {
+                                            queue.Enqueue(child);
                                         }
                                     }
+                                    catch { }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.Log($"{PluginName}: BFS scan failed, falling back to Descendants search. Error: {ex.Message}");
+                        }
 
-                                    // Prune known dead-end control types
-                                    // NOTE: We don't prune everything to ensure we find nested iterators
-                                    if (controlType != ControlType.Header && controlType != ControlType.ScrollBar)
+                        // FALLBACK: Native Descendants search if BFS found nothing or failed
+                        if (results.Count == initialCount)
+                        {
+                            var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
+                            var elements = root.FindAll(TreeScope.Descendants, condition);
+
+                            foreach (AutomationElement element in elements)
+                            {
+                                var rawName = element.Cached.Name;
+                                if (!string.IsNullOrWhiteSpace(rawName))
+                                {
+                                    var chatInfo = ParseChatName(rawName);
+                                    if (chatInfo != null)
                                     {
-                                        queue.Enqueue(child);
+                                        results.Add(new WindowItem
+                                        {
+                                            Hwnd = hwnd,
+                                            Title = chatInfo.Value.Name,
+                                            ProcessName = $"Teams ({chatInfo.Value.Type})",
+                                            ExecutablePath = executablePath,
+                                            Source = this
+                                        });
                                     }
                                 }
-                                catch { }
                             }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.Log($"{PluginName}: BFS scan failed, falling back to Descendants search. Error: {ex.Message}");
-                    }
 
-                    // FALLBACK: Native Descendants search if BFS found nothing or failed
-                    if (results.Count == initialCount)
-                    {
-                        var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
-                        var elements = root.FindAll(TreeScope.Descendants, condition);
-
-                        foreach (AutomationElement element in elements)
-                        {
-                            var rawName = element.Cached.Name;
-                            if (!string.IsNullOrWhiteSpace(rawName))
+                            if (results.Count > initialCount)
                             {
-                                var chatInfo = ParseChatName(rawName);
-                                if (chatInfo != null)
-                                {
-                                    results.Add(new WindowItem
-                                    {
-                                        Hwnd = hwnd,
-                                        Title = chatInfo.Value.Name,
-                                        ProcessName = $"Teams ({chatInfo.Value.Type})",
-                                        ExecutablePath = executablePath,
-                                        Source = this
-                                    });
-                                }
+                                _logger?.Log($"{PluginName}: BFS found 0 chats, but Descendants fallback found {results.Count - initialCount}.");
                             }
-                        }
-
-                        if (results.Count > initialCount)
-                        {
-                            _logger?.Log($"{PluginName}: BFS found 0 chats, but Descendants fallback found {results.Count - initialCount}.");
                         }
                     }
                 }

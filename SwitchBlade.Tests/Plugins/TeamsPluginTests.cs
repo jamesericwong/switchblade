@@ -134,5 +134,19 @@ namespace SwitchBlade.Tests.Plugins
             var result = _plugin.ParseChatName(raw);
             Assert.Null(result);
         }
+        [Fact]
+        public void GetWindows_ReturnsEmpty_WhenNoTeamsRunning()
+        {
+            // Arrange
+            _plugin.Initialize(_mockContext.Object);
+
+            // Act
+            var windows = _plugin.GetWindows().ToList();
+
+            // Assert
+            // Should not throw and return empty list when no processes are found
+            Assert.NotNull(windows);
+            Assert.Empty(windows); 
+        }
     }
 }
