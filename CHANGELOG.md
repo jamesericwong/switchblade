@@ -1,3 +1,11 @@
+## [1.8.7] - 2026-02-07
+### Fixed
+- **Teams Plugin UIA Access**: Implemented a robust "Desktop Root Search" fallback for acquiring the UIA root element.
+  - **Problem**: Direct HWND binding (`AutomationElement.FromHandle`) was failing with `E_FAIL` for some Teams windows (likely WebView2/Electron based or privilege transitions).
+  - **Solution**: If direct binding fails, the plugin now searches the Desktop's children for a window matching the Process ID. This bypasses the flaky HWND hook and allows chat discovery to proceed even when the handle is "locked".
+
+---
+
 ## [1.8.6] - 2026-02-07
 ### Fixed
 - **Plugin Fallback Logic**: Fixed a regression where `E_FAIL` UIA errors caused the Teams and Notepad++ plugins to abort discovery entirely.

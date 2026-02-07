@@ -146,7 +146,7 @@ namespace SwitchBlade.Plugins.Teams
                 var initialCount = results.Count;
 
                 // Safe UIA access to handle E_FAIL
-                var root = TryGetAutomationElement(hwnd);
+                var root = TryGetAutomationElement(hwnd, pid);
                 
                 // Hybrid Discovery:
                 // 1. Try Manual BFS (surgical pruning) - User Preference
@@ -332,7 +332,8 @@ namespace SwitchBlade.Plugins.Teams
             // 2. Re-discover the specific chat element and activate it
             try
             {
-                var root = AutomationElement.FromHandle(item.Hwnd);
+                NativeInterop.GetWindowThreadProcessId(item.Hwnd, out uint pid);
+                var root = TryGetAutomationElement(item.Hwnd, (int)pid);
                 if (root == null) return;
 
                 var targetElement = FindChatElement(root, item.Title);
@@ -475,21 +476,46 @@ namespace SwitchBlade.Plugins.Teams
             return null;
         }
 
-        private AutomationElement? TryGetAutomationElement(IntPtr hwnd)
+        private AutomationElement? TryGetAutomationElement(IntPtr hwnd, int pid)
         {
             try
             {
+                // Strategy 1: Direct HWND binding (Fastest)
                 return AutomationElement.FromHandle(hwnd);
-            }
-            catch (System.Runtime.InteropServices.COMException ex) when ((uint)ex.HResult == 0x80004005)
-            {
-                // E_FAIL (0x80004005) is common for elevated windows or windows in a transitional state
-                _logger?.Log($"{PluginName}: UIA Access failed for HWND {hwnd} (E_FAIL). Likely elevation/UIPI restrictions.");
-                return null;
             }
             catch (Exception ex)
             {
-                _logger?.Log($"{PluginName}: Failed to get UIA root for HWND {hwnd}: {ex.Message}");
+                // Only log if it's NOT the common E_FAIL, or log E_FAIL as warning
+                if (ex is System.Runtime.InteropServices.COMException comEx && (uint)comEx.HResult == 0x80004005)
+                {
+                    _logger?.Log($"{PluginName}: Direct HWND access failed (E_FAIL). Attempting Desktop Root fallback...");
+                }
+                else
+                {
+                    _logger?.Log($"{PluginName}: Direct HWND access failed: {ex.Message}. Attempting fallback...");
+                }
+
+                // Strategy 2: Desktop Root Search (Slower but more robust)
+                // Some frameworks (like Electron/WebView2) fail FromHandle but appear in the tree.
+                try
+                {
+                    var root = AutomationElement.RootElement;
+                    var condition = new PropertyCondition(AutomationElement.ProcessIdProperty, pid);
+                    
+                    // Only search direct children of Desktop (Top-Level Windows) to avoid deep scan performance cost
+                    var match = root.FindFirst(TreeScope.Children, condition);
+                    
+                    if (match != null)
+                    {
+                        _logger?.Log($"{PluginName}: Successfully acquired root via Desktop search for PID {pid}.");
+                        return match;
+                    }
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger?.Log($"{PluginName}: Desktop fallback failed: {fallbackEx.Message}");
+                }
+
                 return null;
             }
         }
