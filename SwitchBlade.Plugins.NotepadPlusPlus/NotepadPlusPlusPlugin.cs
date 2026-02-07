@@ -119,7 +119,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
 
         private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, List<WindowItem> results)
         {
-            var tabs = ScanForTabs(hwnd);
+            var tabs = ScanForTabs(hwnd, pid);
 
             if (tabs.Count > 0)
             {
@@ -163,14 +163,14 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
         /// Surgical BFS: Uses CacheRequest + FindAll to minimize COM RCW creation.
         /// Prunes Document branches to avoid deep text content traversal.
         /// </summary>
-        private List<string> ScanForTabs(IntPtr hwnd)
+        private List<string> ScanForTabs(IntPtr hwnd, int pid)
         {
             var tabs = new List<string>();
 
             try
             {
                 // Safe UIA access to handle E_FAIL
-                var root = TryGetAutomationElement(hwnd);
+                var root = TryGetAutomationElement(hwnd, pid);
                 if (root == null) return tabs; // Caller handles empty list by adding main window fallback
 
                 var cacheRequest = new CacheRequest();
@@ -287,7 +287,8 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
 
                 try
                 {
-                    var root = TryGetAutomationElement(item.Hwnd);
+                    NativeInterop.GetWindowThreadProcessId(item.Hwnd, out uint pid);
+                    var root = TryGetAutomationElement(item.Hwnd, (int)pid);
                     if (root == null) return;
 
                     var tabElement = FindTabByName(root, item.Title);
@@ -403,22 +404,70 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             return null;
         }
 
-        private AutomationElement? TryGetAutomationElement(IntPtr hwnd)
+        private AutomationElement? TryGetAutomationElement(IntPtr hwnd, int pid)
         {
+            // Strategy 1: Direct HWND binding (Fastest)
             try
             {
                 return AutomationElement.FromHandle(hwnd);
             }
-            catch (System.Runtime.InteropServices.COMException ex) when ((uint)ex.HResult == 0x80004005)
-            {
-                _logger?.Log($"{PluginName}: UIA Access failed for HWND {hwnd} (E_FAIL). Likely elevation/UIPI restrictions.");
-                return null;
-            }
             catch (Exception ex)
             {
-                _logger?.Log($"{PluginName}: Failed to get UIA root for HWND {hwnd}: {ex.Message}");
-                return null;
+                _logger?.Log($"{PluginName}: Direct UIA Access failed for HWND {hwnd} (PID {pid}): {ex.Message}. Attempting Desktop FindFirst...");
             }
+
+            // Strategy 2: Desktop Root Search (Slower but more robust)
+            try
+            {
+                var root = AutomationElement.RootElement;
+                var condition = new PropertyCondition(AutomationElement.ProcessIdProperty, pid);
+                var match = root.FindFirst(TreeScope.Children, condition);
+
+                if (match != null)
+                {
+                    _logger?.Log($"{PluginName}: Successfully acquired root via Desktop FindFirst for PID {pid}");
+                    return match;
+                }
+            }
+            catch (Exception fallbackEx)
+            {
+                _logger?.Log($"{PluginName}: Desktop FindFirst fallback failed for PID {pid}: {fallbackEx.Message}. Attempting TreeWalker...");
+            }
+
+            // Strategy 3: Desktop Walker (Most Robust, Slowest)
+            try
+            {
+                var walker = TreeWalker.ControlViewWalker;
+                var child = walker.GetFirstChild(AutomationElement.RootElement);
+
+                while (child != null)
+                {
+                    try
+                    {
+                        if (child.Current.ProcessId == pid)
+                        {
+                            _logger?.Log($"{PluginName}: Successfully acquired root via Desktop Walker for PID {pid}");
+                            return child;
+                        }
+                    }
+                    catch { /* Skip restricted windows */ }
+
+                    try
+                    {
+                        child = walker.GetNextSibling(child);
+                    }
+                    catch
+                    {
+                        break; // Sibling navigation failed
+                    }
+                }
+            }
+            catch (Exception walkerEx)
+            {
+                _logger?.Log($"{PluginName}: Desktop Walker fallback failed for PID {pid}: {walkerEx.Message}");
+            }
+
+            return null;
         }
     }
 }

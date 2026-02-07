@@ -1,3 +1,9 @@
+## [1.8.9] - 2026-02-07
+### Fixed
+- **Notepad++ Plugin**: Implemented the robust 3-tier fallback strategy (Direct HWND -> Desktop FindFirst -> Desktop TreeWalker) to resolve `E_FAIL` errors as seen in debug logs.
+
+---
+
 ## [1.8.8] - 2026-02-07
 ### Fixed
 - **Teams Plugin**: Implemented a robust 3-tier fallback strategy (Direct HWND -> Desktop FindFirst -> Desktop TreeWalker) to resolve `E_FAIL` errors when accessing Teams windows.
