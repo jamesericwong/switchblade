@@ -1,3 +1,40 @@
+## [1.8.3] - 2026-02-06
+### Fixed
+- **Comet/Chrome Recursive Discovery Faults**: Fixed `RPC_E_SERVERFAULT` (0x80010105) crashes when scanning complex browser UI trees (e.g., Comet).
+  - **Root Cause**: Aggressive `TreeScope.Descendants` caching overwhelmed the browser's UIA provider, causing the IPC connection to drop.
+  - **Solution**: Switched to lightweight `TreeScope.Element` caching with a robust `TreeWalker` fallback for "frozen" or unresponsive containers.
+- **UIA Diagnostic Logging**: Fixed an issue where the UIA worker debug log (`switchblade_uia_debug.log`) was overwritten on every run, making it impossible to debug intermittent issues.
+  - Now uses `File.AppendAllText` with a visual separator between sessions.
+### Added
+- **Microsoft Teams Plugin**: New plugin (`SwitchBlade.Plugins.Teams`) that discovers and activates individual Teams chat conversations.
+  - **Chat Discovery**: Uses UI Automation to find `TreeItem` elements in the Teams chat list.
+  - **Chat Types**: Recognizes Individual, Group, and Meeting chats via regex parsing.
+  - **Unread Detection**: Identifies chats with unread messages.
+  - **Activation**: Uses `SelectionItemPattern` (verified working) with fallbacks to `InvokePattern`, `ExpandCollapsePattern`, and `SetFocus`.
+  - **Out-of-Process**: Runs via `SwitchBlade.UiaWorker.exe` to prevent memory leaks (Teams v2 is Chromium-based).
+
+```mermaid
+flowchart LR
+    subgraph Discovery["🔍 Discovery"]
+        D1["EnumWindows"] --> D2["ms-teams.exe"]
+        D2 --> D3["BFS for TreeItems"]
+        D3 --> D4["Regex Parse Name"]
+    end
+    
+    subgraph Activation["⚡ Activation"]
+        A1["ForceForegroundWindow"] --> A2["Find Chat Element"]
+        A2 --> A3{"SelectionItemPattern?"}
+        A3 -->|Yes| A4["Select()"]
+        A3 -->|No| A5["Fallback Chain"]
+    end
+    
+    Discovery --> Activation
+    
+    style A4 fill:#dfd,stroke:#0a0,color:black
+```
+
+---
+
 ## [1.8.2] - 2026-02-02
 ### Changed
 - **Streaming UIA Plugin Results**: Reimplemented the out-of-process UIA worker to stream results incrementally using NDJSON (Newline-Delimited JSON).

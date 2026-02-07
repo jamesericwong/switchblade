@@ -1,6 +1,6 @@
 # SwitchBlade Technical Documentation
 
-**Current Version: 1.8.2**
+**Current Version: 1.8.3**
 
 ## 📚 Documentation
 
@@ -20,6 +20,7 @@ The package comes with several specialized plugins out of the box:
 - **Chrome Tab Finder**: Indexes individual tabs from Google Chrome, Microsoft Edge, and other Chromium-based browsers.
 - **Windows Terminal**: Discovers and allows switching between multiple tabs within Windows Terminal instances.
 - **Notepad++**: Indexes and switches between individual open files/tabs in Notepad++.
+- **Microsoft Teams**: Discovers and switches between individual chat conversations in Microsoft Teams (v2).
 
 
 ## Basic Usage
@@ -73,6 +74,7 @@ graph TD
         IWindowProvider -.-> ChromeTabFinder
         IWindowProvider -.-> TerminalPlugin
         IWindowProvider -.-> NotepadPlusPlusPlugin
+        IWindowProvider -.-> TeamsPlugin
     end
 
     MainViewModel -->|Aggregates| WindowList[Filtered Window List]
@@ -80,6 +82,7 @@ graph TD
     ChromeTabFinder -->|Yields| WindowItem
     TerminalPlugin -->|Yields| WindowItem
     NotepadPlusPlusPlugin -->|Yields| WindowItem
+    TeamsPlugin -->|Yields| WindowItem
     
     style RegexCache fill:#f9f,stroke:#333,stroke-width:2px,color:black
 ```
@@ -351,6 +354,21 @@ Indexes and switches between individual open files/tabs in Notepad++.
 - **Execution Mode**: Runs **Out-of-Process** via `SwitchBlade.UiaWorker.exe`.
 - **Mechanism**: Similar to the Terminal plugin, it uses UI Automation to traverse the document tabs in Notepad++.
 - **Strategy**: Identifies `notepad++` processes and scans for tab items to allow direct file-level switching.
+
+### 5. Microsoft Teams Plugin (`TeamsPlugin.cs`)
+A specialized plugin for Microsoft Teams (v2/New Teams).
+- **Execution Mode**: Runs **Out-of-Process** via `SwitchBlade.UiaWorker.exe` to isolate the main application from WebView2 memory characteristics.
+- **Discovery Strategy**:
+  1. **Process Identification**: Identifies `ms-teams` processes.
+  2. **Chat Parsing**: Scans the UI tree for `TreeItem` elements representing chats. Parses contact names and statuses (e.g., "Available", "Busy") using regex patterns derived from extensive testing.
+  3. **Chat Types**: Distinguishes between Individual, Group, and Meeting chats.
+- **Activation**:
+  - Uses a robust "Pattern Cascade" to activate chats:
+    1. `InvokePattern` (Click)
+    2. `SelectionItemPattern` (Select)
+    3. `ExpandCollapsePattern` (Expand)
+    4. `SetFocus` (Fallback)
+  - This ensures reliable switching regardless of the specific UI state of the chat item.
 
 ## Async & Threading Model
 

@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
-    <Version>1.8.2</Version>
+    <Version>1.8.3</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -12,7 +12,7 @@
     <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
     <StartupObject>SwitchBlade.Program</StartupObject>
-    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Plugins.NotepadPlusPlus\**;SwitchBlade.Tests\**;SwitchBlade.UiaWorker\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Plugins.NotepadPlusPlus\**;SwitchBlade.Plugins.Teams\**;SwitchBlade.Tests\**;SwitchBlade.UiaWorker\**</DefaultItemExcludes>
     
     <!-- Memory Optimization -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
@@ -23,15 +23,10 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <DebugType>none</DebugType>
     
-    <!-- Expose internal members to test project -->
-    <InternalsVisibleTo>SwitchBlade.Tests</InternalsVisibleTo>
+
   </PropertyGroup>
 
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>SwitchBlade.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
+
 
   <ItemGroup>
     <Resource Include="Resources\icon.png" />
@@ -48,6 +43,9 @@
        <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
     <ProjectReference Include="SwitchBlade.Plugins.NotepadPlusPlus\SwitchBlade.Plugins.NotepadPlusPlus.csproj">
+       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="SwitchBlade.Plugins.Teams\SwitchBlade.Plugins.Teams.csproj">
        <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
     <!-- UIA Worker is built and published separately via MSBuild targets below -->

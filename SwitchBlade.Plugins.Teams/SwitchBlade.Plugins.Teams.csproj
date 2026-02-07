@@ -1,8 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\SwitchBlade.Contracts\SwitchBlade.Contracts.csproj" />
   </ItemGroup>
+
+
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="xcopy /Y /F &quot;$(TargetDir)$(TargetName).dll&quot; &quot;$(MSBuildProjectDirectory)\..\bin\$(Configuration)\net9.0-windows\Plugins\&quot;" />

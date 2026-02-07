@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchBlade.Plugins.Notepad
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchBlade.UiaWorker", "SwitchBlade.UiaWorker\SwitchBlade.UiaWorker.csproj", "{13B244F6-8A9C-42CF-9AD1-A4CA4692F8C1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SwitchBlade.Plugins.Teams", "SwitchBlade.Plugins.Teams\SwitchBlade.Plugins.Teams.csproj", "{B1C2D3E4-F5A6-7890-BCDE-F01234567891}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

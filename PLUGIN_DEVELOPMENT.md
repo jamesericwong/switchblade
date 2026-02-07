@@ -157,7 +157,7 @@ If your plugin has `IsUiaProvider = true`:
 1. **Execution Location**: Your plugin DLL is loaded into `SwitchBlade.UiaWorker.exe`, NOT the main app
 2. **No GUI Access**: The worker process has no window; it only performs scans and returns results via JSON
 3. **Self-Contained**: Your code should be stateless for the duration of `GetWindows()`
-4. **Logging**: `IPluginContext.Logger` writes to `%TEMP%\switchblade_uia_debug.log` only if launched with `/debug`
+4. **Logging**: `IPluginContext.Logger` appends to `%TEMP%\switchblade_uia_debug.log` (only if launched with `/debug`). Use the dashed separator to find your session.
 5. **Parallel Execution**: Your `GetWindows()` may run concurrently with other UIA plugins
 6. **Thread Safety**: Use `CachingWindowProviderBase` or your own locking if needed
 
@@ -362,6 +362,46 @@ public override void ActivateWindow(WindowItem item)
     // ... Select tab pattern ...
 }
 ```
+
+## Case Study: Microsoft Teams Plugin
+
+The `TeamsPlugin` demonstrates how to handle robust activation when standard patterns fail, and how to parse metadata from UI naming conventions.
+
+#### 1. Surgical BFS Discovery
+Instead of scanning the entire window (which is huge in Chromium apps), we use a targeted Breadth-First Search (BFS) to find `TreeItem` controls quickly.
+
+```csharp
+// Surgical BFS: Only look for TreeItems, stop at dead ends
+if (controlType == ControlType.TreeItem) { ... }
+if (controlType != ControlType.Document) { queue.Enqueue(child); }
+```
+
+#### 2. Regex parsing
+Teams encodes state in the accessible name: *"Chat John Doe Available"*. The plugin uses regex to extract the clean name and status.
+
+```csharp
+// "Chat (.+?) (Available|Busy|...)"
+var match = IndividualChatRegex.Match(rawName);
+```
+
+#### 3. Activation Pattern Cascade
+Teams items aren't always clickable. The plugin uses a **Cascading Fallback** strategy to ensure activation works:
+
+```csharp
+// Try 1: Click it
+if (pattern.Invoke()) return;
+
+// Try 2: Select it (Works for list items)
+if (pattern.Select()) return;
+
+// Try 3: Expand it (Works for tree nodes)
+if (pattern.Expand()) return;
+
+// Try 4: Focus it (Last resort)
+element.SetFocus();
+```
+
+---
 
 ## Deployment
 

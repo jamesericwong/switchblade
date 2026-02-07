@@ -28,7 +28,7 @@ internal static class Program
     private static readonly string LogFile = Path.Combine(Path.GetTempPath(), "switchblade_uia_debug.log");
     private static bool _loggingEnabled = false;
 
-    private static void DebugLog(string message)
+    internal static void DebugLog(string message)
     {
         if (!_loggingEnabled) return;
         try
@@ -49,8 +49,13 @@ internal static class Program
 
         if (_loggingEnabled)
         {
-            // Clear log on startup if debug enabled
-            try { File.WriteAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] UIA Worker Started. BaseDir: {AppContext.BaseDirectory}{Environment.NewLine}"); } catch { }
+            // Append to log on startup if debug enabled
+            try 
+            { 
+                File.AppendAllText(LogFile, $"{Environment.NewLine}------------------------------------------------------------{Environment.NewLine}");
+                File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] UIA Worker Started. BaseDir: {AppContext.BaseDirectory}{Environment.NewLine}"); 
+            } 
+            catch { }
         }
 
         UiaResponse response;
@@ -330,17 +335,18 @@ internal static class Program
 /// </summary>
 internal sealed class MinimalPluginContext : IPluginContext
 {
-    public ILogger Logger => NullLogger.Instance;
+    public ILogger Logger => BridgedLogger.Instance;
 }
 
 /// <summary>
-/// Dummy logger that does nothing.
+/// Logger that bridges plugin logs to the UIA Worker's internal DebugLog.
+/// This allows us to see detailed scan logs from plugins in switchblade_uia_debug.log.
 /// </summary>
-internal sealed class NullLogger : ILogger
+internal sealed class BridgedLogger : ILogger
 {
-    public static readonly NullLogger Instance = new();
-    private NullLogger() { }
+    public static readonly BridgedLogger Instance = new();
+    private BridgedLogger() { }
 
-    public void Log(string message) { }
-    public void LogError(string context, Exception ex) { }
+    public void Log(string message) => Program.DebugLog(message);
+    public void LogError(string context, Exception ex) => Program.DebugLog($"ERROR [{context}]: {ex}");
 }

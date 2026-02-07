@@ -38,7 +38,6 @@ namespace SwitchBlade.Plugins.Chrome
             "Search Tabs",
             "Google Chrome",
             "Chrome",
-            "Chrome",
             "Side panel"
         };
 
@@ -206,10 +205,11 @@ namespace SwitchBlade.Plugins.Chrome
                 cacheRequest.Add(AutomationElement.ControlTypeProperty);
                 cacheRequest.Add(AutomationElement.AutomationIdProperty);
                 cacheRequest.Add(AutomationElement.ClassNameProperty);
-                cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
+                cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
+                cacheRequest.TreeScope = TreeScope.Element; // AVOID TreeScope.Children here as it triggers RPC_E_SERVERFAULT on some Chrome/Comet versions
 
                 int containersChecked = 0;
-                const int MaxContainersToCheck = 50; // Safety limit to prevent scanning entire UI
+                const int MaxContainersToCheck = 100; // Safety limit to prevent scanning entire UI
 
                 using (cacheRequest.Activate())
                 {
@@ -218,23 +218,66 @@ namespace SwitchBlade.Plugins.Chrome
 
                     while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
                     {
-                        var current = queue.Dequeue();
+                        var container = queue.Dequeue();
                         containersChecked++;
 
-                        AutomationElementCollection? children = null;
-                        try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
-                        catch { continue; }
+                        // 1. Get children WITH caching
+                        List<AutomationElement> children = new();
+                        try 
+                        { 
+                            var collection = container.FindAll(TreeScope.Children, Condition.TrueCondition); 
+                            foreach (AutomationElement child in collection) children.Add(child);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.Log($"    FindAll failed on level {containersChecked} ({ex.Message}). Falling back to manual walking...");
+                            
+                            // FALLBACK: Use TreeWalker if FindAll fails (common for suspended tabs or RPC faults)
+                            try
+                            {
+                                var child = walker.GetFirstChild(container);
+                                while (child != null)
+                                {
+                                    children.Add(child);
+                                    child = walker.GetNextSibling(child);
+                                }
+                            }
+                            catch (Exception walkEx)
+                            {
+                                _logger?.Log($"    Manual walk also failed: {walkEx.Message}");
+                                continue;
+                            }
+                        }
 
-                        if (children == null || children.Count == 0) continue;
+                        if (children.Count == 0) continue;
 
-                        // Phase 1: Check if THIS container is the Tab Strip
+                        // Phase 1: Check if THIS container is a Tab Strip
                         bool isTabStrip = false;
                         foreach (AutomationElement child in children)
                         {
-                            if (child.Cached.ControlType == ControlType.TabItem)
+                            try
                             {
-                                isTabStrip = true;
-                                break;
+                                if (child.Cached.ControlType == ControlType.TabItem)
+                                {
+                                    isTabStrip = true;
+                                    break;
+                                }
+                                
+                                string localType = child.Cached.LocalizedControlType;
+                                if (!string.IsNullOrEmpty(localType) && localType.Equals("tab", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    isTabStrip = true;
+                                    break;
+                                }
+                            }
+                            catch 
+                            { 
+                                // Property might not be cached if we fell back to manual walk
+                                try
+                                {
+                                    if (child.Current.ControlType == ControlType.TabItem) { isTabStrip = true; break; }
+                                }
+                                catch { }
                             }
                         }
 
@@ -244,9 +287,26 @@ namespace SwitchBlade.Plugins.Chrome
                             var harvestedTabs = new List<string>();
                             foreach (AutomationElement child in children)
                             {
-                                if (child.Cached.ControlType == ControlType.TabItem)
+                                string name = "";
+                                try { name = child.Cached.Name; } catch { }
+
+                                bool isTab = false;
+                                try
                                 {
-                                    string name = child.Cached.Name;
+                                    isTab = child.Cached.ControlType == ControlType.TabItem;
+                                    if (!isTab)
+                                    {
+                                        string localType = child.Cached.LocalizedControlType;
+                                        if (!string.IsNullOrEmpty(localType) && localType.Equals("tab", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            isTab = true;
+                                        }
+                                    }
+                                }
+                                catch { }
+
+                                if (isTab)
+                                {
                                     if (!string.IsNullOrWhiteSpace(name) && !ExcludedTabNames.Contains(name) && name != "New Tab" && name != "+")
                                     {
                                         harvestedTabs.Add(name);
@@ -258,24 +318,37 @@ namespace SwitchBlade.Plugins.Chrome
                             if (harvestedTabs.Count > 0)
                             {
                                 results.AddRange(harvestedTabs);
-                                _logger?.Log($"  Surgical discovery found {results.Count} tabs in container level {containersChecked}");
-                                return results; // EXIT success
+                                _logger?.Log($"  Surgical discovery found {harvestedTabs.Count} tabs in container level {containersChecked} (Total: {results.Count})");
+                                // We continue searching other containers instead of returning early
+                                // to ensure we find tabs in all windows/groups.
                             }
                             else
                             {
                                 _logger?.Log($"  Container level {containersChecked} appeared to be TabStrip but yielded 0 valid tabs. Continuing search...");
-                                // Do NOT return. This was likely a decoy or empty container. Continue BFS.
                             }
                         }
 
-                        // Phase 2: Enqueue children for deeper search (Pruning Document)
                         foreach (AutomationElement child in children)
                         {
-                            if (child.Cached.ControlType != ControlType.Document)
+                            try
                             {
-                                queue.Enqueue(child);
+                                ControlType type;
+                                try { type = child.Cached.ControlType; } catch { type = child.Current.ControlType; }
+
+                                if (type != ControlType.TabItem)
+                                {
+                                    queue.Enqueue(child);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger?.Log($"    Error enqueuing child element: {ex.Message}");
                             }
                         }
+                    }
+                    if (containersChecked >= MaxContainersToCheck)
+                    {
+                        _logger?.Log($"  WARNING: Surgical discovery reached safety limit of {MaxContainersToCheck} containers.");
                     }
                 }
                 _logger?.Log($"  Surgical discovery scan complete. Checked {containersChecked} containers. Results: {results.Count}");
