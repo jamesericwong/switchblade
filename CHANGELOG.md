@@ -1,3 +1,10 @@
+## [1.8.11] - 2026-02-07
+### Fixed
+- **Windows Terminal Plugin**: Added retry logic (3 attempts) to handle intermittent `E_FAIL` errors during window acquisition.
+- **Windows Terminal Plugin**: Implemented a 4th fallback strategy using `AutomationElement.FromPoint` to bypass potential UI Automation tree navigation issues.
+
+---
+
 ## [1.8.10] - 2026-02-07
 ### Fixed
 - **Windows Terminal Plugin**: Increased UI Automation search depth (50 -> 200 containers) to improve tab discovery.

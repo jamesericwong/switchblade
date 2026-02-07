@@ -416,7 +416,12 @@ namespace SwitchBlade.Plugins.WindowsTerminal
 
         private AutomationElement? TryGetAutomationElement(IntPtr hwnd, int pid)
         {
-            // Strategy 1: Direct HWND binding (Fastest)
+            const int MAX_RETRIES = 3;
+            const int RETRY_DELAY_MS = 50;
+
+            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
+            {
+                // Strategy 1: Direct HWND binding (Fastest)
             try
             {
                 return AutomationElement.FromHandle(hwnd);
@@ -453,39 +458,69 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                 _logger?.Log($"{PluginName}: Desktop FindFirst fallback failed: {fallbackEx.Message}. Attempting TreeWalker...");
             }
 
-            // Strategy 3: Desktop Walker (Most Robust, Slowest)
-            try
-            {
-                var walker = TreeWalker.ControlViewWalker;
-                var child = walker.GetFirstChild(AutomationElement.RootElement);
-
-                while (child != null)
+                // Strategy 3: Desktop Walker (Most Robust, Slowest)
+                try
                 {
-                    try
+                    var walker = TreeWalker.ControlViewWalker;
+                    var child = walker.GetFirstChild(AutomationElement.RootElement);
+
+                    while (child != null)
                     {
-                        if (child.Current.ProcessId == pid)
+                        try
                         {
-                            _logger?.Log($"{PluginName}: Successfully acquired root via Desktop Walker for PID {pid}.");
-                            return child;
+                            if (child.Current.ProcessId == pid)
+                            {
+                                _logger?.Log($"{PluginName}: Successfully acquired root via Desktop Walker for PID {pid}.");
+                                return child;
+                            }
+                        }
+                        catch { /* Skip restricted windows */ }
+
+                        try
+                        {
+                            child = walker.GetNextSibling(child);
+                        }
+                        catch
+                        {
+                            break;
                         }
                     }
-                    catch { /* Skip restricted windows */ }
+                }
+                catch (Exception walkerEx)
+                {
+                    _logger?.Log($"{PluginName}: Desktop Walker fallback failed: {walkerEx.Message}");
+                }
 
-                    try
+                // Strategy 4: FromPoint (Hail Mary for UIPI/Focus issues)
+                // Sometimes FromHandle fails but FromPoint works if the window is visible/centered
+                try
+                {
+                    if (NativeInterop.GetWindowRect(hwnd, out var rect))
                     {
-                        child = walker.GetNextSibling(child);
-                    }
-                    catch
-                    {
-                        break;
+                        var centerX = rect.Left + (rect.Right - rect.Left) / 2;
+                        var centerY = rect.Top + (rect.Bottom - rect.Top) / 2;
+                        var point = new System.Windows.Point(centerX, centerY);
+
+                        var element = AutomationElement.FromPoint(point);
+                        if (element != null && element.Current.ProcessId == pid)
+                        {
+                             _logger?.Log($"{PluginName}: Successfully acquired root via FromPoint for PID {pid}.");
+                             return element;
+                        }
                     }
                 }
-            }
-            catch (Exception walkerEx)
-            {
-                _logger?.Log($"{PluginName}: Desktop Walker fallback failed: {walkerEx.Message}");
+                catch (Exception pointEx)
+                {
+                    _logger?.Log($"{PluginName}: FromPoint fallback failed: {pointEx.Message}");
+                }
+
+                if (attempt < MAX_RETRIES)
+                {
+                    System.Threading.Thread.Sleep(RETRY_DELAY_MS);
+                }
             }
 
+            _logger?.Log($"{PluginName}: All fallback strategies failed for PID {pid} after {MAX_RETRIES} attempts.");
             return null;
         }
     }
