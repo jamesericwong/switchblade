@@ -1,3 +1,12 @@
+## [1.8.12] - 2026-02-07
+### Added
+- **Global "Last Known Good" Strategy**: Implemented intelligent result retention across all plugins (`CachingWindowProviderBase`). 
+  - If a plugin scan fails intermittently (returning only a generic "Main Window" fallback), SwitchBlade now automatically preserves the tabs from the last successful scan for that application.
+  - This eliminates UI flickering and tab disappearance during transient UI Automation failures (e.g. high CPU load or window transitions).
+  - Supported in **Windows Terminal**, **Teams**, **Notepad++**, and **Chrome/Edge** plugins.
+
+---
+
 ## [1.8.11] - 2026-02-07
 ### Fixed
 - **Windows Terminal Plugin**: Added retry logic (3 attempts) to handle intermittent `E_FAIL` errors during window acquisition.

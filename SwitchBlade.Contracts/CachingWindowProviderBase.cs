@@ -23,6 +23,9 @@ namespace SwitchBlade.Contracts
         private readonly ReaderWriterLockSlim _cacheLock = new(LockRecursionPolicy.NoRecursion);
         private volatile bool _isScanRunning = false;
         private IList<WindowItem> _cachedWindows = new List<WindowItem>();
+        
+        // Map PID -> List of "Good" (non-fallback) items from the last successful scan
+        private readonly Dictionary<int, List<WindowItem>> _lastKnownGoodResults = new();
 
         /// <summary>
         /// Logger instance provided by the plugin context.
@@ -136,20 +139,96 @@ namespace SwitchBlade.Contracts
             try
             {
                 Logger?.Log($"{PluginName}: Starting window scan");
-                var results = ScanWindowsCore().ToList();
+                var rawResults = ScanWindowsCore().ToList();
+                var processedResults = new List<WindowItem>();
+
+                // GLOBAL LKG STRATEGY:
+                // 1. Group current results by PID
+                // 2. For each PID, check if we got "Good" items (IsFallback == false) or only "Fallback" items.
+                // 3. If "Good", update LKG cache.
+                // 4. If "Fallback Only" AND we have LKG data, check if process is alive and restore LKG data.
+                
+                var currentPidGroups = rawResults.GroupBy(w => 
+                {
+                    // Try to finding PID from NativeInterop cache if possible, or fallback to 0
+                    // Since WindowItem doesn't hold PID directly, we might need a way to group.
+                    // Ideally WindowItem should have PID, but for now we can infer from Hwnd via helper.
+                    NativeInterop.GetWindowThreadProcessId(w.Hwnd, out uint pid);
+                    return (int)pid;
+                }).ToList();
+
+                var pidsSeenInThisScan = new HashSet<int>();
+
+                foreach (var group in currentPidGroups)
+                {
+                    int pid = group.Key;
+                    if (pid == 0) continue; // Skip invalid PIDs
+
+                    pidsSeenInThisScan.Add(pid);
+                    var items = group.ToList();
+
+                    bool hasGoodItems = items.Any(i => !i.IsFallback);
+
+                    if (hasGoodItems)
+                    {
+                        // Success! Update LKG cache
+                        _lastKnownGoodResults[pid] = items;
+                        processedResults.AddRange(items);
+                    }
+                    else
+                    {
+                        // Only fallback items found (or empty).
+                        // Do we have LKG data?
+                        if (_lastKnownGoodResults.TryGetValue(pid, out var lkgItems))
+                        {
+                            // Verify process is still alive and accessible
+                            var (procName, _) = NativeInterop.GetProcessInfo((uint)pid);
+                            if (procName != "Unknown" && procName != "System")
+                            {
+                                Logger?.Log($"{PluginName}: Transient failure for PID {pid}. Restoring {lkgItems.Count} items from LKG cache.");
+                                processedResults.AddRange(lkgItems);
+                            }
+                            else
+                            {
+                                // Process likely dead, use current (fallback/empty) and clear LKG
+                                processedResults.AddRange(items);
+                                _lastKnownGoodResults.Remove(pid);
+                            }
+                        }
+                        else
+                        {
+                            // No LKG data, accept fallback
+                            processedResults.AddRange(items);
+                        }
+                    }
+                }
+
+                // Cleanup LKG: Remove PIDs that were NOT seen in this scan at all
+                // (This handles closed applications)
+                // We must be careful: ScanWindowsCore might filter PIDs itself. 
+                // We should only remove PIDs if we are sure they are gone.
+                // Ideally, we iterate _lastKnownGoodResults keys and check if they are in pidsSeenInThisScan.
+                // BUT, if ScanWindowsCore returns NO results for a PID, does it mean it's closed?
+                // Yes, usually.
+                
+                var deadPids = _lastKnownGoodResults.Keys.Where(k => !pidsSeenInThisScan.Contains(k)).ToList();
+                foreach (var deadPid in deadPids)
+                {
+                    _lastKnownGoodResults.Remove(deadPid);
+                }
 
                 _cacheLock.EnterWriteLock();
                 try
                 {
-                    _cachedWindows = results;
+                    _cachedWindows = processedResults;
                 }
                 finally
                 {
                     _cacheLock.ExitWriteLock();
                 }
 
-                Logger?.Log($"{PluginName}: Scan complete, found {results.Count} windows");
-                return results;
+                Logger?.Log($"{PluginName}: Scan complete, found {processedResults.Count} windows");
+                return processedResults;
             }
             catch (Exception ex)
             {

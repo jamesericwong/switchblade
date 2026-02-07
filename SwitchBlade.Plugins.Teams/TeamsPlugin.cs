@@ -263,7 +263,8 @@ namespace SwitchBlade.Plugins.Teams
                         Title = windowTitle,
                         ProcessName = processName,
                         ExecutablePath = executablePath,
-                        Source = this
+                        Source = this,
+                        IsFallback = true
                     });
                 }
             }

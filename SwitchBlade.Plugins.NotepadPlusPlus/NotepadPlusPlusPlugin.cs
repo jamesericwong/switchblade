@@ -153,7 +153,8 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                         Title = windowTitle,
                         ProcessName = processName,
                         ExecutablePath = executablePath,
-                        Source = this
+                        Source = this,
+                        IsFallback = true
                     });
                 }
             }

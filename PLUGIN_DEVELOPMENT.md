@@ -240,6 +240,10 @@ public class WindowItem
     public string? ExecutablePath { get; set; } // Full path to exe (enables icon display)
     public IWindowProvider? Source { get; set; } // ALWAYS set this to 'this'
     
+    // v1.8.12+: Set to true if this item is a fallback (e.g. "Main Window") 
+    // to enable "Last Known Good" retention during transient failures.
+    public bool IsFallback { get; set; } = false;
+
     // ... other properties (Icon is populated automatically by IconService)
 }
 ```
@@ -428,7 +432,8 @@ Specific windows (like Teams) often fail `AutomationElement.FromHandle(hwnd)` wi
 - **HashSet for Process Lists**: If your plugin tracks multiple target process names, use `HashSet<string>` with `StringComparer.OrdinalIgnoreCase` for O(1) lookups instead of O(n) list searches.
 - **Error Handling**: Wrap your `GetWindows` logic in try/catch blocks. If your plugin throws an exception, it might be logged but won't crash the main app.
 - **Dependencies**: If your plugin relies on other DLLs, ensure they are also copied to the `Plugins` folder or available in the global path.
-- **Icon Support**: Always populate `ExecutablePath` using `NativeInterop.GetProcessInfo(pid)` so that SwitchBlade can display the correct application icon for your items.
+-   **Icon Support**: Always populate `ExecutablePath` using `NativeInterop.GetProcessInfo(pid)` so that SwitchBlade can display the correct application icon for your items.
+-   **Robust Fallbacks (v1.8.12+)**: If your plugin works by inspecting a specific window (like a browser or terminal) and falls back to returning the main window when inspection fails, **set `IsFallback = true`** on that fallback item. This allows the base class to automatically retain the previous successful scan results during transient failures, preventing UI flickering.
 
 ### UIA Plugin Best Practices (v1.8.0+)
 

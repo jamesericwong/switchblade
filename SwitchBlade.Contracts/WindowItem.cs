@@ -88,6 +88,12 @@ namespace SwitchBlade.Contracts
         public object? Icon { get; set; }
 
         public IWindowProvider? Source { get; set; }
+        
+        /// <summary>
+        /// Indicates if this item is a generic fallback (e.g. "Main Window") returned when detailed discovery fails.
+        /// Used by CachingWindowProviderBase for Last Known Good (LKG) retention strategies.
+        /// </summary>
+        public bool IsFallback { get; set; } = false;
 
         public override string ToString()
         {

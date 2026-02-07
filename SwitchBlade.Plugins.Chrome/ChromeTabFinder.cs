@@ -168,7 +168,8 @@ namespace SwitchBlade.Plugins.Chrome
                         Title = title,
                         ProcessName = processName,
                         ExecutablePath = executablePath,
-                        Source = this
+                        Source = this,
+                        IsFallback = true
                     });
                 }
             }
