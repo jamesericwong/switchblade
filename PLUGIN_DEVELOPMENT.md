@@ -401,6 +401,13 @@ if (pattern.Expand()) return;
 element.SetFocus();
 ```
 
+#### 4. Robust Fallback Strategy (v1.8.8)
+Specific windows (like Teams) often fail `AutomationElement.FromHandle(hwnd)` with `E_FAIL` due to internal state or elevation issues. The plugin uses a **3-Tier Fallback** strategy to ensure the window is always found:
+
+1. **Direct HWND**: Fast, O(1). Tries `AutomationElement.FromHandle`.
+2. **Desktop FindFirst**: Slower, O(N). Searches `RootElement` children for the specific PID.
+3. **Desktop TreeWalker**: Robust, O(N). Manually iterates `RootElement` children using `TreeWalker`. This avoids crashing if *other* windows are unresponsive.
+
 ---
 
 ## Deployment

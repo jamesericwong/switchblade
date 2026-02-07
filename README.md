@@ -1,6 +1,6 @@
 # SwitchBlade Technical Documentation
 
-**Current Version: 1.8.7**
+**Current Version: 1.8.8**
 
 ## 📚 Documentation
 
