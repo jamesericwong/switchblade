@@ -1,3 +1,11 @@
+## [1.8.5] - 2026-02-07
+### Changed
+- Improved Microsoft Teams chat discovery to use a hybrid approach (Manual BFS as primary, native Descendants as fallback).
+- Added `COMException` (E_FAIL) handling for Teams windows to prevent crashing on elevated or transitional windows.
+- Improved Notepad++ tab discovery with hybrid BFS + Descendants search and safe UIA access.
+
+---
+
 ## [1.8.4] - 2026-02-07
 ### Fixed
 - Improved Microsoft Teams chat discovery logic to use descendant-based UIA search.
@@ -6,6 +14,19 @@
 - Fixed issue where the Teams plugin's BFS discovery was pruning "Document" elements (Chromium-specific).
 - Improved Windows Terminal tab discovery to use a hybrid approach (Manual BFS as primary, native Descendants as fallback).
 - Added `COMException` (E_FAIL) handling for Terminal windows to prevent crashes and log diagnostics.
+### Changed
+- **Streaming UIA Plugin Results**: Reimplemented the out-of-process UIA worker to stream results incrementally using NDJSON (Newline-Delimited JSON).
+  - **Problem**: Previously, the UIA worker waited for ALL plugins to complete before returning results. Fast plugins (e.g., Chrome tabs at 15ms) were blocked by slow plugins (e.g., complex Terminal scans at 2+ seconds).
+  - **Solution**: Each plugin now runs in parallel and emits its results immediately upon completion. The main process receives and displays results as each plugin finishes.
+  - **User Impact**: Faster perceived responsiveness—Chrome tabs appear almost instantly, even if other plugins take longer.
+
+### Technical
+- `SwitchBlade.UiaWorker.Program.cs`: Refactored to run plugins via `Task.WhenAll` with thread-safe streaming output.
+- `UiaWorkerClient.cs`: Added `ScanStreamingAsync` returning `IAsyncEnumerable<UiaPluginResult>` for incremental consumption.
+- `WindowOrchestrationService.cs`: Now consumes streaming results via `await foreach`, triggering `WindowListUpdated` events as each plugin completes.
+- New `UiaPluginResult` DTO for streaming protocol with `PluginName`, `Windows`, `Error`, and `IsFinal` fields.
+
+---
 
 ## [1.8.3] - 2026-02-06
 ### Fixed

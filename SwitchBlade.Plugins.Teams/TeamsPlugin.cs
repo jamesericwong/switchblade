@@ -145,12 +145,13 @@ namespace SwitchBlade.Plugins.Teams
 
                 var initialCount = results.Count;
 
-                var root = AutomationElement.FromHandle(hwnd);
+                // Safe UIA access to handle E_FAIL
+                var root = TryGetAutomationElement(hwnd);
                 if (root == null) return;
 
-                // Use descendants search for TreeItem elements (chat entries)
-                // This matches the working PowerShell script and handles Teams (Chromium) better
-                // as it avoids pruning "Document" elements which often house the chat list.
+                // Hybrid Discovery:
+                // 1. Try Manual BFS (surgical pruning) - User Preference
+                // 2. Fallback to Descendants (robust native search)
                 var cacheRequest = new CacheRequest();
                 cacheRequest.Add(AutomationElement.NameProperty);
                 cacheRequest.Add(AutomationElement.ControlTypeProperty);
@@ -158,26 +159,94 @@ namespace SwitchBlade.Plugins.Teams
 
                 using (cacheRequest.Activate())
                 {
-                    var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
-                    var elements = root.FindAll(TreeScope.Descendants, condition);
-
-                    foreach (AutomationElement element in elements)
+                    // PRIMARY: Manual BFS traversal
+                    try
                     {
-                        var rawName = element.Cached.Name;
-                        if (!string.IsNullOrWhiteSpace(rawName))
+                        var queue = new Queue<AutomationElement>();
+                        queue.Enqueue(root);
+
+                        int checkedCount = 0;
+                        const int MaxElements = 500;
+
+                        while (queue.Count > 0 && checkedCount < MaxElements)
                         {
-                            var chatInfo = ParseChatName(rawName);
-                            if (chatInfo != null)
+                            var current = queue.Dequeue();
+                            checkedCount++;
+
+                            AutomationElementCollection? children = null;
+                            try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                            catch { continue; }
+
+                            if (children == null) continue;
+
+                            foreach (AutomationElement child in children)
                             {
-                                results.Add(new WindowItem
+                                try
                                 {
-                                    Hwnd = hwnd,
-                                    Title = chatInfo.Value.Name,
-                                    ProcessName = $"Teams ({chatInfo.Value.Type})",
-                                    ExecutablePath = executablePath,
-                                    Source = this
-                                });
+                                    var controlType = child.Cached.ControlType;
+                                    var rawName = child.Cached.Name;
+
+                                    if (controlType == ControlType.TreeItem && !string.IsNullOrWhiteSpace(rawName))
+                                    {
+                                        var chatInfo = ParseChatName(rawName);
+                                        if (chatInfo != null)
+                                        {
+                                            results.Add(new WindowItem
+                                            {
+                                                Hwnd = hwnd,
+                                                Title = chatInfo.Value.Name,
+                                                ProcessName = $"Teams ({chatInfo.Value.Type})",
+                                                ExecutablePath = executablePath,
+                                                Source = this
+                                            });
+                                        }
+                                    }
+
+                                    // Prune known dead-end control types
+                                    // NOTE: We don't prune everything to ensure we find nested iterators
+                                    if (controlType != ControlType.Header && controlType != ControlType.ScrollBar)
+                                    {
+                                        queue.Enqueue(child);
+                                    }
+                                }
+                                catch { }
                             }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Log($"{PluginName}: BFS scan failed, falling back to Descendants search. Error: {ex.Message}");
+                    }
+
+                    // FALLBACK: Native Descendants search if BFS found nothing or failed
+                    if (results.Count == initialCount)
+                    {
+                        var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
+                        var elements = root.FindAll(TreeScope.Descendants, condition);
+
+                        foreach (AutomationElement element in elements)
+                        {
+                            var rawName = element.Cached.Name;
+                            if (!string.IsNullOrWhiteSpace(rawName))
+                            {
+                                var chatInfo = ParseChatName(rawName);
+                                if (chatInfo != null)
+                                {
+                                    results.Add(new WindowItem
+                                    {
+                                        Hwnd = hwnd,
+                                        Title = chatInfo.Value.Name,
+                                        ProcessName = $"Teams ({chatInfo.Value.Type})",
+                                        ExecutablePath = executablePath,
+                                        Source = this
+                                    });
+                                }
+                            }
+                        }
+
+                        if (results.Count > initialCount)
+                        {
+                            _logger?.Log($"{PluginName}: BFS found 0 chats, but Descendants fallback found {results.Count - initialCount}.");
                         }
                     }
                 }
@@ -337,6 +406,54 @@ namespace SwitchBlade.Plugins.Teams
 
             using (cacheRequest.Activate())
             {
+                // PRIMARY: Manual BFS
+                try
+                {
+                    var queue = new Queue<AutomationElement>();
+                    queue.Enqueue(root);
+
+                    int checkedCount = 0;
+                    const int MaxElements = 500;
+
+                    while (queue.Count > 0 && checkedCount < MaxElements)
+                    {
+                        var current = queue.Dequeue();
+                        checkedCount++;
+
+                        AutomationElementCollection? children = null;
+                        try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                        catch { continue; }
+
+                        if (children == null) continue;
+
+                        foreach (AutomationElement child in children)
+                        {
+                            try
+                            {
+                                var controlType = child.Cached.ControlType;
+                                var rawName = child.Cached.Name;
+
+                                if (controlType == ControlType.TreeItem && !string.IsNullOrWhiteSpace(rawName))
+                                {
+                                    var chatInfo = ParseChatName(rawName);
+                                    if (chatInfo != null && chatInfo.Value.Name == targetTitle)
+                                    {
+                                        return child;
+                                    }
+                                }
+
+                                if (controlType != ControlType.Header && controlType != ControlType.ScrollBar)
+                                {
+                                    queue.Enqueue(child);
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                catch { }
+
+                // FALLBACK: Native Descendants search
                 var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
                 var elements = root.FindAll(TreeScope.Descendants, condition);
 
@@ -354,6 +471,25 @@ namespace SwitchBlade.Plugins.Teams
                 }
             }
             return null;
+        }
+
+        private AutomationElement? TryGetAutomationElement(IntPtr hwnd)
+        {
+            try
+            {
+                return AutomationElement.FromHandle(hwnd);
+            }
+            catch (System.Runtime.InteropServices.COMException ex) when ((uint)ex.HResult == 0x80004005)
+            {
+                // E_FAIL (0x80004005) is common for elevated windows or windows in a transitional state
+                _logger?.Log($"{PluginName}: UIA Access failed for HWND {hwnd} (E_FAIL). Likely elevation/UIPI restrictions.");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"{PluginName}: Failed to get UIA root for HWND {hwnd}: {ex.Message}");
+                return null;
+            }
         }
     }
 }

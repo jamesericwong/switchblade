@@ -29,6 +29,7 @@
     <ProjectReference Include="..\SwitchBlade.Plugins.Chrome\SwitchBlade.Plugins.Chrome.csproj" />
     <ProjectReference Include="..\SwitchBlade.Plugins.WindowsTerminal\SwitchBlade.Plugins.WindowsTerminal.csproj" />
     <ProjectReference Include="..\SwitchBlade.Plugins.Teams\SwitchBlade.Plugins.Teams.csproj" />
+    <ProjectReference Include="..\SwitchBlade.Plugins.NotepadPlusPlus\SwitchBlade.Plugins.NotepadPlusPlus.csproj" />
   </ItemGroup>
 
 </Project>
