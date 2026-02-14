@@ -12,24 +12,21 @@ namespace SwitchBlade.Services
 {
     /// <summary>
     /// Coordinates parallel execution of window providers.
-    /// Handles structural diffing, caching, and icon population.
+    /// Handles structural diffing, caching, and icon population (via IWindowReconciler).
     /// 
     /// UIA providers (IsUiaProvider=true) run in a separate worker process to prevent memory leaks.
     /// </summary>
     public class WindowOrchestrationService : IWindowOrchestrationService
     {
         private readonly List<IWindowProvider> _providers;
-        private readonly IIconService? _iconService;
+        private readonly IWindowReconciler _reconciler;
         private readonly ISettingsService _settingsService;
         private readonly UiaWorkerClient _uiaWorkerClient;
         private readonly List<WindowItem> _allWindows = new();
-        private readonly Dictionary<IntPtr, List<WindowItem>> _windowItemCache = new();
-        // Performance optimization: Secondary index for O(1) provider lookups
-        private readonly Dictionary<IWindowProvider, HashSet<WindowItem>> _providerItems = new();
+        
         private readonly object _lock = new();
         // Re-entrancy guard: Prevents concurrent RefreshAsync from creating RCWs faster than GC can clean
         private readonly SemaphoreSlim _refreshLock = new(1, 1);
-
 
         public event EventHandler<WindowListUpdatedEventArgs>? WindowListUpdated;
 
@@ -44,14 +41,20 @@ namespace SwitchBlade.Services
             }
         }
 
-        public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IIconService? iconService = null, ISettingsService? settingsService = null)
+        public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IWindowReconciler reconciler, ISettingsService? settingsService = null)
         {
             _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
-            _iconService = iconService;
+            _reconciler = reconciler ?? throw new ArgumentNullException(nameof(reconciler));
             _settingsService = settingsService!; // Can be null in tests, we handle below
             var timeoutSeconds = settingsService?.Settings.UiaWorkerTimeoutSeconds ?? 60;
             var timeout = TimeSpan.FromSeconds(timeoutSeconds);
             _uiaWorkerClient = new UiaWorkerClient(Logger.Instance, timeout);
+        }
+
+        // Backward compatibility constructor for tests
+        public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IIconService? iconService = null, ISettingsService? settingsService = null)
+            : this(providers, new WindowReconciler(iconService), settingsService)
+        {
         }
 
         public async Task RefreshAsync(ISet<string> disabledPlugins)
@@ -113,7 +116,9 @@ namespace SwitchBlade.Services
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError($"Provider {provider.PluginName} error: {ex.Message}", ex);
+                            Logger.LogError($"Provider {provider.PluginName} failed during GetWindows()", ex);
+                            // Process empty results to clear stale data for this provider
+                            ProcessProviderResults(provider, new List<WindowItem>());
                         }
                     }));
                 }
@@ -132,6 +137,9 @@ namespace SwitchBlade.Services
                         p => p,
                         StringComparer.OrdinalIgnoreCase);
 
+                    // Pre-build map for O(1) fallback lookup (OCP fix)
+                    var processProviderMap = BuildProcessToProviderMap(uiaProviders);
+
                     allTasks.Add(Task.Run(async () =>
                     {
                         try
@@ -144,20 +152,19 @@ namespace SwitchBlade.Services
                                 if (pluginResult.Error != null)
                                 {
                                     Logger.Log($"[UIA] Plugin {pluginResult.PluginName} error: {pluginResult.Error}");
-                                    continue;
+                                    // Don't continue; we still need to process empty results to clear stale data if needed
+                                    // But if it's just an error string, we might not have windows.
+                                    // If windows is null, use empty list.
                                 }
 
                                 // Find the provider for this plugin's results
                                 if (!providerLookup.TryGetValue(pluginResult.PluginName, out var uiaProvider))
                                 {
-                                    // Fallback: try to match by process name mapping
-                                    var matchedProviderName = pluginResult.Windows?.FirstOrDefault() is { } firstWindow
-                                        ? GetPluginNameForProcess(firstWindow.ProcessName)
-                                        : null;
-
-                                    if (matchedProviderName != null)
+                                    // Fallback: dynamically resolve by process name using providers' GetHandledProcesses()
+                                    if (pluginResult.Windows?.FirstOrDefault() is { } firstWindow
+                                        && processProviderMap.TryGetValue(firstWindow.ProcessName, out var resolvedProvider))
                                     {
-                                        providerLookup.TryGetValue(matchedProviderName, out uiaProvider);
+                                        uiaProvider = resolvedProvider;
                                     }
                                 }
 
@@ -197,8 +204,6 @@ namespace SwitchBlade.Services
                 await Task.WhenAll(allTasks);
 
                 // 5. No more in-process UIA cleanup needed - worker process handles it!
-                // We can remove the aggressive GC and Automation.RemoveAllEventHandlers()
-                // since we never create UIA objects in this process anymore.
             }
             finally
             {
@@ -206,32 +211,21 @@ namespace SwitchBlade.Services
             }
         }
 
-        /// <summary>
-        /// Maps a process name to the plugin that handles it.
-        /// Used to assign Source to windows returned from the UIA worker.
-        /// </summary>
-        private string GetPluginNameForProcess(string processName)
+        private Dictionary<string, IWindowProvider> BuildProcessToProviderMap(List<IWindowProvider> providers)
         {
-            // ChromeTabFinder handles browsers
-            var browserProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            var map = new Dictionary<string, IWindowProvider>(StringComparer.OrdinalIgnoreCase);
+            foreach (var provider in providers)
             {
-                "chrome", "msedge", "brave", "vivaldi", "opera", "opera_gx",
-                "chromium", "thorium", "iron", "epic", "yandex", "arc", "comet"
-            };
-            if (browserProcesses.Contains(processName))
-                return "ChromeTabFinder";
-
-            // WindowsTerminalPlugin handles terminals
-            if (string.Equals(processName, "WindowsTerminal", StringComparison.OrdinalIgnoreCase))
-                return "WindowsTerminalPlugin";
-
-            // NotepadPlusPlusPlugin handles Notepad++
-            if (string.Equals(processName, "notepad++", StringComparison.OrdinalIgnoreCase))
-                return "NotepadPlusPlusPlugin";
-
-            return "Unknown";
+                foreach (var process in provider.GetHandledProcesses())
+                {
+                    if (!map.ContainsKey(process))
+                    {
+                        map[process] = provider;
+                    }
+                }
+            }
+            return map;
         }
-
 
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)
         {
@@ -248,8 +242,8 @@ namespace SwitchBlade.Services
                         _allWindows.RemoveAt(i);
                 }
 
-                // 2. Reconcile incoming results with the global window cache
-                var reconciled = ReconcileItems(results, provider);
+                // 2. Reconcile incoming results with the global window cache via Reconciler
+                var reconciled = _reconciler.Reconcile(results, provider);
                 _allWindows.AddRange(reconciled);
 
                 // 3. Prepare event args (invoked outside lock)
@@ -262,160 +256,23 @@ namespace SwitchBlade.Services
             }
         }
 
-        private List<WindowItem> ReconcileItems(IList<WindowItem> incomingItems, IWindowProvider provider)
-        {
-            var resolvedItems = new List<WindowItem>();
-            var claimedItems = new HashSet<WindowItem>();
-
-            // Performance optimization: O(1) lookup instead of O(N) SelectMany scan
-            HashSet<WindowItem> unusedCacheItems;
-            if (_providerItems.TryGetValue(provider, out var existing))
-            {
-                unusedCacheItems = new HashSet<WindowItem>(existing);
-            }
-            else
-            {
-                unusedCacheItems = new HashSet<WindowItem>();
-            }
-
-            foreach (var incoming in incomingItems)
-            {
-                WindowItem? match = null;
-
-                if (_windowItemCache.TryGetValue(incoming.Hwnd, out var candidates))
-                {
-                    match = candidates.FirstOrDefault(w => w.Title == incoming.Title && !claimedItems.Contains(w))
-                         ?? candidates.FirstOrDefault(w => !claimedItems.Contains(w));
-                }
-
-                if (match != null)
-                {
-                    match.Title = incoming.Title;
-                    match.ProcessName = incoming.ProcessName;
-                    match.Source ??= provider;
-                    PopulateIconIfMissing(match, incoming.ExecutablePath);
-
-                    resolvedItems.Add(match);
-                    claimedItems.Add(match);
-                    unusedCacheItems.Remove(match);
-                }
-                else
-                {
-                    incoming.ResetBadgeAnimation();
-                    incoming.Source = provider;
-                    PopulateIconIfMissing(incoming, incoming.ExecutablePath);
-
-                    // Use encapsulated mutator
-                    AddToCache(incoming);
-
-                    resolvedItems.Add(incoming);
-                    claimedItems.Add(incoming);
-                }
-            }
-
-            // Cleanup unused items using encapsulated mutator
-            foreach (var unused in unusedCacheItems)
-            {
-                RemoveFromCache(unused);
-            }
-
-            return resolvedItems;
-        }
-
-        #region Encapsulated Cache Mutators
+        #region Encapsulated Cache Mutators (Delegated to Reconciler)
 
         /// <summary>
         /// Gets the total number of cached window items (HWND + Provider records).
         /// Used for memory diagnostics.
         /// </summary>
-        public int CacheCount
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    // Sum of HWND cache keys (unique windows tracked) + unique items in provider buckets
-                    return _windowItemCache.Count + _providerItems.Values.Sum(s => s.Count);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Adds an item to both the HWND cache and the provider index atomically.
-        /// Must be called within _lock.
-        /// </summary>
-        private void AddToCache(WindowItem item)
-        {
-            // 1. Update HWND lookup
-            if (!_windowItemCache.TryGetValue(item.Hwnd, out var list))
-            {
-                list = new List<WindowItem>();
-                _windowItemCache[item.Hwnd] = list;
-            }
-            if (!list.Contains(item))
-                list.Add(item);
-
-            // 2. Update Provider lookup
-            if (item.Source != null)
-            {
-                if (!_providerItems.TryGetValue(item.Source, out var set))
-                {
-                    set = new HashSet<WindowItem>();
-                    _providerItems[item.Source] = set;
-                }
-                set.Add(item);
-            }
-        }
-
-        /// <summary>
-        /// Removes an item from both the HWND cache and the provider index atomically.
-        /// Must be called within _lock.
-        /// </summary>
-        private void RemoveFromCache(WindowItem item)
-        {
-            // 1. Remove from HWND lookup
-            if (_windowItemCache.TryGetValue(item.Hwnd, out var list))
-            {
-                list.Remove(item);
-                if (list.Count == 0)
-                    _windowItemCache.Remove(item.Hwnd);
-            }
-
-            // 2. Remove from Provider lookup
-            if (item.Source != null && _providerItems.TryGetValue(item.Source, out var set))
-            {
-                set.Remove(item);
-                if (set.Count == 0)
-                    _providerItems.Remove(item.Source);
-            }
-        }
+        public int CacheCount => _reconciler.CacheCount;
 
         #endregion
 
-        private void PopulateIconIfMissing(WindowItem item, string? executablePath)
-        {
-            if (item.Icon == null && _iconService != null && !string.IsNullOrEmpty(executablePath))
-            {
-                item.Icon = _iconService.GetIcon(executablePath);
-            }
-        }
-
         /// <summary>
         /// Runs an action on a dedicated STA thread and returns when the thread exits.
-        /// 
-        /// CRITICAL FOR MEMORY MANAGEMENT:
-        /// UI Automation COM objects are apartment-threaded. When created on an MTA thread,
-        /// the RCW release is unpredictable - GC.Collect merely schedules the release, but
-        /// the actual COM Release may happen much later (or never if UIA caches hold refs).
-        /// 
-        /// By running on a dedicated STA thread that TERMINATES after the work is done,
-        /// we force Windows to immediately release ALL COM objects that were created on
-        /// that thread. This is the most reliable way to prevent UIA memory leaks.
+        /// Kept for legacy compatibility if needed, though UIA worker uses its own process.
         /// </summary>
         private static Task RunOnStaThreadAsync(Action action)
         {
             var tcs = new TaskCompletionSource<bool>();
-
             var thread = new Thread(() =>
             {
                 try
@@ -428,11 +285,9 @@ namespace SwitchBlade.Services
                     tcs.SetException(ex);
                 }
             });
-
             thread.SetApartmentState(ApartmentState.STA);
             thread.IsBackground = true;
             thread.Start();
-
             return tcs.Task;
         }
 
@@ -441,26 +296,12 @@ namespace SwitchBlade.Services
         /// <summary>
         /// Gets the total count of items across all HWND cache lists (for testing).
         /// </summary>
-        internal int GetInternalHwndCacheCount()
-        {
-            lock (_lock)
-            {
-                return _windowItemCache.Values.Sum(l => l.Count);
-            }
-        }
+        internal int GetInternalHwndCacheCount() => _reconciler.GetHwndCacheCount();
 
         /// <summary>
         /// Gets the total count of items across all provider sets (for testing).
         /// </summary>
-        internal int GetInternalProviderCacheCount()
-        {
-            lock (_lock)
-            {
-                return _providerItems.Values.Sum(s => s.Count);
-            }
-        }
-
-
+        internal int GetInternalProviderCacheCount() => _reconciler.GetProviderCacheCount();
 
         #endregion
     }

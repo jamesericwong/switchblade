@@ -217,8 +217,8 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                _logger?.Log($"[UiaWorkerClient] Error: {ex.Message}");
-                return allWindows; // Return any results collected before error
+                _logger?.LogError("[UiaWorkerClient] ScanAsync failed mid-stream", ex);
+                return allWindows;
             }
         }
 

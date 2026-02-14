@@ -6,10 +6,12 @@ namespace SwitchBlade.Contracts
     public class PluginContext : IPluginContext
     {
         public ILogger Logger { get; }
+        public IPluginSettingsService? Settings { get; }
 
-        public PluginContext(ILogger logger)
+        public PluginContext(ILogger logger, IPluginSettingsService? settings = null)
         {
             Logger = logger;
+            Settings = settings;
         }
     }
 }

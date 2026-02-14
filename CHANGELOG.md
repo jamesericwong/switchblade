@@ -1,3 +1,15 @@
+## [1.8.14] - 2026-02-14
+### Changed
+- **Architectural Cleanup**: Refactored `WindowOrchestrationService` to follow Single Responsibility Principle (SRP) by extracting reconciliation logic into `WindowReconciler`.
+  - Created `IWindowReconciler` interface and `WindowReconciler` implementation.
+  - Moved all cache management, item merging, and icon population logic out of `WindowOrchestrationService`.
+  - `WindowOrchestrationService` now acts as a pure coordinator between providers, the reconciler, and the UI.
+- **Improved Error Handling**: Enhanced error logging in `UiaWorkerClient` to provide more context during scan failures.
+- **Plugin API Update**: Added `Settings` property to `IPluginContext`, allowing plugins to access the settings service directly during initialization.
+  - This simplifies dependency injection for plugins that need to read/write settings.
+
+---
+
 ## [1.8.13] - 2026-02-10
 ### Fixed
 - **Idle/Lock Performance Delay**: Fixed a 10-15 second UI freeze when opening SwitchBlade after the computer has been idle and locked.

@@ -71,10 +71,8 @@ namespace SwitchBlade.Plugins.Chrome
             base.Initialize(context);
             _logger = context.Logger;
 
-            if (_settingsService == null)
-            {
-                _settingsService = new PluginSettingsService(PluginName);
-            }
+            // Use injected settings if available (v1.8.14+), fallback to self-instantiation
+            _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
 
             // Initialize settings from Registry or use defaults
             ReloadSettings();

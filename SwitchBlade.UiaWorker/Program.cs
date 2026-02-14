@@ -121,13 +121,17 @@ internal static class Program
         var plugins = LoadPlugins(errors);
         DebugLog($"Loaded {plugins.Count} plugins.");
 
-        // Initialize plugins with a minimal context (no logger in worker to keep it simple)
-        var context = new MinimalPluginContext();
+        // Initialize plugins with a minimal context
         foreach (var plugin in plugins)
         {
             try
             {
                 DebugLog($"Initializing {plugin.PluginName}...");
+                // Create per-plugin context with settings
+                var context = new MinimalPluginContext
+                {
+                    Settings = new PluginSettingsService(plugin.PluginName, BridgedLogger.Instance)
+                };
                 plugin.Initialize(context);
             }
             catch (Exception ex)
@@ -336,6 +340,7 @@ internal static class Program
 internal sealed class MinimalPluginContext : IPluginContext
 {
     public ILogger Logger => BridgedLogger.Instance;
+    public IPluginSettingsService? Settings { get; init; }
 }
 
 /// <summary>

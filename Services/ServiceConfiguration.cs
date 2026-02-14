@@ -43,12 +43,17 @@ namespace SwitchBlade.Services
             });
 
             // Window Orchestration Service (replaces manual provider coordination)
+            // Window Orchestration Service (replaces manual provider coordination)
+            services.AddSingleton<IWindowReconciler>(sp => 
+                new WindowReconciler(sp.GetRequiredService<IIconService>()));
+
             services.AddSingleton<IWindowOrchestrationService>(sp =>
             {
                 var pluginService = sp.GetRequiredService<IPluginService>();
-                var iconService = sp.GetRequiredService<IIconService>();
                 var settingsService = sp.GetRequiredService<ISettingsService>();
-                return new WindowOrchestrationService(pluginService.Providers, iconService, settingsService);
+                var reconciler = sp.GetRequiredService<IWindowReconciler>();
+                // Reconciler now handles the icon service internally
+                return new WindowOrchestrationService(pluginService.Providers, reconciler, settingsService);
             });
 
             // ViewModels

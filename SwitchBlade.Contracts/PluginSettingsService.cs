@@ -16,12 +16,15 @@ namespace SwitchBlade.Contracts
         public string PluginName { get; }
         public string RegistryPath => $@"{BASE_REGISTRY_PATH}\{PluginName}";
 
-        public PluginSettingsService(string pluginName)
+        private readonly ILogger? _logger;
+
+        public PluginSettingsService(string pluginName, ILogger? logger = null)
         {
             if (string.IsNullOrWhiteSpace(pluginName))
                 throw new ArgumentException("Plugin name cannot be empty", nameof(pluginName));
 
             PluginName = pluginName;
+            _logger = logger;
         }
 
         /// <summary>
@@ -49,8 +52,9 @@ namespace SwitchBlade.Contracts
 
                 return defaultValue;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogError($"PluginSettings[{PluginName}].GetValue('{key}')", ex);
                 return defaultValue;
             }
         }
@@ -76,9 +80,10 @@ namespace SwitchBlade.Contracts
                 else
                     regKey.SetValue(key, value?.ToString() ?? "");
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore write errors
+                // Ignore write errors but log them
+                 _logger?.LogError($"PluginSettings[{PluginName}].SetValue('{key}')", ex);
             }
         }
 
@@ -97,8 +102,9 @@ namespace SwitchBlade.Contracts
 
                 return JsonSerializer.Deserialize<List<string>>(json) ?? defaultValue ?? new List<string>();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogError($"PluginSettings[{PluginName}].GetStringList('{key}')", ex);
                 return defaultValue ?? new List<string>();
             }
         }
@@ -116,9 +122,10 @@ namespace SwitchBlade.Contracts
                 var json = JsonSerializer.Serialize(value);
                 regKey.SetValue(key, json, RegistryValueKind.String);
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore write errors
+                // Ignore write errors but log them
+                 _logger?.LogError($"PluginSettings[{PluginName}].SetStringList('{key}')", ex);
             }
         }
 

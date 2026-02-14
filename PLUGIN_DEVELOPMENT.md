@@ -223,6 +223,9 @@ graph TD
     public interface IPluginContext
     {
         ILogger Logger { get; }
+
+        // Pre-configured settings service (New in 1.8.14)
+        IPluginSettingsService? Settings { get; }
     }
 }
 ```
@@ -286,6 +289,9 @@ namespace MyCustomPlugin
             // Store the logger for diagnostic output
             _logger = context.Logger;
             _logger?.Log("SimpleDemo plugin initialized");
+            
+            // Access injected settings (New in 1.8.14)
+            var mySetting = context.Settings?.GetValue("MyKey", "Default");
         }
 
         public void ReloadSettings() { /* Nothing to reload */ }

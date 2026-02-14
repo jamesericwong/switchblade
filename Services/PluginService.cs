@@ -49,6 +49,15 @@ namespace SwitchBlade.Services
                 {
                     var loader = new PluginLoader(_pluginPath);
                     var plugins = loader.LoadPlugins(_context);
+                    
+                    foreach (var plugin in plugins)
+                    {
+                        // Create per-plugin context with settings
+                        var pluginSettings = new PluginSettingsService(plugin.PluginName, _context.Logger);
+                        var pluginContext = new PluginContext(_context.Logger, pluginSettings);
+                        plugin.Initialize(pluginContext);
+                    }
+                    
                     _providers.AddRange(plugins);
                 }
             }
