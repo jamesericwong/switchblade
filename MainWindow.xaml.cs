@@ -190,12 +190,16 @@ namespace SwitchBlade
         }
 
         private bool _pendingAnimationReset = false;
+        private bool _isForceOpenPending = false;
 
         private void OnResultsUpdated(object? sender, EventArgs e)
         {
             _logger.Log($"[OnResultsUpdated] Called. IsVisible={this.IsVisible}, AnimationsEnabled={_settingsService.Settings.EnableBadgeAnimations}");
 
-            // Handle pending animation reset (e.g., from search text change)
+            // Capture intent BEFORE consuming the flag
+            bool wasTextChange = _pendingAnimationReset;
+
+            // Handle pending animation reset (e.g., from search text change or ForceOpen)
             // We do this HERE, on the new list, to ensure all currently visible items get reset.
             if (_pendingAnimationReset && _badgeAnimationService != null && _viewModel.FilteredWindows != null)
             {
@@ -207,11 +211,12 @@ namespace SwitchBlade
             // When search results update, trigger staggered animation for new items (if enabled)
             if (_badgeAnimationService != null && this.IsVisible && _settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
             {
-                // Debounce only during typing (pendingAnimationReset was set by OnSearchTextChanged).
-                // For hotkey/initial load and streaming UIA updates, skip the debounce
-                // so the animation plays immediately and responsively.
-                bool isTypingTrigger = _pendingAnimationReset;
-                _ = _badgeAnimationService.TriggerStaggeredAnimationAsync(_viewModel.FilteredWindows, skipDebounce: !isTypingTrigger);
+                // Debounce only for text-change triggers (typing), not hotkey opens or streaming updates.
+                // _isForceOpenPending overrides: hotkey open always skips debounce.
+                bool shouldDebounce = wasTextChange && !_isForceOpenPending;
+                _isForceOpenPending = false;
+
+                _ = _badgeAnimationService.TriggerStaggeredAnimationAsync(_viewModel.FilteredWindows, skipDebounce: !shouldDebounce);
             }
             else if (this.IsVisible && !_settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
             {
@@ -244,14 +249,26 @@ namespace SwitchBlade
 
             SearchBox.FocusInput();
 
+            // Mark that this is a hotkey-triggered open, NOT a typing-triggered change.
+            // This ensures the first animation batch skips the debounce for immediate responsiveness.
+            _isForceOpenPending = true;
+
             // Reset badge animation state BEFORE clearing search text
             // (Clearing search text triggers ResultsUpdated which would mark items as animated)
             _logger.Log($"[ForceOpen] Resetting animation state for fresh open");
             _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
 
-            // REMOVED: Do NOT reset visual state of items here.
-            // Resetting here causes badges to be invisible while RefreshWindows is running (scanning).
-            // BadgeAnimationService handles the reset just-in-time before animating, keeping them visible otherwise.
+            // Also hide badges immediately so there's no "visible then animate" flash
+            if (_viewModel.FilteredWindows != null)
+            {
+                foreach (var item in _viewModel.FilteredWindows)
+                {
+                    if (item.IsShortcutVisible)
+                    {
+                        item.ResetBadgeAnimation();
+                    }
+                }
+            }
 
             _viewModel.SearchText = "";
             _logger.Log($"[ForceOpen] Cleared SearchText");
