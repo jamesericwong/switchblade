@@ -123,7 +123,7 @@ namespace SwitchBlade
             _thumbnailService.SetPreviewContainer(PreviewPanel.PreviewCanvas);
 
             // Initialize Badge Animation Service
-            _badgeAnimationService = new BadgeAnimationService();
+            _badgeAnimationService = new BadgeAnimationService(new StoryboardBadgeAnimator(_dispatcherService));
             _viewModel.ResultsUpdated += OnResultsUpdated;
             _viewModel.SearchTextChanged += OnSearchTextChanged;
 

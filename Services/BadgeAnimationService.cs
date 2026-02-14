@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Media.Animation;
 using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Services
 {
     /// <summary>
     /// Coordinates staggered badge animations for Alt+Number shortcuts.
-    /// Tracks animated HWNDs to prevent re-animation on title changes.
+    /// Delegates the actual animation execution to an IBadgeAnimator strategy.
+    /// Uses debouncing to prevent animation fighting during rapid input.
     /// </summary>
     public class BadgeAnimationService
     {
-        // Removed: private readonly HashSet<IntPtr> _animatedHwnds = new();
-        // Removed: private readonly object _lock = new();
+        private readonly IBadgeAnimator _animator;
+        private CancellationTokenSource? _animationCts;
 
         /// <summary>
         /// Duration of each badge's animation in milliseconds.
@@ -30,6 +30,18 @@ namespace SwitchBlade.Services
         /// Starting X offset for slide-in animation (negative = from left).
         /// </summary>
         public double StartingOffsetX { get; set; } = -20;
+
+        /// <summary>
+        /// Debounce interval: how long to wait after the last trigger before
+        /// actually starting animations. Prevents wasteful animation starts
+        /// during rapid typing. Matched to one stagger step for natural feel.
+        /// </summary>
+        public int DebounceMs { get; set; } = 75;
+
+        public BadgeAnimationService(IBadgeAnimator animator)
+        {
+            _animator = animator ?? throw new ArgumentNullException(nameof(animator));
+        }
 
         /// <summary>
         /// Resets the animation state for the provided items.
@@ -51,39 +63,64 @@ namespace SwitchBlade.Services
         /// <summary>
         /// Triggers staggered animations for the given window items.
         /// Only items with shortcuts (index 0-9) and not previously animated will animate.
+        /// Uses debouncing: if called again within DebounceMs, the previous call is cancelled.
+        /// This ensures animations only play once typing settles, preventing jitter.
         /// </summary>
         public async Task TriggerStaggeredAnimationAsync(IEnumerable<WindowItem>? items)
         {
+            SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Starting");
+            if (items == null) return;
+
+            // Cancel any pending animation cycle from a previous call
+            _animationCts?.Cancel();
+            _animationCts?.Dispose();
+            _animationCts = new CancellationTokenSource();
+            var ct = _animationCts.Token;
+
+            // Immediately hide all badges that need animating (so they don't show stale state)
+            foreach (var item in items)
+            {
+                if (item.IsShortcutVisible && !item.HasBeenAnimated)
+                {
+                    item.ResetBadgeAnimation();
+                }
+            }
+
+            // Debounce: wait for typing to settle before starting the animation cycle.
+            // If another call arrives during this window, this one is cancelled.
+            try
+            {
+                await Task.Delay(DebounceMs, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            if (ct.IsCancellationRequested) return;
+
             int maxShortcutIndex = -1;
             int animatedCount = 0;
             int skippedCount = 0;
 
-            SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Starting");
-            if (items == null) return;
-
             foreach (var item in items)
             {
+                if (ct.IsCancellationRequested) return;
+
                 if (!item.IsShortcutVisible)
                 {
                     continue;
                 }
 
-                // Check item-level state instead of global HWND tracking
-                // This allows distinct tabs with same HWND to animate independently
                 bool shouldAnimate = !item.HasBeenAnimated;
                 SwitchBlade.Core.Logger.Log($"[BadgeAnimation] Item '{item.Title}' HWND={item.Hwnd}, ShortcutIndex={item.ShortcutIndex}, ShouldAnimate={shouldAnimate}");
 
                 if (shouldAnimate)
                 {
-                    // Use ShortcutIndex for stagger order (0-9)
-                    // This ensures Alt+1 (index 0) animates first, Alt+0 (index 9) animates last
                     int delay = item.ShortcutIndex * StaggerDelayMs;
 
-                    // Reset item to initial animation state (hidden) just-in-time
-                    item.ResetBadgeAnimation();
-
-                    // Schedule the animation
-                    _ = AnimateItemAsync(item, delay);
+                    // Delegate execution to the strategy
+                    _animator.Animate(item, delay, AnimationDurationMs, StartingOffsetX);
 
                     // Mark as animated immediately so we don't re-animate on next pass
                     item.HasBeenAnimated = true;
@@ -105,47 +142,19 @@ namespace SwitchBlade.Services
 
             SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Animated={animatedCount}, Skipped={skippedCount}");
 
-            // Wait for all animations to complete
+            // Wait for all animations to complete (approximate based on max duration)
             if (maxShortcutIndex >= 0)
             {
                 int maxDelay = (maxShortcutIndex + 1) * StaggerDelayMs + AnimationDurationMs;
-                await Task.Delay(maxDelay);
-            }
-        }
-
-        private async Task AnimateItemAsync(WindowItem item, int delayMs)
-        {
-            if (delayMs > 0)
-            {
-                await Task.Delay(delayMs);
-            }
-
-            // Animate using simple linear interpolation over time
-            // WPF animations must run on UI thread, but we're doing property-based animation
-            int steps = AnimationDurationMs / 16; // ~60fps
-            if (steps < 1) steps = 1;
-
-            double opacityStep = 1.0 / steps;
-            double translateStep = 10.0 / steps; // From -10 to 0
-
-            for (int i = 0; i <= steps; i++)
-            {
-                double progress = (double)i / steps;
-                // Ease-out cubic for smoother deceleration
-                double easedProgress = 1 - Math.Pow(1 - progress, 3);
-
-                item.BadgeOpacity = easedProgress;
-                item.BadgeTranslateX = StartingOffsetX * (1 - easedProgress);
-
-                if (i < steps)
+                try
                 {
-                    await Task.Delay(16);
+                    await Task.Delay(maxDelay, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Animation cycle was superseded — that's fine
                 }
             }
-
-            // Ensure final values
-            item.BadgeOpacity = 1.0;
-            item.BadgeTranslateX = 0;
         }
     }
 }

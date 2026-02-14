@@ -50,7 +50,11 @@
                                             Padding="6,4"
                                             Margin="0,0,10,0"
                                             VerticalAlignment="Center"
-                                            Opacity="{Binding BadgeOpacity}">
+                                            Opacity="{Binding BadgeOpacity}"
+                                            SnapsToDevicePixels="True">
+                                        <Border.CacheMode>
+                                            <BitmapCache RenderAtScale="1"/>
+                                        </Border.CacheMode>
                                         <Border.RenderTransform>
                                             <TranslateTransform X="{Binding BadgeTranslateX}"/>
                                         </Border.RenderTransform>

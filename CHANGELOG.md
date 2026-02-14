@@ -1,3 +1,15 @@
+## [1.9.0] - 2026-02-14
+### Changed
+- **Modernized Badge Animations**: Re-engineered the "waterfall" animation system using WPF `BeginAnimation` for fully GPU-accelerated, compositor-driven rendering.
+  - Eliminated UI thread jitter and "controllable clock" overhead associated with Storyboards.
+  - Added **VRAM Caching** via `BitmapCache` to offload badge rendering specifically to the GPU.
+  - Implemented **Deterministic Debouncing** to prevent animation "fighting" during rapid typing.
+  - Added **UI Realization Polling** to ensure animations trigger reliably on startup and during rapid filtering.
+- **Architectural Refactoring**: Introduced `IBadgeAnimator` strategy pattern to decouple animation logic from the service layer.
+- **Legacy Cleanup**: Removed manual `Task.Delay` interpolation loops and associated unit tests.
+
+---
+
 ## [1.8.14] - 2026-02-14
 ### Changed
 - **Architectural Cleanup**: Refactored `WindowOrchestrationService` to follow Single Responsibility Principle (SRP) by extracting reconciliation logic into `WindowReconciler`.

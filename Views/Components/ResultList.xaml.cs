@@ -18,6 +18,8 @@ namespace SwitchBlade.Views.Components
 
         public double ListActualHeight => ResultsConfig.ActualHeight;
 
+        public System.Windows.Controls.ListBox InnerListBox => ResultsConfig;
+
         public void ScrollIntoView(object item)
         {
             ResultsConfig.ScrollIntoView(item);
