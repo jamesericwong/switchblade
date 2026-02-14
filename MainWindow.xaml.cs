@@ -152,27 +152,40 @@ namespace SwitchBlade
 
             SearchBox.FocusInput();
             ApplyBackdrop();
-            HideOwnerFromAltTab();
+            ConfigureWindowStyles();
             _ = InitialLoadAsync();
         }
 
         /// <summary>
-        /// Hides the WPF-generated owner window from Alt+Tab.
-        /// When WindowStyle="None" + EnsureHandle(), WPF creates a hidden helper window
-        /// that can appear as a duplicate entry in Alt+Tab on some machines/DWM configs.
-        /// Setting WS_EX_TOOLWINDOW on the owner window tells the Shell to exclude it.
+        /// Fixes Alt+Tab behavior by configuring window styles.
+        /// 1. Hides the WPF-generated owner window from Alt+Tab (WS_EX_TOOLWINDOW).
+        /// 2. Forces the main window to remain in Alt+Tab (WS_EX_APPWINDOW) despite having a ToolWindow owner.
         /// </summary>
-        private void HideOwnerFromAltTab()
+        private void ConfigureWindowStyles()
         {
             var hwnd = new WindowInteropHelper(this).Handle;
+            
+            // 1. Force main window to appear in Alt+Tab (required because owner will be a ToolWindow)
+            var mainExStyle = (int)NativeInterop.GetWindowLongPtr(hwnd, NativeInterop.GWL_EXSTYLE);
+            if ((mainExStyle & NativeInterop.WS_EX_APPWINDOW) == 0)
+            {
+                mainExStyle |= NativeInterop.WS_EX_APPWINDOW;
+                NativeInterop.SetWindowLongPtr(hwnd, NativeInterop.GWL_EXSTYLE, (IntPtr)mainExStyle);
+                _logger.Log($"ConfigureWindowStyles: Added WS_EX_APPWINDOW to Main Window {hwnd}");
+            }
+
+            // 2. Hide the WPF owner window
             var owner = NativeInterop.GetWindow(hwnd, NativeInterop.GW_OWNER);
             if (owner != IntPtr.Zero)
             {
-                var exStyle = (int)NativeInterop.GetWindowLongPtr(owner, NativeInterop.GWL_EXSTYLE);
-                exStyle |= NativeInterop.WS_EX_TOOLWINDOW;
-                exStyle &= ~NativeInterop.WS_EX_APPWINDOW;
-                NativeInterop.SetWindowLongPtr(owner, NativeInterop.GWL_EXSTYLE, (IntPtr)exStyle);
-                _logger.Log($"HideOwnerFromAltTab: Set WS_EX_TOOLWINDOW on owner HWND {owner}");
+                var ownerExStyle = (int)NativeInterop.GetWindowLongPtr(owner, NativeInterop.GWL_EXSTYLE);
+                if ((ownerExStyle & NativeInterop.WS_EX_TOOLWINDOW) == 0)
+                {
+                    ownerExStyle |= NativeInterop.WS_EX_TOOLWINDOW;
+                    ownerExStyle &= ~NativeInterop.WS_EX_APPWINDOW;
+                    NativeInterop.SetWindowLongPtr(owner, NativeInterop.GWL_EXSTYLE, (IntPtr)ownerExStyle);
+                    _logger.Log($"ConfigureWindowStyles: Set WS_EX_TOOLWINDOW on owner HWND {owner}");
+                }
             }
         }
 

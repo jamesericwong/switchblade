@@ -9,7 +9,7 @@
 - **Settings Key Consistency**: `SettingsService` now uses `nameof(Settings.Property)` for all registry keys, eliminating string duplication between `Load` and `Save`.
 
 ### Fixed
-- **Alt+Tab Duplicate Window**: On some machines, Alt+Tab showed two SwitchBlade entries. Root cause: `WindowStyle="None"` + `EnsureHandle()` creates a hidden WPF owner window that appears in Alt+Tab on certain DWM configurations. Fix: set `WS_EX_TOOLWINDOW` on the hidden owner window during load.
+- **Alt+Tab Duplicate Window**: On some machines, Alt+Tab showed two SwitchBlade entries. Root cause: `WindowStyle="None"` + `EnsureHandle()` creates a hidden WPF owner window that appears in Alt+Tab on certain DWM configurations. Fix: set `WS_EX_TOOLWINDOW` on the hidden owner window and force `WS_EX_APPWINDOW` on the main window to ensure correct visibility.
 - **Badge Animation Delay**: ~10% of the time, badge animations would appear 4-5 seconds late instead of immediately on hotkey press. Root cause: container realization polling budget (150ms) was too short for slower machines under layout pressure. Increased polling budget to 500ms with early exit on success.
 - **Plugin Double-Initialization**: `PluginLoader.LoadPlugins()` no longer calls `Initialize()` — only `PluginService` does, preventing duplicate initialization.
 - **WindowReconciler Double-Lock**: Extracted lock-free `AddToCacheInternal`/`RemoveFromCacheInternal` methods. `Reconcile()` calls internals directly since it already holds the lock.
