@@ -1,3 +1,11 @@
+## [1.9.4] - 2026-02-14
+### Fixed
+- **Badge Animation Flash**: Fixed a race condition where badges would sometimes appear fully opaque for a split second before the waterfall animation started.
+  - **Root Cause**: `WindowItem` defaulted to `BadgeOpacity = 1.0` (visible). When new items were created during a refresh, they rendered immediately before the animation service could queue them.
+  - **Fix**: Changed default `BadgeOpacity` to `0.0` (hidden). Badges now remain invisible until the `BadgeAnimationService` explicitly calculates their stagger delay and fades them in.
+
+---
+
 ## [1.9.3] - 2026-02-14
 ### Improved
 - **Dependency Inversion (DIP)**: `PluginLoader`, `PluginService`, `SettingsService`, and `WindowOrchestrationService` now accept `ILogger` via constructor injection instead of using static `Logger.Instance`.

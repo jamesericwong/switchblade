@@ -138,7 +138,7 @@ namespace SwitchBlade.Contracts
         // Animation properties for staggered badge fade-in and slide-in
         // Default to VISIBLE so that if an item is replaced (e.g. title update) but shouldn't animate, it stays visible.
         // We strictly RESET to hidden (0, -20) only when we determine an animation should run.
-        private double _badgeOpacity = 1;
+        private double _badgeOpacity = 0;
         private double _badgeTranslateX = 0;
 
         /// <summary>

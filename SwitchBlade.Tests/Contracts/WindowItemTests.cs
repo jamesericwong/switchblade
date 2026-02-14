@@ -105,11 +105,11 @@ namespace SwitchBlade.Tests.Contracts
         }
 
         [Fact]
-        public void WindowItem_DefaultBadgeOpacity_IsOne()
+        public void WindowItem_DefaultBadgeOpacity_IsZero()
         {
             var item = new WindowItem();
 
-            Assert.Equal(1.0, item.BadgeOpacity);
+            Assert.Equal(0.0, item.BadgeOpacity);
         }
 
         [Fact]
