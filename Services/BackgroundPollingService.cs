@@ -79,6 +79,15 @@ namespace SwitchBlade.Services
                 {
                     try
                     {
+                        // Skip refresh when the workstation is locked.
+                        // UIA/COM calls against locked desktops can hang for 10-15s,
+                        // blocking the UI thread and making the app unresponsive on wake.
+                        if (SwitchBlade.Contracts.NativeInterop.IsWorkstationLocked())
+                        {
+                            SwitchBlade.Core.Logger.Log("BackgroundPollingService: Workstation locked, skipping refresh.");
+                            continue;
+                        }
+
                         SwitchBlade.Core.Logger.Log("BackgroundPollingService: Running background refresh.");
 
                         // Dispatch to UI thread since RefreshWindows updates ObservableCollection

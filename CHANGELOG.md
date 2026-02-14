@@ -1,3 +1,15 @@
+## [1.8.13] - 2026-02-10
+### Fixed
+- **Idle/Lock Performance Delay**: Fixed a 10-15 second UI freeze when opening SwitchBlade after the computer has been idle and locked.
+  - **Root Cause**: The `BackgroundPollingService` continued dispatching refresh calls to the UI thread while the workstation was locked. UIA/COM calls against the inaccessible locked desktop would hang for 10-15 seconds, freezing the UI thread entirely.
+  - **Solution**: Added `NativeInterop.IsWorkstationLocked()` using `OpenInputDesktop` to detect the lock state. The polling loop now skips refresh cycles while locked, preserving cached results and keeping the UI thread responsive.
+  - **User Impact**: The hotkey now responds instantly after unlocking, and previously-cached results are displayed immediately while a fresh scan runs in the background.
+- **Teams Plugin & LKG Cache**: Fixed intermittent "empty result" issues by hardening the caching and discovery logic.
+  - **Robust LKG**: Modified `CachingWindowProviderBase` to verify window handle validity using `IsWindow` before purging Last Known Good results. This prevents legitimate windows from disappearing during transient UIA glitches or timeouts.
+  - **Defensive Scanning**: Improved `TeamsPlugin` error handling to guarantee the main window is always returned as a fallback if a UIA scan fails, preventing the plugin from ever returning zero results for a running process.
+
+---
+
 ## [1.8.12] - 2026-02-07
 ### Added
 - **Global "Last Known Good" Strategy**: Implemented intelligent result retention across all plugins (`CachingWindowProviderBase`). 

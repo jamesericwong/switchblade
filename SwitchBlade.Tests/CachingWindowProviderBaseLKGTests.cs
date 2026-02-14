@@ -7,17 +7,16 @@ using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Tests
 {
-    public class CachingWindowProviderBaseTests
+    public class CachingWindowProviderBaseLKGTests
     {
-        // Concrete implementation for testing abstract class
         private class TestableWindowProvider : CachingWindowProviderBase
         {
             public override string PluginName => "TestProvider";
             public override bool HasSettings => false;
             public override void ActivateWindow(WindowItem item) { }
 
-            // Expose for testing
             public List<WindowItem> NextScanResults { get; set; } = new();
+            public Dictionary<IntPtr, bool> WindowValidityMock { get; set; } = new();
 
             protected override IEnumerable<WindowItem> ScanWindowsCore()
             {
@@ -26,13 +25,21 @@ namespace SwitchBlade.Tests
 
             protected override int GetPid(IntPtr hwnd)
             {
-                // Return a non-zero PID so that CachingWindowProviderBase doesn't skip it
-                return 1234;
+                return (int)hwnd; // Simple PID mapping for test
             }
 
             protected override (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
             {
                 return ("TestProcess", "test.exe");
+            }
+
+            protected override bool IsWindowValid(IntPtr hwnd)
+            {
+                if (WindowValidityMock.TryGetValue(hwnd, out bool isValid))
+                {
+                    return isValid;
+                }
+                return false;
             }
         }
 
@@ -40,7 +47,7 @@ namespace SwitchBlade.Tests
         private readonly Mock<IPluginContext> _mockContext;
         private readonly Mock<ILogger> _mockLogger;
 
-        public CachingWindowProviderBaseTests()
+        public CachingWindowProviderBaseLKGTests()
         {
             _provider = new TestableWindowProvider();
             _mockContext = new Mock<IPluginContext>();
@@ -50,56 +57,42 @@ namespace SwitchBlade.Tests
         }
 
         [Fact]
-        public void GetWindows_ShouldCacheCompleteResults()
+        public void GetWindows_ShouldPreserveLKG_WhenScanMissesWindow_ButWindowExists()
         {
             // Arrange
-            var itemT1 = new WindowItem { Hwnd = (IntPtr)100, Title = "Tab 1", IsFallback = false };
+            var hwnd = (IntPtr)1234;
+            var goodItem = new WindowItem { Hwnd = hwnd, Title = "Good Item", IsFallback = false };
             
-            _provider.NextScanResults = new List<WindowItem> { itemT1 };
-
-            // Act
-            var results = _provider.GetWindows().ToList();
-
-            // Assert
-            Assert.Single(results);
-            Assert.Equal("Tab 1", results[0].Title);
-        }
-
-        [Fact]
-        public void GetWindows_ShouldRetainLastKnownGood_WhenFallbackOccurs()
-        {
-            // Arrange
-            // 1. Initial successful scan
-            var goodItem = new WindowItem { Hwnd = (IntPtr)1234, Title = "Detailed Tab", IsFallback = false };
+            // 1. Initial success
             _provider.NextScanResults = new List<WindowItem> { goodItem };
-            
-            // Run first scan to populate LKG
-            _provider.GetWindows();
+            _provider.GetWindows(); // Populate LKG
 
-            // 2. Transiet failure - only returns fallback
-            var fallbackItem = new WindowItem { Hwnd = (IntPtr)1234, Title = "Main Window", IsFallback = true };
-            _provider.NextScanResults = new List<WindowItem> { fallbackItem };
-
-            // Act
-            var results = _provider.GetWindows().ToList();
-
-            // Assert
-            Assert.Single(results);
-            Assert.Equal("Detailed Tab", results[0].Title);
-            Assert.False(results[0].IsFallback, "Should return LKG item");
-        }
-
-        [Fact]
-        public void GetWindows_ShouldClearLKG_WhenProcessDisappears()
-        {
-            // Arrange
-            // 1. Initial successful scan
-            var goodItem = new WindowItem { Hwnd = (IntPtr)1234, Title = "Detailed Tab", IsFallback = false };
-            _provider.NextScanResults = new List<WindowItem> { goodItem };
-            _provider.GetWindows();
-
-            // 2. Process disappears (Scan returns empty)
+            // 2. Transient failure (scan returns empty) but window still valid
             _provider.NextScanResults = new List<WindowItem>();
+            _provider.WindowValidityMock[hwnd] = true; // Window is still valid!
+
+            // Act
+            var results = _provider.GetWindows().ToList();
+
+            // Assert
+            Assert.Single(results);
+            Assert.Equal("Good Item", results[0].Title);
+        }
+
+        [Fact]
+        public void GetWindows_ShouldRemoveLKG_WhenWindowIsInvalid()
+        {
+             // Arrange
+            var hwnd = (IntPtr)1234;
+            var goodItem = new WindowItem { Hwnd = hwnd, Title = "Good Item", IsFallback = false };
+            
+            // 1. Initial success
+            _provider.NextScanResults = new List<WindowItem> { goodItem };
+            _provider.GetWindows(); // Populate LKG
+
+            // 2. Failure: Scan returns empty AND window is invalid (closed)
+            _provider.NextScanResults = new List<WindowItem>();
+            _provider.WindowValidityMock[hwnd] = false;
 
             // Act
             var results = _provider.GetWindows().ToList();

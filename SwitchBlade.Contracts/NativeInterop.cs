@@ -40,6 +40,10 @@ namespace SwitchBlade.Contracts
         public static partial bool IsWindowVisible(IntPtr hWnd);
 
         [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool IsWindow(IntPtr hWnd);
+
+        [LibraryImport("user32.dll")]
         public static partial IntPtr GetForegroundWindow();
 
         [LibraryImport("user32.dll")]
@@ -91,6 +95,13 @@ namespace SwitchBlade.Contracts
 
         [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
         public static partial IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        [LibraryImport("user32.dll", SetLastError = true)]
+        private static partial IntPtr OpenInputDesktop(uint dwFlags, [MarshalAs(UnmanagedType.Bool)] bool fInherit, uint dwDesiredAccess);
+
+        [LibraryImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool CloseDesktop(IntPtr hDesktop);
 
         #endregion
 
@@ -389,6 +400,35 @@ namespace SwitchBlade.Contracts
             if (threadsAttached)
             {
                 AttachThreadInput(myThreadId, foregroundThreadId, false);
+            }
+        }
+
+        /// <summary>
+        /// Determines whether the workstation is currently locked by attempting
+        /// to open the interactive input desktop. When the desktop is locked,
+        /// the input desktop switches to the secure Winlogon desktop, making
+        /// the user's interactive desktop inaccessible.
+        /// </summary>
+        /// <returns>True if the workstation appears to be locked.</returns>
+        public static bool IsWorkstationLocked()
+        {
+            // DESKTOP_SWITCHDESKTOP (0x0100) is the minimum access right needed.
+            // If the user's input desktop is the active one, this succeeds.
+            // If locked, the input desktop is Winlogon and OpenInputDesktop fails.
+            const uint DESKTOP_SWITCHDESKTOP = 0x0100;
+
+            IntPtr hDesktop = IntPtr.Zero;
+            try
+            {
+                hDesktop = OpenInputDesktop(0, false, DESKTOP_SWITCHDESKTOP);
+                return hDesktop == IntPtr.Zero;
+            }
+            finally
+            {
+                if (hDesktop != IntPtr.Zero)
+                {
+                    CloseDesktop(hDesktop);
+                }
             }
         }
 

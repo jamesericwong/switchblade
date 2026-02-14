@@ -38,6 +38,16 @@ namespace SwitchBlade.Tests.Contracts
 
             return _testResults;
         }
+
+        protected override int GetPid(IntPtr hwnd)
+        {
+            return 1234;
+        }
+
+        protected override (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
+        {
+            return ("TestProcess", "test.exe");
+        }
     }
 
     public class CachingWindowProviderBaseTests

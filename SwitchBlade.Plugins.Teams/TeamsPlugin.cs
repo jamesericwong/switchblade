@@ -144,119 +144,129 @@ namespace SwitchBlade.Plugins.Teams
                 if (string.IsNullOrEmpty(windowTitle)) return;
 
                 var initialCount = results.Count;
+                bool scanFailed = false;
 
-                // Safe UIA access to handle E_FAIL
-                var root = TryGetAutomationElement(hwnd, pid);
-                
-                // Hybrid Discovery:
-                // 1. Try Manual BFS (surgical pruning) - User Preference
-                // 2. Fallback to Descendants (robust native search)
-                if (root != null)
+                try
                 {
-                    var cacheRequest = new CacheRequest();
-                    cacheRequest.Add(AutomationElement.NameProperty);
-                    cacheRequest.Add(AutomationElement.ControlTypeProperty);
-                    cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
-
-                    using (cacheRequest.Activate())
+                    // Safe UIA access to handle E_FAIL
+                    var root = TryGetAutomationElement(hwnd, pid);
+                    
+                    // Hybrid Discovery:
+                    // 1. Try Manual BFS (surgical pruning) - User Preference
+                    // 2. Fallback to Descendants (robust native search)
+                    if (root != null)
                     {
-                        // PRIMARY: Manual BFS traversal
-                        try
+                        var cacheRequest = new CacheRequest();
+                        cacheRequest.Add(AutomationElement.NameProperty);
+                        cacheRequest.Add(AutomationElement.ControlTypeProperty);
+                        cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
+
+                        using (cacheRequest.Activate())
                         {
-                            var queue = new Queue<AutomationElement>();
-                            queue.Enqueue(root);
-
-                            int checkedCount = 0;
-                            const int MaxElements = 500;
-
-                            while (queue.Count > 0 && checkedCount < MaxElements)
+                            // PRIMARY: Manual BFS traversal
+                            try
                             {
-                                var current = queue.Dequeue();
-                                checkedCount++;
+                                var queue = new Queue<AutomationElement>();
+                                queue.Enqueue(root);
 
-                                AutomationElementCollection? children = null;
-                                try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
-                                catch { continue; }
+                                int checkedCount = 0;
+                                const int MaxElements = 500;
 
-                                if (children == null) continue;
-
-                                foreach (AutomationElement child in children)
+                                while (queue.Count > 0 && checkedCount < MaxElements)
                                 {
-                                    try
-                                    {
-                                        var controlType = child.Cached.ControlType;
-                                        var rawName = child.Cached.Name;
+                                    var current = queue.Dequeue();
+                                    checkedCount++;
 
-                                        if (controlType == ControlType.TreeItem && !string.IsNullOrWhiteSpace(rawName))
+                                    AutomationElementCollection? children = null;
+                                    try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
+                                    catch { continue; }
+
+                                    if (children == null) continue;
+
+                                    foreach (AutomationElement child in children)
+                                    {
+                                        try
                                         {
-                                            var chatInfo = ParseChatName(rawName);
-                                            if (chatInfo != null)
+                                            var controlType = child.Cached.ControlType;
+                                            var rawName = child.Cached.Name;
+
+                                            if (controlType == ControlType.TreeItem && !string.IsNullOrWhiteSpace(rawName))
                                             {
-                                                results.Add(new WindowItem
+                                                var chatInfo = ParseChatName(rawName);
+                                                if (chatInfo != null)
                                                 {
-                                                    Hwnd = hwnd,
-                                                    Title = chatInfo.Value.Name,
-                                                    ProcessName = $"Teams ({chatInfo.Value.Type})",
-                                                    ExecutablePath = executablePath,
-                                                    Source = this
-                                                });
+                                                    results.Add(new WindowItem
+                                                    {
+                                                        Hwnd = hwnd,
+                                                        Title = chatInfo.Value.Name,
+                                                        ProcessName = $"Teams ({chatInfo.Value.Type})",
+                                                        ExecutablePath = executablePath,
+                                                        Source = this
+                                                    });
+                                                }
+                                            }
+
+                                            // Prune known dead-end control types
+                                            // NOTE: We don't prune everything to ensure we find nested iterators
+                                            if (controlType != ControlType.Header && controlType != ControlType.ScrollBar)
+                                            {
+                                                queue.Enqueue(child);
                                             }
                                         }
+                                        catch { }
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger?.Log($"{PluginName}: BFS scan failed, falling back to Descendants search. Error: {ex.Message}");
+                            }
 
-                                        // Prune known dead-end control types
-                                        // NOTE: We don't prune everything to ensure we find nested iterators
-                                        if (controlType != ControlType.Header && controlType != ControlType.ScrollBar)
+                            // FALLBACK: Native Descendants search if BFS found nothing or failed
+                            if (results.Count == initialCount)
+                            {
+                                var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
+                                var elements = root.FindAll(TreeScope.Descendants, condition);
+
+                                foreach (AutomationElement element in elements)
+                                {
+                                    var rawName = element.Cached.Name;
+                                    if (!string.IsNullOrWhiteSpace(rawName))
+                                    {
+                                        var chatInfo = ParseChatName(rawName);
+                                        if (chatInfo != null)
                                         {
-                                            queue.Enqueue(child);
+                                            results.Add(new WindowItem
+                                            {
+                                                Hwnd = hwnd,
+                                                Title = chatInfo.Value.Name,
+                                                ProcessName = $"Teams ({chatInfo.Value.Type})",
+                                                ExecutablePath = executablePath,
+                                                Source = this
+                                            });
                                         }
                                     }
-                                    catch { }
                                 }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger?.Log($"{PluginName}: BFS scan failed, falling back to Descendants search. Error: {ex.Message}");
-                        }
 
-                        // FALLBACK: Native Descendants search if BFS found nothing or failed
-                        if (results.Count == initialCount)
-                        {
-                            var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem);
-                            var elements = root.FindAll(TreeScope.Descendants, condition);
-
-                            foreach (AutomationElement element in elements)
-                            {
-                                var rawName = element.Cached.Name;
-                                if (!string.IsNullOrWhiteSpace(rawName))
+                                if (results.Count > initialCount)
                                 {
-                                    var chatInfo = ParseChatName(rawName);
-                                    if (chatInfo != null)
-                                    {
-                                        results.Add(new WindowItem
-                                        {
-                                            Hwnd = hwnd,
-                                            Title = chatInfo.Value.Name,
-                                            ProcessName = $"Teams ({chatInfo.Value.Type})",
-                                            ExecutablePath = executablePath,
-                                            Source = this
-                                        });
-                                    }
+                                    _logger?.Log($"{PluginName}: BFS found 0 chats, but Descendants fallback found {results.Count - initialCount}.");
                                 }
-                            }
-
-                            if (results.Count > initialCount)
-                            {
-                                _logger?.Log($"{PluginName}: BFS found 0 chats, but Descendants fallback found {results.Count - initialCount}.");
                             }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger?.LogError($"TeamsPlugin: Error scanning window {hwnd}", ex);
+                    scanFailed = true;
+                }
 
-                // Fallback: If no chats were added for this window, add the window itself
+                // Fallback: If no chats were added for this window (either found none OR scan failed),
+                // add the window itself so LKG isn't purged incorrectly.
                 if (results.Count == initialCount)
                 {
-                    _logger?.Log($"TeamsPlugin: No chats found for PID {pid}, returning main window");
+                    _logger?.Log($"TeamsPlugin: No chats found for PID {pid} (ScanFailed={scanFailed}), returning main window");
                     results.Add(new WindowItem
                     {
                         Hwnd = hwnd,
@@ -270,7 +280,7 @@ namespace SwitchBlade.Plugins.Teams
             }
             catch (Exception ex)
             {
-                _logger?.LogError($"TeamsPlugin: Error scanning window {hwnd}", ex);
+                _logger?.LogError($"TeamsPlugin: Critical error in ScanTeamsWindow for {hwnd}", ex);
             }
         }
 

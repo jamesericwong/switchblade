@@ -148,14 +148,7 @@ namespace SwitchBlade.Contracts
                 // 3. If "Good", update LKG cache.
                 // 4. If "Fallback Only" AND we have LKG data, check if process is alive and restore LKG data.
                 
-                var currentPidGroups = rawResults.GroupBy(w => 
-                {
-                    // Try to finding PID from NativeInterop cache if possible, or fallback to 0
-                    // Since WindowItem doesn't hold PID directly, we might need a way to group.
-                    // Ideally WindowItem should have PID, but for now we can infer from Hwnd via helper.
-                    NativeInterop.GetWindowThreadProcessId(w.Hwnd, out uint pid);
-                    return (int)pid;
-                }).ToList();
+                var currentPidGroups = rawResults.GroupBy(w => GetPid(w.Hwnd)).ToList();
 
                 var pidsSeenInThisScan = new HashSet<int>();
 
@@ -182,7 +175,7 @@ namespace SwitchBlade.Contracts
                         if (_lastKnownGoodResults.TryGetValue(pid, out var lkgItems))
                         {
                             // Verify process is still alive and accessible
-                            var (procName, _) = NativeInterop.GetProcessInfo((uint)pid);
+                            var (procName, _) = GetProcessInfo((uint)pid);
                             if (procName != "Unknown" && procName != "System")
                             {
                                 Logger?.Log($"{PluginName}: Transient failure for PID {pid}. Restoring {lkgItems.Count} items from LKG cache.");
@@ -204,17 +197,29 @@ namespace SwitchBlade.Contracts
                 }
 
                 // Cleanup LKG: Remove PIDs that were NOT seen in this scan at all
-                // (This handles closed applications)
-                // We must be careful: ScanWindowsCore might filter PIDs itself. 
-                // We should only remove PIDs if we are sure they are gone.
-                // Ideally, we iterate _lastKnownGoodResults keys and check if they are in pidsSeenInThisScan.
-                // BUT, if ScanWindowsCore returns NO results for a PID, does it mean it's closed?
-                // Yes, usually.
-                
                 var deadPids = _lastKnownGoodResults.Keys.Where(k => !pidsSeenInThisScan.Contains(k)).ToList();
                 foreach (var deadPid in deadPids)
                 {
-                    _lastKnownGoodResults.Remove(deadPid);
+                    // SMART CLEANUP:
+                    // Before removing an LKG entry, check if its windows are still valid.
+                    // If the plugin returned 0 items (transient failure), the PID won't be in pidsSeenInThisScan.
+                    // But if the windows still exist, we should KEEP the LKG data.
+                    
+                    var lkgItems = _lastKnownGoodResults[deadPid];
+                    bool anyWindowStillValid = lkgItems.Any(item => IsWindowValid(item.Hwnd));
+
+                    if (anyWindowStillValid)
+                    {
+                        // The process/windows still exist, but the scan missed them.
+                        // Preserve LKG and add to current results.
+                        Logger?.Log($"{PluginName}: PID {deadPid} missing from scan, but windows still valid. Preserving {lkgItems.Count} LKG items.");
+                        processedResults.AddRange(lkgItems);
+                    }
+                    else
+                    {
+                        // Windows are truly gone. Remove from LKG.
+                        _lastKnownGoodResults.Remove(deadPid);
+                    }
                 }
 
                 _cacheLock.EnterWriteLock();
@@ -256,6 +261,31 @@ namespace SwitchBlade.Contracts
                     _cacheLock.ExitWriteLock();
                 }
             }
+        }
+
+        /// <summary>
+        /// Retrieves the PID for a given window handle. Virtual for testability.
+        /// </summary>
+        protected virtual int GetPid(IntPtr hwnd)
+        {
+            NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
+            return (int)pid;
+        }
+
+        /// <summary>
+        /// Retrieves process info for a given PID. Virtual for testability.
+        /// </summary>
+        protected virtual (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
+        {
+            return NativeInterop.GetProcessInfo(pid);
+        }
+
+        /// <summary>
+        /// Checks if a window handle is still valid. Virtual for testability.
+        /// </summary>
+        protected virtual bool IsWindowValid(IntPtr hwnd)
+        {
+            return NativeInterop.IsWindow(hwnd);
         }
 
         /// <summary>
