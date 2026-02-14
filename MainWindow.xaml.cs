@@ -207,7 +207,11 @@ namespace SwitchBlade
             // When search results update, trigger staggered animation for new items (if enabled)
             if (_badgeAnimationService != null && this.IsVisible && _settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
             {
-                _ = _badgeAnimationService.TriggerStaggeredAnimationAsync(_viewModel.FilteredWindows);
+                // Debounce only during typing (pendingAnimationReset was set by OnSearchTextChanged).
+                // For hotkey/initial load and streaming UIA updates, skip the debounce
+                // so the animation plays immediately and responsively.
+                bool isTypingTrigger = _pendingAnimationReset;
+                _ = _badgeAnimationService.TriggerStaggeredAnimationAsync(_viewModel.FilteredWindows, skipDebounce: !isTypingTrigger);
             }
             else if (this.IsVisible && !_settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
             {

@@ -1,3 +1,11 @@
+## [1.9.1] - 2026-02-14
+### Fixed
+- **Hotkey Animation Responsiveness**: Fixed a multi-second delay when opening SwitchBlade via hotkey.
+  - Implemented conditional debouncing that skips the 75ms delay for hotkey opens and streaming results.
+  - Debouncing remains active for rapid typing to maintain visual stability during filtering.
+
+---
+
 ## [1.9.0] - 2026-02-14
 ### Changed
 - **Modernized Badge Animations**: Re-engineered the "waterfall" animation system using WPF `BeginAnimation` for fully GPU-accelerated, compositor-driven rendering.

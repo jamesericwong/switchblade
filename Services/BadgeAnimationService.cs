@@ -66,7 +66,9 @@ namespace SwitchBlade.Services
         /// Uses debouncing: if called again within DebounceMs, the previous call is cancelled.
         /// This ensures animations only play once typing settles, preventing jitter.
         /// </summary>
-        public async Task TriggerStaggeredAnimationAsync(IEnumerable<WindowItem>? items)
+        /// <param name="items">The items to animate.</param>
+        /// <param name="skipDebounce">When true, skips the debounce delay (e.g., for hotkey/initial load).</param>
+        public async Task TriggerStaggeredAnimationAsync(IEnumerable<WindowItem>? items, bool skipDebounce = false)
         {
             SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Starting");
             if (items == null) return;
@@ -88,13 +90,17 @@ namespace SwitchBlade.Services
 
             // Debounce: wait for typing to settle before starting the animation cycle.
             // If another call arrives during this window, this one is cancelled.
-            try
+            // Skip debounce for hotkey/initial load so the animation feels responsive.
+            if (!skipDebounce)
             {
-                await Task.Delay(DebounceMs, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
+                try
+                {
+                    await Task.Delay(DebounceMs, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
             }
 
             if (ct.IsCancellationRequested) return;

@@ -80,7 +80,7 @@ namespace SwitchBlade.Plugins.Teams
             base.Initialize(context);
             _logger = context.Logger;
 
-            // Use injected settings if available (v1.9.0+), fallback to self-instantiation
+            // Use injected settings if available (v1.9.1+), fallback to self-instantiation
             _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
 
             ReloadSettings();
