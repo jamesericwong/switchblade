@@ -166,7 +166,8 @@ internal static class Program
                     Title = w.Title,
                     ProcessName = w.ProcessName,
                     ExecutablePath = w.ExecutablePath,
-                    PluginName = plugin.PluginName
+                    PluginName = plugin.PluginName,
+                    IsFallback = w.IsFallback
                 }).ToList();
 
                 // Stream this plugin's results immediately

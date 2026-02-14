@@ -182,6 +182,7 @@ namespace SwitchBlade.Services
                                         Title = w.Title,
                                         ProcessName = w.ProcessName,
                                         ExecutablePath = w.ExecutablePath,
+                                        IsFallback = w.IsFallback,
                                         Source = uiaProvider
                                     })
                                     .ToList() ?? new List<WindowItem>();
@@ -232,24 +233,34 @@ namespace SwitchBlade.Services
             WindowListUpdatedEventArgs? args = null;
             lock (_lock)
             {
-                // Always perform full reconciliation to correctly handle providers 
-                // where multiple items share an HWND (like Chrome tabs).
+                // LKG PROTECTION: If incoming results are ALL fallback items,
+                // preserve existing results for this provider to prevent transient
+                // UIA scan failures from wiping valid cached data.
+                if (results.Count > 0 && results.All(r => r.IsFallback))
+                {
+                    bool hasExistingRealItems = _allWindows.Any(w => w.Source == provider && !w.IsFallback);
+                    if (hasExistingRealItems)
+                    {
+                        Logger.Log($"[LKG] {provider.PluginName}: Transient failure (only fallback items received). Preserving {_allWindows.Count(w => w.Source == provider)} existing items.");
+                        args = new WindowListUpdatedEventArgs(provider, false);
+                        goto EmitEvent;
+                    }
+                }
 
-                // 1. Remove existing items for this provider from the master list
+                // Normal path: Replace existing items with new results
                 for (int i = _allWindows.Count - 1; i >= 0; i--)
                 {
                     if (_allWindows[i].Source == provider)
                         _allWindows.RemoveAt(i);
                 }
 
-                // 2. Reconcile incoming results with the global window cache via Reconciler
                 var reconciled = _reconciler.Reconcile(results, provider);
                 _allWindows.AddRange(reconciled);
 
-                // 3. Prepare event args (invoked outside lock)
-                args = new WindowListUpdatedEventArgs(provider, true); // Always signal update to be safe
+                args = new WindowListUpdatedEventArgs(provider, true);
             }
 
+            EmitEvent:
             if (args != null)
             {
                 WindowListUpdated?.Invoke(this, args);

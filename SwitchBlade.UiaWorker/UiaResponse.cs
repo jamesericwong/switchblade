@@ -78,4 +78,9 @@ public sealed class UiaWindowResult
     /// Name of the plugin that discovered this window.
     /// </summary>
     public string PluginName { get; set; } = "";
+
+    /// <summary>
+    /// Whether this is a fallback item (e.g., main window when no specific tabs/chats were found).
+    /// </summary>
+    public bool IsFallback { get; set; }
 }

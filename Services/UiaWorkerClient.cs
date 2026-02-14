@@ -236,6 +236,7 @@ namespace SwitchBlade.Services
                     Title = r.Title,
                     ProcessName = r.ProcessName,
                     ExecutablePath = r.ExecutablePath,
+                    IsFallback = r.IsFallback,
                     // Note: Source is set later by WindowOrchestrationService when merging results
                     Source = null
                 });
@@ -284,5 +285,6 @@ namespace SwitchBlade.Services
         public string ProcessName { get; set; } = "";
         public string? ExecutablePath { get; set; }
         public string PluginName { get; set; } = "";
+        public bool IsFallback { get; set; }
     }
 }

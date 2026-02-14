@@ -259,5 +259,88 @@ namespace SwitchBlade.Tests.Services
             // Assert: Both calls should execute (GetWindows called twice)
             provider.Verify(p => p.GetWindows(), Times.Exactly(2));
         }
+
+        [Fact]
+        public async Task ProcessProviderResults_PreservesExisting_WhenOnlyFallbackItemsReceived()
+        {
+            // Arrange: Provider returns real items on first scan
+            var hwnd = (IntPtr)100;
+            var provider = CreateMockProvider("Teams", new List<WindowItem>
+            {
+                new() { Title = "Chat 1", Hwnd = hwnd, ProcessName = "ms-teams" },
+                new() { Title = "Chat 2", Hwnd = hwnd, ProcessName = "ms-teams" }
+            });
+
+            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+
+            // First scan - returns real items
+            await service.RefreshAsync(new HashSet<string>());
+            Assert.Equal(2, service.AllWindows.Count);
+
+            // Second scan - returns only a fallback item (simulates transient UIA failure)
+            provider.Setup(p => p.GetWindows()).Returns(new List<WindowItem>
+            {
+                new() { Title = "Microsoft Teams", Hwnd = hwnd, ProcessName = "ms-teams", IsFallback = true }
+            });
+
+            await service.RefreshAsync(new HashSet<string>());
+
+            // Assert: LKG should preserve the previous 2 real items
+            Assert.Equal(2, service.AllWindows.Count);
+            Assert.Contains(service.AllWindows, x => x.Title == "Chat 1");
+            Assert.Contains(service.AllWindows, x => x.Title == "Chat 2");
+        }
+
+        [Fact]
+        public async Task ProcessProviderResults_ReplacesResults_WhenNonFallbackItemsReceived()
+        {
+            // Arrange: Provider returns real items on first scan
+            var hwnd = (IntPtr)100;
+            var provider = CreateMockProvider("Teams", new List<WindowItem>
+            {
+                new() { Title = "Chat 1", Hwnd = hwnd, ProcessName = "ms-teams" },
+                new() { Title = "Chat 2", Hwnd = hwnd, ProcessName = "ms-teams" }
+            });
+
+            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+
+            // First scan
+            await service.RefreshAsync(new HashSet<string>());
+            Assert.Equal(2, service.AllWindows.Count);
+
+            // Second scan - returns different real items (normal update)
+            provider.Setup(p => p.GetWindows()).Returns(new List<WindowItem>
+            {
+                new() { Title = "Chat 3", Hwnd = hwnd, ProcessName = "ms-teams" },
+                new() { Title = "Chat 4", Hwnd = hwnd, ProcessName = "ms-teams" },
+                new() { Title = "Chat 5", Hwnd = hwnd, ProcessName = "ms-teams" }
+            });
+
+            await service.RefreshAsync(new HashSet<string>());
+
+            // Assert: Results should be replaced with the new ones
+            Assert.Equal(3, service.AllWindows.Count);
+            Assert.Contains(service.AllWindows, x => x.Title == "Chat 3");
+            Assert.DoesNotContain(service.AllWindows, x => x.Title == "Chat 1");
+        }
+
+        [Fact]
+        public async Task ProcessProviderResults_AcceptsFallback_WhenNoPriorRealResults()
+        {
+            // Arrange: Provider returns only fallback on FIRST scan (no prior data to preserve)
+            var hwnd = (IntPtr)100;
+            var provider = CreateMockProvider("Teams", new List<WindowItem>
+            {
+                new() { Title = "Microsoft Teams", Hwnd = hwnd, ProcessName = "ms-teams", IsFallback = true }
+            });
+
+            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+
+            await service.RefreshAsync(new HashSet<string>());
+
+            // Assert: Fallback should be accepted since there's nothing to preserve
+            Assert.Single(service.AllWindows);
+            Assert.True(service.AllWindows[0].IsFallback);
+        }
     }
 }

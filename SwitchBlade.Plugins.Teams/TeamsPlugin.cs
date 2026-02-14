@@ -80,7 +80,7 @@ namespace SwitchBlade.Plugins.Teams
             base.Initialize(context);
             _logger = context.Logger;
 
-            // Use injected settings if available (v1.9.1+), fallback to self-instantiation
+            // Use injected settings if available (v1.9.2+), fallback to self-instantiation
             _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
 
             ReloadSettings();
@@ -252,6 +252,12 @@ namespace SwitchBlade.Plugins.Teams
                                 }
                             }
                         }
+                    }
+                    else
+                    {
+                        // All UIA strategies failed (E_FAIL) — this IS a scan failure
+                        scanFailed = true;
+                        _logger?.Log($"{PluginName}: All UIA strategies failed for PID {pid}, marking scan as failed.");
                     }
                 }
                 catch (Exception ex)

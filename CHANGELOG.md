@@ -1,3 +1,13 @@
+## [1.9.2] - 2026-02-14
+### Fixed
+- **Teams Plugin: Intermittent 0 Chats**: Fixed transient UIA failures (`E_FAIL`) wiping all Teams chat entries from the window list.
+  - **Root Cause 1**: `ScanFailed` was incorrectly reported as `false` when `TryGetAutomationElement` returned `null` (all 3 UIA strategies failed). The scan appeared to succeed despite finding nothing.
+  - **Root Cause 2**: The `IsFallback` flag on `WindowItem` was not serialized across the UIA Worker process boundary. The main app could not distinguish a real result from a fallback placeholder.
+  - **Root Cause 3**: `WindowOrchestrationService.ProcessProviderResults()` unconditionally replaced all cached items for a provider with incoming results—even when incoming results were fallback-only due to transient failure.
+  - **Fix**: Propagated `IsFallback` through the `UiaWindowResult` wire protocol. Added LKG (Last Known Good) protection in `WindowOrchestrationService` that preserves previous real results when only fallback items are received.
+
+---
+
 ## [1.9.1] - 2026-02-14
 ### Fixed
 - **Hotkey Animation Responsiveness**: Fixed a multi-second delay when opening SwitchBlade via hotkey.
