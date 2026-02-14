@@ -10,9 +10,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     
     <!-- Version information -->
-    <Version>1.9.2</Version>
-    <FileVersion>1.9.2</FileVersion>
-    <AssemblyVersion>1.9.2</AssemblyVersion>
+    <Version>1.9.3</Version>
+    <FileVersion>1.9.3</FileVersion>
+    <AssemblyVersion>1.9.3</AssemblyVersion>
     <Product>SwitchBlade UIA Worker</Product>
     <Company>James Wong</Company>
     <Description>Out-of-process worker for UI Automation scans</Description>

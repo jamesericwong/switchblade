@@ -91,20 +91,9 @@ namespace SwitchBlade.Services
                 int handleCount = proc.HandleCount;
                 int threadCount = proc.Threads.Count;
 
-                // Cache Stats
-                // Note: We cast to concrete types if necessary to access internal/new properties
-                // or assume they abide by recent interface changes if I updated interfaces (I didn't update interfaces, so casting/reflection/dynamic might be needed if I didn't add to interface)
-
-                // Oops, I added properties to the concrete classes but didn't update the interfaces.
-                // For a diagnostic service, checking via concrete type is acceptable to avoid polluting public contracts or breaking binary compatibility unnecessarily.
-
-                int winCache = (_orchestrationService as WindowOrchestrationService)?.CacheCount ?? -1;
-                // IconService implements IIconService. My previous edit added CacheCount to IconService but not IIconService.
-                int iconCache = (_iconService as IconService)?.CacheCount ?? -1;
-                // IWindowSearchService implementation is WindowSearchService. I need to check if I can get regex count.
-                // Looking at previous context, WindowSearchService takes LruRegexCache.
-                // I haven't modified WindowSearchService or LruRegexCache to expose count yet. 
-                // Let's assume -1 for regex for now, or check via reflection if needed, but best to skip if not easy.
+                // Cache Stats — using IDiagnosticsProvider.CacheCount via interfaces
+                int winCache = _orchestrationService.CacheCount;
+                int iconCache = _iconService.CacheCount;
 
                 string msg = $"\n[MEM-DIAG] " +
                              $"Managed: {FormatBytes(managedMemory)} | " +

@@ -10,13 +10,20 @@ namespace SwitchBlade.Core
     public class PluginLoader
     {
         private readonly string _pluginsPath;
+        private readonly ILogger? _logger;
 
-        public PluginLoader(string pluginsPath)
+        public PluginLoader(string pluginsPath, ILogger? logger = null)
         {
             _pluginsPath = pluginsPath;
+            _logger = logger;
         }
 
-        public List<IWindowProvider> LoadPlugins(IPluginContext context)
+        /// <summary>
+        /// Discovers and instantiates IWindowProvider implementations from plugin DLLs.
+        /// Does NOT call Initialize — the caller (PluginService) is responsible for
+        /// providing per-plugin contexts and initializing each provider exactly once.
+        /// </summary>
+        public List<IWindowProvider> LoadPlugins()
         {
             var providers = new List<IWindowProvider>();
 
@@ -28,7 +35,7 @@ namespace SwitchBlade.Core
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError($"Failed to create plugins directory: {_pluginsPath}", ex);
+                    _logger?.LogError($"Failed to create plugins directory: {_pluginsPath}", ex);
                     return providers;
                 }
             }
@@ -39,8 +46,6 @@ namespace SwitchBlade.Core
             {
                 try
                 {
-                    // Load assembly
-                    // We use LoadFrom context usually for simple plugins
                     var assembly = Assembly.LoadFrom(dll);
 
                     var providerTypes = assembly.GetTypes()
@@ -53,20 +58,19 @@ namespace SwitchBlade.Core
                             var instance = Activator.CreateInstance(type) as IWindowProvider;
                             if (instance != null)
                             {
-                                instance.Initialize(context);
                                 providers.Add(instance);
-                                Logger.Log($"Loaded plugin provider: {type.Name} from {Path.GetFileName(dll)}");
+                                _logger?.Log($"Discovered plugin provider: {type.Name} from {Path.GetFileName(dll)}");
                             }
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError($"Failed to instantiate plugin {type.Name}", ex);
+                            _logger?.LogError($"Failed to instantiate plugin {type.Name}", ex);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError($"Failed to load plugin assembly: {dll}", ex);
+                    _logger?.LogError($"Failed to load plugin assembly: {dll}", ex);
                 }
             }
 

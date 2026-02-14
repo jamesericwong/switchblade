@@ -411,12 +411,14 @@ if (pattern.Expand()) return;
 element.SetFocus();
 ```
 
-#### 4. Robust Fallback Strategy (v1.8.8)
-Specific windows (like Teams) often fail `AutomationElement.FromHandle(hwnd)` with `E_FAIL` due to internal state or elevation issues. The plugin uses a **3-Tier Fallback** strategy to ensure the window is always found:
+#### 4. Robust Fallback Strategy (v1.9.3 — `UiaElementResolver`)
+Specific windows (like Teams) often fail `AutomationElement.FromHandle(hwnd)` with `E_FAIL` due to internal state or elevation issues. Since v1.9.3, shared `UiaElementResolver` in `SwitchBlade.Contracts` provides a configurable **3-Tier Fallback** via `UiaResolverOptions`:
 
 1. **Direct HWND**: Fast, O(1). Tries `AutomationElement.FromHandle`.
 2. **Desktop FindFirst**: Slower, O(N). Searches `RootElement` children for the specific PID.
-3. **Desktop TreeWalker**: Robust, O(N). Manually iterates `RootElement` children using `TreeWalker`. This avoids crashing if *other* windows are unresponsive.
+3. **Desktop TreeWalker**: Robust, O(N). Manually iterates `RootElement` children using `TreeWalker`.
+
+Plugins no longer need to implement this logic — call `UiaElementResolver.TryResolve(hwnd, pid, options)` instead.
 
 ---
 
@@ -714,11 +716,11 @@ NativeInterop.ForceForegroundWindow(hwnd);
 Available methods include:
 - `EnumWindows()`, `IsWindowVisible()`, `GetWindowThreadProcessId()`
 - `GetWindowText(hwnd, span, maxCount)` - now uses `Span<char>` for zero-allocation
-- `GetProcessName(pid)` - lightweight process name lookup (avoids `Process` allocation)
 - `GetProcessInfo(pid)` - returns `(string ProcessName, string? ExecutablePath)` tuple for icon support
 - `ForceForegroundWindow()` - robust focus stealing with thread attachment
 - `ShowWindow()`, `BringWindowToTop()`, `SetForegroundWindow()`
 - `IsIconic()`, `GetForegroundWindow()`
+- `GetWindowLongPtr()`, `SetWindowLongPtr()` - extended window style manipulation
 
 ### New: `SetExclusions()` Interface Method
 
@@ -750,6 +752,7 @@ public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
 
 | Version | Key Changes |
 |---------|-------------|
+| 1.9.3   | **SOLID Refactoring** - DIP for ILogger, `UiaElementResolver` shared UIA fallback, `IDiagnosticsProvider`, `IUiaWorkerClient`, Alt+Tab fix, badge animation fix |
 | 1.8.2   | **Streaming UIA Results** - Plugins run in parallel, results streamed via NDJSON for faster UI updates |
 | 1.8.1   | **UIA Worker Timeout** - Configurable timeout (default 60s) to prevent stuck plugins from blocking refreshes |
 | 1.8.0   | **Out-of-Process UIA** - `IsUiaProvider` flag, UIA plugins run in transient worker process to fix memory leaks |

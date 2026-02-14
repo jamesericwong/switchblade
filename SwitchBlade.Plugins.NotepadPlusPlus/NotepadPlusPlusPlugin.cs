@@ -54,7 +54,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             base.Initialize(context);
             _logger = context.Logger;
 
-            // Use injected settings if available (v1.9.2+), fallback to self-instantiation
+            // Use injected settings if available (v1.9.3+), fallback to self-instantiation
             _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
 
             ReloadSettings();
@@ -404,68 +404,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
 
         private AutomationElement? TryGetAutomationElement(IntPtr hwnd, int pid)
         {
-            // Strategy 1: Direct HWND binding (Fastest)
-            try
-            {
-                return AutomationElement.FromHandle(hwnd);
-            }
-            catch (Exception ex)
-            {
-                _logger?.Log($"{PluginName}: Direct UIA Access failed for HWND {hwnd} (PID {pid}): {ex.Message}. Attempting Desktop FindFirst...");
-            }
-
-            // Strategy 2: Desktop Root Search (Slower but more robust)
-            try
-            {
-                var root = AutomationElement.RootElement;
-                var condition = new PropertyCondition(AutomationElement.ProcessIdProperty, pid);
-                var match = root.FindFirst(TreeScope.Children, condition);
-
-                if (match != null)
-                {
-                    _logger?.Log($"{PluginName}: Successfully acquired root via Desktop FindFirst for PID {pid}");
-                    return match;
-                }
-            }
-            catch (Exception fallbackEx)
-            {
-                _logger?.Log($"{PluginName}: Desktop FindFirst fallback failed for PID {pid}: {fallbackEx.Message}. Attempting TreeWalker...");
-            }
-
-            // Strategy 3: Desktop Walker (Most Robust, Slowest)
-            try
-            {
-                var walker = TreeWalker.ControlViewWalker;
-                var child = walker.GetFirstChild(AutomationElement.RootElement);
-
-                while (child != null)
-                {
-                    try
-                    {
-                        if (child.Current.ProcessId == pid)
-                        {
-                            _logger?.Log($"{PluginName}: Successfully acquired root via Desktop Walker for PID {pid}");
-                            return child;
-                        }
-                    }
-                    catch { /* Skip restricted windows */ }
-
-                    try
-                    {
-                        child = walker.GetNextSibling(child);
-                    }
-                    catch
-                    {
-                        break; // Sibling navigation failed
-                    }
-                }
-            }
-            catch (Exception walkerEx)
-            {
-                _logger?.Log($"{PluginName}: Desktop Walker fallback failed for PID {pid}: {walkerEx.Message}");
-            }
-
-            return null;
+            return UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger);
         }
     }
 }

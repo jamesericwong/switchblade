@@ -39,11 +39,7 @@ namespace SwitchBlade.Plugins.Teams
                 ? new TeamsSettingsControlProvider(_settingsService, _teamsProcesses)
                 : null;
 
-        private static readonly HashSet<string> TeamsProcesses = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "ms-teams",
-            "Teams"
-        };
+
 
         #region Regex Patterns
 
@@ -80,7 +76,7 @@ namespace SwitchBlade.Plugins.Teams
             base.Initialize(context);
             _logger = context.Logger;
 
-            // Use injected settings if available (v1.9.2+), fallback to self-instantiation
+            // Use injected settings if available (v1.9.3+), fallback to self-instantiation
             _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
 
             ReloadSettings();
@@ -493,82 +489,7 @@ namespace SwitchBlade.Plugins.Teams
 
         private AutomationElement? TryGetAutomationElement(IntPtr hwnd, int pid)
         {
-            // Strategy 1: Direct HWND binding (Fastest)
-            try
-            {
-                return AutomationElement.FromHandle(hwnd);
-            }
-            catch (Exception ex)
-            {
-                // Only log if it's NOT the common E_FAIL, or log E_FAIL as warning
-                if (ex is System.Runtime.InteropServices.COMException comEx && (uint)comEx.HResult == 0x80004005)
-                {
-                    _logger?.Log($"{PluginName}: Direct HWND access failed (E_FAIL). Attempting Desktop Root fallback...");
-                }
-                else
-                {
-                    _logger?.Log($"{PluginName}: Direct HWND access failed: {ex.Message}. Attempting fallback...");
-                }
-            }
-
-            // Strategy 2: Desktop Root Search (Slower but more robust)
-            // Some frameworks (like Electron/WebView2) fail FromHandle but appear in the tree.
-            try
-            {
-                var root = AutomationElement.RootElement;
-                var condition = new PropertyCondition(AutomationElement.ProcessIdProperty, pid);
-
-                // Only search direct children of Desktop (Top-Level Windows) to avoid deep scan performance cost
-                // NOTE: This can ALSO fail with E_FAIL on some restricted windows
-                var match = root.FindFirst(TreeScope.Children, condition);
-
-                if (match != null)
-                {
-                    _logger?.Log($"{PluginName}: Successfully acquired root via Desktop FindFirst for PID {pid}.");
-                    return match;
-                }
-            }
-            catch (Exception fallbackEx)
-            {
-                _logger?.Log($"{PluginName}: Desktop FindFirst fallback failed: {fallbackEx.Message}. Attempting TreeWalker...");
-            }
-
-            // Strategy 3: Desktop Walker (Most Robust, Slowest)
-            // Iterates manually to avoid crashing on a single restricted window
-            try
-            {
-                var walker = TreeWalker.ControlViewWalker;
-                var child = walker.GetFirstChild(AutomationElement.RootElement);
-
-                while (child != null)
-                {
-                    try
-                    {
-                        if (child.Current.ProcessId == pid)
-                        {
-                            _logger?.Log($"{PluginName}: Successfully acquired root via Desktop Walker for PID {pid}.");
-                            return child;
-                        }
-                    }
-                    catch { /* Skip restricted windows */ }
-
-                    try
-                    {
-                        child = walker.GetNextSibling(child);
-                    }
-                    catch
-                    {
-                        // Sibling navigation failed, abort this branch
-                        break;
-                    }
-                }
-            }
-            catch (Exception walkerEx)
-            {
-                _logger?.Log($"{PluginName}: Desktop Walker fallback failed: {walkerEx.Message}");
-            }
-
-            return null;
+            return UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger);
         }
     }
 }

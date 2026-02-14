@@ -17,7 +17,7 @@ namespace SwitchBlade.Services
     /// This eliminates UIA memory leaks by running all UIA scans in a separate process that
     /// terminates after each scan. When the process exits, Windows releases all UIA COM objects.
     /// </summary>
-    public class UiaWorkerClient : IDisposable
+    public class UiaWorkerClient : IUiaWorkerClient
     {
         private readonly string _workerPath;
         private readonly ILogger? _logger;

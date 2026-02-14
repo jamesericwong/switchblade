@@ -35,13 +35,13 @@ namespace SwitchBlade.Services
                 // We use a small polling retry because the item might not be realized yet (e.g. on startup)
                 ListBoxItem? container = null;
                 int attempts = 0;
-                while (attempts < 10) // Max 10 attempts (approx 100-200ms total)
+                while (attempts < 20) // Max 20 attempts (approx 500ms total)
                 {
                     container = FindContainer(item);
                     if (container != null) break;
 
                     attempts++;
-                    await System.Threading.Tasks.Task.Delay(15); 
+                    await System.Threading.Tasks.Task.Delay(25);
                 }
 
                 if (container == null)

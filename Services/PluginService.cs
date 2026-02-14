@@ -15,19 +15,21 @@ namespace SwitchBlade.Services
         private readonly string _pluginPath;
         private readonly IPluginContext _context;
         private readonly ISettingsService _settingsService;
+        private readonly ILogger? _logger;
         private readonly List<IWindowProvider> _providers = new();
 
         public IReadOnlyList<IWindowProvider> Providers => _providers;
 
         public PluginService(IPluginContext context, ISettingsService settingsService)
-            : this(context, settingsService, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins"))
+            : this(context, settingsService, null, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins"))
         {
         }
 
-        public PluginService(IPluginContext context, ISettingsService settingsService, string pluginPath)
+        public PluginService(IPluginContext context, ISettingsService settingsService, ILogger? logger, string pluginPath)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+            _logger = logger;
             _pluginPath = pluginPath ?? throw new ArgumentNullException(nameof(pluginPath));
 
             LoadProviders();
@@ -42,28 +44,27 @@ namespace SwitchBlade.Services
             windowFinder.Initialize(_context);
             _providers.Add(windowFinder);
 
-            // 2. External plugins
+            // 2. External plugins — discover and then initialize each exactly once
             try
             {
                 if (Directory.Exists(_pluginPath))
                 {
-                    var loader = new PluginLoader(_pluginPath);
-                    var plugins = loader.LoadPlugins(_context);
+                    var loader = new PluginLoader(_pluginPath, _logger);
+                    var plugins = loader.LoadPlugins();
                     
                     foreach (var plugin in plugins)
                     {
-                        // Create per-plugin context with settings
+                        // Create per-plugin context with settings and initialize once
                         var pluginSettings = new PluginSettingsService(plugin.PluginName, _context.Logger);
                         var pluginContext = new PluginContext(_context.Logger, pluginSettings);
                         plugin.Initialize(pluginContext);
+                        _providers.Add(plugin);
                     }
-                    
-                    _providers.AddRange(plugins);
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogError("Error loading plugins", ex);
+                _logger?.LogError("Error loading plugins", ex);
             }
         }
 

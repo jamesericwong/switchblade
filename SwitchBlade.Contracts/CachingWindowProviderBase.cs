@@ -18,11 +18,11 @@ namespace SwitchBlade.Contracts
     /// Plugin developers should inherit from this class and override
     /// <see cref="ScanWindowsCore"/> with their scanning logic.
     /// </summary>
-    public abstract class CachingWindowProviderBase : IWindowProvider
+    public abstract class CachingWindowProviderBase : IWindowProvider, IDisposable
     {
         private readonly ReaderWriterLockSlim _cacheLock = new(LockRecursionPolicy.NoRecursion);
         private volatile bool _isScanRunning = false;
-        private IList<WindowItem> _cachedWindows = new List<WindowItem>();
+        private List<WindowItem> _cachedWindows = new();
         
         // Map PID -> List of "Good" (non-fallback) items from the last successful scan
         private readonly Dictionary<int, List<WindowItem>> _lastKnownGoodResults = new();
@@ -49,7 +49,7 @@ namespace SwitchBlade.Contracts
                 _cacheLock.EnterReadLock();
                 try
                 {
-                    return (IReadOnlyList<WindowItem>)_cachedWindows;
+                    return _cachedWindows.AsReadOnly();
                 }
                 finally
                 {
@@ -310,6 +310,15 @@ namespace SwitchBlade.Contracts
             {
                 _cacheLock.ExitWriteLock();
             }
+        }
+
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _cacheLock.Dispose();
         }
     }
 }

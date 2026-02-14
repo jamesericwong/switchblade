@@ -53,7 +53,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             base.Initialize(context);
             _logger = context.Logger;
 
-            // Use injected settings if available (v1.9.2+), fallback to self-instantiation
+            // Use injected settings if available (v1.9.3+), fallback to self-instantiation
             _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
 
             ReloadSettings();
@@ -411,114 +411,16 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             return null;
         }
 
+        private static readonly UiaResolverOptions _resolverOptions = new()
+        {
+            MaxRetries = 3,
+            RetryDelayMs = 50,
+            UseFromPointFallback = true
+        };
+
         private AutomationElement? TryGetAutomationElement(IntPtr hwnd, int pid)
         {
-            const int MAX_RETRIES = 3;
-            const int RETRY_DELAY_MS = 50;
-
-            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
-            {
-                // Strategy 1: Direct HWND binding (Fastest)
-            try
-            {
-                return AutomationElement.FromHandle(hwnd);
-            }
-            catch (Exception ex)
-            {
-                if (ex is System.Runtime.InteropServices.COMException comEx && (uint)comEx.HResult == 0x80004005)
-                {
-                    _logger?.Log($"{PluginName}: Direct HWND access failed (E_FAIL). Attempting Desktop Root fallback...");
-                }
-                else
-                {
-                    _logger?.Log($"{PluginName}: Direct HWND access failed: {ex.Message}. Attempting fallback...");
-                }
-            }
-
-            // Strategy 2: Desktop Root Search (Slower but more robust)
-            try
-            {
-                var root = AutomationElement.RootElement;
-                var condition = new PropertyCondition(AutomationElement.ProcessIdProperty, pid);
-
-                // Only search direct children of Desktop (Top-Level Windows)
-                var match = root.FindFirst(TreeScope.Children, condition);
-
-                if (match != null)
-                {
-                    _logger?.Log($"{PluginName}: Successfully acquired root via Desktop FindFirst for PID {pid}.");
-                    return match;
-                }
-            }
-            catch (Exception fallbackEx)
-            {
-                _logger?.Log($"{PluginName}: Desktop FindFirst fallback failed: {fallbackEx.Message}. Attempting TreeWalker...");
-            }
-
-                // Strategy 3: Desktop Walker (Most Robust, Slowest)
-                try
-                {
-                    var walker = TreeWalker.ControlViewWalker;
-                    var child = walker.GetFirstChild(AutomationElement.RootElement);
-
-                    while (child != null)
-                    {
-                        try
-                        {
-                            if (child.Current.ProcessId == pid)
-                            {
-                                _logger?.Log($"{PluginName}: Successfully acquired root via Desktop Walker for PID {pid}.");
-                                return child;
-                            }
-                        }
-                        catch { /* Skip restricted windows */ }
-
-                        try
-                        {
-                            child = walker.GetNextSibling(child);
-                        }
-                        catch
-                        {
-                            break;
-                        }
-                    }
-                }
-                catch (Exception walkerEx)
-                {
-                    _logger?.Log($"{PluginName}: Desktop Walker fallback failed: {walkerEx.Message}");
-                }
-
-                // Strategy 4: FromPoint (Hail Mary for UIPI/Focus issues)
-                // Sometimes FromHandle fails but FromPoint works if the window is visible/centered
-                try
-                {
-                    if (NativeInterop.GetWindowRect(hwnd, out var rect))
-                    {
-                        var centerX = rect.Left + (rect.Right - rect.Left) / 2;
-                        var centerY = rect.Top + (rect.Bottom - rect.Top) / 2;
-                        var point = new System.Windows.Point(centerX, centerY);
-
-                        var element = AutomationElement.FromPoint(point);
-                        if (element != null && element.Current.ProcessId == pid)
-                        {
-                             _logger?.Log($"{PluginName}: Successfully acquired root via FromPoint for PID {pid}.");
-                             return element;
-                        }
-                    }
-                }
-                catch (Exception pointEx)
-                {
-                    _logger?.Log($"{PluginName}: FromPoint fallback failed: {pointEx.Message}");
-                }
-
-                if (attempt < MAX_RETRIES)
-                {
-                    System.Threading.Thread.Sleep(RETRY_DELAY_MS);
-                }
-            }
-
-            _logger?.Log($"{PluginName}: All fallback strategies failed for PID {pid} after {MAX_RETRIES} attempts.");
-            return null;
+            return UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger, _resolverOptions);
         }
     }
 }

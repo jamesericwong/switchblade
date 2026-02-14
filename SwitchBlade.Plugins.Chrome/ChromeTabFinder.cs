@@ -41,9 +41,7 @@ namespace SwitchBlade.Plugins.Chrome
             "Side panel"
         };
 
-        // Optimization: Server-side filter to prevent creation of RCWs for heavy Document nodes
-        private static readonly Condition NotDocumentCondition = new NotCondition(
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document));
+
 
         public override string PluginName => "ChromeTabFinder";
         public override bool HasSettings => true;
@@ -71,7 +69,7 @@ namespace SwitchBlade.Plugins.Chrome
             base.Initialize(context);
             _logger = context.Logger;
 
-            // Use injected settings if available (v1.9.2+), fallback to self-instantiation
+            // Use injected settings if available (v1.9.3+), fallback to self-instantiation
             _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
 
             // Initialize settings from Registry or use defaults

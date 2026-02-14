@@ -152,7 +152,28 @@ namespace SwitchBlade
 
             SearchBox.FocusInput();
             ApplyBackdrop();
+            HideOwnerFromAltTab();
             _ = InitialLoadAsync();
+        }
+
+        /// <summary>
+        /// Hides the WPF-generated owner window from Alt+Tab.
+        /// When WindowStyle="None" + EnsureHandle(), WPF creates a hidden helper window
+        /// that can appear as a duplicate entry in Alt+Tab on some machines/DWM configs.
+        /// Setting WS_EX_TOOLWINDOW on the owner window tells the Shell to exclude it.
+        /// </summary>
+        private void HideOwnerFromAltTab()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            var owner = NativeInterop.GetWindow(hwnd, NativeInterop.GW_OWNER);
+            if (owner != IntPtr.Zero)
+            {
+                var exStyle = (int)NativeInterop.GetWindowLongPtr(owner, NativeInterop.GWL_EXSTYLE);
+                exStyle |= NativeInterop.WS_EX_TOOLWINDOW;
+                exStyle &= ~NativeInterop.WS_EX_APPWINDOW;
+                NativeInterop.SetWindowLongPtr(owner, NativeInterop.GWL_EXSTYLE, (IntPtr)exStyle);
+                _logger.Log($"HideOwnerFromAltTab: Set WS_EX_TOOLWINDOW on owner HWND {owner}");
+            }
         }
 
         private async Task InitialLoadAsync()

@@ -8,7 +8,7 @@ namespace SwitchBlade.Services
     /// <summary>
     /// Coordinates parallel execution of window providers and manages the master window list.
     /// </summary>
-    public interface IWindowOrchestrationService
+    public interface IWindowOrchestrationService : IDiagnosticsProvider
     {
         /// <summary>
         /// Event raised when the window list has been updated.

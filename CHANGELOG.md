@@ -1,3 +1,28 @@
+## [1.9.3] - 2026-02-14
+### Improved
+- **Dependency Inversion (DIP)**: `PluginLoader`, `PluginService`, `SettingsService`, and `WindowOrchestrationService` now accept `ILogger` via constructor injection instead of using static `Logger.Instance`.
+- **UIA Element Resolution**: Extracted shared `UiaElementResolver` in `SwitchBlade.Contracts` consolidating the 3-stage HWND→FindFirst→TreeWalker fallback chain from 3 plugins (~250 lines removed).
+  - `WindowsTerminalPlugin` uses configurable retry (3 attempts) and `FromPoint` fallback via `UiaResolverOptions`.
+- **Interface Segregation**: Created `IDiagnosticsProvider` interface for cache statistics. `IWindowOrchestrationService` and `IIconService` implement it, eliminating concrete downcasts in `MemoryDiagnosticsService`.
+- **IUiaWorkerClient Interface**: Extracted from `UiaWorkerClient` for testability. `WindowOrchestrationService` now accepts `IUiaWorkerClient` via DI.
+- **IDisposable**: Added to `WindowOrchestrationService` (disposes `SemaphoreSlim`, `IUiaWorkerClient`) and `CachingWindowProviderBase` (disposes `ReaderWriterLockSlim`).
+- **Settings Key Consistency**: `SettingsService` now uses `nameof(Settings.Property)` for all registry keys, eliminating string duplication between `Load` and `Save`.
+
+### Fixed
+- **Alt+Tab Duplicate Window**: On some machines, Alt+Tab showed two SwitchBlade entries. Root cause: `WindowStyle="None"` + `EnsureHandle()` creates a hidden WPF owner window that appears in Alt+Tab on certain DWM configurations. Fix: set `WS_EX_TOOLWINDOW` on the hidden owner window during load.
+- **Badge Animation Delay**: ~10% of the time, badge animations would appear 4-5 seconds late instead of immediately on hotkey press. Root cause: container realization polling budget (150ms) was too short for slower machines under layout pressure. Increased polling budget to 500ms with early exit on success.
+- **Plugin Double-Initialization**: `PluginLoader.LoadPlugins()` no longer calls `Initialize()` — only `PluginService` does, preventing duplicate initialization.
+- **WindowReconciler Double-Lock**: Extracted lock-free `AddToCacheInternal`/`RemoveFromCacheInternal` methods. `Reconcile()` calls internals directly since it already holds the lock.
+- **Unsafe Cast**: `CachingWindowProviderBase.CachedWindows` now uses `List<WindowItem>` backing field and returns `AsReadOnly()` instead of an unsafe `IList` → `IReadOnlyList` cast.
+
+### Removed
+- Dead `RunOnStaThreadAsync` method from `WindowOrchestrationService`.
+- Unused `NotDocumentCondition` from `ChromeTabFinder`.
+- Overlapping `GetProcessName` / `_processNameCache` from `NativeInterop` (superseded by `GetProcessInfo`).
+- `goto EmitEvent` in `WindowOrchestrationService.ProcessProviderResults` — restructured to early return.
+
+---
+
 ## [1.9.2] - 2026-02-14
 ### Fixed
 - **Teams Plugin: Intermittent 0 Chats**: Fixed transient UIA failures (`E_FAIL`) wiping all Teams chat entries from the window list.

@@ -103,6 +103,20 @@ namespace SwitchBlade.Contracts
         [return: MarshalAs(UnmanagedType.Bool)]
         private static partial bool CloseDesktop(IntPtr hDesktop);
 
+        [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
+        public static partial IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
+
+        [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+        public static partial IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        [LibraryImport("user32.dll", SetLastError = true)]
+        public static partial IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+
+        public const int GWL_EXSTYLE = -20;
+        public const int WS_EX_TOOLWINDOW = 0x00000080;
+        public const int WS_EX_APPWINDOW = 0x00040000;
+        public const uint GW_OWNER = 4;
+
         #endregion
 
         #region shell32.dll
@@ -245,72 +259,15 @@ namespace SwitchBlade.Contracts
 
         #region Helper Methods
 
-        private static readonly ConcurrentDictionary<uint, string> _processNameCache = new();
         private static readonly ConcurrentDictionary<uint, (string ProcessName, string? ExecutablePath)> _processInfoCache = new();
 
         /// <summary>
-        /// Clears the process name and info caches. Should be called before a fresh scan cycle
+        /// Clears the process info cache. Should be called before a fresh scan cycle
         /// to ensure that reused PIDs are re-resolved.
         /// </summary>
         public static void ClearProcessCache()
         {
-            _processNameCache.Clear();
             _processInfoCache.Clear();
-        }
-
-        /// <summary>
-        /// Retrieves the process name for a given PID using lightweight native APIs.
-        /// Caches the result to avoid repeated lookups.
-        /// </summary>
-        public static string GetProcessName(uint pid)
-        {
-            if (pid == 0) return "System";
-
-            // Return cached name if available
-            if (_processNameCache.TryGetValue(pid, out var cachedName))
-            {
-                return cachedName;
-            }
-
-            string processName = "Unknown";
-            IntPtr hProcess = IntPtr.Zero;
-
-            try
-            {
-                // Open process with limited information access (much faster/lighter than Process class)
-                hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
-
-                if (hProcess != IntPtr.Zero)
-                {
-                    // Use a small buffer on the stack to avoid allocations
-                    // MAX_PATH is usually 260, but NTFS allows 32k.
-                    // 1024 chars (2KB) on stack is safe and covers 99.9% of cases.
-                    Span<char> buffer = stackalloc char[1024];
-                    int size = buffer.Length;
-
-                    if (QueryFullProcessImageName(hProcess, 0, buffer, ref size))
-                    {
-                        // Create string only from the valid part
-                        processName = Path.GetFileNameWithoutExtension(buffer[..size]).ToString();
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore errors (access denied, etc.)
-            }
-            finally
-            {
-                if (hProcess != IntPtr.Zero)
-                {
-                    CloseHandle(hProcess);
-                }
-            }
-
-            // Cache the result
-            _processNameCache.TryAdd(pid, processName);
-
-            return processName;
         }
 
         /// <summary>

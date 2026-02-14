@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using SwitchBlade.Contracts;
@@ -63,18 +62,18 @@ namespace SwitchBlade.Services
                         incoming.Source = provider;
                         PopulateIconIfMissing(incoming, incoming.ExecutablePath);
 
-                        // Use encapsulated mutator
-                        AddToCache(incoming);
+                        // Lock-free internal method — we already hold _lock
+                        AddToCacheInternal(incoming);
 
                         resolvedItems.Add(incoming);
                         claimedItems.Add(incoming);
                     }
                 }
 
-                // Cleanup unused items using encapsulated mutator
+                // Cleanup unused items using lock-free internal method
                 foreach (var unused in unusedCacheItems)
                 {
-                    RemoveFromCache(unused);
+                    RemoveFromCacheInternal(unused);
                 }
 
                 return resolvedItems;
@@ -85,25 +84,7 @@ namespace SwitchBlade.Services
         {
             lock (_lock)
             {
-                // 1. Update HWND lookup
-                if (!_windowItemCache.TryGetValue(item.Hwnd, out var list))
-                {
-                    list = new List<WindowItem>();
-                    _windowItemCache[item.Hwnd] = list;
-                }
-                if (!list.Contains(item))
-                    list.Add(item);
-
-                // 2. Update Provider lookup
-                if (item.Source != null)
-                {
-                    if (!_providerItems.TryGetValue(item.Source, out var set))
-                    {
-                        set = new HashSet<WindowItem>();
-                        _providerItems[item.Source] = set;
-                    }
-                    set.Add(item);
-                }
+                AddToCacheInternal(item);
             }
         }
 
@@ -111,21 +92,57 @@ namespace SwitchBlade.Services
         {
             lock (_lock)
             {
-                // 1. Remove from HWND lookup
-                if (_windowItemCache.TryGetValue(item.Hwnd, out var list))
-                {
-                    list.Remove(item);
-                    if (list.Count == 0)
-                        _windowItemCache.Remove(item.Hwnd);
-                }
+                RemoveFromCacheInternal(item);
+            }
+        }
 
-                // 2. Remove from Provider lookup
-                if (item.Source != null && _providerItems.TryGetValue(item.Source, out var set))
+        /// <summary>
+        /// Lock-free internal method for adding to cache.
+        /// Caller must hold _lock.
+        /// </summary>
+        private void AddToCacheInternal(WindowItem item)
+        {
+            // 1. Update HWND lookup
+            if (!_windowItemCache.TryGetValue(item.Hwnd, out var list))
+            {
+                list = new List<WindowItem>();
+                _windowItemCache[item.Hwnd] = list;
+            }
+            if (!list.Contains(item))
+                list.Add(item);
+
+            // 2. Update Provider lookup
+            if (item.Source != null)
+            {
+                if (!_providerItems.TryGetValue(item.Source, out var set))
                 {
-                    set.Remove(item);
-                    if (set.Count == 0)
-                        _providerItems.Remove(item.Source);
+                    set = new HashSet<WindowItem>();
+                    _providerItems[item.Source] = set;
                 }
+                set.Add(item);
+            }
+        }
+
+        /// <summary>
+        /// Lock-free internal method for removing from cache.
+        /// Caller must hold _lock.
+        /// </summary>
+        private void RemoveFromCacheInternal(WindowItem item)
+        {
+            // 1. Remove from HWND lookup
+            if (_windowItemCache.TryGetValue(item.Hwnd, out var list))
+            {
+                list.Remove(item);
+                if (list.Count == 0)
+                    _windowItemCache.Remove(item.Hwnd);
+            }
+
+            // 2. Remove from Provider lookup
+            if (item.Source != null && _providerItems.TryGetValue(item.Source, out var set))
+            {
+                set.Remove(item);
+                if (set.Count == 0)
+                    _providerItems.Remove(item.Source);
             }
         }
 

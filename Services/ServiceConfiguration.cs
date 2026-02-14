@@ -20,7 +20,10 @@ namespace SwitchBlade.Services
             var services = new ServiceCollection();
 
             // Core Services
-            services.AddSingleton<SettingsService>();
+            services.AddSingleton<SettingsService>(sp => new SettingsService(
+                new RegistrySettingsStorage(@"Software\SwitchBlade"),
+                new WindowsStartupManager(),
+                sp.GetRequiredService<ILogger>()));
             services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<SettingsService>());
             services.AddSingleton<ThemeService>();
             services.AddSingleton<IDispatcherService, WpfDispatcherService>();
@@ -32,7 +35,11 @@ namespace SwitchBlade.Services
 
             // New Services (v1.6.4)
             services.AddSingleton<INavigationService, NavigationService>();
-            services.AddSingleton<IPluginService, PluginService>();
+            services.AddSingleton<IPluginService>(sp => new PluginService(
+                sp.GetRequiredService<IPluginContext>(),
+                sp.GetRequiredService<ISettingsService>(),
+                sp.GetRequiredService<ILogger>(),
+                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins")));
 
             // Window Search Service (with LRU cache)
             services.AddSingleton<IWindowSearchService>(sp =>
@@ -42,7 +49,16 @@ namespace SwitchBlade.Services
                 return new WindowSearchService(new LruRegexCache(cacheSize));
             });
 
-            // Window Orchestration Service (replaces manual provider coordination)
+            // UIA Worker Client (out-of-process UIA scanning)
+            services.AddSingleton<IUiaWorkerClient>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger>();
+                var settings = sp.GetRequiredService<ISettingsService>();
+                var timeoutSeconds = settings.Settings.UiaWorkerTimeoutSeconds;
+                var timeout = TimeSpan.FromSeconds(timeoutSeconds > 0 ? timeoutSeconds : 60);
+                return new UiaWorkerClient(logger, timeout);
+            });
+
             // Window Orchestration Service (replaces manual provider coordination)
             services.AddSingleton<IWindowReconciler>(sp => 
                 new WindowReconciler(sp.GetRequiredService<IIconService>()));
@@ -50,10 +66,11 @@ namespace SwitchBlade.Services
             services.AddSingleton<IWindowOrchestrationService>(sp =>
             {
                 var pluginService = sp.GetRequiredService<IPluginService>();
-                var settingsService = sp.GetRequiredService<ISettingsService>();
                 var reconciler = sp.GetRequiredService<IWindowReconciler>();
-                // Reconciler now handles the icon service internally
-                return new WindowOrchestrationService(pluginService.Providers, reconciler, settingsService);
+                var uiaWorkerClient = sp.GetRequiredService<IUiaWorkerClient>();
+                var logger = sp.GetRequiredService<ILogger>();
+                var settingsService = sp.GetRequiredService<ISettingsService>();
+                return new WindowOrchestrationService(pluginService.Providers, reconciler, uiaWorkerClient, logger, settingsService);
             });
 
             // ViewModels

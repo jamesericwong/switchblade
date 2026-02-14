@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Automation;
 using SwitchBlade.Contracts;
-using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
 {
@@ -16,17 +13,19 @@ namespace SwitchBlade.Services
     /// 
     /// UIA providers (IsUiaProvider=true) run in a separate worker process to prevent memory leaks.
     /// </summary>
-    public class WindowOrchestrationService : IWindowOrchestrationService
+    public class WindowOrchestrationService : IWindowOrchestrationService, IDisposable
     {
         private readonly List<IWindowProvider> _providers;
         private readonly IWindowReconciler _reconciler;
         private readonly ISettingsService _settingsService;
-        private readonly UiaWorkerClient _uiaWorkerClient;
+        private readonly IUiaWorkerClient _uiaWorkerClient;
+        private readonly ILogger? _logger;
         private readonly List<WindowItem> _allWindows = new();
         
         private readonly object _lock = new();
         // Re-entrancy guard: Prevents concurrent RefreshAsync from creating RCWs faster than GC can clean
         private readonly SemaphoreSlim _refreshLock = new(1, 1);
+        private bool _disposed;
 
         public event EventHandler<WindowListUpdatedEventArgs>? WindowListUpdated;
 
@@ -41,19 +40,23 @@ namespace SwitchBlade.Services
             }
         }
 
-        public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IWindowReconciler reconciler, ISettingsService? settingsService = null)
+        public WindowOrchestrationService(
+            IEnumerable<IWindowProvider> providers,
+            IWindowReconciler reconciler,
+            IUiaWorkerClient uiaWorkerClient,
+            ILogger? logger = null,
+            ISettingsService? settingsService = null)
         {
             _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
             _reconciler = reconciler ?? throw new ArgumentNullException(nameof(reconciler));
+            _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
+            _logger = logger;
             _settingsService = settingsService!; // Can be null in tests, we handle below
-            var timeoutSeconds = settingsService?.Settings.UiaWorkerTimeoutSeconds ?? 60;
-            var timeout = TimeSpan.FromSeconds(timeoutSeconds);
-            _uiaWorkerClient = new UiaWorkerClient(Logger.Instance, timeout);
         }
 
         // Backward compatibility constructor for tests
         public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IIconService? iconService = null, ISettingsService? settingsService = null)
-            : this(providers, new WindowReconciler(iconService), settingsService)
+            : this(providers, new WindowReconciler(iconService), new NullUiaWorkerClient(), null, settingsService)
         {
         }
 
@@ -62,7 +65,7 @@ namespace SwitchBlade.Services
             // Non-blocking re-entrancy guard: skip if another refresh is in progress.
             if (!await _refreshLock.WaitAsync(0))
             {
-                Logger.Log("RefreshAsync skipped: scan already in progress.");
+                _logger?.Log("RefreshAsync skipped: scan already in progress.");
                 return;
             }
 
@@ -87,7 +90,7 @@ namespace SwitchBlade.Services
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogError($"Error reloading settings for {provider.PluginName}", ex);
+                        _logger?.LogError($"Error reloading settings for {provider.PluginName}", ex);
                     }
                 }
 
@@ -116,7 +119,7 @@ namespace SwitchBlade.Services
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError($"Provider {provider.PluginName} failed during GetWindows()", ex);
+                            _logger?.LogError($"Provider {provider.PluginName} failed during GetWindows()", ex);
                             // Process empty results to clear stale data for this provider
                             ProcessProviderResults(provider, new List<WindowItem>());
                         }
@@ -144,14 +147,14 @@ namespace SwitchBlade.Services
                     {
                         try
                         {
-                            Logger.Log($"[UIA] Starting streaming scan for {uiaProviders.Count} UIA providers...");
+                            _logger?.Log($"[UIA] Starting streaming scan for {uiaProviders.Count} UIA providers...");
 
                             // Stream results as each plugin completes
                             await foreach (var pluginResult in _uiaWorkerClient.ScanStreamingAsync(uiaDisabled, handledProcesses))
                             {
                                 if (pluginResult.Error != null)
                                 {
-                                    Logger.Log($"[UIA] Plugin {pluginResult.PluginName} error: {pluginResult.Error}");
+                                    _logger?.Log($"[UIA] Plugin {pluginResult.PluginName} error: {pluginResult.Error}");
                                     // Don't continue; we still need to process empty results to clear stale data if needed
                                     // But if it's just an error string, we might not have windows.
                                     // If windows is null, use empty list.
@@ -170,7 +173,7 @@ namespace SwitchBlade.Services
 
                                 if (uiaProvider == null)
                                 {
-                                    Logger.Log($"[UIA] No provider found for plugin {pluginResult.PluginName}, skipping results.");
+                                    _logger?.Log($"[UIA] No provider found for plugin {pluginResult.PluginName}, skipping results.");
                                     continue;
                                 }
 
@@ -187,17 +190,17 @@ namespace SwitchBlade.Services
                                     })
                                     .ToList() ?? new List<WindowItem>();
 
-                                Logger.Log($"[UIA] Plugin {pluginResult.PluginName} returned {windowItems.Count} windows - processing immediately.");
+                                _logger?.Log($"[UIA] Plugin {pluginResult.PluginName} returned {windowItems.Count} windows - processing immediately.");
 
                                 // Process and emit event IMMEDIATELY
                                 ProcessProviderResults(uiaProvider, windowItems);
                             }
 
-                            Logger.Log("[UIA] Streaming scan complete.");
+                            _logger?.Log("[UIA] Streaming scan complete.");
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError($"UIA Worker streaming error: {ex.Message}", ex);
+                            _logger?.LogError($"UIA Worker streaming error: {ex.Message}", ex);
                         }
                     }));
                 }
@@ -230,7 +233,7 @@ namespace SwitchBlade.Services
 
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)
         {
-            WindowListUpdatedEventArgs? args = null;
+            WindowListUpdatedEventArgs args;
             lock (_lock)
             {
                 // LKG PROTECTION: If incoming results are ALL fallback items,
@@ -241,9 +244,9 @@ namespace SwitchBlade.Services
                     bool hasExistingRealItems = _allWindows.Any(w => w.Source == provider && !w.IsFallback);
                     if (hasExistingRealItems)
                     {
-                        Logger.Log($"[LKG] {provider.PluginName}: Transient failure (only fallback items received). Preserving {_allWindows.Count(w => w.Source == provider)} existing items.");
-                        args = new WindowListUpdatedEventArgs(provider, false);
-                        goto EmitEvent;
+                        _logger?.Log($"[LKG] {provider.PluginName}: Transient failure (only fallback items received). Preserving {_allWindows.Count(w => w.Source == provider)} existing items.");
+                        EmitEvent(new WindowListUpdatedEventArgs(provider, false));
+                        return;
                     }
                 }
 
@@ -260,11 +263,12 @@ namespace SwitchBlade.Services
                 args = new WindowListUpdatedEventArgs(provider, true);
             }
 
-            EmitEvent:
-            if (args != null)
-            {
-                WindowListUpdated?.Invoke(this, args);
-            }
+            EmitEvent(args);
+        }
+
+        private void EmitEvent(WindowListUpdatedEventArgs args)
+        {
+            WindowListUpdated?.Invoke(this, args);
         }
 
         #region Encapsulated Cache Mutators (Delegated to Reconciler)
@@ -276,31 +280,6 @@ namespace SwitchBlade.Services
         public int CacheCount => _reconciler.CacheCount;
 
         #endregion
-
-        /// <summary>
-        /// Runs an action on a dedicated STA thread and returns when the thread exits.
-        /// Kept for legacy compatibility if needed, though UIA worker uses its own process.
-        /// </summary>
-        private static Task RunOnStaThreadAsync(Action action)
-        {
-            var tcs = new TaskCompletionSource<bool>();
-            var thread = new Thread(() =>
-            {
-                try
-                {
-                    action();
-                    tcs.SetResult(true);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                }
-            });
-            thread.SetApartmentState(ApartmentState.STA);
-            thread.IsBackground = true;
-            thread.Start();
-            return tcs.Task;
-        }
 
         #region Test Helpers (Internal)
 
@@ -315,5 +294,13 @@ namespace SwitchBlade.Services
         internal int GetInternalProviderCacheCount() => _reconciler.GetProviderCacheCount();
 
         #endregion
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _uiaWorkerClient.Dispose();
+            _refreshLock.Dispose();
+        }
     }
 }

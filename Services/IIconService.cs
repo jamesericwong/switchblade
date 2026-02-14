@@ -3,7 +3,7 @@ namespace SwitchBlade.Services
     /// <summary>
     /// Service for extracting and caching application icons by executable path.
     /// </summary>
-    public interface IIconService
+    public interface IIconService : IDiagnosticsProvider
     {
         /// <summary>
         /// Gets the icon for the specified executable. Returns null if extraction fails.
