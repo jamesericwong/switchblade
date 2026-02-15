@@ -569,6 +569,85 @@ public class MyCustomPlugin : IWindowProvider
 
 ---
 
+## Transient Failure Protection: Last Known Good (LKG)
+
+UIA-based plugins (Chrome, Teams, Terminal, Notepad++) occasionally experience **transient scan failures** — a scan returns 0 real results even though windows are still open. Common causes include high CPU load, COM timeouts, `E_FAIL` from UIA, or elevation mismatches.
+
+Without protection, these failures would cause all tabs to disappear from the search UI for one polling cycle and then reappear on the next successful scan. The **Last Known Good (LKG)** strategy in `CachingWindowProviderBase` prevents this by automatically retaining previous results during transient failures.
+
+### How It Works
+
+The LKG cache is a `Dictionary<int, List<WindowItem>>` keyed by **PID**. After every scan, `CachingWindowProviderBase.GetWindows()` runs the following decision logic for each PID:
+
+```mermaid
+flowchart TD
+    Start["ScanWindowsCore() returns raw results"] --> Group["Group results by PID"]
+    Group --> ForEach{"For each PID"}
+
+    ForEach --> HasGood{"Has any item with<br/>IsFallback == false?"}
+
+    HasGood -->|"Yes — Real tabs found"| UpdateLKG["✅ Update LKG cache<br/>Store these items as<br/>the new 'known good'"]
+    UpdateLKG --> Emit1["Emit items to UI"]
+
+    HasGood -->|"No — Fallback only"| HasLKG{"LKG cache has<br/>entries for this PID?"}
+
+    HasLKG -->|"Yes"| ProcessAlive{"Process still alive?<br/>(GetProcessInfo)"}
+    ProcessAlive -->|"Yes"| RestoreLKG["🔄 Restore LKG items<br/>Previous good tabs<br/>shown instead of fallback"]
+    ProcessAlive -->|"No"| ClearLKG["🗑️ Process dead<br/>Clear LKG, emit fallback"]
+
+    HasLKG -->|"No"| AcceptFallback["Accept fallback items<br/>(first-time scan)"]
+
+    ForEach --> CleanupPhase{"PIDs in LKG but<br/>NOT in scan results?"}
+    CleanupPhase -->|"Window still valid<br/>(IsWindow)"| Preserve["🔄 Preserve LKG items<br/>Add to results"]
+    CleanupPhase -->|"Window gone"| Remove["🗑️ Remove from LKG"]
+
+    style UpdateLKG fill:#d4edda,stroke:#28a745,color:black
+    style RestoreLKG fill:#cce5ff,stroke:#007bff,color:black
+    style ClearLKG fill:#f8d7da,stroke:#dc3545,color:black
+    style Preserve fill:#cce5ff,stroke:#007bff,color:black
+    style Remove fill:#f8d7da,stroke:#dc3545,color:black
+```
+
+### The Three Scenarios
+
+| Scenario | What the plugin returns | LKG action | User sees |
+|----------|------------------------|------------|-----------|
+| **Success** | Real tabs (`IsFallback = false`) | Cache updated with new items | Fresh tabs |
+| **Transient Failure** | Only fallback item (`IsFallback = true`) | Previous good items restored | Previous tabs (no flicker) |
+| **Process Closed** | Nothing (PID absent from scan) | LKG entry removed | Items disappear (correct) |
+
+### Plugin Author Responsibilities
+
+To participate in LKG protection, your plugin must:
+
+1.  **Inherit from `CachingWindowProviderBase`** — all LKG logic is handled automatically.
+2.  **Set `IsFallback = true`** on any generic "Main Window" fallback item returned when tab discovery fails.
+3.  **Always return at least one item** per visible window. If you return nothing for a PID, the base class assumes the process is closed and purges LKG data.
+
+```csharp
+// ✅ CORRECT: Return fallback so LKG knows the app is alive
+if (tabDiscoveryFailed)
+{
+    results.Add(new WindowItem
+    {
+        Hwnd = hwnd,
+        Title = windowTitle,       // From GetWindowText (Win32)
+        IsFallback = true          // Critical flag
+    });
+}
+
+// ❌ WRONG: Returning nothing causes LKG to purge cached tabs
+if (tabDiscoveryFailed)
+{
+    return; // Don't do this!
+}
+```
+
+> [!IMPORTANT]
+> The `IsFallback` flag is what distinguishes "I found this app but couldn't read its tabs" from "I found real tabs." Without it, the base class cannot tell whether to restore cached data or accept the new results.
+
+---
+
 ## Migration Guide: v1.6.5 → v1.6.6
 
 Version 1.6.6 **removes** the deprecated `ShowSettingsDialog(IntPtr)` method. All plugins with settings must now implement the `ISettingsControl` interface.
