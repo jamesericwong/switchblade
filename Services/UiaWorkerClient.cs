@@ -23,6 +23,11 @@ namespace SwitchBlade.Services
         private readonly ILogger? _logger;
         private readonly TimeSpan _timeout;
         private bool _disposed;
+        
+        // Concurrency management
+        private Process? _activeProcess;
+        private readonly object _processLock = new();
+        private readonly CancellationTokenSource _disposeCts = new();
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -79,13 +84,19 @@ namespace SwitchBlade.Services
                 ExcludedProcesses = excludedProcesses != null ? new List<string>(excludedProcesses) : null
             };
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(_timeout);
+            var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCts.Token);
+            combinedCts.CancelAfter(_timeout);
+
+            // Pass Parent PID for watchdog
+            int currentPid = Environment.ProcessId;
+            var args = SwitchBlade.Core.Logger.IsDebugEnabled 
+                ? $"/debug --parent {currentPid}" 
+                : $"--parent {currentPid}";
 
             var psi = new ProcessStartInfo
             {
                 FileName = _workerPath,
-                Arguments = SwitchBlade.Core.Logger.IsDebugEnabled ? "/debug" : "",
+                Arguments = args,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardInput = true,
@@ -93,9 +104,17 @@ namespace SwitchBlade.Services
                 RedirectStandardError = true
             };
 
-            using var process = new Process { StartInfo = psi };
+            // We don't use 'using' block here because we need to reference the process in the finally block for cleanup
+            // and potentially kill it in Dispose()
+            var process = new Process { StartInfo = psi };
 
-            _logger?.Log($"[UiaWorkerClient] Starting streaming worker: {_workerPath}");
+            lock (_processLock)
+            {
+                if (_disposed) throw new ObjectDisposedException(nameof(UiaWorkerClient));
+                _activeProcess = process;
+            }
+
+            _logger?.Log($"[UiaWorkerClient] Starting streaming worker: {_workerPath} (ParentPID={currentPid})");
             var startTime = Stopwatch.GetTimestamp();
 
             process.Start();
@@ -110,12 +129,12 @@ namespace SwitchBlade.Services
             var readOutputTask = Task.Run(async () => 
             {
                 var localResults = new List<UiaPluginResult>();
-                 while (!cts.Token.IsCancellationRequested)
+                 while (!combinedCts.Token.IsCancellationRequested)
                 {
                     string? line;
                     try
                     {
-                        line = await process.StandardOutput.ReadLineAsync(cts.Token);
+                        line = await process.StandardOutput.ReadLineAsync(combinedCts.Token);
                     }
                     catch (OperationCanceledException)
                     {
@@ -135,7 +154,7 @@ namespace SwitchBlade.Services
                     }
                 }
                 return localResults;
-            }, cts.Token);
+            }, combinedCts.Token);
 
 
             // BUT wait, I need to yield return. I cannot yield return from inside a Task.Run.
@@ -152,12 +171,14 @@ namespace SwitchBlade.Services
             process.BeginErrorReadLine();
 
             // Read streaming responses line by line (STDOUT)
-            while (!cts.Token.IsCancellationRequested)
+            try
+            {
+                while (!combinedCts.Token.IsCancellationRequested)
             {
                 string? line;
                 try
                 {
-                    line = await process.StandardOutput.ReadLineAsync(cts.Token);
+                    line = await process.StandardOutput.ReadLineAsync(combinedCts.Token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -196,19 +217,54 @@ namespace SwitchBlade.Services
                 yield return result;
             }
 
-            // Wait for process to exit
-            try
-            {
-                await process.WaitForExitAsync(cts.Token);
             }
-            catch (OperationCanceledException)
+            finally
             {
-                _logger?.Log("[UiaWorkerClient] Wait for exit cancelled, killing process.");
-                try { process.Kill(entireProcessTree: true); } catch { }
-            }
+                // Ensure active process is cleared and potentially killed if we are exiting abnormally
+                // or just to ensure cleanup
+                lock (_processLock)
+                {
+                    _activeProcess = null;
+                }
 
-            var elapsed = Stopwatch.GetElapsedTime(startTime);
-            _logger?.Log($"[UiaWorkerClient] Streaming worker completed in {elapsed.TotalMilliseconds:F0}ms");
+                // Wait for process to exit or kill if needed
+                try
+                {
+                    // Give it a grace period to exit naturally if it hasn't already
+                    if (!process.HasExited)
+                    {
+                        try 
+                        {
+                            // If cancellation was requested, we should kill it.
+                            if (combinedCts.Token.IsCancellationRequested)
+                            {
+                                process.Kill(entireProcessTree: true);
+                            }
+                            else
+                            {
+                                // Otherwise wait briefly
+                                await process.WaitForExitAsync(combinedCts.Token);
+                            }
+                        }
+                        catch 
+                        {
+                             // Last resort kill
+                             if (!process.HasExited) process.Kill(entireProcessTree: true);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Log($"[UiaWorkerClient] Error during process cleanup: {ex.Message}");
+                    try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                }
+
+                process.Dispose();
+                combinedCts.Dispose();
+                
+                var elapsed = Stopwatch.GetElapsedTime(startTime);
+                _logger?.Log($"[UiaWorkerClient] Streaming worker completed in {elapsed.TotalMilliseconds:F0}ms");
+            }
         }
 
         /// <summary>
@@ -292,8 +348,38 @@ namespace SwitchBlade.Services
         public void Dispose()
         {
             if (_disposed) return;
-            _disposed = true;
-            // No persistent resources to dispose
+            
+            lock (_processLock)
+            {
+                if (_disposed) return;
+                _disposed = true;
+
+                // Signal any ongoing scans to cancel
+                _disposeCts.Cancel();
+
+                // Ruthlessly kill the active process if it exists
+                if (_activeProcess != null)
+                {
+                    try
+                    {
+                        if (!_activeProcess.HasExited)
+                        {
+                            _logger?.Log($"[UiaWorkerClient] Dispose called - killing active worker PID {_activeProcess.Id}");
+                            _activeProcess.Kill(entireProcessTree: true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Log($"[UiaWorkerClient] Failed to kill active process on Dispose: {ex.Message}");
+                    }
+                    finally
+                    {
+                        _activeProcess = null;
+                    }
+                }
+            }
+            
+            _disposeCts.Dispose();
         }
     }
 

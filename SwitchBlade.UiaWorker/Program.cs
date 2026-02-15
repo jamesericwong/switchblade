@@ -47,15 +47,33 @@ internal static class Program
             arg.Equals("--debug", StringComparison.OrdinalIgnoreCase) ||
             arg.Equals("-debug", StringComparison.OrdinalIgnoreCase));
 
+        // Check for parent PID for watchdog
+        int parentPid = 0;
+        for (int i = 0; i < args.Length; i++)
+        {
+            if ((args[i] == "--parent" || args[i] == "-parent") && i + 1 < args.Length)
+            {
+                int.TryParse(args[i + 1], out parentPid);
+                break;
+            }
+        }
+
         if (_loggingEnabled)
         {
             // Append to log on startup if debug enabled
             try 
             { 
                 File.AppendAllText(LogFile, $"{Environment.NewLine}------------------------------------------------------------{Environment.NewLine}");
-                File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] UIA Worker Started. BaseDir: {AppContext.BaseDirectory}{Environment.NewLine}"); 
+                File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] UIA Worker Started. PID: {Environment.ProcessId}. BaseDir: {AppContext.BaseDirectory}{Environment.NewLine}");
+                if (parentPid > 0) File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] Monitoring Parent PID: {parentPid}{Environment.NewLine}");
             } 
             catch { }
+        }
+
+        // Start Watchdog if parent PID is provided
+        if (parentPid > 0)
+        {
+            StartParentWatchdog(parentPid);
         }
 
         UiaResponse response;
@@ -102,6 +120,27 @@ internal static class Program
         }
 
         WriteResponse(response);
+    }
+
+    private static void StartParentWatchdog(int parentPid)
+    {
+        Task.Run(() =>
+        {
+            try
+            {
+                // If parent is already gone, GetProcessById might throw or return a process that has exited
+                var parent = System.Diagnostics.Process.GetProcessById(parentPid);
+                parent.WaitForExit();
+                DebugLog($"Parent process {parentPid} exited. Terminating worker.");
+                Environment.Exit(0);
+            }
+            catch (Exception ex)
+            {
+                // Parent likely doesn't exist or we can't access it -> assume it's dead
+                DebugLog($"Parent watchdog exception (assuming parent died): {ex.Message}");
+                Environment.Exit(0);
+            }
+        });
     }
 
     private static UiaResponse ExecuteScan(UiaRequest request)

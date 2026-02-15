@@ -1,4 +1,11 @@
-## [1.9.6] - 2026-02-14
+## [1.9.7] - 2026-02-14
+### Fixed
+- **UIA Worker Process Leak**: Fixed an issue where `SwitchBlade.UiaWorker.exe` instances would remain running ("zombies") if the main application was closed, crashed, or if a scan timed out.
+  - **Explicit Kill**: `UiaWorkerClient.Dispose()` now explicitly kills the worker process if it's still running, ensuring no orphans are left behind on application exit or scan cancellation.
+  - **Parent Watchdog**: Added a watchdog thread to `SwitchBlade.UiaWorker.exe` that monitors the parent process ID. If the main application crashes or is terminated via Task Manager, the worker automatically self-terminates within 1 second.
+  - **Process Tracking**: `UiaWorkerClient` now tracks the active worker process and ensures only one instance is managed at a time, preventing accumulation of background processes during rapid restarts.
+
+
 ### Fixed
 - **Application Hang (Deadlock)**: Fixed a critical deadlock where the application would freeze completey when a plugin returned a "Transient Failure" (LKG) result.
   - **Root Cause**: The LKG protection logic in `WindowOrchestrationService` emitted an event while holding a lock which the UI thread was waiting on.
