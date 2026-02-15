@@ -1,3 +1,12 @@
+## [1.9.8] - 2026-02-14
+### Fixed
+- **Chrome Plugin: Transient 0-Window Scans**: Fixed an issue where `ChromeTabFinder` would occasionally return 0 windows on the first scan after a `UiaWorker` restart, causing tabs to momentarily disappear from the UI.
+  - **Root Cause**: `ChromeTabFinder.ScanWindow` used bare `AutomationElement.FromHandle`, which silently fails under transient UIA conditions (`E_FAIL`, COM timeout). When it failed, no `WindowItem` was returned—not even a fallback—so `CachingWindowProviderBase`'s LKG logic assumed the window was closed and purged cached results.
+  - **Fix 1 — Robust UIA Resolution**: Replaced `AutomationElement.FromHandle` with `UiaElementResolver.TryResolve`, which uses a 3-stage fallback (Direct HWND → Desktop FindFirst → Desktop TreeWalker).
+  - **Fix 2 — Guaranteed Fallback**: If tab discovery fails or returns 0 tabs, the plugin now always returns the main window (via Win32 `GetWindowText`) with `IsFallback = true`. This ensures `CachingWindowProviderBase` sees the PID as alive and restores cached tabs from its LKG cache—matching the `TeamsPlugin` pattern introduced in v1.8.13.
+
+---
+
 ## [1.9.7] - 2026-02-14
 ### Fixed
 - **UIA Worker Process Leak**: Fixed an issue where `SwitchBlade.UiaWorker.exe` instances would remain running ("zombies") if the main application was closed, crashed, or if a scan timed out.

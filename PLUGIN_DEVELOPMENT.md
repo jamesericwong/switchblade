@@ -373,6 +373,26 @@ public override void ActivateWindow(WindowItem item)
 }
 ```
 
+#### 5. Robust LKG & Fallbacks (v1.9.8+)
+To prevent tabs from disappearing during transient failures (e.g., high CPU, UIA timeouts), the plugin implements a **Guaranteed Fallback** pattern:
+
+1.  **Always get the window title** via Win32 `GetWindowText` (reliable even if UIA fails).
+2.  **Try UIA discovery** using `UiaElementResolver.TryResolve` (handles `E_FAIL`).
+3.  **If discovery fails** (or returns 0 tabs), return the main window as a fallback item with `IsFallback = true`.
+
+```csharp
+// If no tabs found, return main window so LKG cache knows the app is still alive
+if (results.Count == 0)
+{
+    results.Add(new WindowItem
+    {
+        Hwnd = hwnd,
+        Title = windowTitle, // from GetWindowText
+        IsFallback = true    // Critical: Tells base class to restore previous good results
+    });
+}
+```
+
 ## Case Study: Microsoft Teams Plugin
 
 The `TeamsPlugin` demonstrates how to handle robust activation when standard patterns fail, and how to parse metadata from UI naming conventions.
@@ -752,6 +772,7 @@ public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
 
 | Version | Key Changes |
 |---------|-------------|
+| 1.9.8   | **Chrome LKG & Fallback** - Implemented robust `UiaElementResolver` + `IsFallback` strategy for Chrome to prevent zero-window results |
 | 1.9.3   | **SOLID Refactoring** - DIP for ILogger, `UiaElementResolver` shared UIA fallback, `IDiagnosticsProvider`, `IUiaWorkerClient`, Alt+Tab fix, badge animation fix |
 | 1.8.2   | **Streaming UIA Results** - Plugins run in parallel, results streamed via NDJSON for faster UI updates |
 | 1.8.1   | **UIA Worker Timeout** - Configurable timeout (default 60s) to prevent stuck plugins from blocking refreshes |

@@ -137,52 +137,64 @@ namespace SwitchBlade.Plugins.Chrome
 
         private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, TreeWalker walker, List<WindowItem> results)
         {
-            AutomationElement? root = null;
+            // Get window title via Win32 (reliable even when UIA fails)
+            Span<char> buffer = stackalloc char[512];
+            int length = NativeInterop.GetWindowText(hwnd, buffer, buffer.Length);
+            string windowTitle = length > 0 ? new string(buffer[..length]) : "";
+            if (string.IsNullOrEmpty(windowTitle)) return;
+
+            var initialCount = results.Count;
+
             try
             {
-                root = AutomationElement.FromHandle(hwnd);
-            }
-            catch { return; }
-
-            if (root == null) return;
-
-            _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
-
-            var foundTabs = FindTabsBFS(root, walker, maxDepth: 20);
-
-            if (foundTabs.Count == 0)
-            {
-                // Fallback: Add the main window if no tabs found
-                string title = "";
-                try { title = root.Current.Name; } catch { }
-
-                if (!string.IsNullOrEmpty(title))
+                // Use UiaElementResolver for robust multi-strategy element acquisition
+                var root = UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger);
+                if (root == null)
                 {
-                    results.Add(new WindowItem
+                    _logger?.Log($"{PluginName}: All UIA strategies failed for PID {pid}, marking scan as failed.");
+                }
+                else
+                {
+                    _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
+
+                    var foundTabs = FindTabsBFS(root, walker, maxDepth: 20);
+
+                    if (foundTabs.Count > 0)
                     {
-                        Hwnd = hwnd,
-                        Title = title,
-                        ProcessName = processName,
-                        ExecutablePath = executablePath,
-                        Source = this,
-                        IsFallback = true
-                    });
+                        _logger?.Log($"  Found {foundTabs.Count} tabs via BFS.");
+                        foreach (var tab in foundTabs)
+                        {
+                            results.Add(new WindowItem
+                            {
+                                Hwnd = hwnd,
+                                Title = tab,
+                                ProcessName = processName,
+                                ExecutablePath = executablePath,
+                                Source = this
+                            });
+                        }
+                    }
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _logger?.Log($"  Found {foundTabs.Count} tabs via BFS.");
-                foreach (var tab in foundTabs)
+                _logger?.LogError($"{PluginName}: Error scanning window {hwnd}", ex);
+            }
+
+            // FALLBACK: If no tabs were added for this window (UIA failed OR found 0 tabs),
+            // always return the main window so LKG cache sees the PID as alive.
+            if (results.Count == initialCount)
+            {
+                _logger?.Log($"{PluginName}: No tabs found for PID {pid}, returning main window as fallback");
+                results.Add(new WindowItem
                 {
-                    results.Add(new WindowItem
-                    {
-                        Hwnd = hwnd,
-                        Title = tab,
-                        ProcessName = processName,
-                        ExecutablePath = executablePath,
-                        Source = this
-                    });
-                }
+                    Hwnd = hwnd,
+                    Title = windowTitle,
+                    ProcessName = processName,
+                    ExecutablePath = executablePath,
+                    Source = this,
+                    IsFallback = true
+                });
             }
         }
 
