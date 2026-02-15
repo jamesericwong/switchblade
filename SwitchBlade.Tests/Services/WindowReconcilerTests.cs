@@ -18,7 +18,7 @@ namespace SwitchBlade.Tests.Services
         {
             _mockIconService = new Mock<IIconService>();
             _mockProvider = new Mock<IWindowProvider>();
-            _reconciler = new WindowReconciler(_mockIconService.Object);
+            _reconciler = new WindowReconciler(_mockIconService.Object, null);
         }
 
         [Fact]
@@ -64,12 +64,24 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void Reconcile_PopulatesIcon_WhenMissing()
+        public void Reconcile_DoesNotPopulateIcon_Synchronously()
         {
             var item = new WindowItem { Hwnd = new IntPtr(1), Title = "App", ExecutablePath = "app.exe" };
-            _mockIconService.Setup(s => s.GetIcon("app.exe")).Returns((System.Windows.Media.ImageSource)null!); // Just verifying call
+            _mockIconService.Setup(s => s.GetIcon("app.exe")).Returns((System.Windows.Media.ImageSource)null!);
 
             _reconciler.Reconcile(new List<WindowItem> { item }, _mockProvider.Object);
+
+            // Reconcile is now fast path ONLY - no icon extraction
+            _mockIconService.Verify(s => s.GetIcon("app.exe"), Times.Never);
+        }
+
+        [Fact]
+        public void PopulateIcons_CallsGetIcon()
+        {
+            var item = new WindowItem { Hwnd = new IntPtr(1), Title = "App", ExecutablePath = "app.exe" };
+            _mockIconService.Setup(s => s.GetIcon("app.exe")).Returns((System.Windows.Media.ImageSource)null!);
+
+            _reconciler.PopulateIcons(new List<WindowItem> { item });
 
             _mockIconService.Verify(s => s.GetIcon("app.exe"), Times.Once);
         }

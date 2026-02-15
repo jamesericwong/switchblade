@@ -12,9 +12,12 @@ namespace SwitchBlade.Services
         private readonly Dictionary<IWindowProvider, HashSet<WindowItem>> _providerItems = new();
         private readonly object _lock = new();
 
-        public WindowReconciler(IIconService? iconService)
+        private readonly ILogger? _logger;
+
+        public WindowReconciler(IIconService? iconService, ILogger? logger = null)
         {
             _iconService = iconService;
+            _logger = logger;
         }
 
         public List<WindowItem> Reconcile(IList<WindowItem> incomingItems, IWindowProvider provider)
@@ -50,7 +53,7 @@ namespace SwitchBlade.Services
                         match.Title = incoming.Title;
                         match.ProcessName = incoming.ProcessName;
                         match.Source ??= provider;
-                        PopulateIconIfMissing(match, incoming.ExecutablePath);
+                        // Icon population is now async - do NOT call PopulateIconIfMissing here
 
                         resolvedItems.Add(match);
                         claimedItems.Add(match);
@@ -60,7 +63,7 @@ namespace SwitchBlade.Services
                     {
                         incoming.ResetBadgeAnimation();
                         incoming.Source = provider;
-                        PopulateIconIfMissing(incoming, incoming.ExecutablePath);
+                        // Icon population is now async - do NOT call PopulateIconIfMissing here
 
                         // Lock-free internal method — we already hold _lock
                         AddToCacheInternal(incoming);
@@ -77,6 +80,38 @@ namespace SwitchBlade.Services
                 }
 
                 return resolvedItems;
+            }
+        }
+
+        public void PopulateIcons(IEnumerable<WindowItem> items)
+        {
+            if (_iconService == null) return;
+
+            // No lock needed here - items are already reconciled and local to this list
+            // Icon extraction is thread-safe and cached
+            int count = 0;
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
+
+            foreach (var item in items)
+            {
+                if (item.Icon == null && !string.IsNullOrEmpty(item.ExecutablePath))
+                {
+                    try
+                    {
+                        item.Icon = _iconService.GetIcon(item.ExecutablePath);
+                        count++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError($"Failed to populate icon for {item.ExecutablePath}", ex);
+                    }
+                }
+            }
+
+            if (count > 0 && _logger != null && SwitchBlade.Core.Logger.IsDebugEnabled)
+            {
+                var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(start);
+                _logger.Log($"[Perf] Populated {count} icons in {elapsed.TotalMilliseconds:F2}ms");
             }
         }
 

@@ -244,6 +244,24 @@ namespace SwitchBlade.Tests.Contracts
             // Assert
             Assert.Equal(0, firedCount);
         }
+        [Fact]
+        public void Setting_Icon_Raises_PropertyChanged()
+        {
+            var item = new WindowItem();
+            var icon = new object();
+            bool eventRaised = false;
+
+            item.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(WindowItem.Icon))
+                    eventRaised = true;
+            };
+
+            item.Icon = icon;
+
+            Assert.True(eventRaised);
+            Assert.Same(icon, item.Icon);
+        }
     }
 }
 

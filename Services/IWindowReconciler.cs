@@ -20,6 +20,12 @@ namespace SwitchBlade.Services
         void RemoveFromCache(WindowItem item);
 
         /// <summary>
+        /// Populates icons for the given window items.
+        /// Should be called asynchronously to avoid blocking the UI or orchestration lock.
+        /// </summary>
+        void PopulateIcons(IEnumerable<WindowItem> items);
+
+        /// <summary>
         /// Gets the total number of cached window items (HWND + Provider records).
         /// Used for memory diagnostics.
         /// </summary>

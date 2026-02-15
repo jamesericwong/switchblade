@@ -234,6 +234,7 @@ namespace SwitchBlade.Services
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)
         {
             WindowListUpdatedEventArgs args;
+            List<WindowItem> reconciled;
             lock (_lock)
             {
                 // LKG PROTECTION: If incoming results are ALL fallback items,
@@ -250,6 +251,8 @@ namespace SwitchBlade.Services
                     }
                 }
 
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
+
                 // Normal path: Replace existing items with new results
                 for (int i = _allWindows.Count - 1; i >= 0; i--)
                 {
@@ -257,13 +260,36 @@ namespace SwitchBlade.Services
                         _allWindows.RemoveAt(i);
                 }
 
-                var reconciled = _reconciler.Reconcile(results, provider);
+                reconciled = _reconciler.Reconcile(results, provider);
                 _allWindows.AddRange(reconciled);
 
                 args = new WindowListUpdatedEventArgs(provider, true);
+
+                 if (_logger != null && SwitchBlade.Core.Logger.IsDebugEnabled)
+                {
+                    var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(start);
+                    _logger.Log($"[Perf] Reconciled {reconciled.Count} items for {provider.PluginName} in {elapsed.TotalMilliseconds:F2}ms");
+                }
             }
 
+            // Emit event IMMEDIATELY so UI shows text - icons will pop in later
             EmitEvent(args);
+
+            // Populate icons ASYNCHRONOUSLY to avoid blocking (especially UIA worker pipe)
+            if (reconciled.Count > 0)
+            {
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        _reconciler.PopulateIcons(reconciled);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError($"Error populating icons for {provider.PluginName}", ex);
+                    }
+                });
+            }
         }
 
         private void EmitEvent(WindowListUpdatedEventArgs args)

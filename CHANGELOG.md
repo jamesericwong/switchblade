@@ -1,3 +1,9 @@
+## [1.9.5] - 2026-02-14
+### Fixed
+- **App Freezing**: Fixed an issue where the application would freeze ("white outline") during high-load scenarios.
+  - **Root Cause**: Icon extraction was performed synchronously within the main window orchestration lock, blocking the UI thread.
+  - **Resolultion**: Moved icon extraction to an asynchronous background task. Icons now populate shortly after the window title appears, ensuring the UI remains responsive.
+
 ## [1.9.4] - 2026-02-14
 ### Fixed
 - **Badge Animation Flash**: Fixed a race condition where badges would sometimes appear fully opaque for a split second before the waterfall animation started.
