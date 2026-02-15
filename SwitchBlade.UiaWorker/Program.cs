@@ -38,9 +38,17 @@ internal static class Program
         catch { /* Ignore logging errors */ }
     }
 
+    private static TextWriter _jsonWriter = TextWriter.Null;
+
     [STAThread] // Required for UI Automation
     public static void Main(string[] args)
     {
+        // Capture the original stdout for our JSON protocol
+        _jsonWriter = Console.Out;
+
+        // Redirect Console.Out to null to prevent plugins/dependencies from polluting the stream
+        Console.SetOut(TextWriter.Null);
+
         // Check for debug flag
         _loggingEnabled = args.Any(arg =>
             arg.Equals("/debug", StringComparison.OrdinalIgnoreCase) ||
@@ -261,8 +269,8 @@ internal static class Program
 
         lock (WriteLock)
         {
-            Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
-            Console.Out.Flush();
+            _jsonWriter.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+            _jsonWriter.Flush();
         }
 
         DebugLog($"Streamed {windows?.Count ?? 0} windows from {pluginName}");
@@ -276,8 +284,8 @@ internal static class Program
         var result = new UiaPluginResult { IsFinal = true };
         lock (WriteLock)
         {
-            Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
-            Console.Out.Flush();
+            _jsonWriter.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+            _jsonWriter.Flush();
         }
         DebugLog("Wrote final marker.");
     }
@@ -368,7 +376,8 @@ internal static class Program
     private static void WriteResponse(UiaResponse response)
     {
         string json = JsonSerializer.Serialize(response, JsonOptions);
-        Console.WriteLine(json);
+        _jsonWriter.WriteLine(json);
+        _jsonWriter.Flush();
         DebugLog($"Sent response. Success={response.Success}, Windows={response.Windows?.Count ?? 0}, Errors={response.Error}");
     }
 }

@@ -125,36 +125,7 @@ namespace SwitchBlade.Services
             await process.StandardInput.FlushAsync();
             process.StandardInput.Close();
 
-            // Task to read input (stdout)
-            var readOutputTask = Task.Run(async () => 
-            {
-                var localResults = new List<UiaPluginResult>();
-                 while (!combinedCts.Token.IsCancellationRequested)
-                {
-                    string? line;
-                    try
-                    {
-                        line = await process.StandardOutput.ReadLineAsync(combinedCts.Token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
-
-                    if (line == null) break;
-
-                    try
-                    {
-                        var result = JsonSerializer.Deserialize<UiaPluginResult>(line, JsonOptions);
-                        if (result != null) localResults.Add(result);
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger?.Log($"[UiaWorkerClient] Failed to parse streaming line: {ex.Message}");
-                    }
-                }
-                return localResults;
-            }, combinedCts.Token);
+            // (Removed conflicting Task.Run block)
 
 
             // BUT wait, I need to yield return. I cannot yield return from inside a Task.Run.
