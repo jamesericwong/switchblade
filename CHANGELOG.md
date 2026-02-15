@@ -5,7 +5,9 @@
   - **Parent Watchdog**: Added a watchdog thread to `SwitchBlade.UiaWorker.exe` that monitors the parent process ID. If the main application crashes or is terminated via Task Manager, the worker automatically self-terminates within 1 second.
   - **Process Tracking**: `UiaWorkerClient` now tracks the active worker process and ensures only one instance is managed at a time, preventing accumulation of background processes during rapid restarts.
 
+  ---
 
+## [1.9.6] - 2026-02-14
 ### Fixed
 - **Application Hang (Deadlock)**: Fixed a critical deadlock where the application would freeze completey when a plugin returned a "Transient Failure" (LKG) result.
   - **Root Cause**: The LKG protection logic in `WindowOrchestrationService` emitted an event while holding a lock which the UI thread was waiting on.
@@ -20,11 +22,15 @@
   - **Root Cause**: The main window retained `WS_CAPTION` and `WS_SYSMENU` styles even when `WindowStyle="None"`, which DWM uses to render the preview header.
   - **Fix**: Explicitly removed `WS_CAPTION` and `WS_SYSMENU` styles from the main window after initialization.
 
+  ---
+
 ## [1.9.5] - 2026-02-14
 ### Fixed
 - **App Freezing**: Fixed an issue where the application would freeze ("white outline") during high-load scenarios.
   - **Root Cause**: Icon extraction was performed synchronously within the main window orchestration lock, blocking the UI thread.
   - **Resolultion**: Moved icon extraction to an asynchronous background task. Icons now populate shortly after the window title appears, ensuring the UI remains responsive.
+
+  ---
 
 ## [1.9.4] - 2026-02-14
 ### Fixed
