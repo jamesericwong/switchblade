@@ -233,21 +233,22 @@ namespace SwitchBlade.Services
 
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)
         {
-            WindowListUpdatedEventArgs args;
-            List<WindowItem> reconciled;
+            WindowListUpdatedEventArgs args = null!;
+            List<WindowItem>? reconciled = null;
             lock (_lock)
             {
-                // LKG PROTECTION: If incoming results are ALL fallback items,
-                // preserve existing results for this provider to prevent transient
-                // UIA scan failures from wiping valid cached data.
+                // Correct Implementation:
+                // Check LKG condition
                 if (results.Count > 0 && results.All(r => r.IsFallback))
                 {
                     bool hasExistingRealItems = _allWindows.Any(w => w.Source == provider && !w.IsFallback);
                     if (hasExistingRealItems)
                     {
                         _logger?.Log($"[LKG] {provider.PluginName}: Transient failure (only fallback items received). Preserving {_allWindows.Count(w => w.Source == provider)} existing items.");
-                        EmitEvent(new WindowListUpdatedEventArgs(provider, false));
-                        return;
+                        
+                        // DEFER Event Emission to outside the lock
+                        args = new WindowListUpdatedEventArgs(provider, false);
+                        goto EmitAndReturn;
                     }
                 }
 
@@ -272,16 +273,18 @@ namespace SwitchBlade.Services
                 }
             }
 
+            EmitAndReturn:
             // Emit event IMMEDIATELY so UI shows text - icons will pop in later
             EmitEvent(args);
 
-            // Populate icons ASYNCHRONOUSLY to avoid blocking (especially UIA worker pipe)
-            if (reconciled.Count > 0)
+            // If we jumped here from LKG, reconciled is null/empty, so we shouldn't populate icons.
+            if (reconciled != null && reconciled.Count > 0)
             {
                 Task.Run(() =>
                 {
                     try
                     {
+                        // ... existing icon population logic ...
                         _reconciler.PopulateIcons(reconciled);
                     }
                     catch (Exception ex)
@@ -290,6 +293,7 @@ namespace SwitchBlade.Services
                     }
                 });
             }
+            return;
         }
 
         private void EmitEvent(WindowListUpdatedEventArgs args)

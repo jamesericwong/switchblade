@@ -106,7 +106,52 @@ namespace SwitchBlade.Services
             await process.StandardInput.FlushAsync();
             process.StandardInput.Close();
 
-            // Read streaming responses line by line
+            // Task to read input (stdout)
+            var readOutputTask = Task.Run(async () => 
+            {
+                var localResults = new List<UiaPluginResult>();
+                 while (!cts.Token.IsCancellationRequested)
+                {
+                    string? line;
+                    try
+                    {
+                        line = await process.StandardOutput.ReadLineAsync(cts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+
+                    if (line == null) break;
+
+                    try
+                    {
+                        var result = JsonSerializer.Deserialize<UiaPluginResult>(line, JsonOptions);
+                        if (result != null) localResults.Add(result);
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger?.Log($"[UiaWorkerClient] Failed to parse streaming line: {ex.Message}");
+                    }
+                }
+                return localResults;
+            }, cts.Token);
+
+
+            // BUT wait, I need to yield return. I cannot yield return from inside a Task.Run.
+            // I need to read stdout in the main loop, but I MUST drain stderr in the background.
+
+            process.ErrorDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                {
+                    // Log worker stderr to main log with a prefix
+                    _logger?.Log($"[UiaWorker STDERR] {e.Data}");
+                }
+            };
+            process.BeginErrorReadLine();
+
+            // Read streaming responses line by line (STDOUT)
             while (!cts.Token.IsCancellationRequested)
             {
                 string? line;

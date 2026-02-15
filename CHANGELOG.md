@@ -1,3 +1,11 @@
+## [1.9.6] - 2026-02-14
+### Fixed
+- **Application Hang (Deadlock)**: Fixed a critical deadlock where the application would freeze completey when a plugin returned a "Transient Failure" (LKG) result.
+  - **Root Cause**: The LKG protection logic in `WindowOrchestrationService` emitted an event while holding a lock which the UI thread was waiting on.
+  - **Fix**: Moved the event emission outside the lock to ensure the UI thread can process updates without blocking background threads.
+- **UIA Worker Deadlock**: Fixed a potential deadlock in the out-of-process UIA worker where the StandardError stream could fill up and block the worker if extensive logging occurred.
+  - **Fix**: Implemented asynchronous reading of the StandardError stream to prevent buffer overflows.
+
 ## [1.9.5] - 2026-02-14
 ### Fixed
 - **App Freezing**: Fixed an issue where the application would freeze ("white outline") during high-load scenarios.
