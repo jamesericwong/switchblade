@@ -112,7 +112,7 @@ namespace SwitchBlade.Plugins.Chrome
 
 
             var walker = TreeWalker.RawViewWalker;
-            _logger?.Log($"--- Scan started at {DateTime.Now} ---");
+            _logger?.Log($"--- Scan started at {DateTime.Now} in Process {System.Diagnostics.Process.GetCurrentProcess().Id} ---");
 
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {

@@ -119,7 +119,6 @@ namespace SwitchBlade.Services
                 }
 
                 bool shouldAnimate = !item.HasBeenAnimated;
-                SwitchBlade.Core.Logger.Log($"[BadgeAnimation] Item '{item.Title}' HWND={item.Hwnd}, ShortcutIndex={item.ShortcutIndex}, ShouldAnimate={shouldAnimate}");
 
                 if (shouldAnimate)
                 {

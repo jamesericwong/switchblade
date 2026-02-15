@@ -112,7 +112,11 @@ namespace SwitchBlade.Contracts
         [LibraryImport("user32.dll", SetLastError = true)]
         public static partial IntPtr GetWindow(IntPtr hWnd, uint uCmd);
 
+        public const int GWL_STYLE = -16;
         public const int GWL_EXSTYLE = -20;
+        public const int WS_CAPTION = 0x00C00000;
+        public const int WS_SYSMENU = 0x00080000;
+        public const int WS_THICKFRAME = 0x00040000;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
         public const int WS_EX_APPWINDOW = 0x00040000;
         public const uint GW_OWNER = 4;

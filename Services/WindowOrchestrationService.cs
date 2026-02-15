@@ -71,143 +71,143 @@ namespace SwitchBlade.Services
 
             try
             {
-                disabledPlugins ??= new HashSet<string>();
-
-                // Clear process cache for fresh lookups
-                NativeInterop.ClearProcessCache();
-
-                // 1. Reload settings and gather handled processes (for all providers)
-                var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var provider in _providers)
+                // Offload the entire refresh operation (including setup) to a background thread
+                // to ensure the UI thread is never blocked by settings reloading or process enumeration.
+                await Task.Run(async () =>
                 {
-                    try
-                    {
-                        provider.ReloadSettings();
-                        foreach (var p in provider.GetHandledProcesses())
-                        {
-                            handledProcesses.Add(p);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError($"Error reloading settings for {provider.PluginName}", ex);
-                    }
-                }
+                    disabledPlugins ??= new HashSet<string>();
 
-                // 2. Inject exclusions (for all providers)
-                foreach (var provider in _providers)
-                {
-                    provider.SetExclusions(handledProcesses);
-                }
+                    // Clear process cache for fresh lookups
+                    NativeInterop.ClearProcessCache();
 
-                // 3. Split providers into UIA (out-of-process) and non-UIA (in-process)
-                var nonUiaProviders = _providers.Where(p => !p.IsUiaProvider).ToList();
-                var uiaProviders = _providers.Where(p => p.IsUiaProvider).ToList();
-
-                var allTasks = new List<Task>();
-
-                // 4a. Run NON-UIA providers in-process (fast, no memory leak issues)
-                foreach (var provider in nonUiaProviders)
-                {
-                    allTasks.Add(Task.Run(() =>
+                    // 1. Reload settings and gather handled processes (for all providers)
+                    var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var provider in _providers)
                     {
                         try
                         {
-                            bool isDisabled = disabledPlugins.Contains(provider.PluginName);
-                            var results = isDisabled ? new List<WindowItem>() : provider.GetWindows().ToList();
-                            ProcessProviderResults(provider, results);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger?.LogError($"Provider {provider.PluginName} failed during GetWindows()", ex);
-                            // Process empty results to clear stale data for this provider
-                            ProcessProviderResults(provider, new List<WindowItem>());
-                        }
-                    }));
-                }
-
-                // 4b. Run UIA providers OUT-OF-PROCESS via UiaWorkerClient with STREAMING
-                // Results are processed incrementally as each plugin completes.
-                if (uiaProviders.Count > 0)
-                {
-                    var uiaDisabled = new HashSet<string>(
-                        uiaProviders.Where(p => disabledPlugins.Contains(p.PluginName)).Select(p => p.PluginName),
-                        StringComparer.OrdinalIgnoreCase);
-
-                    // Build a lookup for fast provider resolution by name
-                    var providerLookup = uiaProviders.ToDictionary(
-                        p => p.PluginName,
-                        p => p,
-                        StringComparer.OrdinalIgnoreCase);
-
-                    // Pre-build map for O(1) fallback lookup (OCP fix)
-                    var processProviderMap = BuildProcessToProviderMap(uiaProviders);
-
-                    allTasks.Add(Task.Run(async () =>
-                    {
-                        try
-                        {
-                            _logger?.Log($"[UIA] Starting streaming scan for {uiaProviders.Count} UIA providers...");
-
-                            // Stream results as each plugin completes
-                            await foreach (var pluginResult in _uiaWorkerClient.ScanStreamingAsync(uiaDisabled, handledProcesses))
+                            provider.ReloadSettings();
+                            foreach (var p in provider.GetHandledProcesses())
                             {
-                                if (pluginResult.Error != null)
-                                {
-                                    _logger?.Log($"[UIA] Plugin {pluginResult.PluginName} error: {pluginResult.Error}");
-                                    // Don't continue; we still need to process empty results to clear stale data if needed
-                                    // But if it's just an error string, we might not have windows.
-                                    // If windows is null, use empty list.
-                                }
-
-                                // Find the provider for this plugin's results
-                                if (!providerLookup.TryGetValue(pluginResult.PluginName, out var uiaProvider))
-                                {
-                                    // Fallback: dynamically resolve by process name using providers' GetHandledProcesses()
-                                    if (pluginResult.Windows?.FirstOrDefault() is { } firstWindow
-                                        && processProviderMap.TryGetValue(firstWindow.ProcessName, out var resolvedProvider))
-                                    {
-                                        uiaProvider = resolvedProvider;
-                                    }
-                                }
-
-                                if (uiaProvider == null)
-                                {
-                                    _logger?.Log($"[UIA] No provider found for plugin {pluginResult.PluginName}, skipping results.");
-                                    continue;
-                                }
-
-                                // Convert to WindowItems and set Source
-                                var windowItems = pluginResult.Windows?
-                                    .Select(w => new WindowItem
-                                    {
-                                        Hwnd = new IntPtr(w.Hwnd),
-                                        Title = w.Title,
-                                        ProcessName = w.ProcessName,
-                                        ExecutablePath = w.ExecutablePath,
-                                        IsFallback = w.IsFallback,
-                                        Source = uiaProvider
-                                    })
-                                    .ToList() ?? new List<WindowItem>();
-
-                                _logger?.Log($"[UIA] Plugin {pluginResult.PluginName} returned {windowItems.Count} windows - processing immediately.");
-
-                                // Process and emit event IMMEDIATELY
-                                ProcessProviderResults(uiaProvider, windowItems);
+                                handledProcesses.Add(p);
                             }
-
-                            _logger?.Log("[UIA] Streaming scan complete.");
                         }
                         catch (Exception ex)
                         {
-                            _logger?.LogError($"UIA Worker streaming error: {ex.Message}", ex);
+                            _logger?.LogError($"Error reloading settings for {provider.PluginName}", ex);
                         }
-                    }));
-                }
+                    }
 
-                await Task.WhenAll(allTasks);
+                    // 2. Inject exclusions (for all providers)
+                    foreach (var provider in _providers)
+                    {
+                        provider.SetExclusions(handledProcesses);
+                    }
 
-                // 5. No more in-process UIA cleanup needed - worker process handles it!
+                    // 3. Split providers into UIA (out-of-process) and non-UIA (in-process)
+                    var nonUiaProviders = _providers.Where(p => !p.IsUiaProvider).ToList();
+                    var uiaProviders = _providers.Where(p => p.IsUiaProvider).ToList();
+
+                    var allTasks = new List<Task>();
+
+                    // 4a. Run NON-UIA providers in-process (fast, no memory leak issues)
+                    foreach (var provider in nonUiaProviders)
+                    {
+                        allTasks.Add(Task.Run(() =>
+                        {
+                            try
+                            {
+                                bool isDisabled = disabledPlugins.Contains(provider.PluginName);
+                                var results = isDisabled ? new List<WindowItem>() : provider.GetWindows().ToList();
+                                ProcessProviderResults(provider, results);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger?.LogError($"Provider {provider.PluginName} failed during GetWindows()", ex);
+                                // Process empty results to clear stale data for this provider
+                                ProcessProviderResults(provider, new List<WindowItem>());
+                            }
+                        }));
+                    }
+
+                    // 4b. Run UIA providers OUT-OF-PROCESS via UiaWorkerClient with STREAMING
+                    // Results are processed incrementally as each plugin completes.
+                    if (uiaProviders.Count > 0)
+                    {
+                        var uiaDisabled = new HashSet<string>(
+                            uiaProviders.Where(p => disabledPlugins.Contains(p.PluginName)).Select(p => p.PluginName),
+                            StringComparer.OrdinalIgnoreCase);
+
+                        // Build a lookup for fast provider resolution by name
+                        var providerLookup = uiaProviders.ToDictionary(
+                            p => p.PluginName,
+                            p => p,
+                            StringComparer.OrdinalIgnoreCase);
+
+                        // Pre-build map for O(1) fallback lookup (OCP fix)
+                        var processProviderMap = BuildProcessToProviderMap(uiaProviders);
+
+                        allTasks.Add(Task.Run(async () =>
+                        {
+                            try
+                            {
+                                _logger?.Log($"[UIA] Starting streaming scan for {uiaProviders.Count} UIA providers...");
+
+                                // Stream results as each plugin completes
+                                await foreach (var pluginResult in _uiaWorkerClient.ScanStreamingAsync(uiaDisabled, handledProcesses))
+                                {
+                                    if (pluginResult.Error != null)
+                                    {
+                                        _logger?.Log($"[UIA] Plugin {pluginResult.PluginName} error: {pluginResult.Error}");
+                                    }
+
+                                    // Find the provider for this plugin's results
+                                    if (!providerLookup.TryGetValue(pluginResult.PluginName, out var uiaProvider))
+                                    {
+                                        // Fallback: dynamically resolve by process name using providers' GetHandledProcesses()
+                                        if (pluginResult.Windows?.FirstOrDefault() is { } firstWindow
+                                            && processProviderMap.TryGetValue(firstWindow.ProcessName, out var resolvedProvider))
+                                        {
+                                            uiaProvider = resolvedProvider;
+                                        }
+                                    }
+
+                                    if (uiaProvider == null)
+                                    {
+                                        _logger?.Log($"[UIA] No provider found for plugin {pluginResult.PluginName}, skipping results.");
+                                        continue;
+                                    }
+
+                                    // Convert to WindowItems and set Source
+                                    var windowItems = pluginResult.Windows?
+                                        .Select(w => new WindowItem
+                                        {
+                                            Hwnd = new IntPtr(w.Hwnd),
+                                            Title = w.Title,
+                                            ProcessName = w.ProcessName,
+                                            ExecutablePath = w.ExecutablePath,
+                                            IsFallback = w.IsFallback,
+                                            Source = uiaProvider
+                                        })
+                                        .ToList() ?? new List<WindowItem>();
+
+                                    _logger?.Log($"[UIA] Plugin {pluginResult.PluginName} returned {windowItems.Count} windows - processing immediately.");
+
+                                    // Process and emit event IMMEDIATELY
+                                    ProcessProviderResults(uiaProvider, windowItems);
+                                }
+
+                                _logger?.Log("[UIA] Streaming scan complete.");
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger?.LogError($"UIA Worker streaming error: {ex.Message}", ex);
+                            }
+                        }));
+                    }
+
+                    await Task.WhenAll(allTasks);
+                });
             }
             finally
             {

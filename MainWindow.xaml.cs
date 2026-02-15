@@ -174,7 +174,30 @@ namespace SwitchBlade
                 _logger.Log($"ConfigureWindowStyles: Added WS_EX_APPWINDOW to Main Window {hwnd}");
             }
 
-            // 2. Hide the WPF owner window
+            // 2. Remove standard window chrome styles that cause the "Header" to appear in Alt+Tab
+            // We keep WS_THICKFRAME (if present) for resizing, but remove Caption/SystemMenu
+            var mainStyle = (int)NativeInterop.GetWindowLongPtr(hwnd, NativeInterop.GWL_STYLE);
+            bool stylesChanged = false;
+
+            if ((mainStyle & NativeInterop.WS_CAPTION) != 0)
+            {
+                mainStyle &= ~NativeInterop.WS_CAPTION;
+                stylesChanged = true;
+            }
+
+            if ((mainStyle & NativeInterop.WS_SYSMENU) != 0)
+            {
+                mainStyle &= ~NativeInterop.WS_SYSMENU;
+                stylesChanged = true;
+            }
+
+            if (stylesChanged)
+            {
+                NativeInterop.SetWindowLongPtr(hwnd, NativeInterop.GWL_STYLE, (IntPtr)mainStyle);
+                _logger.Log($"ConfigureWindowStyles: Removed WS_CAPTION/WS_SYSMENU from Main Window {hwnd}");
+            }
+
+            // 3. Hide the WPF owner window
             var owner = NativeInterop.GetWindow(hwnd, NativeInterop.GW_OWNER);
             if (owner != IntPtr.Zero)
             {

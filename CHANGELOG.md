@@ -6,6 +6,13 @@
 - **UIA Worker Deadlock**: Fixed a potential deadlock in the out-of-process UIA worker where the StandardError stream could fill up and block the worker if extensive logging occurred.
   - **Fix**: Implemented asynchronous reading of the StandardError stream to prevent buffer overflows.
 
+### Improved
+- **Responsiveness**: Moved heavy settings reload and process enumeration logic to a background thread to prevent UI stutter during refresh.
+- **Performance**: Reduced logging overhead in `BadgeAnimationService` to minimize UI thread impact during animations.
+- **Alt+Tab Window Header**: Fixed an issue where a standard window header would appear in the Alt+Tab preview.
+  - **Root Cause**: The main window retained `WS_CAPTION` and `WS_SYSMENU` styles even when `WindowStyle="None"`, which DWM uses to render the preview header.
+  - **Fix**: Explicitly removed `WS_CAPTION` and `WS_SYSMENU` styles from the main window after initialization.
+
 ## [1.9.5] - 2026-02-14
 ### Fixed
 - **App Freezing**: Fixed an issue where the application would freeze ("white outline") during high-load scenarios.
