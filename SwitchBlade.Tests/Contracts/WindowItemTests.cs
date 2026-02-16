@@ -1,6 +1,7 @@
 using Xunit;
 using SwitchBlade.Contracts;
 using System.Collections.Generic;
+using System;
 
 namespace SwitchBlade.Tests.Contracts
 {
@@ -244,6 +245,7 @@ namespace SwitchBlade.Tests.Contracts
             // Assert
             Assert.Equal(0, firedCount);
         }
+
         [Fact]
         public void Setting_Icon_Raises_PropertyChanged()
         {
@@ -262,6 +264,69 @@ namespace SwitchBlade.Tests.Contracts
             Assert.True(eventRaised);
             Assert.Same(icon, item.Icon);
         }
+
+        // --- Restored NormalizedTitle and Shortcut Value Tests ---
+
+        [Fact]
+        public void Title_Normalization_IsCached()
+        {
+            var item = new WindowItem { Title = "Test Title" };
+            var normalized1 = item.NormalizedTitle;
+            var normalized2 = item.NormalizedTitle;
+
+            Assert.Equal("testtitle", normalized1);
+            Assert.Same(normalized1, normalized2); // Should be same string reference due to caching logic
+        }
+
+        [Fact]
+        public void Title_Change_InvalidatesNormalizationCache()
+        {
+            var item = new WindowItem { Title = "Test Title" };
+            var normalized1 = item.NormalizedTitle;
+            
+            item.Title = "New Title";
+            var normalized2 = item.NormalizedTitle;
+
+            Assert.NotEqual(normalized1, normalized2);
+            Assert.Equal("newtitle", normalized2);
+        }
+
+        [Fact]
+        public void NormalizeForSearch_HandlesEdgeCases()
+        {
+            var item = new WindowItem { Title = "  Foo - Bar_Baz  " };
+            Assert.Equal("foobarbaz", item.NormalizedTitle);
+
+            // Empty handling
+            item.Title = "";
+            Assert.Equal("", item.NormalizedTitle);
+            
+            // Symbol handling
+            item.Title = "-_";
+            Assert.Equal("", item.NormalizedTitle);
+        }
+
+        [Theory]
+        [InlineData(0, "1")]
+        [InlineData(8, "9")]
+        [InlineData(9, "0")]
+        [InlineData(-1, "")]
+        [InlineData(10, "")]
+        public void ShortcutDisplay_ReturnsCorrectString(int index, string expected)
+        {
+            var item = new WindowItem { ShortcutIndex = index };
+            Assert.Equal(expected, item.ShortcutDisplay);
+        }
+
+        [Theory]
+        [InlineData(0, true)]
+        [InlineData(9, true)]
+        [InlineData(-1, false)]
+        [InlineData(10, false)]
+        public void IsShortcutVisible_CalculatedCorrectly(int index, bool expected)
+        {
+            var item = new WindowItem { ShortcutIndex = index };
+            Assert.Equal(expected, item.IsShortcutVisible);
+        }
     }
 }
-

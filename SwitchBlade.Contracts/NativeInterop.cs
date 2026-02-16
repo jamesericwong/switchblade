@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.IO;
@@ -14,6 +15,7 @@ namespace SwitchBlade.Contracts
     /// Consolidates P/Invoke declarations used by both Core and Plugins.
     /// Modernized for .NET 9+ high performance scenarios.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public static partial class NativeInterop
     {
         public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);

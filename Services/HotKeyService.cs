@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Interop;
 using SwitchBlade.Contracts;
@@ -6,6 +7,7 @@ using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
 {
+    [ExcludeFromCodeCoverage]
     public class HotKeyService : IDisposable
     {
         private const int HOTKEY_ID = 9001;

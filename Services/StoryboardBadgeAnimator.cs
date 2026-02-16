@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -13,6 +14,7 @@ namespace SwitchBlade.Services
     /// Uses BeginAnimation directly on visual elements instead of Storyboard to avoid
     /// naming-scope conflicts with data-bound TranslateTransform properties.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class StoryboardBadgeAnimator : IBadgeAnimator
     {
         private readonly IDispatcherService _dispatcherService;

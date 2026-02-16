@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
 using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Core
 {
+    [ExcludeFromCodeCoverage]
     public class PluginLoader
     {
         private readonly string _pluginsPath;

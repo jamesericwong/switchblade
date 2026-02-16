@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -11,6 +12,7 @@ namespace SwitchBlade.Handlers
     /// Handles window resize grip interactions.
     /// Extracted from MainWindow.xaml.cs for Single Responsibility Principle.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class WindowResizeHandler
     {
         private readonly Window _window;

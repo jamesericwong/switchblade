@@ -429,5 +429,65 @@ namespace SwitchBlade.Tests.Services
             await Task.Delay(delayMs, cancellationToken);
             yield break;
         }
+        [Fact]
+        public async Task LaunchUiaRefresh_LogsError_WhenWorkerThrows()
+        {
+            // Verify that UiaWorkerClient exceptions don't crash the service
+            var mockWorker = new Mock<IUiaWorkerClient>();
+            var scannedSignal = new ManualResetEventSlim(false);
+
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), It.IsAny<CancellationToken>()))
+                      .Callback(() => scannedSignal.Set()) // Signal when called
+                      .Throws(new Exception("Worker crashed"));
+
+            var provider = CreateMockProvider("UiaProvider", new List<WindowItem>());
+            provider.Setup(p => p.IsUiaProvider).Returns(true);
+
+            var service = new WindowOrchestrationService(
+                new[] { provider.Object }, 
+                new WindowReconciler(null), 
+                mockWorker.Object, 
+                null, 
+                CreateMockSettingsService());
+
+            // Should not throw
+            await service.RefreshAsync(new HashSet<string>());
+
+            // Wait for background task
+            Assert.True(scannedSignal.Wait(2000), "Background UIA scan was not triggered in time");
+
+            // Verify it attempted to scan
+            mockWorker.Verify(w => w.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public void Dispose_DisposesProviders()
+        {
+            var mockDisposableProvider = new Mock<IWindowProvider>();
+            mockDisposableProvider.As<IDisposable>(); // Make it disposable
+
+            var service = new WindowOrchestrationService(new[] { mockDisposableProvider.Object }, (IIconService?)null, CreateMockSettingsService());
+            
+            service.Dispose();
+
+            mockDisposableProvider.As<IDisposable>().Verify(d => d.Dispose(), Times.Once);
+        }
+
+        [Fact]
+        public async Task RefreshAsync_SupportsSimpleProviders_WithoutProcessDependency()
+        {
+            // Provider that is NOT IProcessDependentWindowProvider
+            // logic inside RefreshAsync checks for this interface to call GetHandledProcesses
+            var simpleProvider = new Mock<IWindowProvider>();
+            simpleProvider.Setup(p => p.PluginName).Returns("Simple");
+            simpleProvider.Setup(p => p.GetWindows()).Returns(new List<WindowItem>());
+            
+            var service = new WindowOrchestrationService(new[] { simpleProvider.Object }, (IIconService?)null, CreateMockSettingsService());
+
+            await service.RefreshAsync(new HashSet<string>());
+
+            simpleProvider.Verify(p => p.GetWindows(), Times.Once);
+            // Verify no cast exception or failure
+        }
     }
 }

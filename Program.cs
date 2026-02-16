@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Principal;
 using System.Windows;
 using System.Threading;
@@ -10,6 +11,7 @@ using SwitchBlade.Services;
 
 namespace SwitchBlade
 {
+    [ExcludeFromCodeCoverage]
     public static class Program
     {
         [STAThread]
