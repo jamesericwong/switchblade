@@ -22,10 +22,12 @@ namespace SwitchBlade.Services
         private readonly string _workerPath;
         private readonly ILogger? _logger;
         private readonly TimeSpan _timeout;
+        private readonly IProcessFactory _processFactory;
+        private readonly IFileSystem _fileSystem;
         private bool _disposed;
         
         // Concurrency management
-        private Process? _activeProcess;
+        private IProcess? _activeProcess;
         private readonly object _processLock = new();
         private readonly CancellationTokenSource _disposeCts = new();
 
@@ -40,16 +42,24 @@ namespace SwitchBlade.Services
         /// </summary>
         /// <param name="logger">Logger for diagnostics.</param>
         /// <param name="timeout">Timeout for worker process execution. Default 10 seconds.</param>
-        public UiaWorkerClient(ILogger? logger = null, TimeSpan? timeout = null)
+        /// <param name="processFactory">Process factory for spawning workers.</param>
+        /// <param name="fileSystem">File system abstraction.</param>
+        public UiaWorkerClient(
+            ILogger? logger = null, 
+            TimeSpan? timeout = null,
+            IProcessFactory? processFactory = null,
+            IFileSystem? fileSystem = null)
         {
             _logger = logger;
             _timeout = timeout ?? TimeSpan.FromSeconds(10);
+            _processFactory = processFactory ?? new ProcessFactory();
+            _fileSystem = fileSystem ?? new FileSystemWrapper();
 
             // Find the worker executable relative to the main app
             var appDir = AppContext.BaseDirectory;
             _workerPath = Path.Combine(appDir, "SwitchBlade.UiaWorker.exe");
 
-            if (!File.Exists(_workerPath))
+            if (!_fileSystem.FileExists(_workerPath))
             {
                 _logger?.Log($"[UiaWorkerClient] WARNING: Worker not found at {_workerPath}");
             }
@@ -71,7 +81,7 @@ namespace SwitchBlade.Services
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UiaWorkerClient));
 
-            if (!File.Exists(_workerPath))
+            if (!_fileSystem.FileExists(_workerPath))
             {
                 _logger?.Log($"[UiaWorkerClient] Worker executable not found: {_workerPath}");
                 yield break;
@@ -88,7 +98,8 @@ namespace SwitchBlade.Services
             combinedCts.CancelAfter(_timeout);
 
             // Pass Parent PID for watchdog
-            int currentPid = Environment.ProcessId;
+            var currentProcess = _processFactory.GetCurrentProcess();
+            int currentPid = currentProcess.Id;
             var args = SwitchBlade.Core.Logger.IsDebugEnabled 
                 ? $"/debug --parent {currentPid}" 
                 : $"--parent {currentPid}";
@@ -104,32 +115,44 @@ namespace SwitchBlade.Services
                 RedirectStandardError = true
             };
 
-            // We don't use 'using' block here because we need to reference the process in the finally block for cleanup
-            // and potentially kill it in Dispose()
-            var process = new Process { StartInfo = psi };
+            IProcess process;
+            try
+            {
+                process = _processFactory.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"[UiaWorkerClient] Failed to start worker process", ex);
+                yield break;
+            }
 
             lock (_processLock)
             {
-                if (_disposed) throw new ObjectDisposedException(nameof(UiaWorkerClient));
+                if (_disposed) 
+                {
+                    try { process.Kill(entireProcessTree: true); } catch {}
+                    process.Dispose();
+                    throw new ObjectDisposedException(nameof(UiaWorkerClient));
+                }
                 _activeProcess = process;
             }
 
             _logger?.Log($"[UiaWorkerClient] Starting streaming worker: {_workerPath} (ParentPID={currentPid})");
             var startTime = Stopwatch.GetTimestamp();
 
-            process.Start();
-
             // Send request via stdin
-            string requestJson = JsonSerializer.Serialize(request, JsonOptions);
-            await process.StandardInput.WriteLineAsync(requestJson);
-            await process.StandardInput.FlushAsync();
-            process.StandardInput.Close();
-
-            // (Removed conflicting Task.Run block)
-
-
-            // BUT wait, I need to yield return. I cannot yield return from inside a Task.Run.
-            // I need to read stdout in the main loop, but I MUST drain stderr in the background.
+            try
+            {
+                string requestJson = JsonSerializer.Serialize(request, JsonOptions);
+                await process.StandardInput.WriteLineAsync(requestJson);
+                await process.StandardInput.FlushAsync();
+                process.StandardInput.Close();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"[UiaWorkerClient] Failed to send request to worker", ex);
+                // Continue to cleanup
+            }
 
             process.ErrorDataReceived += (s, e) =>
             {
@@ -145,54 +168,52 @@ namespace SwitchBlade.Services
             try
             {
                 while (!combinedCts.Token.IsCancellationRequested)
-            {
-                string? line;
-                try
                 {
-                    line = await process.StandardOutput.ReadLineAsync(combinedCts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    _logger?.Log("[UiaWorkerClient] Streaming read cancelled/timed out.");
-                    try { process.Kill(entireProcessTree: true); } catch { }
-                    yield break;
-                }
+                    string? line;
+                    try
+                    {
+                        line = await process.StandardOutput.ReadLineAsync(combinedCts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        _logger?.Log("[UiaWorkerClient] Streaming read cancelled/timed out.");
+                        try { process.Kill(entireProcessTree: true); } catch { }
+                        yield break;
+                    }
 
-                if (line == null)
-                {
-                    // Process ended or closed stdout
-                    break;
+                    if (line == null)
+                    {
+                        // Process ended or closed stdout
+                        break;
+                    }
+
+                    UiaPluginResult? result;
+                    try
+                    {
+                        result = JsonSerializer.Deserialize<UiaPluginResult>(line, JsonOptions);
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger?.Log($"[UiaWorkerClient] Failed to parse streaming line: {ex.Message}");
+                        continue;
+                    }
+
+                    if (result == null)
+                        continue;
+
+                    if (result.IsFinal)
+                    {
+                        _logger?.Log("[UiaWorkerClient] Received final marker.");
+                        break;
+                    }
+
+                    _logger?.Log($"[UiaWorkerClient] Received {result.Windows?.Count ?? 0} windows from {result.PluginName}");
+                    yield return result;
                 }
-
-                UiaPluginResult? result;
-                try
-                {
-                    result = JsonSerializer.Deserialize<UiaPluginResult>(line, JsonOptions);
-                }
-                catch (JsonException ex)
-                {
-                    _logger?.Log($"[UiaWorkerClient] Failed to parse streaming line: {ex.Message}");
-                    continue;
-                }
-
-                if (result == null)
-                    continue;
-
-                if (result.IsFinal)
-                {
-                    _logger?.Log("[UiaWorkerClient] Received final marker.");
-                    break;
-                }
-
-                _logger?.Log($"[UiaWorkerClient] Received {result.Windows?.Count ?? 0} windows from {result.PluginName}");
-                yield return result;
-            }
-
             }
             finally
             {
-                // Ensure active process is cleared and potentially killed if we are exiting abnormally
-                // or just to ensure cleanup
+                // Ensure active process is cleared
                 lock (_processLock)
                 {
                     _activeProcess = null;
@@ -201,25 +222,21 @@ namespace SwitchBlade.Services
                 // Wait for process to exit or kill if needed
                 try
                 {
-                    // Give it a grace period to exit naturally if it hasn't already
                     if (!process.HasExited)
                     {
                         try 
                         {
-                            // If cancellation was requested, we should kill it.
                             if (combinedCts.Token.IsCancellationRequested)
                             {
                                 process.Kill(entireProcessTree: true);
                             }
                             else
                             {
-                                // Otherwise wait briefly
                                 await process.WaitForExitAsync(combinedCts.Token);
                             }
                         }
                         catch 
                         {
-                             // Last resort kill
                              if (!process.HasExited) process.Kill(entireProcessTree: true);
                         }
                     }
@@ -254,18 +271,11 @@ namespace SwitchBlade.Services
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UiaWorkerClient));
 
-            if (!File.Exists(_workerPath))
+            if (!_fileSystem.FileExists(_workerPath))
             {
                 _logger?.Log($"[UiaWorkerClient] Worker executable not found: {_workerPath}");
                 return new List<WindowItem>();
             }
-
-            var request = new UiaRequest
-            {
-                Command = "scan",
-                DisabledPlugins = disabledPlugins != null ? new List<string>(disabledPlugins) : null,
-                ExcludedProcesses = excludedProcesses != null ? new List<string>(excludedProcesses) : null
-            };
 
             var allWindows = new List<WindowItem>();
 
@@ -285,7 +295,7 @@ namespace SwitchBlade.Services
             catch (OperationCanceledException)
             {
                 _logger?.Log("[UiaWorkerClient] Scan cancelled.");
-                return allWindows; // Return any results collected before cancellation
+                return allWindows;
             }
             catch (Exception ex)
             {
@@ -309,7 +319,6 @@ namespace SwitchBlade.Services
                     ProcessName = r.ProcessName,
                     ExecutablePath = r.ExecutablePath,
                     IsFallback = r.IsFallback,
-                    // Note: Source is set later by WindowOrchestrationService when merging results
                     Source = null
                 });
             }
@@ -325,10 +334,8 @@ namespace SwitchBlade.Services
                 if (_disposed) return;
                 _disposed = true;
 
-                // Signal any ongoing scans to cancel
                 _disposeCts.Cancel();
 
-                // Ruthlessly kill the active process if it exists
                 if (_activeProcess != null)
                 {
                     try
@@ -354,39 +361,4 @@ namespace SwitchBlade.Services
         }
     }
 
-    /// <summary>
-    /// Request DTO for UIA Worker (must match SwitchBlade.UiaWorker.UiaRequest).
-    /// </summary>
-    internal sealed class UiaRequest
-    {
-        public string Command { get; set; } = "scan";
-        public List<string>? Plugins { get; set; }
-        public List<string>? ExcludedProcesses { get; set; }
-        public List<string>? DisabledPlugins { get; set; }
-    }
-
-    /// <summary>
-    /// Streaming response for a single plugin's results (NDJSON protocol).
-    /// Must match SwitchBlade.UiaWorker.UiaPluginResult.
-    /// </summary>
-    public sealed class UiaPluginResult
-    {
-        public string PluginName { get; set; } = "";
-        public List<UiaWindowResult>? Windows { get; set; }
-        public string? Error { get; set; }
-        public bool IsFinal { get; set; }
-    }
-
-    /// <summary>
-    /// Window result from UIA Worker.
-    /// </summary>
-    public sealed class UiaWindowResult
-    {
-        public long Hwnd { get; set; }
-        public string Title { get; set; } = "";
-        public string ProcessName { get; set; } = "";
-        public string? ExecutablePath { get; set; }
-        public string PluginName { get; set; } = "";
-        public bool IsFallback { get; set; }
-    }
 }

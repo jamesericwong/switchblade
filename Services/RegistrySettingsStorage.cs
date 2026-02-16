@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Win32;
+using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Services
 {
@@ -14,29 +15,23 @@ namespace SwitchBlade.Services
     public class RegistrySettingsStorage : ISettingsStorage
     {
         private readonly string _registryKeyPath;
+        private readonly IRegistryService _registryService;
 
         /// <summary>
         /// Creates a new RegistrySettingsStorage with the specified registry path.
         /// </summary>
         /// <param name="registryKeyPath">The path under HKEY_CURRENT_USER, e.g., "Software\SwitchBlade".</param>
-        public RegistrySettingsStorage(string registryKeyPath)
+        /// <param name="registryService">The registry service abstraction.</param>
+        public RegistrySettingsStorage(string registryKeyPath, IRegistryService registryService)
         {
             _registryKeyPath = registryKeyPath ?? throw new ArgumentNullException(nameof(registryKeyPath));
+            _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
         }
 
         /// <inheritdoc/>
         public bool HasKey(string key)
         {
-            try
-            {
-                using var regKey = Registry.CurrentUser.OpenSubKey(_registryKeyPath);
-                if (regKey == null) return false;
-                return regKey.GetValue(key) != null;
-            }
-            catch
-            {
-                return false;
-            }
+            return _registryService.GetCurrentUserValue(_registryKeyPath, key) != null;
         }
 
         /// <inheritdoc/>
@@ -44,10 +39,7 @@ namespace SwitchBlade.Services
         {
             try
             {
-                using var regKey = Registry.CurrentUser.OpenSubKey(_registryKeyPath);
-                if (regKey == null) return defaultValue;
-
-                var rawValue = regKey.GetValue(key);
+                var rawValue = _registryService.GetCurrentUserValue(_registryKeyPath, key);
                 if (rawValue == null) return defaultValue;
 
                 // Handle common type conversions
@@ -93,35 +85,32 @@ namespace SwitchBlade.Services
         {
             try
             {
-                using var regKey = Registry.CurrentUser.CreateSubKey(_registryKeyPath);
-                if (regKey == null) return;
-
                 var targetType = typeof(T);
 
                 // Boolean -> int
                 if (targetType == typeof(bool))
                 {
-                    regKey.SetValue(key, (bool)(object)value! ? 1 : 0, RegistryValueKind.DWord);
+                    _registryService.SetCurrentUserValue(_registryKeyPath, key, (bool)(object)value! ? 1 : 0, RegistryValueKind.DWord);
                 }
                 // Double -> string
                 else if (targetType == typeof(double))
                 {
-                    regKey.SetValue(key, value!.ToString()!);
+                    _registryService.SetCurrentUserValue(_registryKeyPath, key, value!.ToString()!, RegistryValueKind.String);
                 }
                 // Enum -> int
                 else if (targetType.IsEnum)
                 {
-                    regKey.SetValue(key, Convert.ToInt32(value), RegistryValueKind.DWord);
+                    _registryService.SetCurrentUserValue(_registryKeyPath, key, Convert.ToInt32(value), RegistryValueKind.DWord);
                 }
                 // Int/uint -> DWord
                 else if (targetType == typeof(int) || targetType == typeof(uint))
                 {
-                    regKey.SetValue(key, Convert.ToInt32(value), RegistryValueKind.DWord);
+                    _registryService.SetCurrentUserValue(_registryKeyPath, key, Convert.ToInt32(value), RegistryValueKind.DWord);
                 }
                 // String -> string
                 else
                 {
-                    regKey.SetValue(key, value?.ToString() ?? string.Empty);
+                    _registryService.SetCurrentUserValue(_registryKeyPath, key, value?.ToString() ?? string.Empty, RegistryValueKind.String);
                 }
             }
             catch (Exception ex)
@@ -135,10 +124,7 @@ namespace SwitchBlade.Services
         {
             try
             {
-                using var regKey = Registry.CurrentUser.OpenSubKey(_registryKeyPath);
-                if (regKey == null) return new List<string>();
-
-                var json = regKey.GetValue(key) as string;
+                var json = _registryService.GetCurrentUserValue(_registryKeyPath, key) as string;
                 if (string.IsNullOrEmpty(json)) return new List<string>();
 
                 return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
@@ -154,11 +140,8 @@ namespace SwitchBlade.Services
         {
             try
             {
-                using var regKey = Registry.CurrentUser.CreateSubKey(_registryKeyPath);
-                if (regKey == null) return;
-
                 var json = JsonSerializer.Serialize(value);
-                regKey.SetValue(key, json);
+                _registryService.SetCurrentUserValue(_registryKeyPath, key, json, RegistryValueKind.String);
             }
             catch (Exception ex)
             {
@@ -169,15 +152,7 @@ namespace SwitchBlade.Services
         /// <inheritdoc/>
         public void Flush()
         {
-            try
-            {
-                using var regKey = Registry.CurrentUser.CreateSubKey(_registryKeyPath);
-                regKey?.Flush();
-            }
-            catch
-            {
-                // Best effort
-            }
+            // Abstraction layer handles dispose/flush usually by closing keys immediately
         }
     }
 }

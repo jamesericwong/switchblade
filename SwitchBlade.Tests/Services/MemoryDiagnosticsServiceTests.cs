@@ -62,6 +62,41 @@ namespace SwitchBlade.Tests.Services
             Assert.Null(exception);
         }
 
+        [Fact]
+        public void ForceLogMemoryStats_LogsMemoryUsage()
+        {
+            // Arrange
+            var mockProcess = new Mock<IProcess>();
+            mockProcess.Setup(p => p.WorkingSet64).Returns(1024 * 1024 * 50); // 50MB
+            mockProcess.Setup(p => p.PrivateMemorySize64).Returns(1024 * 1024 * 60); // 60MB
+            mockProcess.Setup(p => p.HandleCount).Returns(123);
+            mockProcess.Setup(p => p.ThreadCount).Returns(10);
+            
+            var mockProcessFactory = new Mock<IProcessFactory>();
+            mockProcessFactory.Setup(f => f.GetCurrentProcess()).Returns(mockProcess.Object);
+            
+            // Re-create service with mock factory
+            var service = new MemoryDiagnosticsService(
+                _mockOrchestration.Object,
+                _mockIconService.Object,
+                _mockSearchService.Object,
+                _mockLogger.Object,
+                mockProcessFactory.Object);
+
+            _mockOrchestration.Setup(o => o.CacheCount).Returns(5);
+            _mockIconService.Setup(i => i.CacheCount).Returns(10);
+
+            // Act
+            service.ForceLogMemoryStats();
+
+            // Assert
+            _mockLogger.Verify(x => x.Log(It.Is<string>(s => 
+                s.Contains("WorkingSet: 50 MB") && 
+                s.Contains("Private: 60 MB") &&
+                s.Contains("Handles: 123") &&
+                s.Contains("Threads: 10"))), Times.Once);
+        }
+
         public void Dispose()
         {
             _service.Dispose();

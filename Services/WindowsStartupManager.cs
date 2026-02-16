@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Win32;
+using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Services
 {
@@ -13,15 +14,19 @@ namespace SwitchBlade.Services
         private const string STARTUP_REGISTRY_KEY = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string STARTUP_VALUE_NAME = "SwitchBlade";
 
+        private readonly IRegistryService _registryService;
+
+        public WindowsStartupManager(IRegistryService registryService)
+        {
+            _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
+        }
+
         /// <inheritdoc />
         public bool IsStartupEnabled()
         {
             try
             {
-                using (RegistryKey? runKey = Registry.CurrentUser.OpenSubKey(STARTUP_REGISTRY_KEY))
-                {
-                    return runKey?.GetValue(STARTUP_VALUE_NAME) != null;
-                }
+                return _registryService.GetCurrentUserValue(STARTUP_REGISTRY_KEY, STARTUP_VALUE_NAME) != null;
             }
             catch
             {
@@ -39,13 +44,8 @@ namespace SwitchBlade.Services
 
             try
             {
-                using (RegistryKey? runKey = Registry.CurrentUser.OpenSubKey(STARTUP_REGISTRY_KEY, writable: true))
-                {
-                    if (runKey == null) return;
-
-                    // Add /minimized so app starts in background on Windows startup
-                    runKey.SetValue(STARTUP_VALUE_NAME, $"\"{executablePath}\" /minimized");
-                }
+                // Add /minimized so app starts in background on Windows startup
+                _registryService.SetCurrentUserValue(STARTUP_REGISTRY_KEY, STARTUP_VALUE_NAME, $"\"{executablePath}\" /minimized", RegistryValueKind.String);
             }
             catch (Exception ex)
             {
@@ -58,15 +58,7 @@ namespace SwitchBlade.Services
         {
             try
             {
-                using (RegistryKey? runKey = Registry.CurrentUser.OpenSubKey(STARTUP_REGISTRY_KEY, writable: true))
-                {
-                    if (runKey == null) return;
-
-                    if (runKey.GetValue(STARTUP_VALUE_NAME) != null)
-                    {
-                        runKey.DeleteValue(STARTUP_VALUE_NAME, throwOnMissingValue: false);
-                    }
-                }
+                _registryService.DeleteCurrentUserValue(STARTUP_REGISTRY_KEY, STARTUP_VALUE_NAME, false);
             }
             catch (Exception ex)
             {
@@ -79,23 +71,17 @@ namespace SwitchBlade.Services
         {
             try
             {
-                using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(APP_REGISTRY_KEY, writable: true))
+                object? markerValue = _registryService.GetCurrentUserValue(APP_REGISTRY_KEY, "EnableStartupOnFirstRun");
+                if (markerValue != null)
                 {
-                    if (key != null)
-                    {
-                        object? markerValue = key.GetValue("EnableStartupOnFirstRun");
-                        if (markerValue != null)
-                        {
-                            // Check if it's "1" (string from MSI) or 1 (integer)
-                            string markerStr = markerValue.ToString() ?? "0";
-                            bool shouldEnable = markerStr == "1";
+                    // Check if it's "1" (string from MSI) or 1 (integer)
+                    string markerStr = markerValue.ToString() ?? "0";
+                    bool shouldEnable = markerStr == "1";
 
-                            // Always delete the marker after checking (it's a one-time flag)
-                            key.DeleteValue("EnableStartupOnFirstRun", throwOnMissingValue: false);
+                    // Always delete the marker after checking (it's a one-time flag)
+                    _registryService.DeleteCurrentUserValue(APP_REGISTRY_KEY, "EnableStartupOnFirstRun", false);
 
-                            return shouldEnable;
-                        }
-                    }
+                    return shouldEnable;
                 }
             }
             catch (Exception ex)

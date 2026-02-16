@@ -19,11 +19,20 @@ namespace SwitchBlade.Services
         {
             var services = new ServiceCollection();
 
+            // System Abstractions (v1.9.11 coverage improvements)
+            services.AddSingleton<IProcessFactory, ProcessFactory>();
+            services.AddSingleton<IFileSystem, FileSystemWrapper>();
+            services.AddSingleton<IRegistryService, RegistryServiceWrapper>();
+
             // Core Services
-            services.AddSingleton<SettingsService>(sp => new SettingsService(
-                new RegistrySettingsStorage(@"Software\SwitchBlade"),
-                new WindowsStartupManager(),
-                sp.GetRequiredService<ILogger>()));
+            services.AddSingleton<SettingsService>(sp => {
+                var registryService = sp.GetRequiredService<IRegistryService>();
+                var logger = sp.GetRequiredService<ILogger>();
+                return new SettingsService(
+                    new RegistrySettingsStorage(@"Software\SwitchBlade", registryService),
+                    new WindowsStartupManager(registryService),
+                    logger);
+            });
             services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<SettingsService>());
             services.AddSingleton<ThemeService>();
             services.AddSingleton<IDispatcherService, WpfDispatcherService>();
@@ -54,9 +63,11 @@ namespace SwitchBlade.Services
             {
                 var logger = sp.GetRequiredService<ILogger>();
                 var settings = sp.GetRequiredService<ISettingsService>();
+                var processFactory = sp.GetRequiredService<IProcessFactory>();
+                var fileSystem = sp.GetRequiredService<IFileSystem>();
                 var timeoutSeconds = settings.Settings.UiaWorkerTimeoutSeconds;
                 var timeout = TimeSpan.FromSeconds(timeoutSeconds > 0 ? timeoutSeconds : 60);
-                return new UiaWorkerClient(logger, timeout);
+                return new UiaWorkerClient(logger, timeout, processFactory, fileSystem);
             });
 
             // Window Orchestration Service (replaces manual provider coordination)

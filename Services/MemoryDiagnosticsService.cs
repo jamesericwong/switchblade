@@ -21,17 +21,20 @@ namespace SwitchBlade.Services
         private readonly IIconService _iconService;
         private readonly IWindowSearchService _searchService;
         private readonly ILogger _logger;
+        private readonly IProcessFactory _processFactory;
 
         public MemoryDiagnosticsService(
             IWindowOrchestrationService orchestrationService,
             IIconService iconService,
             IWindowSearchService searchService,
-            ILogger logger)
+            ILogger logger,
+            IProcessFactory? processFactory = null)
         {
             _orchestrationService = orchestrationService;
             _iconService = iconService;
             _searchService = searchService;
             _logger = logger;
+            _processFactory = processFactory ?? new ProcessFactory();
 
             _timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
             _cts = new CancellationTokenSource();
@@ -64,7 +67,7 @@ namespace SwitchBlade.Services
             {
                 while (await _timer.WaitForNextTickAsync(_cts.Token))
                 {
-                    LogMemoryStats();
+                    ForceLogMemoryStats();
                 }
             }
             catch (OperationCanceledException)
@@ -77,19 +80,19 @@ namespace SwitchBlade.Services
             }
         }
 
-        private void LogMemoryStats()
+        public void ForceLogMemoryStats()
         {
             try
             {
                 // Force a check on the current process
-                using var proc = Process.GetCurrentProcess();
+                using var proc = _processFactory.GetCurrentProcess();
                 proc.Refresh();
 
                 long managedMemory = GC.GetTotalMemory(false); // Bytes
                 long workingSet = proc.WorkingSet64;           // Bytes (RAM)
                 long privateBytes = proc.PrivateMemorySize64;  // Bytes (Committed)
                 int handleCount = proc.HandleCount;
-                int threadCount = proc.Threads.Count;
+                int threadCount = proc.ThreadCount;
 
                 // Cache Stats — using IDiagnosticsProvider.CacheCount via interfaces
                 int winCache = _orchestrationService.CacheCount;
