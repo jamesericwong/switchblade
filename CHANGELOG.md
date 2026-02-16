@@ -1,3 +1,16 @@
+## [1.9.10] - 2026-02-16
+### Fixed
+- **Performance Optimization (Regex Cache)**: Optimized `LruRegexCache` by storing linked list nodes directly in the cache dictionary. 
+  - **Improvement**: Changed LRU updates from $O(N)$ to $O(1)$, reducing overhead during high-frequency search operations.
+
+### Added
+- **Infrastructure**: Established production branch protection rules for `main`.
+- **Infrastructure**: Implemented GitHub Private Vulnerability Reporting in `SECURITY.md`.
+- **Infrastructure**: Added standardized GitHub Issue and Pull Request templates.
+- **Infrastructure**: Configured GitHub Environments for automated release deployment tracking.
+
+---
+
 ## [1.9.9] - 2026-02-15
 ### Fixed
 - **Window Title Lag (Decoupled Refresh)**: Fixed an issue where fast-changing window titles (e.g., bandwidth monitors) would lag significantly if a UIA plugin (like Teams or Chrome) was slow to scan.
