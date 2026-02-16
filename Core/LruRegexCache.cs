@@ -10,7 +10,7 @@ namespace SwitchBlade.Core
     /// </summary>
     public class LruRegexCache : IRegexCache
     {
-        private readonly Dictionary<string, Regex> _cache = new();
+        private readonly Dictionary<string, (Regex Regex, LinkedListNode<string> Node)> _cache = new();
         private readonly LinkedList<string> _lruList = new();
         private readonly object _lock = new();
         private readonly int _maxSize;
@@ -35,12 +35,12 @@ namespace SwitchBlade.Core
 
             lock (_lock)
             {
-                if (_cache.TryGetValue(pattern, out var existing))
+                if (_cache.TryGetValue(pattern, out var entry))
                 {
-                    // Move to front (LRU update)
-                    _lruList.Remove(pattern);
-                    _lruList.AddFirst(pattern);
-                    return existing;
+                    // Move to front (LRU update) - O(1)
+                    _lruList.Remove(entry.Node);
+                    _lruList.AddFirst(entry.Node);
+                    return entry.Regex;
                 }
 
                 try
@@ -49,9 +49,9 @@ namespace SwitchBlade.Core
                     // Available in .NET 7+
                     var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking);
 
-                    // Add to cache
-                    _cache[pattern] = regex;
-                    _lruList.AddFirst(pattern);
+                    // Add to cache - O(1)
+                    var node = _lruList.AddFirst(pattern);
+                    _cache[pattern] = (regex, node);
 
                     // Evict if exceeded capacity
                     while (_cache.Count > _maxSize && _lruList.Count > 0)
