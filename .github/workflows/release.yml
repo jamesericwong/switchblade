@@ -27,8 +27,15 @@ jobs:
         wix extension add --global WixToolset.Util.wixext/5.0.2
 
     - name: Run Tests (Release)
-      # Safety check before publishing
-      run: dotnet test SwitchBlade.sln -c Release
+      # Safety check before publishing with coverage collection
+      run: dotnet test SwitchBlade.sln -c Release --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+    - name: Code Coverage Report
+      uses: danielpalme/ReportGenerator-GitHub-Action@5.3.11
+      with:
+        reports: coverage/**/coverage.cobertura.xml
+        targetdir: coverage
+        reporttypes: MarkdownSummaryGithub
 
     - name: Build Installer (R2R)
       # This builds the Installer project, which triggers the R2R publish of the main app

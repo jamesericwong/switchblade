@@ -4,6 +4,8 @@
 - Added thread-safe synchronization to `MainViewModel` search updates.
 - Increased integration test timeouts to improve reliability on heavily throttled CI agents (e.g., GitHub Actions).
 
+### Added
+- **Infrastructure**: Integrated automated unit test coverage reporting with summary visualization in CI.
 ---
 
 ## [1.9.10] - 2026-02-16
