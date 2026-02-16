@@ -39,4 +39,4 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: Installer/bin/Release/en-US/SwitchBlade.msi
+        files: Installer/bin/Release/SwitchBlade.msi
