@@ -130,12 +130,20 @@ namespace SwitchBlade.Tests.Contracts
         [Fact]
         public async Task GetWindows_ConcurrentCall_ReturnsCachedWhileScanInProgress()
         {
-            // Arrange - create a provider with slow scan
+            // Arrange
             var expectedItems = new List<WindowItem>
             {
                 new WindowItem { Title = "Slow Result" }
             };
-            var provider = new TestCachingWindowProvider(expectedItems, scanDelayMs: 200);
+
+            // Use ManualResetEventSlim to coordinate the test flow deterministically
+            using var scanStartedHandle = new ManualResetEventSlim(false);
+            using var continueScanHandle = new ManualResetEventSlim(false);
+
+            // Create a custom provider wrapper to hook into the scan process
+            var provider = new TestCachingWindowProviderWithHooks(expectedItems,
+                onScanStarted: () => scanStartedHandle.Set(),
+                onWaitForContinue: () => continueScanHandle.Wait(TimeSpan.FromSeconds(5)));
 
             // Act - start first scan in background
             var firstScanTask = Task.Run(() => provider.GetWindows());
@@ -143,16 +151,41 @@ namespace SwitchBlade.Tests.Contracts
             // Wait until we know for sure the scan has started and entered the "processing" phase
             Assert.True(scanStartedHandle.Wait(TimeSpan.FromSeconds(10)), "Timed out waiting for scan to start");
 
-            // Second call while first is still running should return cached (empty initially)
+            // Second call while first is still running/blocked should return cached (empty initially)
             var secondResult = provider.GetWindows().ToList();
 
-            // Wait for first scan to complete
+            // Now let the first scan finish
+            continueScanHandle.Set();
             var firstResult = (await firstScanTask).ToList();
 
             // Assert
             Assert.Equal(1, provider.ScanCallCount); // Only one actual scan
             Assert.Single(firstResult); // First call got the real results
             Assert.Empty(secondResult); // Second call got cached (empty initially)
+        }
+
+        private class TestCachingWindowProviderWithHooks : TestCachingWindowProvider
+        {
+            private readonly Action _onScanStarted;
+            private readonly Action _onWaitForContinue;
+
+            public TestCachingWindowProviderWithHooks(List<WindowItem> items, Action onScanStarted, Action onWaitForContinue) 
+                : base(items)
+            {
+                _onScanStarted = onScanStarted;
+                _onWaitForContinue = onWaitForContinue;
+            }
+
+            protected override IEnumerable<WindowItem> ScanWindowsCore()
+            {
+                // Signal that we have entered the scan
+                _onScanStarted();
+                
+                // Wait for permission to complete
+                _onWaitForContinue();
+                
+                return base.ScanWindowsCore();
+            }
         }
 
         [Fact]
