@@ -23,7 +23,7 @@ namespace SwitchBlade.Services
         /// <summary>
         /// Creates a SettingsService with the default Registry storage.
         /// </summary>
-        public SettingsService() : this(new RegistrySettingsStorage(REGISTRY_KEY), new WindowsStartupManager())
+        public SettingsService() : this(new RegistrySettingsStorage(REGISTRY_KEY, new RegistryServiceWrapper()), new WindowsStartupManager(new RegistryServiceWrapper()))
         {
         }
 
@@ -31,7 +31,7 @@ namespace SwitchBlade.Services
         /// Creates a SettingsService with a custom startup manager (for testing).
         /// </summary>
         public SettingsService(IWindowsStartupManager startupManager)
-            : this(new RegistrySettingsStorage(REGISTRY_KEY), startupManager)
+            : this(new RegistrySettingsStorage(REGISTRY_KEY, new RegistryServiceWrapper()), startupManager)
         {
         }
 

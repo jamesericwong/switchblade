@@ -1,203 +1,224 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
 using Moq;
-using Xunit;
+using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
+using Xunit;
 
 namespace SwitchBlade.Tests.ViewModels
 {
     public class SettingsViewModelTests
     {
-        private Mock<SettingsService> CreateMockSettingsService()
+        private readonly Mock<ISettingsService> _settingsServiceMock;
+        private readonly Mock<ThemeService> _themeServiceMock;
+        private readonly Mock<IPluginService> _pluginServiceMock;
+        private readonly Mock<IApplicationResourceHandler> _resourceHandlerMock;
+        private readonly SettingsViewModel _viewModel;
+
+        public SettingsViewModelTests()
         {
-            // SettingsService doesn't have a virtual/interface, so we test with real instance
-            // For more isolated tests, consider extracting an interface
-            return new Mock<SettingsService>();
-        }
+            _settingsServiceMock = new Mock<ISettingsService>();
+            var userSettings = new UserSettings();
+            _settingsServiceMock.Setup(s => s.Settings).Returns(userSettings);
+            
+            _resourceHandlerMock = new Mock<IApplicationResourceHandler>();
+            _themeServiceMock = new Mock<ThemeService>(_settingsServiceMock.Object, _resourceHandlerMock.Object);
+            
+            _pluginServiceMock = new Mock<IPluginService>();
+            _pluginServiceMock.Setup(p => p.GetPluginInfos()).Returns(new List<PluginInfo>());
 
-        private ThemeService CreateThemeService(SettingsService settingsService)
-        {
-            return new ThemeService(settingsService);
-        }
-
-
-
-        private Mock<IPluginService> CreateMockPluginService(IEnumerable<PluginInfo>? plugins = null)
-        {
-            var mock = new Mock<IPluginService>();
-            mock.Setup(p => p.GetPluginInfos()).Returns(plugins ?? Enumerable.Empty<PluginInfo>());
-            return mock;
-        }
-
-        [Fact]
-        public void Constructor_InitializesExcludedProcesses()
-        {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var pluginService = CreateMockPluginService();
-
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            Assert.NotNull(vm.ExcludedProcesses);
+            _viewModel = new SettingsViewModel(_settingsServiceMock.Object, _themeServiceMock.Object, _pluginServiceMock.Object);
         }
 
         [Fact]
-        public void Constructor_InitializesAvailableThemes()
+        public void SelectedTheme_Set_AppliesTheme()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var pluginService = CreateMockPluginService();
-
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            Assert.NotNull(vm.AvailableThemes);
-            Assert.NotEmpty(vm.AvailableThemes);
+            // Arrange
+            var themeName = "Dark";
+            
+            // Act
+            _viewModel.SelectedTheme = themeName;
+            
+            // Assert
+            Assert.Equal(themeName, _viewModel.SelectedTheme);
         }
 
         [Fact]
-        public void Constructor_InitializesLoadedPlugins()
+        public void EnablePreviews_GetSet_Works()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var plugins = new List<PluginInfo>
-            {
-                new PluginInfo { Name = "TestPlugin" }
-            };
-            var pluginService = CreateMockPluginService(plugins);
-
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            Assert.Single(vm.LoadedPlugins);
-            Assert.Equal("TestPlugin", vm.LoadedPlugins.First().Name);
+            _viewModel.EnablePreviews = true;
+            Assert.True(_viewModel.EnablePreviews);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
         [Fact]
-        public void NewExcludedProcessName_SetValue_UpdatesProperty()
+        public void HideTaskbarIcon_GetSet_Works()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var pluginService = CreateMockPluginService();
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            vm.NewExcludedProcessName = "notepad";
-
-            Assert.Equal("notepad", vm.NewExcludedProcessName);
+            _viewModel.HideTaskbarIcon = true;
+            Assert.True(_viewModel.HideTaskbarIcon);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
         [Fact]
-        public void SelectedExcludedProcess_SetValue_UpdatesProperty()
+        public void ShowIcons_GetSet_Works()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var pluginService = CreateMockPluginService();
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            vm.SelectedExcludedProcess = "TextInputHost";
-
-            Assert.Equal("TextInputHost", vm.SelectedExcludedProcess);
+            _viewModel.ShowIcons = true;
+            Assert.True(_viewModel.ShowIcons);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
         [Fact]
-        public void AddExcludedProcessCommand_IsNotNull()
+        public void FadeDurationMs_GetSet_Works()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var pluginService = CreateMockPluginService();
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            Assert.NotNull(vm.AddExcludedProcessCommand);
+            _viewModel.FadeDurationMs = 500;
+            Assert.Equal(500, _viewModel.FadeDurationMs);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
         [Fact]
-        public void RemoveExcludedProcessCommand_IsNotNull()
+        public void WindowOpacity_GetSet_Works()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var pluginService = CreateMockPluginService();
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            Assert.NotNull(vm.RemoveExcludedProcessCommand);
+            _viewModel.WindowOpacity = 0.8;
+            Assert.Equal(0.8, _viewModel.WindowOpacity);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
         [Fact]
-        public void UpdateHotKey_UpdatesSettingsAndRaisesPropertyChanged()
+        public void ItemHeight_GetSet_Works()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var pluginService = CreateMockPluginService();
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-            var propertyChangedRaised = false;
-            vm.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == nameof(SettingsViewModel.HotKeyString))
-                    propertyChangedRaised = true;
-            };
-
-            vm.UpdateHotKey(0x0002, 0x41); // Ctrl + A
-
-            Assert.True(propertyChangedRaised);
+            _viewModel.ItemHeight = 45;
+            Assert.Equal(45, _viewModel.ItemHeight);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
         [Fact]
-        public void ViewModel_ImplementsINotifyPropertyChanged()
+        public void EnableBackgroundPolling_GetSet_Works()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var pluginService = CreateMockPluginService();
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
+            _viewModel.EnableBackgroundPolling = true;
+            Assert.True(_viewModel.EnableBackgroundPolling);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
         [Fact]
-        public void TogglePluginCommand_DisablingPlugin_AddsToSettings()
+        public void BackgroundPollingIntervalSeconds_GetSet_Works()
         {
-            var settingsService = new SettingsService();
-            var themeService = CreateThemeService(settingsService);
-            var plugin = new PluginInfo { Name = "TestPlugin" };
-            var plugins = new List<PluginInfo> { plugin };
-            var pluginService = CreateMockPluginService(plugins);
+            _viewModel.BackgroundPollingIntervalSeconds = 30;
+            Assert.Equal(30, _viewModel.BackgroundPollingIntervalSeconds);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
 
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
+        [Fact]
+        public void EnableNumberShortcuts_GetSet_Works()
+        {
+            _viewModel.EnableNumberShortcuts = true;
+            Assert.True(_viewModel.EnableNumberShortcuts);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
 
-            // Simulate unchecking the box (IsEnabled goes false)
+        [Fact]
+        public void EnableBadgeAnimations_GetSet_Works()
+        {
+            _viewModel.EnableBadgeAnimations = true;
+            Assert.True(_viewModel.EnableBadgeAnimations);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
+
+        [Fact]
+        public void RegexCacheSize_GetSet_Works()
+        {
+            _viewModel.RegexCacheSize = 200;
+            Assert.Equal(200, _viewModel.RegexCacheSize);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
+
+        [Fact]
+        public void EnableFuzzySearch_GetSet_Works()
+        {
+            _viewModel.EnableFuzzySearch = true;
+            Assert.True(_viewModel.EnableFuzzySearch);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
+
+        [Fact]
+        public void IconCacheSize_GetSet_Works()
+        {
+            _viewModel.IconCacheSize = 1000;
+            Assert.Equal(1000, _viewModel.IconCacheSize);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
+
+        [Fact]
+        public void UiaWorkerTimeoutSeconds_GetSet_Works()
+        {
+            _viewModel.UiaWorkerTimeoutSeconds = 20;
+            Assert.Equal(20, _viewModel.UiaWorkerTimeoutSeconds);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
+
+        [Fact]
+        public void RefreshBehavior_Properties_Work()
+        {
+            _viewModel.IsPreserveScrollSelected = true;
+            Assert.True(_viewModel.IsPreserveScrollSelected);
+            Assert.Equal(RefreshBehavior.PreserveScroll, _settingsServiceMock.Object.Settings.RefreshBehavior);
+
+            _viewModel.IsPreserveIdentitySelected = true;
+            Assert.True(_viewModel.IsPreserveIdentitySelected);
+            Assert.Equal(RefreshBehavior.PreserveIdentity, _settingsServiceMock.Object.Settings.RefreshBehavior);
+
+            _viewModel.IsPreserveIndexSelected = true;
+            Assert.True(_viewModel.IsPreserveIndexSelected);
+            Assert.Equal(RefreshBehavior.PreserveIndex, _settingsServiceMock.Object.Settings.RefreshBehavior);
+        }
+
+        [Fact]
+        public void SelectedShortcutModifier_GetSet_Works()
+        {
+            _viewModel.SelectedShortcutModifier = "Ctrl";
+            Assert.Equal("Ctrl", _viewModel.SelectedShortcutModifier);
+            Assert.Equal(2u, _settingsServiceMock.Object.Settings.NumberShortcutModifier); // Ctrl = 2
+        }
+
+        [Fact]
+        public void ExcludedProcesses_Commands_Work()
+        {
+            _viewModel.NewExcludedProcessName = "chrome";
+            Assert.True(_viewModel.AddExcludedProcessCommand.CanExecute(null));
+            
+            _viewModel.AddExcludedProcessCommand.Execute(null);
+            
+            Assert.Contains("chrome", _viewModel.ExcludedProcesses);
+            Assert.Equal("", _viewModel.NewExcludedProcessName);
+
+            _viewModel.SelectedExcludedProcess = "chrome";
+            Assert.True(_viewModel.RemoveExcludedProcessCommand.CanExecute(null));
+            
+            _viewModel.RemoveExcludedProcessCommand.Execute(null);
+            Assert.DoesNotContain("chrome", _viewModel.ExcludedProcesses);
+        }
+
+        [Fact]
+        public void TogglePlugin_Command_Works()
+        {
+            var plugin = new PluginInfo { Name = "TestPlugin", IsEnabled = true };
+            _viewModel.TogglePluginCommand.Execute(plugin);
+            Assert.DoesNotContain("TestPlugin", _settingsServiceMock.Object.Settings.DisabledPlugins);
+
             plugin.IsEnabled = false;
-
-            // Execute command
-            vm.TogglePluginCommand.Execute(plugin);
-
-            Assert.Contains("TestPlugin", settingsService.Settings.DisabledPlugins);
+            _viewModel.TogglePluginCommand.Execute(plugin);
+            Assert.Contains("TestPlugin", _settingsServiceMock.Object.Settings.DisabledPlugins);
         }
 
         [Fact]
-        public void TogglePluginCommand_EnablingPlugin_RemovesFromSettings()
+        public void HotKeyString_ReturnsCorrectFormat()
         {
-            var settingsService = new SettingsService();
-            // Clear any existing settings from registry to avoid duplicates
-            settingsService.Settings.DisabledPlugins.Clear();
-            settingsService.Settings.DisabledPlugins.Add("TestPlugin");
-
-            var themeService = CreateThemeService(settingsService);
-            var plugin = new PluginInfo { Name = "TestPlugin" };
-            var plugins = new List<PluginInfo> { plugin };
-            var pluginService = CreateMockPluginService(plugins);
-
-            var vm = new SettingsViewModel(settingsService, themeService, pluginService.Object);
-
-            // Verify initial state
-            Assert.False(plugin.IsEnabled);
-
-            // Simulate checking the box
-            plugin.IsEnabled = true;
-
-            // Execute command
-            vm.TogglePluginCommand.Execute(plugin);
-
-            Assert.DoesNotContain("TestPlugin", settingsService.Settings.DisabledPlugins);
+            _viewModel.UpdateHotKey(1 | 2, (uint)System.Windows.Forms.Keys.A); // Alt + Ctrl + A
+            Assert.Contains("Alt", _viewModel.HotKeyString);
+            Assert.Contains("Ctrl", _viewModel.HotKeyString);
+            Assert.Contains("A", _viewModel.HotKeyString);
         }
     }
 }

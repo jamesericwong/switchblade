@@ -25,7 +25,7 @@ jobs:
 
     - name: Run Unit Tests
       # Runs all tests in the solution with coverage collection
-      run: dotnet test SwitchBlade.sln --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+      run: dotnet test SwitchBlade.sln --no-build --verbosity normal --collect:"XPlat Code Coverage" --settings CodeCoverage.runsettings --results-directory ./coverage
 
     - name: Code Coverage Report
       uses: danielpalme/ReportGenerator-GitHub-Action@5.3.11

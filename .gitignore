@@ -67,3 +67,4 @@ heap_report*.txt
 
 # Test Results
 TestResults/
+coverage*/
