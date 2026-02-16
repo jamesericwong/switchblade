@@ -285,7 +285,7 @@ namespace SwitchBlade.Contracts
         /// </summary>
         protected virtual bool IsWindowValid(IntPtr hwnd)
         {
-            return NativeInterop.IsWindow(hwnd);
+            return NativeInterop.IsWindowVisible(hwnd);
         }
 
         /// <summary>

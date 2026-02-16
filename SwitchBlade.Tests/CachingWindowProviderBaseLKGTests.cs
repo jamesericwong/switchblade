@@ -57,7 +57,7 @@ namespace SwitchBlade.Tests
         }
 
         [Fact]
-        public void GetWindows_ShouldPreserveLKG_WhenScanMissesWindow_ButWindowExists()
+        public void GetWindows_ShouldPreserveLKG_WhenScanMissesWindow_ButWindowIsVisible()
         {
             // Arrange
             var hwnd = (IntPtr)1234;
@@ -69,7 +69,7 @@ namespace SwitchBlade.Tests
 
             // 2. Transient failure (scan returns empty) but window still valid
             _provider.NextScanResults = new List<WindowItem>();
-            _provider.WindowValidityMock[hwnd] = true; // Window is still valid!
+            _provider.WindowValidityMock[hwnd] = true; // Window is still visible!
 
             // Act
             var results = _provider.GetWindows().ToList();

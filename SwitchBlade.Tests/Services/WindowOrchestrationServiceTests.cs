@@ -213,11 +213,12 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public async Task RefreshAsync_SkipsIfAlreadyInProgress()
+        public async Task RefreshAsync_SkipsFastPathIfAlreadyInProgress()
         {
-            // Arrange: Create a slow provider that simulates a long-running scan
+            // Arrange: Create a slow Non-UIA provider that simulates a long-running scan
             var slowProvider = new Mock<IWindowProvider>();
-            slowProvider.Setup(p => p.PluginName).Returns("SlowProvider");
+            slowProvider.Setup(p => p.PluginName).Returns("SlowCoreProvider");
+            slowProvider.Setup(p => p.IsUiaProvider).Returns(false); // Non-UIA
             slowProvider.Setup(p => p.GetHandledProcesses()).Returns(Enumerable.Empty<string>());
 
             var callCount = 0;
@@ -233,12 +234,82 @@ namespace SwitchBlade.Tests.Services
             // Act: Fire two concurrent refreshes
             var task1 = service.RefreshAsync(new HashSet<string>());
             await Task.Delay(50); // Let first one start
-            var task2 = service.RefreshAsync(new HashSet<string>()); // Should be skipped
+            var task2 = service.RefreshAsync(new HashSet<string>()); // Should be skipped due to _fastRefreshLock
 
             await Task.WhenAll(task1, task2);
 
             // Assert: GetWindows should only be called once (second call was skipped)
             Assert.Equal(1, callCount);
+        }
+
+        [Fact]
+        public async Task RefreshAsync_AllowsCoreUpdate_WhenUiaIsSlow()
+        {
+            // Arrange: 
+            // 1. Fast Core Provider (Non-UIA)
+            var coreProvider = CreateMockProvider("CoreProvider", new List<WindowItem>());
+            coreProvider.Setup(p => p.IsUiaProvider).Returns(false);
+            
+            // 2. Slow UIA Provider
+            var slowUiaProvider = new Mock<IWindowProvider>();
+            slowUiaProvider.Setup(p => p.PluginName).Returns("SlowUiaProvider");
+            slowUiaProvider.Setup(p => p.IsUiaProvider).Returns(true); // UIA
+            slowUiaProvider.Setup(p => p.GetHandledProcesses()).Returns(Enumerable.Empty<string>());
+
+            // Signal when UIA scan actually starts to ensure lock is held
+            var uiaScanStarted = new TaskCompletionSource<bool>();
+
+            // We need to use the primary constructor to inject a mock UiaWorkerClient
+            var mockUiaWorker = new Mock<IUiaWorkerClient>();
+            // Simulate slow UIA streaming
+            // Note: Must provide all optional arguments to Setup to avoid CS0854 (Expression tree may not contain call with optional arguments)
+            mockUiaWorker.Setup(c => c.ScanStreamingAsync(
+                    It.IsAny<ISet<string>?>(), 
+                    It.IsAny<ISet<string>?>(), 
+                    It.IsAny<CancellationToken>()))
+                .Returns((ISet<string>? d, ISet<string>? h, CancellationToken t) => 
+                {
+                    uiaScanStarted.TrySetResult(true);
+                    return DelayedEmptyEnumerable(500, t);
+                });
+
+            var service = new WindowOrchestrationService(
+                new[] { coreProvider.Object, slowUiaProvider.Object },
+                new WindowReconciler(null),
+                mockUiaWorker.Object,
+                null, 
+                CreateMockSettingsService());
+
+            // Act:
+            // 1. Start first refresh (launches slow UIA task)
+            var task1 = service.RefreshAsync(new HashSet<string>());
+
+            // Wait for UIA scan to start and hold the lock
+            await Task.WhenAny(uiaScanStarted.Task, Task.Delay(2000));
+            Assert.True(uiaScanStarted.Task.IsCompleted, "UIA scan did not start in time");
+            
+            // 2. Start second refresh IMMEDIATELY (while UIA is still "running" in bg)
+            await service.RefreshAsync(new HashSet<string>());
+
+            await task1;
+
+            // Assert:
+            // Core provider should have run TWICE (because _fastRefreshLock was free)
+            coreProvider.Verify(p => p.GetWindows(), Times.Exactly(2));
+            
+            // UIA Worker should have been called TWICE (fire-and-forget, but verify launch)
+            // Note: In logical terms, the second UIA scan might be skipped if the first is truly holding the lock.
+            // Let's verify that core *did* run twice, which is the key requirement.
+            // Actually, since UIA is fire-and-forget, the second RefreshAsync call *will* try to acquire UIA lock.
+            // If the first UIA task is still running (500ms delay), the second attempt to acquire _uiaRefreshLock will fail (return immediately).
+            // So ScanStreamingAsync should be called ONCE effectively (or twice if the first one finished super fast, but we delayed 500ms).
+            
+            // Verify ScanStreamingAsync called exactly ONCE confirms that the second UIA scan was properly skipped 
+            // (good behavior) while Core ran twice (excellent behavior).
+            mockUiaWorker.Verify(c => c.ScanStreamingAsync(
+                It.IsAny<ISet<string>?>(), 
+                It.IsAny<ISet<string>?>(), 
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -341,6 +412,12 @@ namespace SwitchBlade.Tests.Services
             // Assert: Fallback should be accepted since there's nothing to preserve
             Assert.Single(service.AllWindows);
             Assert.True(service.AllWindows[0].IsFallback);
+        }
+
+        private async IAsyncEnumerable<UiaPluginResult> DelayedEmptyEnumerable(int delayMs, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await Task.Delay(delayMs, cancellationToken);
+            yield break;
         }
     }
 }

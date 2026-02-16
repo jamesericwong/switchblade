@@ -1,3 +1,16 @@
+## [1.9.9] - 2026-02-15
+### Fixed
+- **Window Title Lag (Decoupled Refresh)**: Fixed an issue where fast-changing window titles (e.g., bandwidth monitors) would lag significantly if a UIA plugin (like Teams or Chrome) was slow to scan.
+  - **Root Cause**: The global refresh lock forced the main window loop to wait for *all* plugins—including slow ones—to finish before starting the next cycle.
+  - **Fix**: Split the synchronization logic into two separate locks (`_fastRefreshLock` and `_uiaRefreshLock`).
+    - Core window updates (fast) now run independently on the configured polling interval.
+    - Slow UIA scans run as "fire-and-forget" background tasks without blocking the main loop.
+- **LKG Window Preservation**: Fixed an issue where hidden windows (e.g., minimized to system tray) were incorrectly preserved by the Last Known Good (LKG) logic.
+  - **Root Cause**: The LKG validity check used `IsWindow` which returns `true` for hidden windows.
+  - **Fix**: Changed the check to `IsWindowVisible` to match the main scan filter, ensuring that windows which are no longer visible are correctly removed from the cache.
+
+---
+
 ## [1.9.8] - 2026-02-14
 ### Fixed
 - **Chrome Plugin: Transient 0-Window Scans**: Fixed an issue where `ChromeTabFinder` would occasionally return 0 windows on the first scan after a `UiaWorker` restart, causing tabs to momentarily disappear from the UI.
