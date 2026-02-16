@@ -8,6 +8,7 @@ jobs:
   release:
     name: Build Installer & Publish
     runs-on: windows-latest
+    environment: Production
     permissions:
       contents: write
 
