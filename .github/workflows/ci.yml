@@ -33,3 +33,7 @@ jobs:
         reports: coverage/**/coverage.cobertura.xml
         targetdir: coverage
         reporttypes: MarkdownSummaryGithub
+
+    - name: Publish Coverage Summary
+      run: cat coverage/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+      shell: bash
