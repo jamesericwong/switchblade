@@ -1,3 +1,9 @@
+## [1.9.11] - 2026-02-16
+### Fixed
+- Resolved intermittent CI test failures caused by race conditions in `MainViewModel.UpdateSearch`.
+- Added thread-safe synchronization to `MainViewModel` search updates.
+- Increased integration test timeouts to improve reliability on heavily throttled CI agents (e.g., GitHub Actions).
+
 ## [1.9.10] - 2026-02-16
 ### Fixed
 - **Performance Optimization (Regex Cache)**: Optimized `LruRegexCache` by storing linked list nodes directly in the cache dictionary. 

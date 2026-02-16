@@ -233,7 +233,7 @@ namespace SwitchBlade.Tests.Services
 
             // Act: Fire two concurrent refreshes
             var task1 = service.RefreshAsync(new HashSet<string>());
-            await Task.Delay(50); // Let first one start
+            await Task.Delay(200); // Let first one start
             var task2 = service.RefreshAsync(new HashSet<string>()); // Should be skipped due to _fastRefreshLock
 
             await Task.WhenAll(task1, task2);
@@ -285,7 +285,7 @@ namespace SwitchBlade.Tests.Services
             var task1 = service.RefreshAsync(new HashSet<string>());
 
             // Wait for UIA scan to start and hold the lock
-            await Task.WhenAny(uiaScanStarted.Task, Task.Delay(2000));
+            await Task.WhenAny(uiaScanStarted.Task, Task.Delay(10000));
             Assert.True(uiaScanStarted.Task.IsCompleted, "UIA scan did not start in time");
             
             // 2. Start second refresh IMMEDIATELY (while UIA is still "running" in bg)

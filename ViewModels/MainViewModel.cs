@@ -26,7 +26,8 @@ namespace SwitchBlade.ViewModels
         private bool _enablePreviews = true;
         private bool _isUpdating = false;
         private HashSet<string> _disabledPlugins = new();
-        private readonly object _lock = new();
+        private readonly object _settingsLock = new();
+        private readonly object _updateLock = new();
 
         /// <summary>Event fired when filtered results are updated.</summary>
         public event EventHandler? ResultsUpdated;
@@ -59,7 +60,7 @@ namespace SwitchBlade.ViewModels
 
             if (_settingsService != null)
             {
-                lock (_lock)
+                lock (_settingsLock)
                 {
                     _disabledPlugins = new HashSet<string>(_settingsService.Settings.DisabledPlugins);
                 }
@@ -67,7 +68,7 @@ namespace SwitchBlade.ViewModels
 
                 _settingsService.SettingsChanged += () =>
                 {
-                    lock (_lock)
+                    lock (_settingsLock)
                     {
                         _disabledPlugins = new HashSet<string>(_settingsService.Settings.DisabledPlugins);
                     }
@@ -165,7 +166,7 @@ namespace SwitchBlade.ViewModels
         public async Task RefreshWindows()
         {
             HashSet<string> disabled;
-            lock (_lock)
+            lock (_settingsLock)
             {
                 disabled = new HashSet<string>(_disabledPlugins);
             }
@@ -174,46 +175,51 @@ namespace SwitchBlade.ViewModels
 
         private void UpdateSearch(bool resetSelection = false)
         {
-            _isUpdating = true;
-            try
+            lock (_updateLock)
             {
-                // Capture current state
-                IntPtr? selectedHwnd = SelectedWindow?.Hwnd;
-                string? selectedTitle = SelectedWindow?.Title;
-                int selectedIndex = SelectedWindow != null ? FilteredWindows.IndexOf(SelectedWindow) : -1;
-                WindowItem? previousSelection = SelectedWindow;
+                _isUpdating = true;
+                try
+                {
+                    // Capture current state
+                    IntPtr? selectedHwnd = SelectedWindow?.Hwnd;
+                    string? selectedTitle = SelectedWindow?.Title;
+                    int selectedIndex = SelectedWindow != null ? FilteredWindows.IndexOf(SelectedWindow) : -1;
+                    WindowItem? previousSelection = SelectedWindow;
 
-                // Delegate search to service
-                bool useFuzzy = _settingsService?.Settings.EnableFuzzySearch ?? true;
-                var allWindows = _orchestrationService.AllWindows;
-                var sortedResults = _searchService.Search(allWindows, SearchText, useFuzzy);
+                    // Delegate search to service
+                    bool useFuzzy = _settingsService?.Settings.EnableFuzzySearch ?? true;
+                    var allWindows = _orchestrationService.AllWindows;
+                    var sortedResults = _searchService.Search(allWindows, SearchText, useFuzzy);
 
-                // Sync collection in-place
-                SyncCollection(FilteredWindows, sortedResults);
+                    // Sync collection in-place
+                    SyncCollection(FilteredWindows, sortedResults);
 
-                // Update shortcut indices
-                for (int i = 0; i < FilteredWindows.Count; i++)
-                    FilteredWindows[i].ShortcutIndex = (i < 10) ? i : -1;
+                    // Update shortcut indices
+                    for (int i = 0; i < FilteredWindows.Count; i++)
+                        FilteredWindows[i].ShortcutIndex = (i < 10) ? i : -1;
 
-                // Delegate selection resolution to navigation service
-                var behavior = _settingsService?.Settings.RefreshBehavior ?? RefreshBehavior.PreserveScroll;
-                var newSelection = _navigationService.ResolveSelection(
-                    FilteredWindows, selectedHwnd, selectedTitle, selectedIndex, behavior, resetSelection);
+                    // Delegate selection resolution to navigation service
+                    var behavior = _settingsService?.Settings.RefreshBehavior ?? RefreshBehavior.PreserveScroll;
+                    var newSelection = _navigationService.ResolveSelection(
+                        FilteredWindows, selectedHwnd, selectedTitle, selectedIndex, behavior, resetSelection);
 
-                SelectedWindow = newSelection;
+                    SelectedWindow = newSelection;
 
-                // Fire notification if selection changed meaningfully
-                if (resetSelection || (SelectedWindow != previousSelection && behavior != RefreshBehavior.PreserveScroll))
+                    // Fire notification if selection changed meaningfully
+                    if (resetSelection || (SelectedWindow != previousSelection && behavior != RefreshBehavior.PreserveScroll))
+                    {
+                        _isUpdating = false;
+                        OnPropertyChanged(nameof(SelectedWindow));
+                    }
+                }
+                finally
                 {
                     _isUpdating = false;
-                    OnPropertyChanged(nameof(SelectedWindow));
                 }
             }
-            finally
-            {
-                _isUpdating = false;
-                ResultsUpdated?.Invoke(this, EventArgs.Empty);
-            }
+
+            // Fire event outside the lock to prevent deadlocks in listeners
+            ResultsUpdated?.Invoke(this, EventArgs.Empty);
         }
 
         private void SyncCollection(ObservableCollection<WindowItem> collection, IList<WindowItem> source)
