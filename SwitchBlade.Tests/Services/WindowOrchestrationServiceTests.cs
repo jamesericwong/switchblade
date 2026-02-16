@@ -221,21 +221,31 @@ namespace SwitchBlade.Tests.Services
             slowProvider.Setup(p => p.IsUiaProvider).Returns(false); // Non-UIA
             slowProvider.Setup(p => p.GetHandledProcesses()).Returns(Enumerable.Empty<string>());
 
+            var scanStarted = new ManualResetEventSlim(false);
+            var scanContinue = new ManualResetEventSlim(false);
             var callCount = 0;
+
             slowProvider.Setup(p => p.GetWindows()).Returns(() =>
             {
                 Interlocked.Increment(ref callCount);
-                Thread.Sleep(200); // Simulate slow scan
+                scanStarted.Set();
+                scanContinue.Wait(TimeSpan.FromSeconds(10)); // Wait for test to signal
                 return new List<WindowItem>();
             });
 
             var service = new WindowOrchestrationService(new[] { slowProvider.Object }, (IIconService?)null, CreateMockSettingsService());
 
-            // Act: Fire two concurrent refreshes
+            // Act: Fire first refresh (will hang on scanContinue)
             var task1 = service.RefreshAsync(new HashSet<string>());
-            await Task.Delay(200); // Let first one start
-            var task2 = service.RefreshAsync(new HashSet<string>()); // Should be skipped due to _fastRefreshLock
+            
+            // Wait for it to actually enter the provider
+            Assert.True(scanStarted.Wait(TimeSpan.FromSeconds(10)), "Scan did not start in time");
 
+            // Fire second refresh while first is still running (hitting the fast-path lock)
+            var task2 = service.RefreshAsync(new HashSet<string>());
+
+            // Signal first one to complete
+            scanContinue.Set();
             await Task.WhenAll(task1, task2);
 
             // Assert: GetWindows should only be called once (second call was skipped)

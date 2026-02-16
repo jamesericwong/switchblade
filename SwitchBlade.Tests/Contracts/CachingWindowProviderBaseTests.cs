@@ -1,7 +1,9 @@
 using Xunit;
 using Moq;
 using SwitchBlade.Contracts;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -143,7 +145,7 @@ namespace SwitchBlade.Tests.Contracts
             // Create a custom provider wrapper to hook into the scan process
             var provider = new TestCachingWindowProviderWithHooks(expectedItems,
                 onScanStarted: () => scanStartedHandle.Set(),
-                onWaitForContinue: () => continueScanHandle.Wait(TimeSpan.FromSeconds(5)));
+                onWaitForContinue: () => continueScanHandle.Wait(TimeSpan.FromSeconds(10)));
 
             // Act - start first scan in background
             var firstScanTask = Task.Run(() => provider.GetWindows());
@@ -295,4 +297,3 @@ namespace SwitchBlade.Tests.Contracts
         }
     }
 }
-
