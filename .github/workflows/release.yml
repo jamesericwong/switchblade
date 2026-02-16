@@ -22,9 +22,9 @@ jobs:
 
     - name: Setup WiX Toolset
       run: |
-        dotnet tool install --global wix
-        wix extension add WixToolset.UI.wixext
-        wix extension add WixToolset.Util.wixext
+        dotnet tool install --global wix --version 5.0.2
+        wix extension add WixToolset.UI.wixext/5.0.2
+        wix extension add WixToolset.Util.wixext/5.0.2
 
     - name: Run Tests (Release)
       # Safety check before publishing
