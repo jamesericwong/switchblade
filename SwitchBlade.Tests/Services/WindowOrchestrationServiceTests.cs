@@ -298,10 +298,11 @@ namespace SwitchBlade.Tests.Services
             await Task.WhenAny(uiaScanStarted.Task, Task.Delay(10000));
             Assert.True(uiaScanStarted.Task.IsCompleted, "UIA scan did not start in time");
             
+            // Ensure first refresh (the fast part) is done so lock is released
+            await task1;
+
             // 2. Start second refresh IMMEDIATELY (while UIA is still "running" in bg)
             await service.RefreshAsync(new HashSet<string>());
-
-            await task1;
 
             // Assert:
             // Core provider should have run TWICE (because _fastRefreshLock was free)
