@@ -6,7 +6,6 @@
 
 ### Added
 - **Infrastructure**: Integrated automated unit test coverage reporting with summary visualization in CI.
-
 ---
 
 ## [1.9.10] - 2026-02-16
