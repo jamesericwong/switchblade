@@ -27,11 +27,6 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
-# Visual Studio 2015/2017 cache/options directory
-.vs/
-# Visual Studio 2019 cache/options directory
-.github/
-
 # Visual Studio Code
 .vscode/
 
