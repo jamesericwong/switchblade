@@ -22,9 +22,9 @@ jobs:
 
     - name: Setup WiX Toolset
       run: |
-        dotnet tool install --global wix
-        wix extension add WixToolset.UI.wixext
-        wix extension add WixToolset.Util.wixext
+        dotnet tool install --global wix --version 5.0.2
+        wix extension add --global WixToolset.UI.wixext/5.0.2
+        wix extension add --global WixToolset.Util.wixext/5.0.2
 
     - name: Run Tests (Release)
       # Safety check before publishing
@@ -39,4 +39,4 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: Installer/bin/Release/en-US/SwitchBlade.msi
+        files: Installer/bin/Release/SwitchBlade.msi
