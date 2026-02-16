@@ -1,7 +1,9 @@
 using Xunit;
 using Moq;
 using SwitchBlade.Contracts;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -130,7 +132,7 @@ namespace SwitchBlade.Tests.Contracts
         [Fact]
         public async Task GetWindows_ConcurrentCall_ReturnsCachedWhileScanInProgress()
         {
-            // Arrange - create a provider with slow scan
+            // Arrange
             var expectedItems = new List<WindowItem>
             {
                 new WindowItem { Title = "Slow Result" }
@@ -151,7 +153,7 @@ namespace SwitchBlade.Tests.Contracts
             // Wait until we know for sure the scan has started and entered the "processing" phase
             Assert.True(scanStartedHandle.Wait(TimeSpan.FromSeconds(10)), "Timed out waiting for scan to start");
 
-            // Second call while first is still running should return cached (empty initially)
+            // Second call while first is still running/blocked should return cached (empty initially)
             var secondResult = provider.GetWindows().ToList();
 
             // Now let the first scan finish
@@ -295,4 +297,3 @@ namespace SwitchBlade.Tests.Contracts
         }
     }
 }
-
