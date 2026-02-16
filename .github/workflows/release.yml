@@ -37,7 +37,11 @@ jobs:
         targetdir: coverage
         reporttypes: MarkdownSummaryGithub
 
-    - name: Build Installer (R2R)
+    - name: Publish Coverage Summary
+      run: cat coverage/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+      shell: bash
+Line 39: 
+Line 40:     - name: Build Installer (R2R)
       # This builds the Installer project, which triggers the R2R publish of the main app
       # Output: Installer\bin\Release\en-US\SwitchBlade.msi
       run: dotnet build Installer/SwitchBlade.Installer.wixproj -c Release -p:PublishR2R=true
