@@ -6,7 +6,7 @@
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <MakeDir Directories="$(MSBuildProjectDirectory)\..\bin\$(Configuration)\net9.0-windows\Plugins" />
-    <Exec Command="xcopy /Y /F &quot;$(TargetDir)$(TargetName).dll&quot; &quot;$(MSBuildProjectDirectory)\..\bin\$(Configuration)\net9.0-windows\Plugins\&quot;" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="$(MSBuildProjectDirectory)\..\bin\$(Configuration)\net9.0-windows\Plugins\" />
   </Target>
 
   <PropertyGroup>
