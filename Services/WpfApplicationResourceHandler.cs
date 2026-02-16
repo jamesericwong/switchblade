@@ -1,7 +1,9 @@
 using System.Windows;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SwitchBlade.Services
 {
+    [ExcludeFromCodeCoverage]
     public class WpfApplicationResourceHandler : IApplicationResourceHandler
     {
         public void AddMergedDictionary(ResourceDictionary dictionary)

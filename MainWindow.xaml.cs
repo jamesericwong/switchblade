@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,6 +17,7 @@ using System.Threading.Tasks; // Added for Task
 
 namespace SwitchBlade
 {
+    [ExcludeFromCodeCoverage]
     public partial class MainWindow : Window
     {
         private readonly MainViewModel _viewModel;

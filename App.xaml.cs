@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Windows;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,7 @@ namespace SwitchBlade;
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
+[ExcludeFromCodeCoverage]
 public partial class App : Application
 {
     private NotifyIcon? _trayIcon;

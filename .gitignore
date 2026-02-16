@@ -64,3 +64,6 @@ heap_report*.txt
 
 # WPF Temporary Files
 *_wpftmp.csproj
+
+# Test Results
+TestResults/

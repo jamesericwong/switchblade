@@ -1,7 +1,9 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SwitchBlade.Services
 {
+    [ExcludeFromCodeCoverage]
     public class WpfDispatcherService : IDispatcherService
     {
         public void Invoke(Action action)

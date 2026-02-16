@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows.Automation;
 
 namespace SwitchBlade.Contracts
@@ -38,6 +39,7 @@ namespace SwitchBlade.Contracts
     ///
     /// Eliminates duplicated TryGetAutomationElement implementations across plugins.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public static class UiaElementResolver
     {
         /// <summary>

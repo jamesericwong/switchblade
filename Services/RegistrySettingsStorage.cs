@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Win32;
 
 namespace SwitchBlade.Services
@@ -9,6 +10,7 @@ namespace SwitchBlade.Services
     /// Registry-based implementation of <see cref="ISettingsStorage"/>.
     /// Consolidates all Windows Registry operations for settings persistence.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class RegistrySettingsStorage : ISettingsStorage
     {
         private readonly string _registryKeyPath;

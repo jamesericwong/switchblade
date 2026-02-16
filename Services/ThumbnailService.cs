@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Interop;
 using System.Runtime.InteropServices;
@@ -7,6 +8,7 @@ using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
 {
+    [ExcludeFromCodeCoverage]
     public class ThumbnailService : IDisposable
     {
         private IntPtr _currentThumbnail = IntPtr.Zero;

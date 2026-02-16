@@ -357,6 +357,22 @@ namespace SwitchBlade.Services
         {
             if (_disposed) return;
             _disposed = true;
+            
+            foreach (var provider in _providers)
+            {
+                if (provider is IDisposable disposable)
+                {
+                    try
+                    {
+                        disposable.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError($"Error disposing provider {provider.PluginName}", ex);
+                    }
+                }
+            }
+
             _uiaWorkerClient.Dispose();
             _fastRefreshLock.Dispose();
             _uiaRefreshLock.Dispose();
