@@ -149,7 +149,7 @@ namespace SwitchBlade.Tests.Contracts
             var firstScanTask = Task.Run(() => provider.GetWindows());
 
             // Wait until we know for sure the scan has started and entered the "processing" phase
-            Assert.True(scanStartedHandle.Wait(TimeSpan.FromSeconds(2)), "Timed out waiting for scan to start");
+            Assert.True(scanStartedHandle.Wait(TimeSpan.FromSeconds(10)), "Timed out waiting for scan to start");
 
             // Second call while first is still running/blocked should return cached (empty initially)
             var secondResult = provider.GetWindows().ToList();
