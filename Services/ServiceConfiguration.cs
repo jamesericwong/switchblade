@@ -93,11 +93,13 @@ namespace SwitchBlade.Services
                 sp.GetRequiredService<IDispatcherService>()
             ));
 
+            services.AddSingleton<IUIService, WpfUIService>();
             services.AddSingleton<MainWindow>();
             services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
                 sp.GetRequiredService<ISettingsService>(),
                 sp.GetRequiredService<ThemeService>(),
-                sp.GetRequiredService<IPluginService>()
+                sp.GetRequiredService<IPluginService>(),
+                sp.GetRequiredService<IUIService>()
             ));
 
             // Diagnostics (Investigation)

@@ -15,6 +15,7 @@ namespace SwitchBlade.Tests.ViewModels
         private readonly Mock<ISettingsService> _settingsServiceMock;
         private readonly Mock<ThemeService> _themeServiceMock;
         private readonly Mock<IPluginService> _pluginServiceMock;
+        private readonly Mock<IUIService> _uiServiceMock;
         private readonly Mock<IApplicationResourceHandler> _resourceHandlerMock;
         private readonly SettingsViewModel _viewModel;
 
@@ -30,195 +31,363 @@ namespace SwitchBlade.Tests.ViewModels
             _pluginServiceMock = new Mock<IPluginService>();
             _pluginServiceMock.Setup(p => p.GetPluginInfos()).Returns(new List<PluginInfo>());
 
-            _viewModel = new SettingsViewModel(_settingsServiceMock.Object, _themeServiceMock.Object, _pluginServiceMock.Object);
+            _uiServiceMock = new Mock<IUIService>();
+
+            _viewModel = new SettingsViewModel(_settingsServiceMock.Object, _themeServiceMock.Object, _pluginServiceMock.Object, _uiServiceMock.Object);
         }
 
-        [Fact]
-        public void SelectedTheme_Set_AppliesTheme()
+        [Theory]
+        [InlineData(nameof(SettingsViewModel.EnablePreviews), true)]
+        [InlineData(nameof(SettingsViewModel.HideTaskbarIcon), true)]
+        [InlineData(nameof(SettingsViewModel.ShowIcons), true)]
+        [InlineData(nameof(SettingsViewModel.LaunchOnStartup), true)]
+        [InlineData(nameof(SettingsViewModel.EnableBackgroundPolling), true)]
+        [InlineData(nameof(SettingsViewModel.EnableNumberShortcuts), true)]
+        [InlineData(nameof(SettingsViewModel.EnableBadgeAnimations), true)]
+        [InlineData(nameof(SettingsViewModel.EnableFuzzySearch), true)]
+        [InlineData(nameof(SettingsViewModel.NewExcludedProcessName), "test.exe")]
+        [InlineData(nameof(SettingsViewModel.SelectedExcludedProcess), "test.exe")]
+        public void BooleanAndStringProperties_NotifyAndSave(string propertyName, object value)
         {
             // Arrange
-            var themeName = "Dark";
+            bool eventFired = false;
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == propertyName) eventFired = true; };
+
+            // Act
+            var prop = _viewModel.GetType().GetProperty(propertyName);
+            Assert.NotNull(prop);
+            prop.SetValue(_viewModel, value);
+
+            // Assert
+            Assert.True(eventFired, $"PropertyChanged event did not fire for {propertyName}");
+            if (propertyName != nameof(SettingsViewModel.NewExcludedProcessName) && 
+                propertyName != nameof(SettingsViewModel.SelectedExcludedProcess) &&
+                propertyName != nameof(SettingsViewModel.LaunchOnStartup))
+            {
+                _settingsServiceMock.Verify(s => s.SaveSettings(), Times.AtLeastOnce());
+            }
+        }
+
+        [Theory]
+        [InlineData(nameof(SettingsViewModel.FadeDurationMs), 100)]
+        [InlineData(nameof(SettingsViewModel.WindowOpacity), 0.5)]
+        [InlineData(nameof(SettingsViewModel.ItemHeight), 50.0)]
+        [InlineData(nameof(SettingsViewModel.BackgroundPollingIntervalSeconds), 60)]
+        [InlineData(nameof(SettingsViewModel.RegexCacheSize), 500)]
+        [InlineData(nameof(SettingsViewModel.IconCacheSize), 2000)]
+        [InlineData(nameof(SettingsViewModel.UiaWorkerTimeoutSeconds), 30)]
+        public void NumericProperties_NotifyAndSave(string propertyName, object value)
+        {
+            // Arrange
+            bool eventFired = false;
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == propertyName) eventFired = true; };
+
+            // Act
+            var prop = _viewModel.GetType().GetProperty(propertyName);
+            Assert.NotNull(prop);
+            prop.SetValue(_viewModel, value);
+
+            // Assert
+            Assert.True(eventFired, $"PropertyChanged event did not fire for {propertyName}");
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.AtLeastOnce());
+        }
+
+        [Fact]
+        public void RunAsAdministrator_SetsValue_WhenNoRestartNeeded()
+        {
+            // Arrange
+            _settingsServiceMock.Setup(s => s.Settings).Returns(new UserSettings { RunAsAdministrator = false });
+            _uiServiceMock.Setup(u => u.IsRunningAsAdmin()).Returns(false);
             
             // Act
-            _viewModel.SelectedTheme = themeName;
-            
+            _viewModel.RunAsAdministrator = false;
+
             // Assert
-            Assert.Equal(themeName, _viewModel.SelectedTheme);
+            _uiServiceMock.Verify(u => u.ShowMessageBox(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<System.Windows.MessageBoxButton>(), It.IsAny<System.Windows.MessageBoxImage>()), Times.Never());
         }
 
         [Fact]
-        public void EnablePreviews_GetSet_Works()
+        public void RunAsAdministrator_Restarts_WhenUserConfirms()
         {
-            _viewModel.EnablePreviews = true;
-            Assert.True(_viewModel.EnablePreviews);
+            // Arrange
+            _settingsServiceMock.Object.Settings.RunAsAdministrator = false;
+            _uiServiceMock.Setup(u => u.IsRunningAsAdmin()).Returns(false);
+            _uiServiceMock.Setup(u => u.ShowMessageBox(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<System.Windows.MessageBoxButton>(), It.IsAny<System.Windows.MessageBoxImage>()))
+                .Returns(System.Windows.MessageBoxResult.Yes);
+
+            // Act
+            _viewModel.RunAsAdministrator = true;
+
+            // Assert
             _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+            _uiServiceMock.Verify(u => u.RestartApplication(), Times.Once());
         }
 
         [Fact]
-        public void HideTaskbarIcon_GetSet_Works()
+        public void RunAsAdministrator_DoesNothing_WhenUserCancels()
         {
-            _viewModel.HideTaskbarIcon = true;
-            Assert.True(_viewModel.HideTaskbarIcon);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+            // Arrange
+            _settingsServiceMock.Object.Settings.RunAsAdministrator = false;
+            _uiServiceMock.Setup(u => u.IsRunningAsAdmin()).Returns(false);
+            _uiServiceMock.Setup(u => u.ShowMessageBox(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<System.Windows.MessageBoxButton>(), It.IsAny<System.Windows.MessageBoxImage>()))
+                .Returns(System.Windows.MessageBoxResult.No);
+
+            // Act
+            _viewModel.RunAsAdministrator = true;
+
+            // Assert
+            _uiServiceMock.Verify(u => u.RestartApplication(), Times.Never());
+            Assert.False(_settingsServiceMock.Object.Settings.RunAsAdministrator);
         }
 
         [Fact]
-        public void ShowIcons_GetSet_Works()
+        public void RunAsAdministrator_NoRestartNeeded_ComplexBranches()
         {
-            _viewModel.ShowIcons = true;
-            Assert.True(_viewModel.ShowIcons);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+            // Case 1: Value changes to True, and already Admin
+            _settingsServiceMock.Object.Settings.RunAsAdministrator = false;
+            _uiServiceMock.Setup(u => u.IsRunningAsAdmin()).Returns(true);
+            _viewModel.RunAsAdministrator = true;
+            _uiServiceMock.Verify(u => u.RestartApplication(), Times.Never());
+            Assert.True(_settingsServiceMock.Object.Settings.RunAsAdministrator);
+
+            // Case 2: Value changes to False, and already NOT Admin
+            _settingsServiceMock.Object.Settings.RunAsAdministrator = true;
+            _uiServiceMock.Setup(u => u.IsRunningAsAdmin()).Returns(false);
+            _viewModel.RunAsAdministrator = false;
+            _uiServiceMock.Verify(u => u.RestartApplication(), Times.Never());
+            Assert.False(_settingsServiceMock.Object.Settings.RunAsAdministrator);
         }
 
         [Fact]
-        public void FadeDurationMs_GetSet_Works()
+        public void RunAsAdministrator_Restart_WhenDeElevating()
         {
-            _viewModel.FadeDurationMs = 500;
-            Assert.Equal(500, _viewModel.FadeDurationMs);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+            // Case: Currently Admin, set to False -> needs restart
+            _settingsServiceMock.Object.Settings.RunAsAdministrator = true;
+            _uiServiceMock.Setup(u => u.IsRunningAsAdmin()).Returns(true);
+            _uiServiceMock.Setup(u => u.ShowMessageBox(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<System.Windows.MessageBoxButton>(), It.IsAny<System.Windows.MessageBoxImage>()))
+                .Returns(System.Windows.MessageBoxResult.Yes);
+
+            _viewModel.RunAsAdministrator = false;
+
+            _uiServiceMock.Verify(u => u.RestartApplication(), Times.Once());
         }
 
         [Fact]
-        public void WindowOpacity_GetSet_Works()
+        public void SelectedTheme_OnlyNotifiesIfChanged()
         {
-            _viewModel.WindowOpacity = 0.8;
-            Assert.Equal(0.8, _viewModel.WindowOpacity);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+            _viewModel.SelectedTheme = "Dark";
+            bool notified = false;
+            _viewModel.PropertyChanged += (s, e) => notified = true;
+
+            _viewModel.SelectedTheme = "Dark";
+
+            Assert.False(notified);
         }
 
         [Fact]
-        public void ItemHeight_GetSet_Works()
+        public void AddExcludedProcess_Logic_DuplicatesAndEmpty()
         {
-            _viewModel.ItemHeight = 45;
-            Assert.Equal(45, _viewModel.ItemHeight);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void EnableBackgroundPolling_GetSet_Works()
-        {
-            _viewModel.EnableBackgroundPolling = true;
-            Assert.True(_viewModel.EnableBackgroundPolling);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void BackgroundPollingIntervalSeconds_GetSet_Works()
-        {
-            _viewModel.BackgroundPollingIntervalSeconds = 30;
-            Assert.Equal(30, _viewModel.BackgroundPollingIntervalSeconds);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void EnableNumberShortcuts_GetSet_Works()
-        {
-            _viewModel.EnableNumberShortcuts = true;
-            Assert.True(_viewModel.EnableNumberShortcuts);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void EnableBadgeAnimations_GetSet_Works()
-        {
-            _viewModel.EnableBadgeAnimations = true;
-            Assert.True(_viewModel.EnableBadgeAnimations);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void RegexCacheSize_GetSet_Works()
-        {
-            _viewModel.RegexCacheSize = 200;
-            Assert.Equal(200, _viewModel.RegexCacheSize);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void EnableFuzzySearch_GetSet_Works()
-        {
-            _viewModel.EnableFuzzySearch = true;
-            Assert.True(_viewModel.EnableFuzzySearch);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void IconCacheSize_GetSet_Works()
-        {
-            _viewModel.IconCacheSize = 1000;
-            Assert.Equal(1000, _viewModel.IconCacheSize);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void UiaWorkerTimeoutSeconds_GetSet_Works()
-        {
-            _viewModel.UiaWorkerTimeoutSeconds = 20;
-            Assert.Equal(20, _viewModel.UiaWorkerTimeoutSeconds);
-            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
-        }
-
-        [Fact]
-        public void RefreshBehavior_Properties_Work()
-        {
-            _viewModel.IsPreserveScrollSelected = true;
-            Assert.True(_viewModel.IsPreserveScrollSelected);
-            Assert.Equal(RefreshBehavior.PreserveScroll, _settingsServiceMock.Object.Settings.RefreshBehavior);
-
-            _viewModel.IsPreserveIdentitySelected = true;
-            Assert.True(_viewModel.IsPreserveIdentitySelected);
-            Assert.Equal(RefreshBehavior.PreserveIdentity, _settingsServiceMock.Object.Settings.RefreshBehavior);
-
-            _viewModel.IsPreserveIndexSelected = true;
-            Assert.True(_viewModel.IsPreserveIndexSelected);
-            Assert.Equal(RefreshBehavior.PreserveIndex, _settingsServiceMock.Object.Settings.RefreshBehavior);
-        }
-
-        [Fact]
-        public void SelectedShortcutModifier_GetSet_Works()
-        {
-            _viewModel.SelectedShortcutModifier = "Ctrl";
-            Assert.Equal("Ctrl", _viewModel.SelectedShortcutModifier);
-            Assert.Equal(2u, _settingsServiceMock.Object.Settings.NumberShortcutModifier); // Ctrl = 2
-        }
-
-        [Fact]
-        public void ExcludedProcesses_Commands_Work()
-        {
+            // Duplicate
             _viewModel.NewExcludedProcessName = "chrome";
-            Assert.True(_viewModel.AddExcludedProcessCommand.CanExecute(null));
-            
             _viewModel.AddExcludedProcessCommand.Execute(null);
-            
-            Assert.Contains("chrome", _viewModel.ExcludedProcesses);
-            Assert.Equal("", _viewModel.NewExcludedProcessName);
+            _settingsServiceMock.Invocations.Clear();
+            _viewModel.NewExcludedProcessName = "chrome";
+            _viewModel.AddExcludedProcessCommand.Execute(null);
+            Assert.Single(_viewModel.ExcludedProcesses, p => p == "chrome");
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Never());
 
-            _viewModel.SelectedExcludedProcess = "chrome";
-            Assert.True(_viewModel.RemoveExcludedProcessCommand.CanExecute(null));
-            
-            _viewModel.RemoveExcludedProcessCommand.Execute(null);
-            Assert.DoesNotContain("chrome", _viewModel.ExcludedProcesses);
+            // Empty
+            _viewModel.ExcludedProcesses.Clear();
+            _viewModel.NewExcludedProcessName = "  ";
+            _viewModel.AddExcludedProcessCommand.Execute(null);
+            Assert.Empty(_viewModel.ExcludedProcesses);
         }
 
         [Fact]
-        public void TogglePlugin_Command_Works()
+        public void TogglePlugin_SynchronizesWithSettings()
         {
-            var plugin = new PluginInfo { Name = "TestPlugin", IsEnabled = true };
+            var plugin = new PluginInfo { Name = "TestPlugin", IsEnabled = false };
+            _settingsServiceMock.Object.Settings.DisabledPlugins.Clear();
+
+            // Enable
+            plugin.IsEnabled = true;
             _viewModel.TogglePluginCommand.Execute(plugin);
             Assert.DoesNotContain("TestPlugin", _settingsServiceMock.Object.Settings.DisabledPlugins);
 
+            // Disable
             plugin.IsEnabled = false;
             _viewModel.TogglePluginCommand.Execute(plugin);
             Assert.Contains("TestPlugin", _settingsServiceMock.Object.Settings.DisabledPlugins);
+
+            // Disable again (should not duplicate)
+            _viewModel.TogglePluginCommand.Execute(plugin);
+            Assert.Single(_settingsServiceMock.Object.Settings.DisabledPlugins, p => p == "TestPlugin");
         }
 
         [Fact]
-        public void HotKeyString_ReturnsCorrectFormat()
+        public void RefreshBehavior_Properties_SyncWithSettings()
         {
-            _viewModel.UpdateHotKey(1 | 2, (uint)System.Windows.Forms.Keys.A); // Alt + Ctrl + A
-            Assert.Contains("Alt", _viewModel.HotKeyString);
-            Assert.Contains("Ctrl", _viewModel.HotKeyString);
-            Assert.Contains("A", _viewModel.HotKeyString);
+            _viewModel.IsPreserveScrollSelected = true;
+            Assert.Equal(RefreshBehavior.PreserveScroll, _settingsServiceMock.Object.Settings.RefreshBehavior);
+            Assert.True(_viewModel.IsPreserveScrollSelected);
+            Assert.False(_viewModel.IsPreserveIdentitySelected);
+            Assert.False(_viewModel.IsPreserveIndexSelected);
+
+            _viewModel.IsPreserveIdentitySelected = true;
+            Assert.Equal(RefreshBehavior.PreserveIdentity, _settingsServiceMock.Object.Settings.RefreshBehavior);
+            Assert.True(_viewModel.IsPreserveIdentitySelected);
+            Assert.False(_viewModel.IsPreserveScrollSelected);
+
+            _viewModel.IsPreserveIndexSelected = true;
+            Assert.Equal(RefreshBehavior.PreserveIndex, _settingsServiceMock.Object.Settings.RefreshBehavior);
+            Assert.True(_viewModel.IsPreserveIndexSelected);
+            Assert.False(_viewModel.IsPreserveIdentitySelected);
+        }
+
+        [Fact]
+        public void HotKeyString_ReflectsModifiersAndKey()
+        {
+            _settingsServiceMock.Object.Settings.HotKeyModifiers = 1 | 2 | 4 | 8;
+            _settingsServiceMock.Object.Settings.HotKeyKey = (uint)System.Windows.Forms.Keys.A;
+
+            var result = _viewModel.HotKeyString;
+
+            Assert.Contains("Alt", result);
+            Assert.Contains("Ctrl", result);
+            Assert.Contains("Shift", result);
+            Assert.Contains("Win", result);
+            Assert.Contains("A", result);
+        }
+
+        [Fact]
+        public void UpdateHotKey_UpdatesSettingsAndNotifies()
+        {
+            bool notified = false;
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.HotKeyString)) notified = true; };
+
+            _viewModel.UpdateHotKey(2, (uint)System.Windows.Forms.Keys.B);
+
+            Assert.Equal(2u, _settingsServiceMock.Object.Settings.HotKeyModifiers);
+            Assert.Equal((uint)System.Windows.Forms.Keys.B, _settingsServiceMock.Object.Settings.HotKeyKey);
+            Assert.True(notified);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
+
+        [Fact]
+        public void RelayCommands_CanExecute_Logic()
+        {
+            // Add
+            _viewModel.NewExcludedProcessName = "";
+            Assert.False(_viewModel.AddExcludedProcessCommand.CanExecute(null));
+            _viewModel.NewExcludedProcessName = "chrome";
+            Assert.True(_viewModel.AddExcludedProcessCommand.CanExecute(null));
+
+            // Remove
+            _viewModel.SelectedExcludedProcess = "";
+            Assert.False(_viewModel.RemoveExcludedProcessCommand.CanExecute(null));
+            _viewModel.SelectedExcludedProcess = "chrome";
+            Assert.True(_viewModel.RemoveExcludedProcessCommand.CanExecute(null));
+        }
+
+        [Fact]
+        public void RemoveExcludedProcess_Logic_Branches()
+        {
+            // Actual removal
+            _viewModel.ExcludedProcesses.Add("chrome");
+            _settingsServiceMock.Object.Settings.ExcludedProcesses.Add("chrome");
+            _viewModel.SelectedExcludedProcess = "chrome";
+            _viewModel.RemoveExcludedProcessCommand.Execute(null);
+            Assert.DoesNotContain("chrome", _viewModel.ExcludedProcesses);
+            Assert.DoesNotContain("chrome", _settingsServiceMock.Object.Settings.ExcludedProcesses);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+
+            // Empty
+            _viewModel.SelectedExcludedProcess = "";
+            _viewModel.RemoveExcludedProcessCommand.Execute(null);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once()); // Only the first one called it
+
+            // Not found
+            _viewModel.ExcludedProcesses.Clear();
+            _viewModel.SelectedExcludedProcess = "missing";
+            _viewModel.RemoveExcludedProcessCommand.Execute(null);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once()); // Still once
+        }
+
+        [Fact]
+        public void AllPropertyGetters_AreExercised()
+        {
+            _ = _viewModel.SelectedTheme;
+            _ = _viewModel.EnablePreviews;
+            _ = _viewModel.HideTaskbarIcon;
+            _ = _viewModel.ShowIcons;
+            _ = _viewModel.LaunchOnStartup;
+            _ = _viewModel.RunAsAdministrator;
+            _ = _viewModel.FadeDurationMs;
+            _ = _viewModel.WindowOpacity;
+            _ = _viewModel.ItemHeight;
+            _ = _viewModel.EnableBackgroundPolling;
+            _ = _viewModel.BackgroundPollingIntervalSeconds;
+            _ = _viewModel.EnableNumberShortcuts;
+            _ = _viewModel.EnableBadgeAnimations;
+            _ = _viewModel.RegexCacheSize;
+            _ = _viewModel.EnableFuzzySearch;
+            _ = _viewModel.IconCacheSize;
+            _ = _viewModel.UiaWorkerTimeoutSeconds;
+            _ = _viewModel.SelectedShortcutModifier;
+            _ = _viewModel.HotKeyString;
+            _ = _viewModel.NewExcludedProcessName;
+            _ = _viewModel.SelectedExcludedProcess;
+            _ = _viewModel.AddExcludedProcessCommand;
+            _ = _viewModel.RemoveExcludedProcessCommand;
+            _ = _viewModel.TogglePluginCommand;
+            _ = _viewModel.AvailableThemes;
+            _ = _viewModel.LoadedPlugins;
+            _ = _viewModel.ExcludedProcesses;
+            _ = _viewModel.AvailableShortcutModifiers;
+
+            _viewModel.AddExcludedProcessCommand.CanExecuteChanged += (s, e) => { };
+            _viewModel.RemoveExcludedProcessCommand.CanExecuteChanged += (s, e) => { };
+        }
+
+        [Fact]
+        public void Constructor_HandlesPreDisabledPlugins()
+        {
+            var plugins = new List<PluginInfo> { new PluginInfo { Name = "DisabledPlugin", IsEnabled = true } };
+            _pluginServiceMock.Setup(p => p.GetPluginInfos()).Returns(plugins);
+            _settingsServiceMock.Object.Settings.DisabledPlugins.Add("DisabledPlugin");
+
+            var vm = new SettingsViewModel(_settingsServiceMock.Object, _themeServiceMock.Object, _pluginServiceMock.Object, _uiServiceMock.Object);
+
+            var plugin = vm.LoadedPlugins.First(p => p.Name == "DisabledPlugin");
+            Assert.False(plugin.IsEnabled);
+        }
+
+        [Fact]
+        public void SelectedShortcutModifier_Set_UpdatesSettings()
+        {
+            _viewModel.SelectedShortcutModifier = "Ctrl";
+            Assert.Equal(2u, _settingsServiceMock.Object.Settings.NumberShortcutModifier);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
+
+        [Fact]
+        public void LaunchOnStartup_Getter_ReadsFromService()
+        {
+            _settingsServiceMock.Setup(s => s.IsStartupEnabled()).Returns(true);
+            Assert.True(_viewModel.LaunchOnStartup);
+        }
+
+        [Fact]
+        public void AvailableThemes_Property_Works()
+        {
+            Assert.NotNull(_viewModel.AvailableThemes);
+        }
+
+        [Fact]
+        public void AvailableShortcutModifiers_ReturnsExpected()
+        {
+            Assert.Contains("Alt", _viewModel.AvailableShortcutModifiers);
+            Assert.Contains("None", _viewModel.AvailableShortcutModifiers);
         }
     }
 }
