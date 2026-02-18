@@ -264,13 +264,19 @@ namespace SwitchBlade.Tests.Services
             
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
             
-             // Setup ReadLine to hang
-            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<string?>(new TaskCompletionSource<string?>().Task));
-                
-            var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
+            // Overwrite StandardInput mock to capture when input is written (signaling process is active)
+            var inputWritten = new ManualResetEventSlim(false);
+            var mockIn = new Mock<TextWriter>();
+            mockIn.Setup(w => w.WriteLineAsync(It.IsAny<string>()))
+                  .Callback(() => inputWritten.Set())
+                  .Returns(Task.CompletedTask);
+            _mockProcess.Setup(p => p.StandardInput).Returns(mockIn.Object);
+
+             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
             Task.Run(async () => await enumerator.MoveNextAsync()); 
-             Thread.Sleep(50);
+            
+            // Wait for input to be written, ensuring _activeProcess is set
+            Assert.True(inputWritten.Wait(2000), "Timed out waiting for process to become active");
              
              client.Dispose();
              
