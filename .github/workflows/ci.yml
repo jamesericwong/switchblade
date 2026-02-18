@@ -11,6 +11,9 @@ jobs:
     name: Build & Test
     runs-on: windows-latest
 
+    permissions:
+      contents: write
+
     steps:
     - uses: actions/checkout@v6
 
@@ -32,8 +35,13 @@ jobs:
       with:
         reports: coverage/**/coverage.cobertura.xml
         targetdir: coverage
-        reporttypes: MarkdownSummaryGithub
+        reporttypes: MarkdownSummaryGithub;Html;Badges
 
     - name: Publish Coverage Summary
       run: cat coverage/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
       shell: bash
+
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: coverage
