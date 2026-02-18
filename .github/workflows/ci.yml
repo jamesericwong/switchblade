@@ -6,13 +6,13 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build & Test
     runs-on: windows-latest
-
-    permissions:
-      contents: write
 
     steps:
     - uses: actions/checkout@v6
@@ -41,7 +41,27 @@ jobs:
       run: cat coverage/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
-    - name: Deploy to GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@v4
+    - name: Upload Coverage Artifacts
+      uses: actions/upload-artifact@v4
       with:
-        folder: coverage
+        name: coverage-report
+        path: coverage
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download Coverage Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: coverage
