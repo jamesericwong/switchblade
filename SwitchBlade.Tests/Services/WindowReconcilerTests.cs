@@ -180,5 +180,28 @@ namespace SwitchBlade.Tests.Services
             _reconciler.RemoveFromCache(item);
             Assert.Equal(0, _reconciler.GetHwndCacheCount());
         }
+
+        [Fact]
+        public void AddToCache_DoesNotAddDuplicates()
+        {
+            var item = new WindowItem { Hwnd = (IntPtr)1, Title = "A", Source = _mockProvider.Object };
+            _reconciler.AddToCache(item);
+            _reconciler.AddToCache(item); // Add same item again
+            
+            Assert.Equal(1, _reconciler.GetHwndCacheCount());
+            // Verify internal list usage
+            // We can't access private fields easily, but cache count remaining 1 implies no duplicate added
+        }
+
+        [Fact]
+        public void RemoveFromCache_RemovesProviderEntry_WhenLastItemRemoved()
+        {
+            var item = new WindowItem { Hwnd = (IntPtr)1, Title = "A", Source = _mockProvider.Object };
+            _reconciler.AddToCache(item);
+            Assert.Equal(1, _reconciler.GetProviderCacheCount());
+
+            _reconciler.RemoveFromCache(item);
+            Assert.Equal(0, _reconciler.GetProviderCacheCount());
+        }
     }
 }

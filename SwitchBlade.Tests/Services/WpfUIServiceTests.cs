@@ -10,13 +10,13 @@ namespace SwitchBlade.Tests.Services
         public void IsRunningAsAdmin_ReturnsResult()
         {
             var service = new WpfUIService();
-            // This just calls Program.IsRunningAsAdmin(), which we can't easily mock in a console unit test 
-            // without modifying Program. But we hit the line.
+            // This just calls Program.IsRunningAsAdmin(), which relies on static state.
+            // Since WpfUIService IS NOW EXCLUDED FROM COVERAGE, we don't strictly need this test 
+            // for coverage purposes, but we keep it as a sanity check that the method exists and runs.
             try { service.IsRunningAsAdmin(); } catch { }
         }
 
-        // RestartApplication and ShowMessageBox are too side-effect heavy for unit tests
-        // and would require significant refactoring of the service to be testable.
-        // We accept the current coverage for these specific methods.
+        // Logic has been moved to RestartLogic and tested in RestartLogicTests.
+        // WpfUIService is now a thin wrapper and [ExcludeFromCodeCoverage].
     }
 }

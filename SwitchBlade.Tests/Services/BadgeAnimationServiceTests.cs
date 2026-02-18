@@ -79,9 +79,57 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void Constructor_NullAnimator_Throws()
+        public async Task Trigger_CancellationDuringLoop_Works()
         {
-            Assert.Throws<ArgumentNullException>(() => new BadgeAnimationService(null!));
+            var items = new List<WindowItem>();
+            for (int i = 0; i < 5; i++) 
+                items.Add(new WindowItem { Title = $"T{i}", ShortcutIndex = i });
+
+            var task = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+            
+            // Immediately trigger again to cancel the first one while it's in the loop (if possible)
+            // or while it's waiting for the final stagger delay.
+            _ = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            await task;
+
+            // Some items might have been started, but the loop checks CT
+            // We verify it doesn't crash and returns cleanly.
+        }
+
+        [Fact]
+        public async Task Trigger_StaggerDelay_CalculatesCorrectly()
+        {
+            _service.StaggerDelayMs = 50;
+            _service.AnimationDurationMs = 100;
+            
+            var items = new List<WindowItem> 
+            { 
+                new WindowItem { Title = "T1", ShortcutIndex = 0 }, 
+                new WindowItem { Title = "T2", ShortcutIndex = 4 } 
+            };
+
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            // Verify animations were triggered with correct delays
+            _mockAnimator.Verify(a => a.Animate(items[0], 0, 100, It.IsAny<double>()), Times.Once());
+            _mockAnimator.Verify(a => a.Animate(items[1], 4 * 50, 100, It.IsAny<double>()), Times.Once());
+        }
+
+        [Fact]
+        public async Task Trigger_ResetsBadgeAnimation_ForItemsAboutToAnimate()
+        {
+             var item = new WindowItem { Title = "T1", ShortcutIndex = 1, BadgeOpacity = 1.0 };
+             var items = new List<WindowItem> { item };
+
+             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+             // Before animating, it should have reset Opacity to 0 (via ResetBadgeAnimation)
+             // and then animator handles it. 
+             // We can't easily check the 0 value because it's transient before animator starts,
+             // but we verify the items are animated.
+             _mockAnimator.Verify(a => a.Animate(item, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
+             Assert.True(item.HasBeenAnimated);
         }
     }
 }

@@ -543,6 +543,36 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public async Task LaunchUiaRefresh_LogsWarning_WhenProviderNotFound()
+        {
+            var mockWorker = new Mock<IUiaWorkerClient>();
+            // Return result for unknown plugin and unknown process
+            var pluginResult = new UiaPluginResult 
+            { 
+                PluginName = "UnknownPlugin", 
+                Windows = new List<UiaWindowResult> { new() { Title = "W1", Hwnd = 123, ProcessName = "unknown-proc" } } 
+            };
+
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), It.IsAny<CancellationToken>()))
+                      .Returns(new[] { pluginResult }.ToAsyncEnumerable());
+
+            var service = new WindowOrchestrationService(
+                new IWindowProvider[0], 
+                new WindowReconciler(null), 
+                mockWorker.Object, 
+                null, 
+                CreateMockSettingsService());
+
+            // Should not crash and not add windows
+            await service.RefreshAsync(new HashSet<string>());
+
+            // Wait for fire-and-forget task
+            await Task.Delay(200);
+
+            Assert.Empty(service.AllWindows);
+        }
+
+        [Fact]
         public void Dispose_HandlesProviderDisposeError()
         {
             var mockProvider = new Mock<IWindowProvider>();

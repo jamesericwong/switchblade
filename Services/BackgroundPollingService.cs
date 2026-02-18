@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using SwitchBlade.Contracts;
+using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
 {
@@ -12,17 +14,23 @@ namespace SwitchBlade.Services
     {
         private readonly ISettingsService _settingsService;
         private readonly IDispatcherService _dispatcherService;
+        private readonly IWorkstationService _workstationService;
         private readonly Func<Task> _refreshAction;
 
         private CancellationTokenSource? _cts;
         private Task? _pollingTask;
         private bool _disposed;
 
-        public BackgroundPollingService(ISettingsService settingsService, IDispatcherService dispatcherService, Func<Task> refreshAction)
+        public BackgroundPollingService(
+            ISettingsService settingsService, 
+            IDispatcherService dispatcherService, 
+            Func<Task> refreshAction,
+            IWorkstationService? workstationService = null)
         {
             _settingsService = settingsService;
             _dispatcherService = dispatcherService;
             _refreshAction = refreshAction;
+            _workstationService = workstationService ?? new WorkstationService();
 
             // Subscribe to settings changes to dynamically update timer
             _settingsService.SettingsChanged += OnSettingsChanged;
@@ -38,7 +46,7 @@ namespace SwitchBlade.Services
 
             if (!_settingsService.Settings.EnableBackgroundPolling)
             {
-                SwitchBlade.Core.Logger.Log("BackgroundPollingService: Polling disabled.");
+                Logger.Log("BackgroundPollingService: Polling disabled.");
                 return;
             }
 
@@ -48,7 +56,7 @@ namespace SwitchBlade.Services
             _cts = new CancellationTokenSource();
             _pollingTask = PollingLoop(TimeSpan.FromMilliseconds(intervalMs), _cts.Token);
 
-            SwitchBlade.Core.Logger.Log($"BackgroundPollingService: Polling enabled with interval {intervalMs}ms.");
+            Logger.Log($"BackgroundPollingService: Polling enabled with interval {intervalMs}ms.");
         }
 
         private void StopPolling()
@@ -82,13 +90,13 @@ namespace SwitchBlade.Services
                         // Skip refresh when the workstation is locked.
                         // UIA/COM calls against locked desktops can hang for 10-15s,
                         // blocking the UI thread and making the app unresponsive on wake.
-                        if (SwitchBlade.Contracts.NativeInterop.IsWorkstationLocked())
+                        if (_workstationService.IsWorkstationLocked())
                         {
-                            SwitchBlade.Core.Logger.Log("BackgroundPollingService: Workstation locked, skipping refresh.");
+                            Logger.Log("BackgroundPollingService: Workstation locked, skipping refresh.");
                             continue;
                         }
 
-                        SwitchBlade.Core.Logger.Log("BackgroundPollingService: Running background refresh.");
+                        Logger.Log("BackgroundPollingService: Running background refresh.");
 
                         // Dispatch to UI thread since RefreshWindows updates ObservableCollection
                         await _dispatcherService.InvokeAsync(async () =>
@@ -99,7 +107,7 @@ namespace SwitchBlade.Services
                     catch (Exception ex)
                     {
                         // Log but don't crash loop
-                        SwitchBlade.Core.Logger.LogError("BackgroundPollingService: Error during refresh", ex);
+                        Logger.LogError("BackgroundPollingService: Error during refresh", ex);
                     }
                 }
             }

@@ -71,5 +71,51 @@ namespace SwitchBlade.Tests.Services
             using var service = new MemoryDiagnosticsService(_mockOrch.Object, _mockIcon.Object, _mockSearch.Object, _mockLogger.Object, null);
             Assert.NotNull(service);
         }
+
+        [Fact]
+        public async Task DiagnosticsLoop_WhenTickFails_LogsAndContinues()
+        {
+            // We can't easily mock PeriodicTimer, but we can mock the inner action 
+            // and verify it's called multiple times even if it fails once.
+            
+            int callCount = 0;
+            _mockProcFactory.Setup(f => f.GetCurrentProcess()).Returns(() => {
+                callCount++;
+                if (callCount == 1) throw new Exception("Transient loop failure");
+                return _mockProcess.Object;
+            });
+
+            // Use very short interval
+            using var service = new MemoryDiagnosticsService(
+                _mockOrch.Object, _mockIcon.Object, _mockSearch.Object, _mockLogger.Object, _mockProcFactory.Object,
+                TimeSpan.FromMilliseconds(50));
+
+            await service.StartAsync(CancellationToken.None);
+            
+            // Wait for 2-3 ticks
+            await Task.Delay(250);
+            
+            await service.StopAsync(CancellationToken.None);
+
+            // Verify error was logged once
+            _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Failed to log memory stats")), It.IsAny<Exception>()), Times.Once());
+            // Verify loop continued and called stats again
+            Assert.True(callCount > 1);
+        }
+
+        [Fact]
+        public async Task StopAsync_WhenLoopActuallyRunning_CancelsAndWaits()
+        {
+             using var service = new MemoryDiagnosticsService(
+                _mockOrch.Object, _mockIcon.Object, _mockSearch.Object, _mockLogger.Object, _mockProcFactory.Object,
+                TimeSpan.FromSeconds(1));
+
+             await service.StartAsync(CancellationToken.None);
+             
+             // Stop immediately
+             var stopTask = service.StopAsync(CancellationToken.None);
+             
+             await stopTask; // Should complete quickly
+        }
     }
 }

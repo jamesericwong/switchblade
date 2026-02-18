@@ -28,7 +28,8 @@ namespace SwitchBlade.Services
             IIconService iconService,
             IWindowSearchService searchService,
             ILogger logger,
-            IProcessFactory? processFactory = null)
+            IProcessFactory? processFactory = null,
+            TimeSpan? interval = null)
         {
             _orchestrationService = orchestrationService;
             _iconService = iconService;
@@ -36,7 +37,7 @@ namespace SwitchBlade.Services
             _logger = logger;
             _processFactory = processFactory ?? new ProcessFactory();
 
-            _timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
+            _timer = new PeriodicTimer(interval ?? TimeSpan.FromSeconds(60));
             _cts = new CancellationTokenSource();
         }
 

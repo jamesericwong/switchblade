@@ -12,6 +12,7 @@ namespace SwitchBlade.Tests.Services
     {
         private readonly Mock<ISettingsService> _mockSettingsService;
         private readonly Mock<IDispatcherService> _mockDispatcherService;
+        private readonly Mock<IWorkstationService> _mockWorkstationService;
         private readonly UserSettings _settings;
         private bool _refreshCalled;
 
@@ -29,11 +30,13 @@ namespace SwitchBlade.Tests.Services
             // Mock InvokeAsync to run the action immediately
             _mockDispatcherService.Setup(d => d.InvokeAsync(It.IsAny<Func<Task>>()))
                 .Returns<Func<Task>>(async action => await action());
+
+            _mockWorkstationService = new Mock<IWorkstationService>();
+            _mockWorkstationService.Setup(w => w.IsWorkstationLocked()).Returns(false);
         }
 
         public void Dispose()
         {
-            // Nothing to dispose by default, but child tests might create services
         }
 
         [Fact]
@@ -46,7 +49,7 @@ namespace SwitchBlade.Tests.Services
                 await Task.CompletedTask;
             };
 
-            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction);
+            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction, _mockWorkstationService.Object);
 
             // Wait for at least one poll (interval is 1s, clamped if less)
             var result = await semaphore.WaitAsync(2500); // 2.5s timeout
@@ -61,10 +64,59 @@ namespace SwitchBlade.Tests.Services
             bool called = false;
             Func<Task> refreshAction = () => { called = true; return Task.CompletedTask; };
 
-            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction);
+            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction, _mockWorkstationService.Object);
 
             Thread.Sleep(500);
             Assert.False(called);
+        }
+
+        [Fact]
+        public async Task Polling_WhenWorkstationLocked_SkipsRefresh()
+        {
+            _mockWorkstationService.Setup(w => w.IsWorkstationLocked()).Returns(true);
+            
+            var semaphore = new SemaphoreSlim(0);
+            int callCount = 0;
+            Func<Task> refreshAction = () => { 
+                callCount++;
+                semaphore.Release(); 
+                return Task.CompletedTask; 
+            };
+
+            // Use 1ms interval for fast testing if possible, but PeriodicTimer might be capped.
+            // Actually implementation clamps to 1s.
+            _settings.BackgroundPollingIntervalSeconds = 1;
+
+            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction, _mockWorkstationService.Object);
+
+            // Wait 1.5s - should NOT be called
+            var result = await semaphore.WaitAsync(1500);
+            Assert.False(result);
+            Assert.Equal(0, callCount);
+        }
+
+        [Fact]
+        public async Task PollingLoop_WhenRefreshActionThrows_ContinuesLoop()
+        {
+            var semaphore = new SemaphoreSlim(0);
+            int callCount = 0;
+            Func<Task> refreshAction = () => { 
+                callCount++;
+                semaphore.Release();
+                if (callCount == 1) throw new Exception("Transient error");
+                return Task.CompletedTask; 
+            };
+
+            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction, _mockWorkstationService.Object);
+
+            // Wait for first call (throws)
+            await semaphore.WaitAsync(2500);
+            Assert.Equal(1, callCount);
+
+            // Wait for second call (succeeds)
+            var result = await semaphore.WaitAsync(2500);
+            Assert.True(result);
+            Assert.Equal(2, callCount);
         }
 
         [Fact]
@@ -73,22 +125,20 @@ namespace SwitchBlade.Tests.Services
             _settings.EnableBackgroundPolling = false;
             Func<Task> refreshAction = () => Task.CompletedTask;
 
-            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction);
+            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction, _mockWorkstationService.Object);
 
             _settings.EnableBackgroundPolling = true;
             _settings.BackgroundPollingIntervalSeconds = 1;
             
             // Trigger event
             _mockSettingsService.Raise(s => s.SettingsChanged += null);
-            
-            // Should now be polling (verify by looking at internal state if possible, or just wait for poll)
         }
 
         [Fact]
         public void Dispose_ShouldStopPollingAndUnsubscribe()
         {
             Func<Task> refreshAction = () => Task.CompletedTask;
-            var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction);
+            var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction, _mockWorkstationService.Object);
             
             service.Dispose();
             service.Dispose(); // Test double dispose
@@ -103,7 +153,7 @@ namespace SwitchBlade.Tests.Services
             var semaphore = new SemaphoreSlim(0);
             Func<Task> refreshAction = () => { semaphore.Release(); return Task.CompletedTask; };
 
-            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction);
+            using var service = new BackgroundPollingService(_mockSettingsService.Object, _mockDispatcherService.Object, refreshAction, _mockWorkstationService.Object);
             
             var result = await semaphore.WaitAsync(2500);
             Assert.True(result);

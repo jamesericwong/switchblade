@@ -115,10 +115,15 @@ namespace SwitchBlade.Services
                 RedirectStandardError = true
             };
 
-            IProcess process;
+            IProcess? process;
             try
             {
                 process = _processFactory.Start(psi);
+                if (process == null)
+                {
+                    _logger?.Log("[UiaWorkerClient] Worker process failed to start (null return)");
+                    yield break;
+                }
             }
             catch (Exception ex)
             {

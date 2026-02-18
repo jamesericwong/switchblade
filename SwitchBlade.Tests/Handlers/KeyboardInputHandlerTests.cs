@@ -178,5 +178,117 @@ namespace SwitchBlade.Tests.Handlers
             _mockActivateWindow.Verify(x => x(It.IsAny<WindowItem>()), Times.Never);
             Assert.False(result);
         }
+
+        [Theory]
+        [InlineData(Key.D1, 0)]
+        [InlineData(Key.D2, 1)]
+        [InlineData(Key.D3, 2)]
+        [InlineData(Key.D4, 3)]
+        [InlineData(Key.D5, 4)]
+        [InlineData(Key.D6, 5)]
+        [InlineData(Key.D7, 6)]
+        [InlineData(Key.D8, 7)]
+        [InlineData(Key.D9, 8)]
+        [InlineData(Key.D0, 9)]
+        [InlineData(Key.NumPad1, 0)]
+        [InlineData(Key.NumPad2, 1)]
+        [InlineData(Key.NumPad3, 2)]
+        [InlineData(Key.NumPad4, 3)]
+        [InlineData(Key.NumPad5, 4)]
+        [InlineData(Key.NumPad6, 5)]
+        [InlineData(Key.NumPad7, 6)]
+        [InlineData(Key.NumPad8, 7)]
+        [InlineData(Key.NumPad9, 8)]
+        [InlineData(Key.NumPad0, 9)]
+        public void HandleKeyInput_AllNumberKeys_MapToCorrectIndex(Key key, int expectedIndex)
+        {
+            _settings.EnableNumberShortcuts = true;
+            _settings.NumberShortcutModifier = 0; // None
+            
+            // Setup enough windows
+            var windows = new ObservableCollection<WindowItem>();
+            for(int i=0; i<=9; i++) windows.Add(new WindowItem { Title = $"Win{i}" });
+            _mockViewModel.Setup(vm => vm.FilteredWindows).Returns(windows);
+
+            bool result = _handler.HandleKeyInput(key, ModifierKeys.None);
+
+            _mockActivateWindow.Verify(x => x(windows[expectedIndex]), Times.Once);
+            Assert.True(result);
+        }
+
+        [Fact]
+        public void HandleKeyInput_NumberShortcut_IndexOutOfRange_DoesNothing()
+        {
+            _settings.EnableNumberShortcuts = true;
+            _settings.NumberShortcutModifier = 0; // None
+            
+            // Only 1 window
+            var windows = new ObservableCollection<WindowItem> { new WindowItem() };
+            _mockViewModel.Setup(vm => vm.FilteredWindows).Returns(windows);
+
+            // Try to activate index 1 (Key D2)
+            bool result = _handler.HandleKeyInput(Key.D2, ModifierKeys.None);
+
+            _mockActivateWindow.Verify(x => x(It.IsAny<WindowItem>()), Times.Never);
+            // In the implementation, if index is out of range, it still returns true?
+            // "if (index.HasValue) { ActivateWindowByIndex(index.Value); return true; }"
+            // Yes, because Key is valid number key, but index logic inside is safe.
+            // Actually, let's look at code again:
+            // if (index.HasValue) { ActivateWindowByIndex(index.Value); return true; }
+            // So it returns true.
+             Assert.True(result); 
+        }
+
+        [Fact]
+        public void HandleKeyInput_NumberShortcut_DifferentModifiers()
+        {
+             _settings.EnableNumberShortcuts = true;
+             
+             var windows = new ObservableCollection<WindowItem> { new WindowItem(), new WindowItem() };
+             _mockViewModel.Setup(vm => vm.FilteredWindows).Returns(windows);
+
+             // Test Alt
+             _settings.NumberShortcutModifier = 1; // Alt
+             Assert.True(_handler.HandleKeyInput(Key.D1, ModifierKeys.Alt));
+             Assert.False(_handler.HandleKeyInput(Key.D1, ModifierKeys.Control));
+             
+             // Test Ctrl
+             _settings.NumberShortcutModifier = 2; // Ctrl
+             Assert.True(_handler.HandleKeyInput(Key.D1, ModifierKeys.Control));
+             
+             // Test Shift
+             _settings.NumberShortcutModifier = 4; // Shift
+             Assert.True(_handler.HandleKeyInput(Key.D1, ModifierKeys.Shift));
+             
+             // Test None
+             _settings.NumberShortcutModifier = 0; // None
+             Assert.True(_handler.HandleKeyInput(Key.D1, ModifierKeys.None));
+        }
+
+        [Fact]
+        public void CalculatePageSize_HandlesZeroHeights_DefaultsSafely()
+        {
+            // This tests the private method implicitly via PageUp/PageDown
+            _settings.ItemHeight = 0; // Should trigger default 64
+            _mockGetListBoxHeight.Setup(f => f()).Returns(500);
+            
+            // Page size = 500 / 64 = 7.8 -> 7
+            _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
+            
+            // Verify move by 7
+            _mockViewModel.Verify(vm => vm.MoveSelectionByPage(1, 7), Times.Once);
+        }
+
+        [Fact]
+        public void CalculatePageSize_HandlesZeroListBoxHeight()
+        {
+            _settings.ItemHeight = 100;
+            _mockGetListBoxHeight.Setup(f => f()).Returns(0); // Should trigger default 400
+            
+            // Page size = 400 / 100 = 4
+            _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
+            
+            _mockViewModel.Verify(vm => vm.MoveSelectionByPage(1, 4), Times.Once);
+        }
     }
 }

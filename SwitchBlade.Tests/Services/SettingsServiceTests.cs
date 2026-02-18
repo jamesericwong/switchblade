@@ -189,5 +189,38 @@ namespace SwitchBlade.Tests.Services
             // Assert
             Assert.Equal(120, service.Settings.UiaWorkerTimeoutSeconds);
         }
+
+        [Fact]
+        public void IsStartupEnabled_DelegatesToStartupManager()
+        {
+            _mockStartupManager.Setup(m => m.IsStartupEnabled()).Returns(true);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            
+            Assert.True(service.IsStartupEnabled());
+            // Called in ctor (LoadSettings->Sync) and in IsStartupEnabled
+            _mockStartupManager.Verify(m => m.IsStartupEnabled(), Times.AtLeast(1)); 
+        }
+
+        [Fact]
+        public void SaveSettings_WhenLaunchOnStartupTrue_EnablesStartup()
+        {
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            service.Settings.LaunchOnStartup = true;
+
+            service.SaveSettings();
+
+            _mockStartupManager.Verify(m => m.EnableStartup(It.IsAny<string>()), Times.Once);
+        }
+
+        [Fact]
+        public void SaveSettings_WhenLaunchOnStartupFalse_DisablesStartup()
+        {
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            service.Settings.LaunchOnStartup = false;
+
+            service.SaveSettings();
+
+            _mockStartupManager.Verify(m => m.DisableStartup(), Times.Once);
+        }
     }
 }

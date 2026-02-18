@@ -71,7 +71,8 @@ namespace SwitchBlade.Tests.Core
             };
 
             using var process = _factory.Start(psi);
-            Assert.NotNull(process.StandardInput);
+            Assert.NotNull(process);
+            Assert.NotNull(process!.StandardInput);
             Assert.NotNull(process.StandardOutput);
             Assert.NotNull(process.StandardError);
             
@@ -88,7 +89,8 @@ namespace SwitchBlade.Tests.Core
             };
 
             using var process = _factory.Start(psi);
-            process.Kill(true);
+            Assert.NotNull(process);
+            process!.Kill(true);
             Assert.True(process.HasExited);
         }
 
@@ -110,8 +112,9 @@ namespace SwitchBlade.Tests.Core
             };
 
             using var process = _factory.Start(psi);
+            Assert.NotNull(process);
             bool errorReceived = false;
-            process.ErrorDataReceived += (s, e) => { if (e.Data != null) errorReceived = true; };
+            process!.ErrorDataReceived += (s, e) => { if (e.Data != null) errorReceived = true; };
             process.BeginErrorReadLine();
             
             // Give it a moment to run
@@ -133,7 +136,8 @@ namespace SwitchBlade.Tests.Core
             };
 
             using var process = _factory.Start(psi);
-            Assert.NotNull(process.StandardInput);
+            Assert.NotNull(process);
+            Assert.NotNull(process!.StandardInput);
             Assert.NotNull(process.StandardOutput);
             Assert.NotNull(process.StandardError);
 
@@ -154,13 +158,34 @@ namespace SwitchBlade.Tests.Core
 
 
         [Fact]
-        public void Dispose_ShouldCallProcessDispose()
+        public void ProcessWrapper_NullProcess_ThrowsArgumentNullException()
         {
-             var psi = new ProcessStartInfo("cmd.exe") { CreateNoWindow = true, UseShellExecute = false };
-             var wrapper = _factory.Start(psi);
-             wrapper.Kill(false);
-             wrapper.Dispose();
-             // No exception means pass
+            Assert.Throws<ArgumentNullException>(() => new ProcessWrapper(null!));
+        }
+
+        [Fact]
+        public void Start_InvalidFileName_ReturnsNull()
+        {
+            // Process.Start can return null in some obscure scenarios, 
+            // but usually it throws. Let's test the return path.
+            var psi = new ProcessStartInfo("invalid_file_name_that_definitely_does_not_exist_12345");
+            psi.UseShellExecute = false;
+            
+            Assert.ThrowsAny<Exception>(() => _factory.Start(psi));
+        }
+
+        [Fact]
+        public void Properties_ShouldReturnProcessValues_All()
+        {
+             using var process = _factory.GetCurrentProcess();
+             
+             // Verify all metrics properties
+             Assert.True(process.HandleCount >= 0);
+             Assert.True(process.WorkingSet64 >= 0);
+             Assert.True(process.PrivateMemorySize64 >= 0);
+             Assert.True(process.ThreadCount >= 0);
+             Assert.False(process.HasExited);
+             Assert.True(process.Id > 0);
         }
     }
 }

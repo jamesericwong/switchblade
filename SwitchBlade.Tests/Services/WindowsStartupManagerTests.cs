@@ -42,6 +42,14 @@ namespace SwitchBlade.Tests.Services
         public void EnableStartup_NullPath_Throws()
         {
             Assert.Throws<ArgumentException>(() => _manager.EnableStartup(""));
+            Assert.Throws<ArgumentException>(() => _manager.EnableStartup(null!));
+        }
+
+        [Fact]
+        public void CheckAndApplyStartupMarker_ReturnsFalse_WhenMarkerMissing()
+        {
+             _mockRegistry.Setup(r => r.GetCurrentUserValue(APP_KEY, "EnableStartupOnFirstRun")).Returns((object?)null);
+             Assert.False(_manager.CheckAndApplyStartupMarker());
         }
 
         [Fact]

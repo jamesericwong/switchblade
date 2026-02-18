@@ -6,10 +6,10 @@ namespace SwitchBlade.Core
 {
     public class ProcessFactory : IProcessFactory
     {
-        public IProcess Start(ProcessStartInfo startInfo)
+        public IProcess? Start(ProcessStartInfo startInfo)
         {
-            var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Process.Start returned null");
-            return new ProcessWrapper(process);
+            var process = Process.Start(startInfo);
+            return process != null ? new ProcessWrapper(process) : null;
         }
 
         public IProcess GetCurrentProcess()

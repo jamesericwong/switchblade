@@ -308,6 +308,44 @@ namespace SwitchBlade.Tests.Core
             Assert.True(score > 0);
         }
 
+        [Fact]
+        public void Score_MixedDelimitersAndCase_CalculatesCorrectly()
+        {
+            // "G_C" should match "google-chrome"
+            int score = FuzzyMatcher.Score("google-chrome", "G_C");
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_Subsequence_MatchAtExactEnd_ExercisesCondition()
+        {
+            // Title "abc", Query "c"
+            // lastMatchIndex will be 2, title.Length is 3
+            // Exercises: if (matchedAtStart && lastMatchIndex < title.Length)
+            // But matchedAtStart is false here.
+            int score = FuzzyMatcher.Score("abc", "c");
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_MatchedAtStart_WithLastMatchAtEnd_ExercisesCondition()
+        {
+            // Title "abc", Query "abc"
+            // matchedAtStart = true, lastMatchIndex = 2, title.Length = 3
+            // Exercises the branch: if (matchedAtStart && lastMatchIndex < title.Length)
+            int score = FuzzyMatcher.Score("abc", "abc");
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_MatchedAtStart_Partial_ExercisesCondition()
+        {
+            // Title "abcd", Query "ab"
+            // matchedAtStart = true, lastMatchIndex = 1, title.Length = 4
+            int score = FuzzyMatcher.Score("abcd", "ab");
+            Assert.True(score > 0);
+        }
+
         #endregion
     }
 }

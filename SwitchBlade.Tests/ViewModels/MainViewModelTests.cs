@@ -338,5 +338,60 @@ namespace SwitchBlade.Tests.ViewModels
             
             Assert.Equal("Ctrl+Shift", vm.ShortcutModifierText);
         }
+
+        [Fact]
+        public void FilteredWindows_SetToNull_DoesNothing()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var initial = vm.FilteredWindows;
+            
+            vm.FilteredWindows = null!;
+            
+            Assert.NotNull(vm.FilteredWindows);
+            Assert.Same(initial, vm.FilteredWindows);
+        }
+
+        [Fact]
+        public void SyncCollection_HandlesMovesAndInserts()
+        {
+            // Setup strict mock for SearchService to control order
+            // Start with [A, B]
+            var itemA = new WindowItem { Title = "A" };
+            var itemB = new WindowItem { Title = "B" };
+            var itemC = new WindowItem { Title = "C" };
+            
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            vm.FilteredWindows.Add(itemA);
+            vm.FilteredWindows.Add(itemB);
+
+            // Simulation 1: Swap to [B, A]
+            var mockSearchSwap = new Mock<IWindowSearchService>();
+            mockSearchSwap.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
+                          .Returns(new List<WindowItem> { itemB, itemA }); // Reversed order
+                          
+            // Inject new dependencies via constructor is hard, so we'll just test SyncCollection indirectly via subclass or reflection? 
+            // Or just trust the previous SyncCollection_EdgeCases test covered "moves" well enough?
+            // "Move" happens when item is found later in list. 
+            // [A, B] -> want [B, A]
+            // ptr=0. source[0]=B. collection[0]=A != B. scan forward. found B at 1. Move(1, 0).
+            // collection is now [B, A]. ptr=1. source[1]=A. collection[1]=A. match. ptr++.
+            // Done.
+            
+            // Let's verify this specific swap behavior logic with a new test instance
+            var vm2 = new MainViewModel(
+                new Mock<IWindowOrchestrationService>().Object, 
+                mockSearchSwap.Object, 
+                new Mock<INavigationService>().Object, 
+                null, 
+                new Mock<IDispatcherService>().Object);
+            
+            vm2.FilteredWindows.Add(itemA);
+            vm2.FilteredWindows.Add(itemB);
+            
+            vm2.SearchText = "force_update"; // triggers UpdateSearch -> SyncCollection
+            
+            Assert.Equal(itemB, vm2.FilteredWindows[0]);
+            Assert.Equal(itemA, vm2.FilteredWindows[1]);
+        }
     }
 }

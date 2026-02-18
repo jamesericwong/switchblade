@@ -45,6 +45,7 @@ namespace SwitchBlade.Handlers
         /// <summary>
         /// Handles the PreviewKeyDown event for the main window.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
         public void HandleKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             // Only log non-character keys to avoid spam

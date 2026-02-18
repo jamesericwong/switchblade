@@ -16,6 +16,9 @@ namespace SwitchBlade.Tests.Services
             Assert.Equal("Win", ModifierKeyFlags.ToString(ModifierKeyFlags.Win));
             Assert.Equal("None", ModifierKeyFlags.ToString(ModifierKeyFlags.None));
             Assert.Equal("Alt+Ctrl+Shift+Win", ModifierKeyFlags.ToString(ModifierKeyFlags.Alt | ModifierKeyFlags.Ctrl | ModifierKeyFlags.Shift | ModifierKeyFlags.Win));
+            
+            // Branch coverage for undefined flags
+            Assert.Equal("None", ModifierKeyFlags.ToString(16)); // 16 is not a defined modifier
         }
 
         [Fact]

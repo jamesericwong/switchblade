@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using SwitchBlade.Services;
 using SwitchBlade.Contracts;
 using Moq;
@@ -11,6 +12,7 @@ namespace SwitchBlade.Tests.Services
     public class IconServiceTests
     {
         private readonly Mock<ISettingsService> _mockSettingsService;
+        private readonly Mock<IIconExtractor> _mockExtractor;
         private readonly UserSettings _settings;
         private readonly IconService _service;
 
@@ -19,7 +21,8 @@ namespace SwitchBlade.Tests.Services
             _settings = new UserSettings { IconCacheSize = 10 };
             _mockSettingsService = new Mock<ISettingsService>();
             _mockSettingsService.Setup(s => s.Settings).Returns(_settings);
-            _service = new IconService(_mockSettingsService.Object);
+            _mockExtractor = new Mock<IIconExtractor>();
+            _service = new IconService(_mockSettingsService.Object, _mockExtractor.Object);
         }
 
         [Fact]
@@ -30,32 +33,38 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void GetIcon_ValidExe_ReturnsIconAndCachesIt()
+        public void GetIcon_ValidPath_CallsExtractorAndCachesResult()
         {
-            string explorerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
-            if (!File.Exists(explorerPath)) return; // Skip if not on Windows or path different
+            var mockIcon = new BitmapImage(); // Use real instance instead of Mock<ImageSource>
+            _mockExtractor.Setup(e => e.ExtractIcon("test.exe")).Returns(mockIcon);
 
-            var icon1 = _service.GetIcon(explorerPath);
-            Assert.NotNull(icon1);
-            Assert.Equal(1, _service.CacheCount);
+            var icon1 = _service.GetIcon("test.exe");
+            Assert.Same(mockIcon, icon1);
+            _mockExtractor.Verify(e => e.ExtractIcon("test.exe"), Times.Once);
 
-            var icon2 = _service.GetIcon(explorerPath);
-            Assert.Same(icon1, icon2); // Should be same instance from cache
+            var icon2 = _service.GetIcon("test.exe");
+            Assert.Same(mockIcon, icon2);
+            _mockExtractor.Verify(e => e.ExtractIcon("test.exe"), Times.Once); // Second call from cache
         }
 
         [Fact]
-        public void GetIcon_InvalidPath_ReturnsNull()
+        public void GetIcon_ExtractorReturnsNull_CachesNull()
         {
-            var result = _service.GetIcon(@"C:\this\file\does\not\exist.exe");
-            Assert.Null(result);
+            _mockExtractor.Setup(e => e.ExtractIcon("missing.exe")).Returns((ImageSource?)null);
+
+            var icon1 = _service.GetIcon("missing.exe");
+            Assert.Null(icon1);
+            _mockExtractor.Verify(e => e.ExtractIcon("missing.exe"), Times.Once);
+
+            var icon2 = _service.GetIcon("missing.exe");
+            Assert.Null(icon2);
+            _mockExtractor.Verify(e => e.ExtractIcon("missing.exe"), Times.Once); 
         }
 
         [Fact]
         public void ClearCache_Works()
         {
-            string explorerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
-            if (File.Exists(explorerPath)) _service.GetIcon(explorerPath);
-
+            _service.GetIcon("test.exe");
             _service.ClearCache();
             Assert.Equal(0, _service.CacheCount);
         }
@@ -80,6 +89,14 @@ namespace SwitchBlade.Tests.Services
         public void Constructor_NullSettings_Throws()
         {
             Assert.Throws<ArgumentNullException>(() => new IconService(null!));
+        }
+
+        [Fact]
+        public void DefaultConstructor_UsesRealExtractor()
+        {
+            var service = new IconService(_mockSettingsService.Object);
+            // We can't easily verify the internal extractor, but we verify it doesn't throw
+            Assert.NotNull(service);
         }
     }
 }
