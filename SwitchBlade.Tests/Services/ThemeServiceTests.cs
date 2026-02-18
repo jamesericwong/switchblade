@@ -1,81 +1,67 @@
-using Xunit;
-using Moq;
 using System.Windows;
-using System.Collections.Generic;
+using Moq;
 using SwitchBlade.Services;
+using SwitchBlade.Contracts;
+using Xunit;
+using System.Linq;
 
 namespace SwitchBlade.Tests.Services
 {
     public class ThemeServiceTests
     {
-        private readonly Mock<ISettingsService> _mockSettingsService;
-        private readonly Mock<IApplicationResourceHandler> _mockResourceHandler;
+        private readonly Mock<ISettingsService> _mockSettings;
+        private readonly Mock<IApplicationResourceHandler> _mockHandler;
         private readonly UserSettings _settings;
         private readonly ThemeService _service;
 
         public ThemeServiceTests()
         {
-            _mockSettingsService = new Mock<ISettingsService>();
-            _mockResourceHandler = new Mock<IApplicationResourceHandler>();
-            _settings = new UserSettings();
-            _mockSettingsService.Setup(s => s.Settings).Returns(_settings);
-
-            _service = new ThemeService(_mockSettingsService.Object, _mockResourceHandler.Object);
+            _settings = new UserSettings { CurrentTheme = "Dark" };
+            _mockSettings = new Mock<ISettingsService>();
+            _mockSettings.Setup(s => s.Settings).Returns(_settings);
+            
+            _mockHandler = new Mock<IApplicationResourceHandler>();
+            _service = new ThemeService(_mockSettings.Object, _mockHandler.Object);
         }
 
         [Fact]
-        public void LoadCurrentTheme_AppliesThemeFromSettings()
+        public void LoadCurrentTheme_AppliesSetting()
         {
-            // Arrange
-            _settings.CurrentTheme = "Cyberpunk";
-
-            // Act
             _service.LoadCurrentTheme();
-
-            // Assert
-            // Verify AddMergedDictionary was called.
-            _mockResourceHandler.Verify(x => x.AddMergedDictionary(It.IsAny<ResourceDictionary>()), Times.Once);
+            _mockHandler.Verify(h => h.AddMergedDictionary(It.IsAny<ResourceDictionary>()), Times.AtLeastOnce());
         }
 
         [Fact]
-        public void ApplyTheme_UpdatesSettingsAndResources()
+        public void ApplyTheme_RepeatedCalls_RemovesPrevious()
         {
-            // Arrange
-            string newTheme = "Deep Ocean";
-
-            // Act
-            _service.ApplyTheme(newTheme);
-
-            // Assert
-            Assert.Equal(newTheme, _settings.CurrentTheme);
-            _mockResourceHandler.Verify(x => x.AddMergedDictionary(It.IsAny<ResourceDictionary>()), Times.Once);
-            _mockSettingsService.Verify(x => x.SaveSettings(), Times.Once);
-        }
-
-        [Fact]
-        public void ApplyTheme_RemovesOldTheme()
-        {
-            // Arrange
-            // Apply first theme
-            _service.ApplyTheme("Dark");
-
-            // Act
             _service.ApplyTheme("Light");
-
-            // Assert
-            // Should have removed the first one
-            _mockResourceHandler.Verify(x => x.RemoveMergedDictionary(It.IsAny<ResourceDictionary>()), Times.Once);
-            // And added the second one
-            _mockResourceHandler.Verify(x => x.AddMergedDictionary(It.IsAny<ResourceDictionary>()), Times.Exactly(2));
+            _service.ApplyTheme("Dark");
+            
+            _mockHandler.Verify(h => h.RemoveMergedDictionary(It.IsAny<ResourceDictionary>()), Times.Once());
+            _mockHandler.Verify(h => h.AddMergedDictionary(It.IsAny<ResourceDictionary>()), Times.Exactly(2)); // Light + Dark
         }
 
         [Fact]
-        public void InitializeThemes_PopulatesAvailableThemes()
+        public void ApplyTheme_UnknownTheme_FallsBack()
         {
-            // Assert
-            Assert.NotEmpty(_service.AvailableThemes);
-            Assert.Contains(_service.AvailableThemes, t => t.Name == "Dark");
-            Assert.Contains(_service.AvailableThemes, t => t.Name == "Light");
+            _service.ApplyTheme("NonExistent");
+            Assert.Equal("Dark", _service.AvailableThemes.First().Name);
+        }
+
+        [Fact]
+        public void ApplyTheme_WhenThemeMatchesSetting_DoesNotSave()
+        {
+            _settings.CurrentTheme = "Light";
+            _service.ApplyTheme("Light");
+            
+            _mockSettings.Verify(s => s.SaveSettings(), Times.Never());
+        }
+
+        [Fact]
+        public void Constructor_DefaultHandler_Works()
+        {
+            var service = new ThemeService(_mockSettings.Object, null);
+            Assert.NotNull(service);
         }
     }
 }

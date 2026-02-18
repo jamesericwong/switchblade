@@ -113,14 +113,33 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void GetPluginInfos_FiltersProvidersCorrectly()
+        public void DefaultConstructor_LoadsProviders()
         {
-            // Verify that we only get info for loaded providers
+            // This calls the default constructor which uses AppDomain.CurrentDomain.BaseDirectory
+            // We just verify it doesn't throw and initializes some providers
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object);
+            Assert.NotEmpty(service.Providers);
+        }
+
+        [Fact]
+        public void LoadProviders_WithMissingDirectory_OnlyInternalProviders()
+        {
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, @"C:\this\path\does\not\exist\12345");
+            Assert.Single(service.Providers);
+            Assert.IsType<WindowFinder>(service.Providers[0]);
+        }
+
+        [Fact]
+        public void GetPluginInfos_DetailedCheck()
+        {
             var service = new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, _tempPluginPath);
+            var infos = service.GetPluginInfos().ToList();
             
-            // Add a legitimate internal provider if logic permits, or just check default
-            var infos = service.GetPluginInfos();
-            Assert.Contains(infos, i => i.Name == "WindowFinder");
+            var finder = infos.First(i => i.Name == "WindowFinder");
+            Assert.True(finder.IsInternal);
+            Assert.True(finder.IsEnabled);
+            Assert.NotNull(finder.Provider);
+            Assert.NotNull(finder.Version);
         }
     }
 }

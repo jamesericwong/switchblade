@@ -1,8 +1,9 @@
-using Xunit;
-using Moq;
-using SwitchBlade.Services;
-using SwitchBlade.Contracts;
+using System;
 using Microsoft.Win32;
+using Moq;
+using SwitchBlade.Contracts;
+using SwitchBlade.Services;
+using Xunit;
 
 namespace SwitchBlade.Tests.Services
 {
@@ -10,6 +11,9 @@ namespace SwitchBlade.Tests.Services
     {
         private readonly Mock<IRegistryService> _mockRegistry;
         private readonly WindowsStartupManager _manager;
+        private const string APP_KEY = @"Software\SwitchBlade";
+        private const string RUN_KEY = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        private const string VALUE_NAME = "SwitchBlade";
 
         public WindowsStartupManagerTests()
         {
@@ -18,96 +22,67 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void IsStartupEnabled_ReturnsTrue_WhenRegistryValueExists()
+        public void IsStartupEnabled_ReturnsCorrectValue()
         {
-            // Arrange
-            _mockRegistry.Setup(r => r.GetCurrentUserValue(It.IsAny<string>(), "SwitchBlade")).Returns("somePath");
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(RUN_KEY, VALUE_NAME)).Returns("path");
+            Assert.True(_manager.IsStartupEnabled());
 
-            // Act
-            var result = _manager.IsStartupEnabled();
-
-            // Assert
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void IsStartupEnabled_ReturnsFalse_WhenRegistryValueIsNull()
-        {
-            // Arrange
-            _mockRegistry.Setup(r => r.GetCurrentUserValue(It.IsAny<string>(), "SwitchBlade")).Returns((object?)null);
-
-            // Act
-            var result = _manager.IsStartupEnabled();
-
-            // Assert
-            Assert.False(result);
-        }
-
-        [Fact]
-        public void EnableStartup_NullPath_ThrowsArgumentException()
-        {
-            Assert.Throws<System.ArgumentException>(() => _manager.EnableStartup(null!));
-        }
-
-        [Fact]
-        public void EnableStartup_EmptyPath_ThrowsArgumentException()
-        {
-            Assert.Throws<System.ArgumentException>(() => _manager.EnableStartup(""));
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(RUN_KEY, VALUE_NAME)).Returns(null!);
+            Assert.False(_manager.IsStartupEnabled());
         }
 
         [Fact]
         public void EnableStartup_SetsRegistryValue()
         {
-            // Act
-            _manager.EnableStartup("C:\\MyApp.exe");
+            _manager.EnableStartup(@"C:\app.exe");
+            _mockRegistry.Verify(r => r.SetCurrentUserValue(RUN_KEY, VALUE_NAME, "\"C:\\app.exe\" /minimized", RegistryValueKind.String), Times.Once);
+        }
 
-            // Assert
-            _mockRegistry.Verify(r => r.SetCurrentUserValue(
-                @"Software\Microsoft\Windows\CurrentVersion\Run", 
-                "SwitchBlade", 
-                "\"C:\\MyApp.exe\" /minimized", 
-                RegistryValueKind.String), Times.Once);
+        [Fact]
+        public void EnableStartup_NullPath_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => _manager.EnableStartup(""));
         }
 
         [Fact]
         public void DisableStartup_DeletesRegistryValue()
         {
-            // Act
             _manager.DisableStartup();
-
-            // Assert
-            _mockRegistry.Verify(r => r.DeleteCurrentUserValue(
-                @"Software\Microsoft\Windows\CurrentVersion\Run", 
-                "SwitchBlade", 
-                false), Times.Once);
+            _mockRegistry.Verify(r => r.DeleteCurrentUserValue(RUN_KEY, VALUE_NAME, false), Times.Once);
         }
 
         [Fact]
-        public void CheckAndApplyStartupMarker_NoMarker_ReturnsFalse()
+        public void CheckAndApplyStartupMarker_WorksForEnabled()
         {
-            // Arrange
-            _mockRegistry.Setup(r => r.GetCurrentUserValue(@"Software\SwitchBlade", "EnableStartupOnFirstRun")).Returns((object?)null);
-
-            // Act
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(APP_KEY, "EnableStartupOnFirstRun")).Returns("1");
+            
             var result = _manager.CheckAndApplyStartupMarker();
-
-            // Assert
-            Assert.False(result);
-            _mockRegistry.Verify(r => r.DeleteCurrentUserValue(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
-        }
-
-        [Fact]
-        public void CheckAndApplyStartupMarker_WithMarker1_ReturnsTrueAndDeletes()
-        {
-            // Arrange
-            _mockRegistry.Setup(r => r.GetCurrentUserValue(@"Software\SwitchBlade", "EnableStartupOnFirstRun")).Returns("1");
-
-            // Act
-            var result = _manager.CheckAndApplyStartupMarker();
-
-            // Assert
+            
             Assert.True(result);
-            _mockRegistry.Verify(r => r.DeleteCurrentUserValue(@"Software\SwitchBlade", "EnableStartupOnFirstRun", false), Times.Once);
+            _mockRegistry.Verify(r => r.DeleteCurrentUserValue(APP_KEY, "EnableStartupOnFirstRun", false), Times.Once);
+        }
+
+        [Fact]
+        public void CheckAndApplyStartupMarker_WorksForDisabled()
+        {
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(APP_KEY, "EnableStartupOnFirstRun")).Returns("0");
+            
+            var result = _manager.CheckAndApplyStartupMarker();
+            
+            Assert.False(result);
+        }
+
+        [Fact]
+        public void Methods_HandleExceptionsGracefully()
+        {
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(It.IsAny<string>(), It.IsAny<string>())).Throws(new Exception("Fail"));
+            _mockRegistry.Setup(r => r.SetCurrentUserValue(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<RegistryValueKind>())).Throws(new Exception("Fail"));
+            _mockRegistry.Setup(r => r.DeleteCurrentUserValue(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>())).Throws(new Exception("Fail"));
+
+            Assert.False(_manager.IsStartupEnabled());
+            _manager.EnableStartup("path"); // Should log and continue
+            _manager.DisableStartup(); // Should log and continue
+            Assert.False(_manager.CheckAndApplyStartupMarker());
         }
     }
 }

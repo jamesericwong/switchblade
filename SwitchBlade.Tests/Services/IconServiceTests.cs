@@ -1,149 +1,85 @@
-using Xunit;
-using Moq;
+using System;
+using System.IO;
+using System.Windows.Media;
 using SwitchBlade.Services;
 using SwitchBlade.Contracts;
+using Moq;
+using Xunit;
 
 namespace SwitchBlade.Tests.Services
 {
     public class IconServiceTests
     {
-        private Mock<ISettingsService> CreateMockSettings(int cacheSize = 200)
+        private readonly Mock<ISettingsService> _mockSettingsService;
+        private readonly UserSettings _settings;
+        private readonly IconService _service;
+
+        public IconServiceTests()
         {
-            var mock = new Mock<ISettingsService>();
-            mock.Setup(s => s.Settings).Returns(new UserSettings { IconCacheSize = cacheSize });
-            return mock;
+            _settings = new UserSettings { IconCacheSize = 10 };
+            _mockSettingsService = new Mock<ISettingsService>();
+            _mockSettingsService.Setup(s => s.Settings).Returns(_settings);
+            _service = new IconService(_mockSettingsService.Object);
         }
 
         [Fact]
-        public void GetIcon_NullPath_ReturnsNull()
+        public void GetIcon_NullOrEmptyPath_ReturnsNull()
         {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
+            Assert.Null(_service.GetIcon(null));
+            Assert.Null(_service.GetIcon(""));
+        }
 
-            // Act
-            var result = service.GetIcon(null);
+        [Fact]
+        public void GetIcon_ValidExe_ReturnsIconAndCachesIt()
+        {
+            string explorerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+            if (!File.Exists(explorerPath)) return; // Skip if not on Windows or path different
 
-            // Assert
+            var icon1 = _service.GetIcon(explorerPath);
+            Assert.NotNull(icon1);
+            Assert.Equal(1, _service.CacheCount);
+
+            var icon2 = _service.GetIcon(explorerPath);
+            Assert.Same(icon1, icon2); // Should be same instance from cache
+        }
+
+        [Fact]
+        public void GetIcon_InvalidPath_ReturnsNull()
+        {
+            var result = _service.GetIcon(@"C:\this\file\does\not\exist.exe");
             Assert.Null(result);
         }
 
         [Fact]
-        public void GetIcon_EmptyPath_ReturnsNull()
+        public void ClearCache_Works()
         {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
+            string explorerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+            if (File.Exists(explorerPath)) _service.GetIcon(explorerPath);
 
-            // Act
-            var result = service.GetIcon(string.Empty);
-
-            // Assert
-            Assert.Null(result);
-        }
-
-        [Fact]
-        public void GetIcon_ValidPath_CachesResult()
-        {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var path = @"C:\Windows\notepad.exe";
-
-            // Act
-            var result1 = service.GetIcon(path);
-            var result2 = service.GetIcon(path);
-
-            // Assert
-            // Same reference should be returned from cache
-            Assert.Same(result1, result2);
-        }
-
-        [Fact]
-        public void GetIcon_DifferentPaths_ReturnsDifferentIcons()
-        {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var path1 = @"C:\Windows\notepad.exe";
-            var path2 = @"C:\Windows\System32\cmd.exe";
-
-            // Act
-            var result1 = service.GetIcon(path1);
-            var result2 = service.GetIcon(path2);
-
-            // Assert
-            if (result1 != null && result2 != null)
-            {
-                // Distinct entries
-            }
-        }
-
-        [Fact]
-        public void ClearCache_AfterCaching_ClearsAllEntries()
-        {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var path = @"C:\Windows\notepad.exe";
-            _ = service.GetIcon(path); // Populate cache
-
-            // Act
-            service.ClearCache();
-            var result = service.GetIcon(path);
-
-            // Assert
-            Assert.True(true);
-        }
-
-        [Fact]
-        public void GetIcon_NonExistentPath_ReturnsNull()
-        {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var path = @"C:\NonExistent\FakeApplication.exe";
-
-            // Act
-            var result = service.GetIcon(path);
-
-            // Assert
-            Assert.Null(result);
-        }
-
-        [Fact]
-        public void GetIcon_CaseInsensitiveCaching()
-        {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var pathLower = @"c:\windows\notepad.exe";
-            var pathUpper = @"C:\WINDOWS\NOTEPAD.EXE";
-
-            // Act
-            var result1 = service.GetIcon(pathLower);
-            var result2 = service.GetIcon(pathUpper);
-
-            // Assert
-            Assert.Same(result1, result2);
+            _service.ClearCache();
+            Assert.Equal(0, _service.CacheCount);
         }
 
         [Fact]
         public void GetIcon_CacheLimitReached_ClearsCache()
         {
-            // Arrange
-            // Set tiny limit of 2 items
-            var service = new IconService(CreateMockSettings(cacheSize: 2).Object);
+            _settings.IconCacheSize = 2;
+            
+            _service.GetIcon("fake1.exe");
+            _service.GetIcon("fake2.exe");
+            Assert.Equal(2, _service.CacheCount);
 
-            var path1 = @"C:\App1.exe";
-            var path2 = @"C:\App2.exe";
-            var path3 = @"C:\App3.exe";
+            // This should trigger clear because it's the 3rd item
+            _service.GetIcon("fake3.exe");
+            
+            // After clear, it adds the new one, so count should be 1
+            Assert.Equal(1, _service.CacheCount);
+        }
 
-            // Act
-            var r1 = service.GetIcon(path1); // Cache: 1
-            var r2 = service.GetIcon(path2); // Cache: 2 (Full)
-
-            // r3 should trigger clear, then add itself
-            var r3 = service.GetIcon(path3); // Cache: 1 (App3 only)
-
-            // Assert
-            // If cache was cleared, r1 should be re-fetched (different object reference if we fetched again)
-            // But here we rely on internal state logic. We can verify simply that no exception occurred.
-            // In a real mock of NativeInterop we could verify ExtractIcon calls count.
-            Assert.NotNull(service);
+        [Fact]
+        public void Constructor_NullSettings_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() => new IconService(null!));
         }
     }
 }

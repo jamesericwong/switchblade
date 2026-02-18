@@ -117,5 +117,68 @@ namespace SwitchBlade.Tests.Services
             Assert.Equal(1, _reconciler.GetHwndCacheCount());
             Assert.Equal(1, _reconciler.GetProviderCacheCount());
         }
+
+        [Fact]
+        public void PopulateIcons_WhenIconServiceIsNull_ReturnsImmediately()
+        {
+            var reconciler = new WindowReconciler(null);
+            reconciler.PopulateIcons(new List<WindowItem> { new() { ExecutablePath = "a.exe" } });
+            // Should not throw
+        }
+
+        [Fact]
+        public void PopulateIcons_WhenGetIconThrows_LogsAndContinues()
+        {
+            var item = new WindowItem { ExecutablePath = "fail.exe" };
+            _mockIconService.Setup(s => s.GetIcon("fail.exe")).Throws(new Exception("Fail"));
+            
+            _reconciler.PopulateIcons(new List<WindowItem> { item });
+            
+            _mockIconService.Verify(s => s.GetIcon("fail.exe"), Times.Once);
+        }
+
+        [Fact]
+        public void Reconcile_ReuseItem_FallbackToNextCandidate()
+        {
+            var hwnd = new IntPtr(100);
+            // Cache two items for same HWND
+            _reconciler.Reconcile(new List<WindowItem> 
+            { 
+                new() { Hwnd = hwnd, Title = "T1" },
+                new() { Hwnd = hwnd, Title = "T2" }
+            }, _mockProvider.Object);
+
+            // Incoming has T2 and then another T2
+            var incoming = new List<WindowItem>
+            {
+                new() { Hwnd = hwnd, Title = "T2" }, // Should match cached T2
+                new() { Hwnd = hwnd, Title = "T2" }  // T2 already claimed, should match cached T1 and update it
+            };
+
+            var result = _reconciler.Reconcile(incoming, _mockProvider.Object);
+            
+            Assert.Equal(2, result.Count);
+            Assert.Equal("T2", result[0].Title);
+            Assert.Equal("T2", result[1].Title);
+        }
+
+        [Fact]
+        public void CacheCount_ReturnsSumOfBothIndexes()
+        {
+            _reconciler.Reconcile(new List<WindowItem> { new() { Hwnd = (IntPtr)1, Title = "A" } }, _mockProvider.Object);
+            // 1 in HWND cache, 1 in Provider cache = 2
+            Assert.Equal(2, _reconciler.CacheCount);
+        }
+
+        [Fact]
+        public void AddToRemoveCache_Wrappers_Work()
+        {
+            var item = new WindowItem { Hwnd = (IntPtr)1, Title = "A", Source = _mockProvider.Object };
+            _reconciler.AddToCache(item);
+            Assert.Equal(1, _reconciler.GetHwndCacheCount());
+            
+            _reconciler.RemoveFromCache(item);
+            Assert.Equal(0, _reconciler.GetHwndCacheCount());
+        }
     }
 }

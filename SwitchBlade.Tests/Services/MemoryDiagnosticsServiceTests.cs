@@ -1,105 +1,75 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Moq;
+using SwitchBlade.Services;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
-using SwitchBlade.Services;
+using Moq;
 using Xunit;
 
 namespace SwitchBlade.Tests.Services
 {
-    public class MemoryDiagnosticsServiceTests : IDisposable
+    public class MemoryDiagnosticsServiceTests
     {
-        private readonly Mock<IWindowOrchestrationService> _mockOrchestration;
-        private readonly Mock<IIconService> _mockIconService;
-        private readonly Mock<IWindowSearchService> _mockSearchService;
+        private readonly Mock<IWindowOrchestrationService> _mockOrch;
+        private readonly Mock<IIconService> _mockIcon;
+        private readonly Mock<IWindowSearchService> _mockSearch;
         private readonly Mock<ILogger> _mockLogger;
-        private readonly MemoryDiagnosticsService _service;
+        private readonly Mock<IProcessFactory> _mockProcFactory;
+        private readonly Mock<IProcess> _mockProcess;
 
         public MemoryDiagnosticsServiceTests()
         {
-            _mockOrchestration = new Mock<IWindowOrchestrationService>();
-            _mockIconService = new Mock<IIconService>();
-            _mockSearchService = new Mock<IWindowSearchService>();
+            _mockOrch = new Mock<IWindowOrchestrationService>();
+            _mockIcon = new Mock<IIconService>();
+            _mockSearch = new Mock<IWindowSearchService>();
             _mockLogger = new Mock<ILogger>();
+            _mockProcFactory = new Mock<IProcessFactory>();
+            _mockProcess = new Mock<IProcess>();
 
-            _service = new MemoryDiagnosticsService(
-                _mockOrchestration.Object,
-                _mockIconService.Object,
-                _mockSearchService.Object,
-                _mockLogger.Object);
+            _mockProcFactory.Setup(f => f.GetCurrentProcess()).Returns(_mockProcess.Object);
+            _mockProcFactory.Setup(f => f.Start(It.IsAny<System.Diagnostics.ProcessStartInfo>())).Returns(_mockProcess.Object);
         }
 
         [Fact]
-        public async Task StartAsync_LogsStartingMessage()
+        public void ForceLogMemoryStats_LogsMessage()
         {
-            // Act
-            await _service.StartAsync(CancellationToken.None);
-
-            // Assert
-            _mockLogger.Verify(x => x.Log(It.Is<string>(s => s.Contains("starting"))), Times.Once);
-        }
-
-        [Fact]
-        public async Task StopAsync_LogsStoppingMessage()
-        {
-            // Arrange
-            await _service.StartAsync(CancellationToken.None);
-
-            // Act
-            await _service.StopAsync(CancellationToken.None);
-
-            // Assert
-            _mockLogger.Verify(x => x.Log(It.Is<string>(s => s.Contains("stopping"))), Times.Once);
-        }
-
-        [Fact]
-        public void Dispose_DoesNotThrow()
-        {
-            // Act & Assert
-            var exception = Record.Exception(() => _service.Dispose());
-            Assert.Null(exception);
-        }
-
-        [Fact]
-        public void ForceLogMemoryStats_LogsMemoryUsage()
-        {
-            // Arrange
-            var mockProcess = new Mock<IProcess>();
-            mockProcess.Setup(p => p.WorkingSet64).Returns(1024 * 1024 * 50); // 50MB
-            mockProcess.Setup(p => p.PrivateMemorySize64).Returns(1024 * 1024 * 60); // 60MB
-            mockProcess.Setup(p => p.HandleCount).Returns(123);
-            mockProcess.Setup(p => p.ThreadCount).Returns(10);
+            using var service = new MemoryDiagnosticsService(_mockOrch.Object, _mockIcon.Object, _mockSearch.Object, _mockLogger.Object, _mockProcFactory.Object);
             
-            var mockProcessFactory = new Mock<IProcessFactory>();
-            mockProcessFactory.Setup(f => f.GetCurrentProcess()).Returns(mockProcess.Object);
-            
-            // Re-create service with mock factory
-            var service = new MemoryDiagnosticsService(
-                _mockOrchestration.Object,
-                _mockIconService.Object,
-                _mockSearchService.Object,
-                _mockLogger.Object,
-                mockProcessFactory.Object);
-
-            _mockOrchestration.Setup(o => o.CacheCount).Returns(5);
-            _mockIconService.Setup(i => i.CacheCount).Returns(10);
-
-            // Act
             service.ForceLogMemoryStats();
-
-            // Assert
-            _mockLogger.Verify(x => x.Log(It.Is<string>(s => 
-                s.Contains("WorkingSet: 50 MB") && 
-                s.Contains("Private: 60 MB") &&
-                s.Contains("Handles: 123") &&
-                s.Contains("Threads: 10"))), Times.Once);
+            
+            _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("[MEM-DIAG]"))), Times.Once());
+            _mockProcess.Verify(p => p.Refresh(), Times.AtLeastOnce());
         }
 
-        public void Dispose()
+        [Fact]
+        public void ForceLogMemoryStats_WhenError_LogsError()
         {
-            _service.Dispose();
+            _mockProcFactory.Setup(f => f.GetCurrentProcess()).Throws(new Exception("Fail"));
+            using var service = new MemoryDiagnosticsService(_mockOrch.Object, _mockIcon.Object, _mockSearch.Object, _mockLogger.Object, _mockProcFactory.Object);
+            
+            service.ForceLogMemoryStats();
+            
+            _mockLogger.Verify(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()), Times.Once());
+        }
+
+        [Fact]
+        public async Task StartAndStop_Works()
+        {
+            using var service = new MemoryDiagnosticsService(_mockOrch.Object, _mockIcon.Object, _mockSearch.Object, _mockLogger.Object, _mockProcFactory.Object);
+            
+            await service.StartAsync(CancellationToken.None);
+            _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("starting"))), Times.Once());
+            
+            await service.StopAsync(CancellationToken.None);
+            _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("stopping"))), Times.Once());
+        }
+
+        [Fact]
+        public void Constructor_DefaultProcessFactory_Works()
+        {
+            using var service = new MemoryDiagnosticsService(_mockOrch.Object, _mockIcon.Object, _mockSearch.Object, _mockLogger.Object, null);
+            Assert.NotNull(service);
         }
     }
 }

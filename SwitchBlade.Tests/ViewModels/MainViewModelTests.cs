@@ -4,6 +4,8 @@ using System.Linq;
 using Moq;
 using Xunit;
 using SwitchBlade.Contracts;
+using SwitchBlade.Core;
+using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
 
 namespace SwitchBlade.Tests.ViewModels
@@ -248,6 +250,93 @@ namespace SwitchBlade.Tests.ViewModels
 
             // Should stay at first item (clamp behavior)
             Assert.Equal(item1, vm.SelectedWindow);
+        }
+
+        [Fact]
+        public void WindowProviders_DirectOrchestration_ReturnsDistinctSources()
+        {
+            var p1 = new Mock<IWindowProvider>().Object;
+            var items = new List<WindowItem> { new() { Source = p1 }, new() { Source = p1 } };
+            var mockOrch = new Mock<IWindowOrchestrationService>();
+            mockOrch.Setup(o => o.AllWindows).Returns(items);
+            
+            var vm = new MainViewModel(mockOrch.Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            
+            // Should be empty because it's not a WindowOrchestrationService (concrete class check in VM)
+            Assert.Empty(vm.WindowProviders);
+        }
+
+        [Fact]
+        public void SettingsChanged_UpdatesProperties()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            var settings = new UserSettings { DisabledPlugins = new List<string> { "P1" }, EnablePreviews = true };
+            mockSettings.Setup(s => s.Settings).Returns(settings);
+            
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            
+            settings.EnablePreviews = false;
+            mockSettings.Raise(s => s.SettingsChanged += null);
+            
+            Assert.False(vm.EnablePreviews);
+        }
+
+        [Fact]
+        public void SyncCollection_EdgeCases()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var i1 = new WindowItem { Title = "1" };
+            var i2 = new WindowItem { Title = "2" };
+            var i3 = new WindowItem { Title = "3" };
+            
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { i1, i2 };
+            
+            // Simulate SyncCollection through UpdateSearch 
+            // We need to mock SearchService to return [i3, i1] (insert i3, keep i1, remove i2)
+            var mockSearch = new Mock<IWindowSearchService>();
+            mockSearch.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
+                      .Returns(new List<WindowItem> { i3, i1 });
+            
+            var mockOrch = new Mock<IWindowOrchestrationService>();
+            mockOrch.Setup(o => o.AllWindows).Returns(new List<WindowItem>());
+            
+            var nav = new Mock<INavigationService>();
+            
+            var vm2 = new MainViewModel(mockOrch.Object, mockSearch.Object, nav.Object, null, new Mock<IDispatcherService>().Object);
+            vm2.FilteredWindows.Add(i1);
+            vm2.FilteredWindows.Add(i2);
+            
+            // Private UpdateSearch call via SearchText setter
+            vm2.SearchText = "update";
+            
+            Assert.Equal(2, vm2.FilteredWindows.Count);
+            Assert.Equal(i3, vm2.FilteredWindows[0]);
+            Assert.Equal(i1, vm2.FilteredWindows[1]);
+        }
+
+        [Fact]
+        public void MoveSelectionByPage_WithValidPageSize_CallsNavigationService()
+        {
+            var nav = new Mock<INavigationService>();
+            var items = new List<WindowItem> { new() };
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem>(items);
+            vm.SelectedWindow = items[0];
+            
+            vm.MoveSelectionByPage(1, 5);
+            
+            nav.Verify(n => n.CalculatePageMoveIndex(0, 1, 5, 1), Times.Once);
+        }
+
+        [Fact]
+        public void ShortcutModifierText_ReturnsFormattedString()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { NumberShortcutModifier = ModifierKeyFlags.Ctrl | ModifierKeyFlags.Shift });
+            
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            
+            Assert.Equal("Ctrl+Shift", vm.ShortcutModifierText);
         }
     }
 }

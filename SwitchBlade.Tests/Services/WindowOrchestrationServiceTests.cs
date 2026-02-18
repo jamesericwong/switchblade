@@ -490,5 +490,82 @@ namespace SwitchBlade.Tests.Services
             simpleProvider.Verify(p => p.GetWindows(), Times.Once);
             // Verify no cast exception or failure
         }
+
+        [Fact]
+        public async Task RefreshAsync_ReloadSettings_HandlesError()
+        {
+            var provider = CreateMockProvider("BrokenProvider", new List<WindowItem>());
+            provider.Setup(p => p.ReloadSettings()).Throws(new Exception("Fail"));
+            
+            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            
+            // Should not throw
+            await service.RefreshAsync(new HashSet<string>());
+            
+            provider.Verify(p => p.ReloadSettings(), Times.Once);
+        }
+
+        [Fact]
+        public async Task LaunchUiaRefresh_HandlesDynamicProviderResolution()
+        {
+            var mockWorker = new Mock<IUiaWorkerClient>();
+            var uiaProvider = CreateMockProvider("UiaPlugin", new List<WindowItem>());
+            uiaProvider.Setup(p => p.IsUiaProvider).Returns(true);
+            uiaProvider.Setup(p => p.GetHandledProcesses()).Returns(new[] { "dynamic-proc" });
+
+            // Returning result with "dynamic-proc" but WRONG plugin name to trigger fallback resolution
+            var pluginResult = new UiaPluginResult 
+            { 
+                PluginName = "UnknownPlugin", 
+                Windows = new List<UiaWindowResult> { new() { Title = "W1", Hwnd = 123, ProcessName = "dynamic-proc" } } 
+            };
+
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), It.IsAny<CancellationToken>()))
+                      .Returns(new[] { pluginResult }.ToAsyncEnumerable());
+
+            var service = new WindowOrchestrationService(
+                new[] { uiaProvider.Object }, 
+                new WindowReconciler(null), 
+                mockWorker.Object, 
+                null, 
+                CreateMockSettingsService());
+
+            int updatedCount = 0;
+            service.WindowListUpdated += (s, e) => updatedCount++;
+
+            await service.RefreshAsync(new HashSet<string>());
+            
+            // Wait for fire-and-forget task
+            await Task.Delay(200);
+
+            Assert.True(updatedCount > 0);
+            Assert.Contains(service.AllWindows, w => w.Title == "W1" && w.Source == uiaProvider.Object);
+        }
+
+        [Fact]
+        public void Dispose_HandlesProviderDisposeError()
+        {
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.As<IDisposable>().Setup(d => d.Dispose()).Throws(new Exception("Fail"));
+
+            var service = new WindowOrchestrationService(new[] { mockProvider.Object }, (IIconService?)null, CreateMockSettingsService());
+            
+            // Should not throw
+            service.Dispose();
+            
+            mockProvider.As<IDisposable>().Verify(d => d.Dispose(), Times.Once);
+        }
+    }
+
+    public static class TestExtensions
+    {
+        public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(this IEnumerable<T> source)
+        {
+            foreach (var item in source)
+            {
+                yield return item;
+                await Task.Yield();
+            }
+        }
     }
 }

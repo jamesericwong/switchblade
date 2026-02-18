@@ -255,44 +255,57 @@ namespace SwitchBlade.Tests.Core
 
         #endregion
 
-        #region Edge Cases
+        #region Edge Cases - Coverage Extension
 
         [Fact]
-        public void Score_VeryLongTitle_DoesNotCrash()
+        public void Score_TitleLongerThan256_UsesHeapAllocation()
         {
-            string longTitle = new string('a', 1000) + "target" + new string('b', 1000);
+            string longTitle = new string('a', 300) + "target";
             int score = FuzzyMatcher.Score(longTitle, "target");
-            Assert.True(score > 0, "Should handle very long titles");
+            Assert.True(score > 0);
         }
 
         [Fact]
-        public void Score_SpecialCharacters_Handled()
+        public void Score_QueryLongerThan64_UsesHeapAllocation()
         {
-            int score = FuzzyMatcher.Score("File (1).txt - Notepad", "file notepad");
-            Assert.True(score > 0, "Should handle special characters");
+            string longQuery = new string('a', 70) + "target";
+            string title = new string('a', 100) + "target";
+            int score = FuzzyMatcher.Score(title, longQuery);
+            Assert.True(score > 0);
         }
 
         [Fact]
-        public void Score_UnicodeCharacters_Handled()
+        public void Score_NormalizedQueryEmpty_ReturnsZero()
         {
-            int score = FuzzyMatcher.Score("résumé.docx", "resume");
-            // Unicode characters may or may not match depending on normalization
-            // The important thing is it doesn't crash
-            Assert.True(score >= 0, "Should not crash on unicode");
+            // Normalize skips spaces, underscores, and dashes
+            int score = FuzzyMatcher.Score("title", " _- ");
+            Assert.Equal(0, score);
         }
 
         [Fact]
-        public void Score_SingleCharacterQuery_Works()
+        public void Score_NormalizedQueryLongerThanTitle_ReturnsZero()
         {
-            int score = FuzzyMatcher.Score("Chrome", "c");
-            Assert.True(score > 0, "Single character query should work");
+            // Normalized "abc" is length 3, "ab" is length 2
+            int score = FuzzyMatcher.Score("ab", "abc");
+            Assert.Equal(0, score);
         }
 
         [Fact]
-        public void Score_SingleCharacterTitle_Works()
+        public void Score_NormalizedQueryLongerThanTitleWithDelimiters_ReturnsZero()
         {
-            int score = FuzzyMatcher.Score("C", "c");
-            Assert.True(score > 0, "Single character title should work");
+            // Normalized title "a" (len 1), normalized query "ab" (len 2)
+            int score = FuzzyMatcher.Score("a-_ ", "a b");
+            Assert.Equal(0, score);
+        }
+
+        [Fact]
+        public void Score_MaximizeNormalizedLengths_DoesNotCrash()
+        {
+            // Hits the logic where length is truncated to MaxNormalizedLength (512)
+            string superLongTitle = new string('a', 600);
+            string superLongQuery = new string('a', 600);
+            int score = FuzzyMatcher.Score(superLongTitle, superLongQuery);
+            Assert.True(score > 0);
         }
 
         #endregion

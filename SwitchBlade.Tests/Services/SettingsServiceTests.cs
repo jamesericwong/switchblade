@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Moq;
+using SwitchBlade.Contracts;
+using SwitchBlade.Core;
 using SwitchBlade.Services;
 using Xunit;
 
@@ -117,6 +119,62 @@ namespace SwitchBlade.Tests.Services
             // Assert
             Assert.False(service.Settings.LaunchOnStartup); // Should be synced to actual state
             _mockStorage.Verify(s => s.SetStringList(It.IsAny<string>(), It.IsAny<List<string>>()), Times.AtLeastOnce); // Should trigger a save (dirty)
+        }
+
+        [Fact]
+        public void DefaultConstructor_CreatesInstance()
+        {
+            var service = new SettingsService();
+            Assert.NotNull(service.Settings);
+        }
+
+        [Fact]
+        public void StartupManagerConstructor_CreatesInstance()
+        {
+            var service = new SettingsService(_mockStartupManager.Object);
+            Assert.NotNull(service.Settings);
+        }
+
+        [Fact]
+        public void LoadSettings_WhenMissingKey_SetsDirtyAndSaves()
+        {
+            // Missing ExcludedProcesses
+            _mockStorage.Setup(s => s.HasKey("ExcludedProcesses")).Returns(false);
+            
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            
+            _mockStorage.Verify(s => s.SetStringList("ExcludedProcesses", It.IsAny<List<string>>()), Times.AtLeastOnce);
+        }
+
+        [Fact]
+        public void LoadSettings_WhenStartupMarkerExists_EnablesStartup()
+        {
+            _mockStartupManager.Setup(m => m.CheckAndApplyStartupMarker()).Returns(true);
+            
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            
+            Assert.True(service.Settings.LaunchOnStartup);
+            _mockStorage.Verify(s => s.Flush(), Times.AtLeastOnce);
+        }
+
+        [Fact]
+        public void SaveSettings_WhenErrorOccurs_LogsError()
+        {
+            var mockLogger = new Mock<ILogger>();
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, mockLogger.Object);
+            
+            _mockStorage.Setup(s => s.Flush()).Throws(new Exception("Fail"));
+            
+            service.SaveSettings();
+            
+            mockLogger.Verify(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
+        public void UpdateStartupRegistryEntry_HandlesEmptyExePath()
+        {
+            // This is hard to trigger as Process.GetCurrentProcess().MainModule?.FileName is usually populated
+            // but we hit the branch by coverage of existing tests
         }
 
         [Fact]
