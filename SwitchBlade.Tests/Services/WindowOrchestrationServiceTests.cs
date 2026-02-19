@@ -28,13 +28,31 @@ namespace SwitchBlade.Tests.Services
             return mockSettings.Object;
         }
 
+        private WindowOrchestrationService CreateService(
+            IEnumerable<IWindowProvider> providers,
+            IUiaWorkerClient? worker = null,
+            INativeInteropWrapper? interop = null,
+            ILogger? logger = null,
+            ISettingsService? settings = null,
+            IWindowReconciler? reconciler = null)
+        {
+            return new WindowOrchestrationService(
+                providers,
+                reconciler ?? new WindowReconciler(null),
+                worker ?? new NullUiaWorkerClient(),
+                interop ?? new Mock<INativeInteropWrapper>().Object,
+                logger,
+                settings ?? CreateMockSettingsService()
+            );
+        }
+
         [Fact]
         public async Task RefreshAsync_CallsGetWindowsOnAllProviders()
         {
             var provider1 = CreateMockProvider("Provider1", new List<WindowItem>());
             var provider2 = CreateMockProvider("Provider2", new List<WindowItem>());
 
-            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider1.Object, provider2.Object });
 
             await service.RefreshAsync(new HashSet<string>());
 
@@ -43,12 +61,25 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public async Task RefreshAsync_ClearsProcessCache()
+        {
+            var provider = CreateMockProvider("Provider1", new List<WindowItem>());
+            var mockInterop = new Mock<INativeInteropWrapper>();
+            
+            var service = CreateService(new[] { provider.Object }, interop: mockInterop.Object);
+
+            await service.RefreshAsync(new HashSet<string>());
+
+            mockInterop.Verify(x => x.ClearProcessCache(), Times.Once);
+        }
+
+        [Fact]
         public async Task RefreshAsync_SkipsDisabledProviders()
         {
             var provider1 = CreateMockProvider("Provider1", new List<WindowItem>());
             var provider2 = CreateMockProvider("Provider2", new List<WindowItem>());
 
-            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider1.Object, provider2.Object });
 
             await service.RefreshAsync(new HashSet<string> { "Provider1" });
 
@@ -75,7 +106,7 @@ namespace SwitchBlade.Tests.Services
             items1[0].Source = provider1.Object;
             items2[0].Source = provider2.Object;
 
-            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider1.Object, provider2.Object });
 
             await service.RefreshAsync(new HashSet<string>());
 
@@ -86,7 +117,7 @@ namespace SwitchBlade.Tests.Services
         public async Task RefreshAsync_FiresWindowListUpdatedEvent()
         {
             var provider = CreateMockProvider("Provider1", new List<WindowItem>());
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
             int eventCount = 0;
             service.WindowListUpdated += (s, e) => eventCount++;
@@ -100,7 +131,7 @@ namespace SwitchBlade.Tests.Services
         public async Task RefreshAsync_ReloadsSettingsForEachProvider()
         {
             var provider = CreateMockProvider("Provider1", new List<WindowItem>());
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
             await service.RefreshAsync(new HashSet<string>());
 
@@ -115,7 +146,7 @@ namespace SwitchBlade.Tests.Services
 
             provider1.Setup(p => p.GetHandledProcesses()).Returns(new[] { "chrome", "edge" });
 
-            var service = new WindowOrchestrationService(new[] { provider1.Object, provider2.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider1.Object, provider2.Object });
 
             await service.RefreshAsync(new HashSet<string>());
 
@@ -126,7 +157,6 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RefreshAsync_PreservesMultipleItemsWithSameHwnd()
         {
-            // Simulate two Chrome tabs sharing the same HWND
             var hwnd = (IntPtr)555;
             var provider = CreateMockProvider("Chrome", new List<WindowItem>
             {
@@ -134,7 +164,7 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Tab 2", Hwnd = hwnd, ProcessName = "chrome" }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
             // First refresh
             await service.RefreshAsync(new HashSet<string>());
@@ -159,12 +189,12 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public void AllWindows_ReturnsImmutableCopy()
         {
-            var service = new WindowOrchestrationService(new List<IWindowProvider>(), (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new List<IWindowProvider>());
 
             var windows1 = service.AllWindows;
             var windows2 = service.AllWindows;
 
-            Assert.NotSame(windows1, windows2); // Different instances
+            Assert.NotSame(windows1, windows2);
         }
 
         [Fact]
@@ -174,7 +204,7 @@ namespace SwitchBlade.Tests.Services
             {
                 new() { Title = "StaleWindow", Hwnd = (IntPtr)1, ProcessName = "app" }
             });
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
             // 1. First run - success
             await service.RefreshAsync(new HashSet<string>());
@@ -192,22 +222,18 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RefreshAsync_CompletesMultipleTimesWithBlockingGC()
         {
-            // This test verifies that the blocking GC + WaitForPendingFinalizers 
-            // doesn't cause issues when RefreshAsync is called repeatedly.
             var provider = CreateMockProvider("TestProvider", new List<WindowItem>
             {
                 new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app1" }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
-            // Run multiple refreshes in succession (simulating background polling)
             for (int i = 0; i < 5; i++)
             {
                 await service.RefreshAsync(new HashSet<string>());
             }
 
-            // Should complete without exception and maintain correct state
             Assert.Single(service.AllWindows);
             Assert.Equal("Window1", service.AllWindows[0].Title);
         }
@@ -215,10 +241,9 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RefreshAsync_SkipsFastPathIfAlreadyInProgress()
         {
-            // Arrange: Create a slow Non-UIA provider that simulates a long-running scan
             var slowProvider = new Mock<IWindowProvider>();
             slowProvider.Setup(p => p.PluginName).Returns("SlowCoreProvider");
-            slowProvider.Setup(p => p.IsUiaProvider).Returns(false); // Non-UIA
+            slowProvider.Setup(p => p.IsUiaProvider).Returns(false);
             slowProvider.Setup(p => p.GetHandledProcesses()).Returns(Enumerable.Empty<string>());
 
             var scanStarted = new ManualResetEventSlim(false);
@@ -229,50 +254,37 @@ namespace SwitchBlade.Tests.Services
             {
                 Interlocked.Increment(ref callCount);
                 scanStarted.Set();
-                scanContinue.Wait(TimeSpan.FromSeconds(10)); // Wait for test to signal
+                scanContinue.Wait(TimeSpan.FromSeconds(10));
                 return new List<WindowItem>();
             });
 
-            var service = new WindowOrchestrationService(new[] { slowProvider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { slowProvider.Object });
 
-            // Act: Fire first refresh (will hang on scanContinue)
             var task1 = service.RefreshAsync(new HashSet<string>());
             
-            // Wait for it to actually enter the provider
             Assert.True(scanStarted.Wait(TimeSpan.FromSeconds(10)), "Scan did not start in time");
 
-            // Fire second refresh while first is still running (hitting the fast-path lock)
             var task2 = service.RefreshAsync(new HashSet<string>());
 
-            // Signal first one to complete
             scanContinue.Set();
             await Task.WhenAll(task1, task2);
 
-            // Assert: GetWindows should only be called once (second call was skipped)
             Assert.Equal(1, callCount);
         }
 
         [Fact]
         public async Task RefreshAsync_AllowsCoreUpdate_WhenUiaIsSlow()
         {
-            // Arrange: 
-            // 1. Fast Core Provider (Non-UIA)
             var coreProvider = CreateMockProvider("CoreProvider", new List<WindowItem>());
             coreProvider.Setup(p => p.IsUiaProvider).Returns(false);
             
-            // 2. Slow UIA Provider
             var slowUiaProvider = new Mock<IWindowProvider>();
             slowUiaProvider.Setup(p => p.PluginName).Returns("SlowUiaProvider");
-            slowUiaProvider.Setup(p => p.IsUiaProvider).Returns(true); // UIA
+            slowUiaProvider.Setup(p => p.IsUiaProvider).Returns(true);
             slowUiaProvider.Setup(p => p.GetHandledProcesses()).Returns(Enumerable.Empty<string>());
 
-            // Signal when UIA scan actually starts to ensure lock is held
             var uiaScanStarted = new TaskCompletionSource<bool>();
-
-            // We need to use the primary constructor to inject a mock UiaWorkerClient
             var mockUiaWorker = new Mock<IUiaWorkerClient>();
-            // Simulate slow UIA streaming
-            // Note: Must provide all optional arguments to Setup to avoid CS0854 (Expression tree may not contain call with optional arguments)
             mockUiaWorker.Setup(c => c.ScanStreamingAsync(
                     It.IsAny<ISet<string>?>(), 
                     It.IsAny<ISet<string>?>(), 
@@ -283,40 +295,21 @@ namespace SwitchBlade.Tests.Services
                     return DelayedEmptyEnumerable(500, t);
                 });
 
-            var service = new WindowOrchestrationService(
+            var service = CreateService(
                 new[] { coreProvider.Object, slowUiaProvider.Object },
-                new WindowReconciler(null),
-                mockUiaWorker.Object,
-                null, 
-                CreateMockSettingsService());
+                worker: mockUiaWorker.Object);
 
-            // Act:
-            // 1. Start first refresh (launches slow UIA task)
             var task1 = service.RefreshAsync(new HashSet<string>());
 
-            // Wait for UIA scan to start and hold the lock
             await Task.WhenAny(uiaScanStarted.Task, Task.Delay(10000));
             Assert.True(uiaScanStarted.Task.IsCompleted, "UIA scan did not start in time");
             
-            // Ensure first refresh (the fast part) is done so lock is released
             await task1;
 
-            // 2. Start second refresh IMMEDIATELY (while UIA is still "running" in bg)
             await service.RefreshAsync(new HashSet<string>());
 
-            // Assert:
-            // Core provider should have run TWICE (because _fastRefreshLock was free)
             coreProvider.Verify(p => p.GetWindows(), Times.Exactly(2));
             
-            // UIA Worker should have been called TWICE (fire-and-forget, but verify launch)
-            // Note: In logical terms, the second UIA scan might be skipped if the first is truly holding the lock.
-            // Let's verify that core *did* run twice, which is the key requirement.
-            // Actually, since UIA is fire-and-forget, the second RefreshAsync call *will* try to acquire UIA lock.
-            // If the first UIA task is still running (500ms delay), the second attempt to acquire _uiaRefreshLock will fail (return immediately).
-            // So ScanStreamingAsync should be called ONCE effectively (or twice if the first one finished super fast, but we delayed 500ms).
-            
-            // Verify ScanStreamingAsync called exactly ONCE confirms that the second UIA scan was properly skipped 
-            // (good behavior) while Core ran twice (excellent behavior).
             mockUiaWorker.Verify(c => c.ScanStreamingAsync(
                 It.IsAny<ISet<string>?>(), 
                 It.IsAny<ISet<string>?>(), 
@@ -326,26 +319,22 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RefreshAsync_AllowsSequentialCalls()
         {
-            // Arrange
             var provider = CreateMockProvider("Provider", new List<WindowItem>
             {
                 new() { Title = "Window1", Hwnd = (IntPtr)1, ProcessName = "app" }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
-            // Act: Call RefreshAsync twice sequentially (not concurrently)
             await service.RefreshAsync(new HashSet<string>());
             await service.RefreshAsync(new HashSet<string>());
 
-            // Assert: Both calls should execute (GetWindows called twice)
             provider.Verify(p => p.GetWindows(), Times.Exactly(2));
         }
 
         [Fact]
         public async Task ProcessProviderResults_PreservesExisting_WhenOnlyFallbackItemsReceived()
         {
-            // Arrange: Provider returns real items on first scan
             var hwnd = (IntPtr)100;
             var provider = CreateMockProvider("Teams", new List<WindowItem>
             {
@@ -353,13 +342,11 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Chat 2", Hwnd = hwnd, ProcessName = "ms-teams" }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
-            // First scan - returns real items
             await service.RefreshAsync(new HashSet<string>());
             Assert.Equal(2, service.AllWindows.Count);
 
-            // Second scan - returns only a fallback item (simulates transient UIA failure)
             provider.Setup(p => p.GetWindows()).Returns(new List<WindowItem>
             {
                 new() { Title = "Microsoft Teams", Hwnd = hwnd, ProcessName = "ms-teams", IsFallback = true }
@@ -367,7 +354,6 @@ namespace SwitchBlade.Tests.Services
 
             await service.RefreshAsync(new HashSet<string>());
 
-            // Assert: LKG should preserve the previous 2 real items
             Assert.Equal(2, service.AllWindows.Count);
             Assert.Contains(service.AllWindows, x => x.Title == "Chat 1");
             Assert.Contains(service.AllWindows, x => x.Title == "Chat 2");
@@ -376,7 +362,6 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task ProcessProviderResults_ReplacesResults_WhenNonFallbackItemsReceived()
         {
-            // Arrange: Provider returns real items on first scan
             var hwnd = (IntPtr)100;
             var provider = CreateMockProvider("Teams", new List<WindowItem>
             {
@@ -384,13 +369,11 @@ namespace SwitchBlade.Tests.Services
                 new() { Title = "Chat 2", Hwnd = hwnd, ProcessName = "ms-teams" }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
-            // First scan
             await service.RefreshAsync(new HashSet<string>());
             Assert.Equal(2, service.AllWindows.Count);
 
-            // Second scan - returns different real items (normal update)
             provider.Setup(p => p.GetWindows()).Returns(new List<WindowItem>
             {
                 new() { Title = "Chat 3", Hwnd = hwnd, ProcessName = "ms-teams" },
@@ -400,7 +383,6 @@ namespace SwitchBlade.Tests.Services
 
             await service.RefreshAsync(new HashSet<string>());
 
-            // Assert: Results should be replaced with the new ones
             Assert.Equal(3, service.AllWindows.Count);
             Assert.Contains(service.AllWindows, x => x.Title == "Chat 3");
             Assert.DoesNotContain(service.AllWindows, x => x.Title == "Chat 1");
@@ -409,56 +391,40 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task ProcessProviderResults_AcceptsFallback_WhenNoPriorRealResults()
         {
-            // Arrange: Provider returns only fallback on FIRST scan (no prior data to preserve)
             var hwnd = (IntPtr)100;
             var provider = CreateMockProvider("Teams", new List<WindowItem>
             {
                 new() { Title = "Microsoft Teams", Hwnd = hwnd, ProcessName = "ms-teams", IsFallback = true }
             });
 
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
 
             await service.RefreshAsync(new HashSet<string>());
 
-            // Assert: Fallback should be accepted since there's nothing to preserve
             Assert.Single(service.AllWindows);
             Assert.True(service.AllWindows[0].IsFallback);
         }
 
-        private async IAsyncEnumerable<UiaPluginResult> DelayedEmptyEnumerable(int delayMs, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            await Task.Delay(delayMs, cancellationToken);
-            yield break;
-        }
         [Fact]
         public async Task LaunchUiaRefresh_LogsError_WhenWorkerThrows()
         {
-            // Verify that UiaWorkerClient exceptions don't crash the service
             var mockWorker = new Mock<IUiaWorkerClient>();
             var scannedSignal = new ManualResetEventSlim(false);
 
-            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), It.IsAny<CancellationToken>()))
-                      .Callback(() => scannedSignal.Set()) // Signal when called
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
+                      .Callback(() => scannedSignal.Set())
                       .Throws(new Exception("Worker crashed"));
 
             var provider = CreateMockProvider("UiaProvider", new List<WindowItem>());
             provider.Setup(p => p.IsUiaProvider).Returns(true);
 
-            var service = new WindowOrchestrationService(
-                new[] { provider.Object }, 
-                new WindowReconciler(null), 
-                mockWorker.Object, 
-                null, 
-                CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object }, worker: mockWorker.Object);
 
-            // Should not throw
             await service.RefreshAsync(new HashSet<string>());
 
-            // Wait for background task
             Assert.True(scannedSignal.Wait(2000), "Background UIA scan was not triggered in time");
 
-            // Verify it attempted to scan
-            mockWorker.Verify(w => w.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+            mockWorker.Verify(w => w.ScanStreamingAsync(It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -467,7 +433,7 @@ namespace SwitchBlade.Tests.Services
             var mockDisposableProvider = new Mock<IWindowProvider>();
             mockDisposableProvider.As<IDisposable>(); // Make it disposable
 
-            var service = new WindowOrchestrationService(new[] { mockDisposableProvider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { mockDisposableProvider.Object });
             
             service.Dispose();
 
@@ -477,18 +443,15 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RefreshAsync_SupportsSimpleProviders_WithoutProcessDependency()
         {
-            // Provider that is NOT IProcessDependentWindowProvider
-            // logic inside RefreshAsync checks for this interface to call GetHandledProcesses
             var simpleProvider = new Mock<IWindowProvider>();
             simpleProvider.Setup(p => p.PluginName).Returns("Simple");
             simpleProvider.Setup(p => p.GetWindows()).Returns(new List<WindowItem>());
             
-            var service = new WindowOrchestrationService(new[] { simpleProvider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { simpleProvider.Object });
 
             await service.RefreshAsync(new HashSet<string>());
 
             simpleProvider.Verify(p => p.GetWindows(), Times.Once);
-            // Verify no cast exception or failure
         }
 
         [Fact]
@@ -497,9 +460,8 @@ namespace SwitchBlade.Tests.Services
             var provider = CreateMockProvider("BrokenProvider", new List<WindowItem>());
             provider.Setup(p => p.ReloadSettings()).Throws(new Exception("Fail"));
             
-            var service = new WindowOrchestrationService(new[] { provider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { provider.Object });
             
-            // Should not throw
             await service.RefreshAsync(new HashSet<string>());
             
             provider.Verify(p => p.ReloadSettings(), Times.Once);
@@ -513,29 +475,22 @@ namespace SwitchBlade.Tests.Services
             uiaProvider.Setup(p => p.IsUiaProvider).Returns(true);
             uiaProvider.Setup(p => p.GetHandledProcesses()).Returns(new[] { "dynamic-proc" });
 
-            // Returning result with "dynamic-proc" but WRONG plugin name to trigger fallback resolution
             var pluginResult = new UiaPluginResult 
             { 
                 PluginName = "UnknownPlugin", 
                 Windows = new List<UiaWindowResult> { new() { Title = "W1", Hwnd = 123, ProcessName = "dynamic-proc" } } 
             };
 
-            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), It.IsAny<CancellationToken>()))
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
                       .Returns(new[] { pluginResult }.ToAsyncEnumerable());
 
-            var service = new WindowOrchestrationService(
-                new[] { uiaProvider.Object }, 
-                new WindowReconciler(null), 
-                mockWorker.Object, 
-                null, 
-                CreateMockSettingsService());
+            var service = CreateService(new[] { uiaProvider.Object }, worker: mockWorker.Object);
 
             int updatedCount = 0;
             service.WindowListUpdated += (s, e) => updatedCount++;
 
             await service.RefreshAsync(new HashSet<string>());
             
-            // Wait for fire-and-forget task
             await Task.Delay(200);
 
             Assert.True(updatedCount > 0);
@@ -546,27 +501,19 @@ namespace SwitchBlade.Tests.Services
         public async Task LaunchUiaRefresh_LogsWarning_WhenProviderNotFound()
         {
             var mockWorker = new Mock<IUiaWorkerClient>();
-            // Return result for unknown plugin and unknown process
             var pluginResult = new UiaPluginResult 
             { 
                 PluginName = "UnknownPlugin", 
                 Windows = new List<UiaWindowResult> { new() { Title = "W1", Hwnd = 123, ProcessName = "unknown-proc" } } 
             };
 
-            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), It.IsAny<CancellationToken>()))
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
                       .Returns(new[] { pluginResult }.ToAsyncEnumerable());
 
-            var service = new WindowOrchestrationService(
-                new IWindowProvider[0], 
-                new WindowReconciler(null), 
-                mockWorker.Object, 
-                null, 
-                CreateMockSettingsService());
+            var service = CreateService(new IWindowProvider[0], worker: mockWorker.Object);
 
-            // Should not crash and not add windows
             await service.RefreshAsync(new HashSet<string>());
 
-            // Wait for fire-and-forget task
             await Task.Delay(200);
 
             Assert.Empty(service.AllWindows);
@@ -578,12 +525,55 @@ namespace SwitchBlade.Tests.Services
             var mockProvider = new Mock<IWindowProvider>();
             mockProvider.As<IDisposable>().Setup(d => d.Dispose()).Throws(new Exception("Fail"));
 
-            var service = new WindowOrchestrationService(new[] { mockProvider.Object }, (IIconService?)null, CreateMockSettingsService());
+            var service = CreateService(new[] { mockProvider.Object });
             
-            // Should not throw
             service.Dispose();
             
             mockProvider.As<IDisposable>().Verify(d => d.Dispose(), Times.Once);
+        }
+
+        [Fact]
+        public async Task ProcessProviderResults_LogsPerf_WhenDebugEnabled()
+        {
+            // Set static flag
+            var originalDebug = SwitchBlade.Core.Logger.IsDebugEnabled;
+            SwitchBlade.Core.Logger.IsDebugEnabled = true;
+
+            try 
+            {
+                var provider = CreateMockProvider("PerfProvider", new List<WindowItem>
+                {
+                    new() { Title = "W1", Hwnd = (IntPtr)1, ProcessName = "app" }
+                });
+                var mockLogger = new Mock<ILogger>();
+                
+                var service = CreateService(new[] { provider.Object }, logger: mockLogger.Object);
+
+                await service.RefreshAsync(new HashSet<string>());
+
+                mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("[Perf]"))), Times.Once);
+            }
+            finally
+            {
+                SwitchBlade.Core.Logger.IsDebugEnabled = originalDebug;
+            }
+        }
+        
+        private async IAsyncEnumerable<UiaPluginResult> DelayedEmptyEnumerable(int delayMs, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await Task.Delay(delayMs, cancellationToken);
+            yield break;
+        }
+
+        internal class NullUiaWorkerClient : IUiaWorkerClient
+        {
+            public IAsyncEnumerable<UiaPluginResult> ScanStreamingAsync(ISet<string>? c, ISet<string>? h, CancellationToken t = default)
+                => Enumerable.Empty<UiaPluginResult>().ToAsyncEnumerable();
+            
+            public Task<List<WindowItem>> ScanAsync(ISet<string>? c, ISet<string>? h, CancellationToken t = default) 
+                => Task.FromResult(new List<WindowItem>());
+
+            public void Dispose() { }
         }
     }
 

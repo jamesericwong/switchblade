@@ -48,7 +48,7 @@ namespace SwitchBlade.Tests.Handlers
 
             // Assert
             _mockHideWindow.Verify(x => x(), Times.Once);
-            Assert.False(result); // Escape logic returns false in current impl (bubble up?)
+            Assert.False(result); // Escape logic returns false in current impl
         }
 
         [Fact]
@@ -116,8 +116,7 @@ namespace SwitchBlade.Tests.Handlers
             // Arrange
             _settings.ItemHeight = 50;
             _mockGetListBoxHeight.Setup(f => f()).Returns(500); // 10 items
-            // Page size should be 10
-
+            
             // Act
             bool result = _handler.HandleKeyInput(Key.PageUp, ModifierKeys.None);
 
@@ -212,12 +211,15 @@ namespace SwitchBlade.Tests.Handlers
 
             bool result = _handler.HandleKeyInput(key, ModifierKeys.None);
 
-            _mockActivateWindow.Verify(x => x(windows[expectedIndex]), Times.Once);
+            if (result)
+            {
+               _mockActivateWindow.Verify(x => x(windows[expectedIndex]), Times.Once);
+            }
             Assert.True(result);
         }
 
         [Fact]
-        public void HandleKeyInput_NumberShortcut_IndexOutOfRange_DoesNothing()
+        public void HandleKeyInput_NumberShortcut_IndexOutOfRange_StillReturnsTrue()
         {
             _settings.EnableNumberShortcuts = true;
             _settings.NumberShortcutModifier = 0; // None
@@ -230,17 +232,11 @@ namespace SwitchBlade.Tests.Handlers
             bool result = _handler.HandleKeyInput(Key.D2, ModifierKeys.None);
 
             _mockActivateWindow.Verify(x => x(It.IsAny<WindowItem>()), Times.Never);
-            // In the implementation, if index is out of range, it still returns true?
-            // "if (index.HasValue) { ActivateWindowByIndex(index.Value); return true; }"
-            // Yes, because Key is valid number key, but index logic inside is safe.
-            // Actually, let's look at code again:
-            // if (index.HasValue) { ActivateWindowByIndex(index.Value); return true; }
-            // So it returns true.
-             Assert.True(result); 
+            Assert.True(result); 
         }
 
         [Fact]
-        public void HandleKeyInput_NumberShortcut_DifferentModifiers()
+        public void HandleKeyInput_NumberShortcut_Modifiers_CoverAllCases()
         {
              _settings.EnableNumberShortcuts = true;
              
@@ -263,19 +259,21 @@ namespace SwitchBlade.Tests.Handlers
              // Test None
              _settings.NumberShortcutModifier = 0; // None
              Assert.True(_handler.HandleKeyInput(Key.D1, ModifierKeys.None));
+             
+             // Test Unknown Identifier
+             _settings.NumberShortcutModifier = 99;
+             Assert.False(_handler.HandleKeyInput(Key.D1, ModifierKeys.None));
         }
 
         [Fact]
         public void CalculatePageSize_HandlesZeroHeights_DefaultsSafely()
         {
-            // This tests the private method implicitly via PageUp/PageDown
             _settings.ItemHeight = 0; // Should trigger default 64
             _mockGetListBoxHeight.Setup(f => f()).Returns(500);
             
             // Page size = 500 / 64 = 7.8 -> 7
             _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
             
-            // Verify move by 7
             _mockViewModel.Verify(vm => vm.MoveSelectionByPage(1, 7), Times.Once);
         }
 
@@ -289,6 +287,25 @@ namespace SwitchBlade.Tests.Handlers
             _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
             
             _mockViewModel.Verify(vm => vm.MoveSelectionByPage(1, 4), Times.Once);
+        }
+        
+        [Fact]
+        public void CalculatePageSize_EnsuresMinimumPageSizeOfOne()
+        {
+             _settings.ItemHeight = 500;
+             _mockGetListBoxHeight.Setup(f => f()).Returns(100); 
+             
+             // 100 / 500 = 0 -> Max(1, 0) -> 1
+             _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
+             
+             _mockViewModel.Verify(vm => vm.MoveSelectionByPage(1, 1), Times.Once);
+        }
+
+        [Fact]
+        public void HandleKeyInput_UnhandledKeys_ReturnFalse()
+        {
+            Assert.False(_handler.HandleKeyInput(Key.A, ModifierKeys.None));
+            Assert.False(_handler.HandleKeyInput(Key.F1, ModifierKeys.None));
         }
     }
 }

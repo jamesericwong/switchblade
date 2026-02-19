@@ -10,6 +10,7 @@ namespace SwitchBlade.Tests.Services
     public class WindowsStartupManagerTests
     {
         private readonly Mock<IRegistryService> _mockRegistry;
+        private readonly Mock<ILogger> _mockLogger;
         private readonly WindowsStartupManager _manager;
         private const string APP_KEY = @"Software\SwitchBlade";
         private const string RUN_KEY = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -18,7 +19,8 @@ namespace SwitchBlade.Tests.Services
         public WindowsStartupManagerTests()
         {
             _mockRegistry = new Mock<IRegistryService>();
-            _manager = new WindowsStartupManager(_mockRegistry.Object);
+            _mockLogger = new Mock<ILogger>();
+            _manager = new WindowsStartupManager(_mockRegistry.Object, _mockLogger.Object);
         }
 
         [Fact]
@@ -29,6 +31,14 @@ namespace SwitchBlade.Tests.Services
 
             _mockRegistry.Setup(r => r.GetCurrentUserValue(RUN_KEY, VALUE_NAME)).Returns(null!);
             Assert.False(_manager.IsStartupEnabled());
+        }
+
+        [Fact]
+        public void IsStartupEnabled_ReturnsFalse_OnException()
+        {
+             _mockRegistry.Setup(r => r.GetCurrentUserValue(It.IsAny<string>(), It.IsAny<string>())).Throws(new Exception("Fail"));
+             Assert.False(_manager.IsStartupEnabled());
+             // IsStartupEnabled swallows exception without logging
         }
 
         [Fact]
@@ -46,6 +56,16 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public void EnableStartup_LogsError_OnException()
+        {
+            _mockRegistry.Setup(r => r.SetCurrentUserValue(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<RegistryValueKind>())).Throws(new Exception("Fail"));
+            
+            _manager.EnableStartup(@"C:\app.exe");
+            
+            _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("enable startup")), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
         public void CheckAndApplyStartupMarker_ReturnsFalse_WhenMarkerMissing()
         {
              _mockRegistry.Setup(r => r.GetCurrentUserValue(APP_KEY, "EnableStartupOnFirstRun")).Returns((object?)null);
@@ -57,6 +77,16 @@ namespace SwitchBlade.Tests.Services
         {
             _manager.DisableStartup();
             _mockRegistry.Verify(r => r.DeleteCurrentUserValue(RUN_KEY, VALUE_NAME, false), Times.Once);
+        }
+
+        [Fact]
+        public void DisableStartup_LogsError_OnException()
+        {
+            _mockRegistry.Setup(r => r.DeleteCurrentUserValue(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>())).Throws(new Exception("Fail"));
+            
+            _manager.DisableStartup();
+
+            _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("disable startup")), It.IsAny<Exception>()), Times.Once);
         }
 
         [Fact]
@@ -81,16 +111,13 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void Methods_HandleExceptionsGracefully()
+        public void CheckAndApplyStartupMarker_LogsError_OnException()
         {
             _mockRegistry.Setup(r => r.GetCurrentUserValue(It.IsAny<string>(), It.IsAny<string>())).Throws(new Exception("Fail"));
-            _mockRegistry.Setup(r => r.SetCurrentUserValue(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<RegistryValueKind>())).Throws(new Exception("Fail"));
-            _mockRegistry.Setup(r => r.DeleteCurrentUserValue(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>())).Throws(new Exception("Fail"));
 
-            Assert.False(_manager.IsStartupEnabled());
-            _manager.EnableStartup("path"); // Should log and continue
-            _manager.DisableStartup(); // Should log and continue
             Assert.False(_manager.CheckAndApplyStartupMarker());
+            
+            _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("EnableStartupOnFirstRun")), It.IsAny<Exception>()), Times.Once);
         }
     }
 }

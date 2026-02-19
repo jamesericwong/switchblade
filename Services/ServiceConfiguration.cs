@@ -32,6 +32,7 @@ namespace SwitchBlade.Services
             services.AddSingleton<IProcessFactory, ProcessFactory>();
             services.AddSingleton<IFileSystem, FileSystemWrapper>();
             services.AddSingleton<IRegistryService, RegistryServiceWrapper>();
+            services.AddSingleton<INativeInteropWrapper, NativeInteropWrapper>();
 
             // Core Services
             services.AddSingleton<SettingsService>(sp => {
@@ -53,7 +54,6 @@ namespace SwitchBlade.Services
             services.AddSingleton<IPluginContext>(sp => new PluginContext(sp.GetRequiredService<ILogger>()));
             services.AddSingleton<IWorkstationService, WorkstationService>();
 
-            // New Services (v1.6.4)
             // New Services (v1.6.4)
             services.AddSingleton<IPluginLoader>(sp => 
                 new PluginLoader(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins"), sp.GetRequiredService<ILogger>()));
@@ -87,16 +87,17 @@ namespace SwitchBlade.Services
 
             // Window Orchestration Service (replaces manual provider coordination)
             services.AddSingleton<IWindowReconciler>(sp => 
-                new WindowReconciler(sp.GetRequiredService<IIconService>()));
+                new WindowReconciler(sp.GetRequiredService<IIconService>(), sp.GetRequiredService<ILogger>()));
 
             services.AddSingleton<IWindowOrchestrationService>(sp =>
             {
                 var pluginService = sp.GetRequiredService<IPluginService>();
                 var reconciler = sp.GetRequiredService<IWindowReconciler>();
                 var uiaWorkerClient = sp.GetRequiredService<IUiaWorkerClient>();
+                var nativeInterop = sp.GetRequiredService<INativeInteropWrapper>();
                 var logger = sp.GetRequiredService<ILogger>();
                 var settingsService = sp.GetRequiredService<ISettingsService>();
-                return new WindowOrchestrationService(pluginService.Providers, reconciler, uiaWorkerClient, logger, settingsService);
+                return new WindowOrchestrationService(pluginService.Providers, reconciler, uiaWorkerClient, nativeInterop, logger, settingsService);
             });
 
             // ViewModels

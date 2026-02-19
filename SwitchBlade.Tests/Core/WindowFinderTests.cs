@@ -175,6 +175,36 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
+        public void GetWindows_ShouldHandleProgramManagerLikeTitles_ThatAreNotProgramManager()
+        {
+            // Title length 15, starts with "Program ", but NOT "Program Manager"
+            // "Program ManageX"
+            var hWnd = (IntPtr)0x550;
+            var title = "Program ManageX"; // Length 15, mismatch at end
+            
+            _mockInterop.Setup(x => x.EnumWindows(It.IsAny<NativeInterop.EnumWindowsProc>(), It.IsAny<IntPtr>()))
+               .Callback<NativeInterop.EnumWindowsProc, IntPtr>((callback, param) => callback(hWnd, param));
+             _mockInterop.Setup(x => x.IsWindowVisible(hWnd)).Returns(true);
+
+            _mockInterop.Setup(x => x.GetWindowTextUnsafe(hWnd, It.IsAny<IntPtr>(), It.IsAny<int>()))
+                .Returns((IntPtr h, IntPtr buf, int max) =>
+                {
+                     var chars = title.ToCharArray();
+                     Marshal.Copy(chars, 0, buf, Math.Min(chars.Length, max));
+                     return chars.Length;
+                 });
+
+            _mockInterop.Setup(x => x.GetWindowThreadProcessId(hWnd, out It.Ref<uint>.IsAny)).Callback(new WindowThreadProcessIdCallback((IntPtr h, out uint pid) => pid = 100));
+            _mockInterop.Setup(x => x.GetProcessInfo(100)).Returns(("notepad", null));
+
+            var finder = CreateFinder();
+            var results = finder.GetWindows();
+
+            Assert.Single(results);
+            Assert.Equal(title, results.First().Title);
+        }
+
+        [Fact]
         public void GetWindows_ShouldFilterExcludedProcesses()
         {
              var hWnd = (IntPtr)0x500;
@@ -357,6 +387,33 @@ namespace SwitchBlade.Tests.Core
             public WindowFinderTestWrapper(ISettingsService settings, IWindowInterop interop) : base(settings, interop) { }
             public int GetPidPublic(IntPtr hwnd) => base.GetPid(hwnd);
             public (string, string?) GetProcessInfoPublic(uint pid) => base.GetProcessInfo(pid);
+        }
+
+        [Fact]
+        public void GetPid_ReturnsMinusOne_OnException()
+        {
+             var finder = new WindowFinderTestWrapper(_mockSettingsService.Object, _mockInterop.Object);
+             _mockInterop.Setup(x => x.GetWindowThreadProcessId(It.IsAny<IntPtr>(), out It.Ref<uint>.IsAny)).Throws(new Exception());
+             Assert.Equal(-1, finder.GetPidPublic(IntPtr.Zero));
+        }
+
+        [Fact]
+        public void GetProcessInfo_ReturnsWindow_OnMinusOne()
+        {
+             var finder = new WindowFinderTestWrapper(_mockSettingsService.Object, _mockInterop.Object);
+             var (name, path) = finder.GetProcessInfoPublic(unchecked((uint)-1));
+             Assert.Equal("Window", name);
+             Assert.Null(path);
+        }
+
+        [Fact]
+        public void GetProcessInfo_ReturnsWindow_OnException()
+        {
+             var finder = new WindowFinderTestWrapper(_mockSettingsService.Object, _mockInterop.Object);
+             _mockInterop.Setup(x => x.GetProcessInfo(123)).Throws(new Exception());
+             var (name, path) = finder.GetProcessInfoPublic(123);
+             Assert.Equal("Window", name);
+             Assert.Null(path);
         }
     }
 }

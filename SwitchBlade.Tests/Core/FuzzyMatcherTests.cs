@@ -257,6 +257,8 @@ namespace SwitchBlade.Tests.Core
 
         #region Edge Cases - Coverage Extension
 
+
+
         [Fact]
         public void Score_TitleLongerThan256_UsesHeapAllocation()
         {
@@ -343,6 +345,29 @@ namespace SwitchBlade.Tests.Core
             // Title "abcd", Query "ab"
             // matchedAtStart = true, lastMatchIndex = 1, title.Length = 4
             int score = FuzzyMatcher.Score("abcd", "ab");
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_ExactContains_NotStartsWith()
+        {
+            // Tests the branch where title.Contains(query) is true, but StartsWith is false.
+            // "Hello World" contains "World", but doesn't start with it.
+            int score = FuzzyMatcher.Score("Hello World", "World");
+            Assert.True(score > 0);
+            // Should score lower than "World Hello" (starts with) which gets bonus.
+            int startsWithScore = FuzzyMatcher.Score("World Hello", "World");
+            Assert.True(startsWithScore > score);
+        }
+
+        [Fact]
+        public void Score_Fuzzy_NotAtStart()
+        {
+            // Explicitly test fuzzy match that does NOT start at 0 normalized index.
+            // "G_oogle", "ogle" -> Norm "google", "ogle".
+            // 'o' matches at 1. No match at start.
+            // Ensures matchedAtStart remains false.
+            int score = FuzzyMatcher.Score("G_oogle", "ogle");
             Assert.True(score > 0);
         }
 

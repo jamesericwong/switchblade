@@ -13,7 +13,7 @@ namespace SwitchBlade.Services
     /// </summary>
     public class MemoryDiagnosticsService : IDisposable
     {
-        private readonly PeriodicTimer _timer;
+        private readonly IPeriodicTimer _timer;
         private readonly CancellationTokenSource _cts;
         private Task? _executionTask;
 
@@ -22,6 +22,7 @@ namespace SwitchBlade.Services
         private readonly IWindowSearchService _searchService;
         private readonly ILogger _logger;
         private readonly IProcessFactory _processFactory;
+        private readonly IMemoryInfoProvider _memoryInfoProvider;
 
         public MemoryDiagnosticsService(
             IWindowOrchestrationService orchestrationService,
@@ -29,15 +30,19 @@ namespace SwitchBlade.Services
             IWindowSearchService searchService,
             ILogger logger,
             IProcessFactory? processFactory = null,
+            IMemoryInfoProvider? memoryInfoProvider = null,
+            Func<TimeSpan, IPeriodicTimer>? timerFactory = null,
             TimeSpan? interval = null)
         {
-            _orchestrationService = orchestrationService;
-            _iconService = iconService;
-            _searchService = searchService;
-            _logger = logger;
+            _orchestrationService = orchestrationService ?? throw new ArgumentNullException(nameof(orchestrationService));
+            _iconService = iconService ?? throw new ArgumentNullException(nameof(iconService));
+            _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _processFactory = processFactory ?? new ProcessFactory();
+            _memoryInfoProvider = memoryInfoProvider ?? new SystemMemoryInfoProvider();
 
-            _timer = new PeriodicTimer(interval ?? TimeSpan.FromSeconds(60));
+            var timerInterval = interval ?? TimeSpan.FromSeconds(60);
+            _timer = timerFactory?.Invoke(timerInterval) ?? new SystemPeriodicTimer(timerInterval);
             _cts = new CancellationTokenSource();
         }
 
@@ -64,6 +69,7 @@ namespace SwitchBlade.Services
 
         private async Task RunDiagnosticsLoop()
         {
+            // First delay before first tick (standard periodic timer behavior)
             try
             {
                 while (await _timer.WaitForNextTickAsync(_cts.Token))
@@ -89,7 +95,7 @@ namespace SwitchBlade.Services
                 using var proc = _processFactory.GetCurrentProcess();
                 proc.Refresh();
 
-                long managedMemory = GC.GetTotalMemory(false); // Bytes
+                long managedMemory = _memoryInfoProvider.GetTotalMemory(false); // Bytes
                 long workingSet = proc.WorkingSet64;           // Bytes (RAM)
                 long privateBytes = proc.PrivateMemorySize64;  // Bytes (Committed)
                 int handleCount = proc.HandleCount;
@@ -124,6 +130,7 @@ namespace SwitchBlade.Services
         {
             _cts.Dispose();
             _timer.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

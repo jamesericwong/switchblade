@@ -12,46 +12,50 @@ namespace SwitchBlade.Tests.Services
     {
         private readonly Mock<ISettingsStorage> _mockStorage;
         private readonly Mock<IWindowsStartupManager> _mockStartupManager;
+        private readonly Mock<IProcessFactory> _mockProcessFactory;
+        private readonly Mock<IProcess> _mockProcess;
 
         public SettingsServiceTests()
         {
             _mockStorage = new Mock<ISettingsStorage>();
             _mockStartupManager = new Mock<IWindowsStartupManager>();
+            _mockProcessFactory = new Mock<IProcessFactory>();
+            _mockProcess = new Mock<IProcess>();
 
-            // Default setups to avoid nulls/missing keys
+            // Default setups
             _mockStorage.Setup(s => s.HasKey(It.IsAny<string>())).Returns(true);
             _mockStorage.Setup(s => s.GetStringList(It.IsAny<string>())).Returns(new List<string>());
+            
+            // Process setup
+            _mockProcessFactory.Setup(f => f.GetCurrentProcess()).Returns(_mockProcess.Object);
+            // Default valid path
+            _mockProcess.Setup(p => p.MainModuleFileName).Returns(@"C:\Test\SwitchBlade.exe");
         }
 
         [Fact]
         public void LoadSettings_RetrievesValuesFromStorage()
         {
-            // Arrange
             _mockStorage.Setup(s => s.GetValue("CurrentTheme", It.IsAny<string>())).Returns("Dark");
             _mockStorage.Setup(s => s.GetValue("WindowWidth", It.IsAny<double>())).Returns(1024.0);
             _mockStorage.Setup(s => s.GetValue("EnableNumberShortcuts", It.IsAny<bool>())).Returns(false);
+            _mockStorage.Setup(s => s.GetValue("UiaWorkerTimeoutSeconds", It.IsAny<int>())).Returns(99);
 
-            // Act
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
 
-            // Assert
             Assert.Equal("Dark", service.Settings.CurrentTheme);
             Assert.Equal(1024.0, service.Settings.WindowWidth);
             Assert.False(service.Settings.EnableNumberShortcuts);
+            Assert.Equal(99, service.Settings.UiaWorkerTimeoutSeconds);
         }
 
         [Fact]
         public void LoadSettings_RecreatesMissingKeys()
         {
-            // Arrange
             _mockStorage.Setup(s => s.HasKey("HotKeyKey")).Returns(false);
             _mockStorage.Setup(s => s.GetValue("HotKeyKey", 0x51u)).Returns(0x51u);
 
-            // Act
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
 
-            // Assert
-            // Verification: SaveSettings should have been called (which calls Flush and writes to registry)
             _mockStorage.Verify(s => s.SetValue("HotKeyKey", 0x51u), Times.AtLeastOnce);
             _mockStorage.Verify(s => s.Flush(), Times.AtLeastOnce);
         }
@@ -59,32 +63,47 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public void LoadSettings_UsesDefaultWhenStorageReturnsDefault()
         {
-            // Arrange
             _mockStorage.Setup(s => s.GetValue("CurrentTheme", "Super Light")).Returns("Super Light");
 
-            // Act
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
 
-            // Assert
             Assert.Equal("Super Light", service.Settings.CurrentTheme);
+        }
+
+        [Fact]
+        public void LoadSettings_Lists_WhenMissing_SetsDirty()
+        {
+            _mockStorage.Setup(s => s.HasKey("ExcludedProcesses")).Returns(false);
+            
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
+            
+            // Should save empty list
+            _mockStorage.Verify(s => s.SetStringList("ExcludedProcesses", It.IsAny<List<string>>()), Times.Once);
+            _mockStorage.Verify(s => s.Flush(), Times.Once); // SaveSettings called
+        }
+
+        [Fact]
+        public void LoadSettings_Lists_WhenPresent_LoadsThem()
+        {
+            _mockStorage.Setup(s => s.HasKey("ExcludedProcesses")).Returns(true);
+            _mockStorage.Setup(s => s.GetStringList("ExcludedProcesses")).Returns(new List<string> { "foo.exe" });
+
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
+            
+            Assert.Contains("foo.exe", service.Settings.ExcludedProcesses);
         }
 
         [Fact]
         public void SaveSettings_PersistsValuesToStorage()
         {
-            // Arrange
-            _mockStorage.Setup(s => s.HasKey(It.IsAny<string>())).Returns(true);
-            _mockStorage.Setup(s => s.GetStringList("ExcludedProcesses")).Returns(new List<string> { "notepad" });
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
 
             service.Settings.CurrentTheme = "CustomTheme";
             service.Settings.WindowWidth = 1200.0;
             service.Settings.EnableFuzzySearch = false;
 
-            // Act
             service.SaveSettings();
 
-            // Assert
             _mockStorage.Verify(s => s.SetValue("CurrentTheme", "CustomTheme"), Times.AtLeastOnce);
             _mockStorage.Verify(s => s.SetValue("WindowWidth", 1200.0), Times.AtLeastOnce);
             _mockStorage.Verify(s => s.SetValue("EnableFuzzySearch", false), Times.AtLeastOnce);
@@ -94,56 +113,25 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public void SaveSettings_TriggersSettingsChangedEvent()
         {
-            // Arrange
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
             bool eventRaised = false;
             service.SettingsChanged += () => eventRaised = true;
 
-            // Act
             service.SaveSettings();
 
-            // Assert
             Assert.True(eventRaised);
         }
 
         [Fact]
         public void LoadSettings_SyncsStartupWithActualState()
         {
-            // Arrange
             _mockStorage.Setup(s => s.GetValue("LaunchOnStartup", It.IsAny<bool>())).Returns(true);
             _mockStartupManager.Setup(m => m.IsStartupEnabled()).Returns(false); // Out of sync
 
-            // Act
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
 
-            // Assert
             Assert.False(service.Settings.LaunchOnStartup); // Should be synced to actual state
             _mockStorage.Verify(s => s.SetStringList(It.IsAny<string>(), It.IsAny<List<string>>()), Times.AtLeastOnce); // Should trigger a save (dirty)
-        }
-
-        [Fact]
-        public void DefaultConstructor_CreatesInstance()
-        {
-            var service = new SettingsService();
-            Assert.NotNull(service.Settings);
-        }
-
-        [Fact]
-        public void StartupManagerConstructor_CreatesInstance()
-        {
-            var service = new SettingsService(_mockStartupManager.Object);
-            Assert.NotNull(service.Settings);
-        }
-
-        [Fact]
-        public void LoadSettings_WhenMissingKey_SetsDirtyAndSaves()
-        {
-            // Missing ExcludedProcesses
-            _mockStorage.Setup(s => s.HasKey("ExcludedProcesses")).Returns(false);
-            
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
-            
-            _mockStorage.Verify(s => s.SetStringList("ExcludedProcesses", It.IsAny<List<string>>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -151,7 +139,7 @@ namespace SwitchBlade.Tests.Services
         {
             _mockStartupManager.Setup(m => m.CheckAndApplyStartupMarker()).Returns(true);
             
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
             
             Assert.True(service.Settings.LaunchOnStartup);
             _mockStorage.Verify(s => s.Flush(), Times.AtLeastOnce);
@@ -161,7 +149,7 @@ namespace SwitchBlade.Tests.Services
         public void SaveSettings_WhenErrorOccurs_LogsError()
         {
             var mockLogger = new Mock<ILogger>();
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, mockLogger.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, mockLogger.Object, _mockProcessFactory.Object);
             
             _mockStorage.Setup(s => s.Flush()).Throws(new Exception("Fail"));
             
@@ -171,56 +159,65 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void UpdateStartupRegistryEntry_HandlesEmptyExePath()
+        public void SaveSettings_WhenLaunchOnStartupTrue_EnablesStartup()
         {
-            // This is hard to trigger as Process.GetCurrentProcess().MainModule?.FileName is usually populated
-            // but we hit the branch by coverage of existing tests
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
+            service.Settings.LaunchOnStartup = true;
+
+            // Setup process return
+            _mockProcess.Setup(p => p.MainModuleFileName).Returns(@"C:\MyApp\SwitchBlade.exe");
+
+            service.SaveSettings();
+
+            _mockStartupManager.Verify(m => m.EnableStartup(@"C:\MyApp\SwitchBlade.exe"), Times.Once);
         }
 
         [Fact]
-        public void LoadSettings_LoadsUiaWorkerTimeoutSeconds()
+        public void SaveSettings_WhenLaunchOnStartupTrue_ButExePathEmpty_DoesNotEnable()
         {
-            // Arrange
-            _mockStorage.Setup(s => s.GetValue("UiaWorkerTimeoutSeconds", It.IsAny<int>())).Returns(120);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
+            service.Settings.LaunchOnStartup = true;
 
-            // Act
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            _mockProcess.Setup(p => p.MainModuleFileName).Returns((string?)null);
 
-            // Assert
-            Assert.Equal(120, service.Settings.UiaWorkerTimeoutSeconds);
+            service.SaveSettings();
+
+            _mockStartupManager.Verify(m => m.EnableStartup(It.IsAny<string>()), Times.Never);
+            _mockStartupManager.Verify(m => m.DisableStartup(), Times.Never);
+        }
+
+        [Fact]
+        public void SaveSettings_WhenLaunchOnStartupFalse_DisablesStartup()
+        {
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
+            service.Settings.LaunchOnStartup = false;
+
+            service.SaveSettings();
+
+            _mockStartupManager.Verify(m => m.DisableStartup(), Times.Once);
         }
 
         [Fact]
         public void IsStartupEnabled_DelegatesToStartupManager()
         {
             _mockStartupManager.Setup(m => m.IsStartupEnabled()).Returns(true);
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
             
             Assert.True(service.IsStartupEnabled());
-            // Called in ctor (LoadSettings->Sync) and in IsStartupEnabled
-            _mockStartupManager.Verify(m => m.IsStartupEnabled(), Times.AtLeast(1)); 
+        }
+        
+        [Fact]
+        public void Constructor_NullArguments_Throws()
+        {
+             Assert.Throws<ArgumentNullException>(() => new SettingsService(null!, _mockStartupManager.Object));
+             Assert.Throws<ArgumentNullException>(() => new SettingsService(_mockStorage.Object, null!));
         }
 
         [Fact]
-        public void SaveSettings_WhenLaunchOnStartupTrue_EnablesStartup()
+        public void Constructor_DefaultOptionalArguments_Works()
         {
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
-            service.Settings.LaunchOnStartup = true;
-
-            service.SaveSettings();
-
-            _mockStartupManager.Verify(m => m.EnableStartup(It.IsAny<string>()), Times.Once);
-        }
-
-        [Fact]
-        public void SaveSettings_WhenLaunchOnStartupFalse_DisablesStartup()
-        {
-            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
-            service.Settings.LaunchOnStartup = false;
-
-            service.SaveSettings();
-
-            _mockStartupManager.Verify(m => m.DisableStartup(), Times.Once);
+             var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
+             Assert.NotNull(service);
         }
     }
 }

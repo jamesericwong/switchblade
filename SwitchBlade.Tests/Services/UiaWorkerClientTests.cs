@@ -296,6 +296,45 @@ namespace SwitchBlade.Tests.Services
              _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("ScanAsync failed mid-stream")), It.IsAny<Exception>()), Times.Once());
         }
 
+        [Fact]
+        public async Task ScanAsync_RunsSequentially_WithNewProcessEachTime()
+        {
+            var jsonResponse = "{\"isFinal\": true}";
+            
+            // Setup process factory to return distinct processes
+            var process1 = new Mock<IProcess>();
+            var process2 = new Mock<IProcess>();
+            
+            process1.Setup(p => p.StandardInput).Returns(new Mock<TextWriter>().Object);
+            process1.Setup(p => p.StandardOutput).Returns(new StringReader(jsonResponse));
+            
+            process2.Setup(p => p.StandardInput).Returns(new Mock<TextWriter>().Object);
+            process2.Setup(p => p.StandardOutput).Returns(new StringReader(jsonResponse));
+            
+            int startCallCount = 0;
+            _mockProcFactory.Setup(f => f.Start(It.IsAny<ProcessStartInfo>()))
+                .Returns(() => 
+                {
+                    startCallCount++;
+                    return startCallCount == 1 ? process1.Object : process2.Object;
+                });
+
+            var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+
+            // First scan
+            await client.ScanAsync();
+            
+            // Second scan
+            await client.ScanAsync();
+            
+            // Verify Start called twice
+            _mockProcFactory.Verify(f => f.Start(It.IsAny<ProcessStartInfo>()), Times.Exactly(2));
+            
+            // Verify both processes were disposed (as each scan finishes)
+            process1.Verify(p => p.Dispose(), Times.Once());
+            process2.Verify(p => p.Dispose(), Times.Once());
+        }
+
         private static DataReceivedEventArgs CreateDataReceivedEventArgs(string data)
         {
             var ctor = typeof(DataReceivedEventArgs).GetConstructor(

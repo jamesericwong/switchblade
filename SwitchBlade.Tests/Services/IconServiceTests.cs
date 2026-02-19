@@ -98,5 +98,37 @@ namespace SwitchBlade.Tests.Services
             // We can't easily verify the internal extractor, but we verify it doesn't throw
             Assert.NotNull(service);
         }
+        [Fact]
+        public void GetIcon_WhenSettingsNull_UsesFallbackLimit()
+        {
+            // Setup settings return null logic if property is accessed
+            _mockSettingsService.Setup(s => s.Settings).Returns((UserSettings)null!);
+            
+            // IconService uses "FallbackMaxCacheSize" constant (200) locally if Settings is null.
+            // We can't easily verify the limit number without filling it, but we can verify it doesn't crash.
+            var service = new IconService(_mockSettingsService.Object, _mockExtractor.Object);
+            service.GetIcon("test.exe");
+            Assert.Equal(1, service.CacheCount);
+        }
+
+        [Fact]
+        public void GetIcon_CacheFull_RetrievingExistingItem_DoesNotClear()
+        {
+            _settings.IconCacheSize = 2;
+            _service.GetIcon("item1.exe");
+            _service.GetIcon("item2.exe");
+            Assert.Equal(2, _service.CacheCount);
+
+            // Access existing item
+            _service.GetIcon("item1.exe");
+            
+            // Should still be 2, not cleared
+            Assert.Equal(2, _service.CacheCount);
+            
+            // Verify clear was NOT called (we can't verify Clear() methodology directly but we assume CacheCount would drop)
+            // If it cleared, it would re-add item1, so count would be 1.
+            // Wait, if it cleared, it would be empty then add item1 -> count 1.
+            // So Equal(2) proves it didn't clear.
+        }
     }
 }

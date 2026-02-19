@@ -393,5 +393,30 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal(itemB, vm2.FilteredWindows[0]);
             Assert.Equal(itemA, vm2.FilteredWindows[1]);
         }
+
+        [Fact]
+        public void SearchText_Change_RaisesSearchTextChanged()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var eventRaised = false;
+            vm.SearchTextChanged += (s, e) => eventRaised = true;
+
+            vm.SearchText = "new";
+
+            Assert.True(eventRaised);
+        }
+
+        [Fact]
+        public void UpdateSearch_RaisesResultsUpdated()
+        {
+            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var eventRaised = false;
+            vm.ResultsUpdated += (s, e) => eventRaised = true;
+
+            // SearchText change triggers UpdateSearch
+            vm.SearchText = "update";
+
+            Assert.True(eventRaised);
+        }
     }
 }

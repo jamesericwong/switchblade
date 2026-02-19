@@ -26,5 +26,10 @@ namespace SwitchBlade.Contracts
         long PrivateMemorySize64 { get; }
         int HandleCount { get; }
         int ThreadCount { get; }
+        
+        /// <summary>
+        /// Gets the full path to the executable file for the process.
+        /// </summary>
+        string? MainModuleFileName { get; }
     }
 }

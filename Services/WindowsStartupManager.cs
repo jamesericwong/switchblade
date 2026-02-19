@@ -15,10 +15,12 @@ namespace SwitchBlade.Services
         private const string STARTUP_VALUE_NAME = "SwitchBlade";
 
         private readonly IRegistryService _registryService;
+        private readonly ILogger? _logger;
 
-        public WindowsStartupManager(IRegistryService registryService)
+        public WindowsStartupManager(IRegistryService registryService, ILogger? logger = null)
         {
             _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
+            _logger = logger;
         }
 
         /// <inheritdoc />
@@ -49,7 +51,7 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                SwitchBlade.Core.Logger.LogError("Failed to enable startup registry entry", ex);
+                _logger?.LogError("Failed to enable startup registry entry", ex);
             }
         }
 
@@ -62,7 +64,7 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                SwitchBlade.Core.Logger.LogError("Failed to disable startup registry entry", ex);
+                _logger?.LogError("Failed to disable startup registry entry", ex);
             }
         }
 
@@ -86,7 +88,7 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                SwitchBlade.Core.Logger.LogError("Failed to read/delete EnableStartupOnFirstRun marker", ex);
+                _logger?.LogError("Failed to read/delete EnableStartupOnFirstRun marker", ex);
             }
 
             return false;

@@ -19,6 +19,7 @@ namespace SwitchBlade.Services
         private readonly IWindowReconciler _reconciler;
         private readonly ISettingsService _settingsService;
         private readonly IUiaWorkerClient _uiaWorkerClient;
+        private readonly INativeInteropWrapper _nativeInterop;
         private readonly ILogger? _logger;
         private readonly List<WindowItem> _allWindows = new();
         
@@ -46,19 +47,21 @@ namespace SwitchBlade.Services
             IEnumerable<IWindowProvider> providers,
             IWindowReconciler reconciler,
             IUiaWorkerClient uiaWorkerClient,
+            INativeInteropWrapper nativeInterop,
             ILogger? logger = null,
             ISettingsService? settingsService = null)
         {
             _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
             _reconciler = reconciler ?? throw new ArgumentNullException(nameof(reconciler));
             _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
+            _nativeInterop = nativeInterop ?? throw new ArgumentNullException(nameof(nativeInterop));
             _logger = logger;
             _settingsService = settingsService!; // Can be null in tests, we handle below
         }
 
         // Backward compatibility constructor for tests
         public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IIconService? iconService = null, ISettingsService? settingsService = null)
-            : this(providers, new WindowReconciler(iconService), new NullUiaWorkerClient(), null, settingsService)
+            : this(providers, new WindowReconciler(iconService), new NullUiaWorkerClient(), new SwitchBlade.Core.NativeInteropWrapper(), null, settingsService)
         {
         }
 
@@ -81,7 +84,7 @@ namespace SwitchBlade.Services
                     disabledPlugins ??= new HashSet<string>();
 
                     // Clear process cache for fresh lookups
-                    NativeInterop.ClearProcessCache();
+                    _nativeInterop.ClearProcessCache();
 
                     // 1. Reload settings and gather handled processes (for all providers)
                     var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

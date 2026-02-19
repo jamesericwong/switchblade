@@ -16,6 +16,8 @@ namespace SwitchBlade.Services
         private readonly IDispatcherService _dispatcherService;
         private readonly IWorkstationService _workstationService;
         private readonly Func<Task> _refreshAction;
+        // Factory for creating timers, essential for unit testing to avoid real-time delays
+        private readonly Func<TimeSpan, IPeriodicTimer> _periodicTimerFactory;
 
         private CancellationTokenSource? _cts;
         private Task? _pollingTask;
@@ -25,12 +27,14 @@ namespace SwitchBlade.Services
             ISettingsService settingsService, 
             IDispatcherService dispatcherService, 
             Func<Task> refreshAction,
-            IWorkstationService? workstationService = null)
+            IWorkstationService? workstationService = null,
+            Func<TimeSpan, IPeriodicTimer>? periodicTimerFactory = null)
         {
             _settingsService = settingsService;
             _dispatcherService = dispatcherService;
             _refreshAction = refreshAction;
             _workstationService = workstationService ?? new WorkstationService();
+            _periodicTimerFactory = periodicTimerFactory ?? (interval => new SystemPeriodicTimer(interval));
 
             // Subscribe to settings changes to dynamically update timer
             _settingsService.SettingsChanged += OnSettingsChanged;
@@ -79,8 +83,8 @@ namespace SwitchBlade.Services
 
         private async Task PollingLoop(TimeSpan interval, CancellationToken token)
         {
-            // Modern "PeriodicTimer" pattern
-            using var timer = new PeriodicTimer(interval);
+            // Modern "PeriodicTimer" pattern using factory for testability
+            using var timer = _periodicTimerFactory(interval);
             try
             {
                 while (await timer.WaitForNextTickAsync(token))

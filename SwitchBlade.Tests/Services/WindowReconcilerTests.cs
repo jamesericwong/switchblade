@@ -11,14 +11,16 @@ namespace SwitchBlade.Tests.Services
     public class WindowReconcilerTests
     {
         private readonly Mock<IIconService> _mockIconService;
+        private readonly Mock<ILogger> _mockLogger;
         private readonly Mock<IWindowProvider> _mockProvider;
         private readonly WindowReconciler _reconciler;
 
         public WindowReconcilerTests()
         {
             _mockIconService = new Mock<IIconService>();
+            _mockLogger = new Mock<ILogger>();
             _mockProvider = new Mock<IWindowProvider>();
-            _reconciler = new WindowReconciler(_mockIconService.Object, null);
+            _reconciler = new WindowReconciler(_mockIconService.Object, _mockLogger.Object);
         }
 
         [Fact]
@@ -135,6 +137,7 @@ namespace SwitchBlade.Tests.Services
             _reconciler.PopulateIcons(new List<WindowItem> { item });
             
             _mockIconService.Verify(s => s.GetIcon("fail.exe"), Times.Once);
+            _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Failed to populate icon")), It.IsAny<Exception>()), Times.Once);
         }
 
         [Fact]
