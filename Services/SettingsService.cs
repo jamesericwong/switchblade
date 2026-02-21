@@ -111,6 +111,9 @@ namespace SwitchBlade.Services
             // Fuzzy Search
             Settings.EnableFuzzySearch = Load(nameof(Settings.EnableFuzzySearch), true, ref settingsDirty);
 
+            // Search Highlighting
+            Settings.EnableSearchHighlighting = Load(nameof(Settings.EnableSearchHighlighting), true, ref settingsDirty);
+
             // UIA Worker Timeout
             Settings.UiaWorkerTimeoutSeconds = Load(nameof(Settings.UiaWorkerTimeoutSeconds), 60, ref settingsDirty);
 
@@ -194,6 +197,9 @@ namespace SwitchBlade.Services
 
                 // Fuzzy Search
                 _storage.SetValue(nameof(Settings.EnableFuzzySearch), Settings.EnableFuzzySearch);
+
+                // Search Highlighting
+                _storage.SetValue(nameof(Settings.EnableSearchHighlighting), Settings.EnableSearchHighlighting);
 
                 // UIA Worker Timeout
                 _storage.SetValue(nameof(Settings.UiaWorkerTimeoutSeconds), Settings.UiaWorkerTimeoutSeconds);

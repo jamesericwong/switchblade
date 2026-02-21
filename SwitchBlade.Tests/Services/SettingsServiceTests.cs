@@ -101,12 +101,14 @@ namespace SwitchBlade.Tests.Services
             service.Settings.CurrentTheme = "CustomTheme";
             service.Settings.WindowWidth = 1200.0;
             service.Settings.EnableFuzzySearch = false;
+            service.Settings.EnableSearchHighlighting = false;
 
             service.SaveSettings();
 
             _mockStorage.Verify(s => s.SetValue("CurrentTheme", "CustomTheme"), Times.AtLeastOnce);
             _mockStorage.Verify(s => s.SetValue("WindowWidth", 1200.0), Times.AtLeastOnce);
             _mockStorage.Verify(s => s.SetValue("EnableFuzzySearch", false), Times.AtLeastOnce);
+            _mockStorage.Verify(s => s.SetValue("EnableSearchHighlighting", false), Times.AtLeastOnce);
             _mockStorage.Verify(s => s.Flush(), Times.AtLeastOnce);
         }
 

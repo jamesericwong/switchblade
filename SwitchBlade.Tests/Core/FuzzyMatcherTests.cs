@@ -390,5 +390,118 @@ namespace SwitchBlade.Tests.Core
         }
 
         #endregion
+
+        #region GetMatchedIndices
+
+        [Fact]
+        public void GetMatchedIndices_NullTitle_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices(null!, "abc", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_NullQuery_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("title", null!, true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_EmptyQuery_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("title", "", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_EmptyTitle_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("", "abc", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_ExactSubstring_ReturnsContiguousIndices()
+        {
+            // "Chrome" contains "rom" at index 2
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "rom", true);
+            Assert.Equal(new[] { 2, 3, 4 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_CaseInsensitiveSubstring_ReturnsIndices()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "CHR", true);
+            Assert.Equal(new[] { 0, 1, 2 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyMatch_ReturnsNonContiguousIndices()
+        {
+            // "Google Chrome" normalized -> "googlechrome"
+            // query "gc" -> g at 0, c at 6 in normalized
+            // Original: G(0) o(1) o(2) g(3) l(4) e(5) (space)(6) C(7)
+            // Normalized map: g->0, o->1, o->2, g->3, l->4, e->5, c->7, h->8, r->9, o->10, m->11, e->12
+            // So fuzzy 'g' at norm[0] -> orig 0, 'c' at norm[6] -> orig 7
+            var result = FuzzyMatcher.GetMatchedIndices("Google Chrome", "gc", true);
+            Assert.Equal(new[] { 0, 7 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_NoMatch_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "xyz", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_NotFuzzy_SubstringOnly()
+        {
+            // With fuzzy disabled, only exact substring match works
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "rom", false);
+            Assert.Equal(new[] { 2, 3, 4 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_NotFuzzy_NoSubstringMatch_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "gc", false);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyWithDelimiters_MapsBackCorrectly()
+        {
+            // "hello_world" normalized -> "helloworld"
+            // query "hw" -> h at norm[0] -> orig 0, w at norm[5] -> orig 6
+            var result = FuzzyMatcher.GetMatchedIndices("hello_world", "hw", true);
+            Assert.Equal(new[] { 0, 6 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyQueryLongerThanNormalized_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("ab", "abcdef", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyIncompleteMatch_ReturnsEmpty()
+        {
+            // "abc" normalized -> "abc", query "abz" -> a,b match but z doesn't
+            var result = FuzzyMatcher.GetMatchedIndices("abc", "abz", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyNormalizedQueryEmpty_ReturnsEmpty()
+        {
+            // Query " _-" normalizes to empty
+            var result = FuzzyMatcher.GetMatchedIndices("title", " _-", true);
+            Assert.Empty(result);
+        }
+
+        #endregion
     }
 }

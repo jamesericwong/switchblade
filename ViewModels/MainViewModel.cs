@@ -78,6 +78,8 @@ namespace SwitchBlade.ViewModels
                     OnPropertyChanged(nameof(EnableNumberShortcuts));
                     OnPropertyChanged(nameof(ShortcutModifierText));
                     OnPropertyChanged(nameof(ItemHeight));
+                    OnPropertyChanged(nameof(EnableSearchHighlighting));
+                    OnPropertyChanged(nameof(EnableFuzzySearch));
                 };
             }
         }
@@ -107,6 +109,10 @@ namespace SwitchBlade.ViewModels
         }
 
         public bool EnableNumberShortcuts => _settingsService?.Settings.EnableNumberShortcuts ?? true;
+
+        public bool EnableSearchHighlighting => _settingsService?.Settings.EnableSearchHighlighting ?? true;
+
+        public bool EnableFuzzySearch => _settingsService?.Settings.EnableFuzzySearch ?? true;
 
         public string ShortcutModifierText
         {

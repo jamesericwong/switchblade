@@ -159,6 +159,12 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.EnableFuzzySearch = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public bool EnableSearchHighlighting
+        {
+            get => _settingsService.Settings.EnableSearchHighlighting;
+            set { _settingsService.Settings.EnableSearchHighlighting = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+        }
+
         public int IconCacheSize
         {
             get => _settingsService.Settings.IconCacheSize;

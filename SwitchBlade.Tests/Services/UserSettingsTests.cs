@@ -142,5 +142,13 @@ namespace SwitchBlade.Tests.Services
 
             Assert.Equal(60, settings.UiaWorkerTimeoutSeconds);
         }
+
+        [Fact]
+        public void UserSettings_DefaultEnableSearchHighlighting_IsTrue()
+        {
+            var settings = new UserSettings();
+
+            Assert.True(settings.EnableSearchHighlighting);
+        }
     }
 }
