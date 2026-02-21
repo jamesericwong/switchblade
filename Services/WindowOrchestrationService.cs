@@ -272,7 +272,7 @@ namespace SwitchBlade.Services
                 // Check LKG condition
                 if (results.Count > 0 && results.All(r => r.IsFallback))
                 {
-                    bool hasExistingRealItems = _allWindows.Any(w => w.Source == provider && !w.IsFallback);
+                    bool hasExistingRealItems = HasExistingRealItems(provider);
                     if (hasExistingRealItems)
                     {
                         _logger?.Log($"[LKG] {provider.PluginName}: Transient failure (only fallback items received). Preserving {_allWindows.Count(w => w.Source == provider)} existing items.");
@@ -332,6 +332,22 @@ namespace SwitchBlade.Services
             WindowListUpdated?.Invoke(this, args);
         }
 
+        /// <summary>
+        /// Checks whether any cached items for the given provider are non-fallback (real).
+        /// Extracted for deterministic branch coverage of both conditions.
+        /// </summary>
+        private bool HasExistingRealItems(IWindowProvider provider)
+        {
+            foreach (var w in _allWindows)
+            {
+                if (w.Source != provider)
+                    continue;
+                if (!w.IsFallback)
+                    return true;
+            }
+            return false;
+        }
+
         #region Encapsulated Cache Mutators (Delegated to Reconciler)
 
         /// <summary>
@@ -342,19 +358,8 @@ namespace SwitchBlade.Services
 
         #endregion
 
-        #region Test Helpers (Internal)
 
-        /// <summary>
-        /// Gets the total count of items across all HWND cache lists (for testing).
-        /// </summary>
-        internal int GetInternalHwndCacheCount() => _reconciler.GetHwndCacheCount();
 
-        /// <summary>
-        /// Gets the total count of items across all provider sets (for testing).
-        /// </summary>
-        internal int GetInternalProviderCacheCount() => _reconciler.GetProviderCacheCount();
-
-        #endregion
 
         public void Dispose()
         {
