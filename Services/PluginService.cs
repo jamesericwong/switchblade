@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 
@@ -60,7 +61,10 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                _logger?.LogError("Error loading plugins", ex);
+                if (_logger != null)
+                {
+                    _logger.LogError("Error loading plugins", ex);
+                }
             }
         }
 
@@ -71,22 +75,42 @@ namespace SwitchBlade.Services
 
         public IEnumerable<PluginInfo> GetPluginInfos()
         {
-            return _providers.Select(p =>
+            return _providers.Select(MapToInfo);
+        }
+
+        internal static PluginInfo MapToInfo(IWindowProvider p)
+        {
+            var type = p.GetType();
+            var assembly = type.Assembly;
+            var assemblyName = assembly.GetName();
+
+            return MapToInfo(
+                p,
+                GetTypeName(type),
+                GetAssemblyName(assemblyName),
+                GetVersion(assemblyName),
+                IsInternalProvider(assembly, assemblyName));
+        }
+
+        internal static string GetTypeName(Type type) => type.FullName ?? type.Name;
+        internal static string GetAssemblyName(AssemblyName name) => name.Name ?? "Unknown";
+        internal static string GetVersion(AssemblyName name) => name.Version?.ToString() ?? "0.0.0";
+        internal static bool IsInternalProvider(Assembly assembly, AssemblyName name) 
+            => assembly == typeof(PluginService).Assembly || name.Name == "SwitchBlade";
+
+        internal static PluginInfo MapToInfo(IWindowProvider p, string typeName, string assemblyName, string version, bool isInternal)
+        {
+            return new PluginInfo
             {
-                var type = p.GetType();
-                var assembly = type.Assembly;
-                return new PluginInfo
-                {
-                    Name = p.PluginName,
-                    TypeName = type.FullName ?? type.Name,
-                    AssemblyName = assembly.GetName().Name ?? "Unknown",
-                    Version = assembly.GetName().Version?.ToString() ?? "0.0.0",
-                    IsInternal = assembly == typeof(PluginService).Assembly || assembly.GetName().Name == "SwitchBlade",
-                    HasSettings = p.HasSettings,
-                    Provider = p,
-                    IsEnabled = true
-                };
-            });
+                Name = p.PluginName,
+                TypeName = typeName,
+                AssemblyName = assemblyName,
+                Version = version,
+                IsInternal = isInternal,
+                HasSettings = p.HasSettings,
+                Provider = p,
+                IsEnabled = true
+            };
         }
     }
 }

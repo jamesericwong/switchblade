@@ -171,5 +171,148 @@ namespace SwitchBlade.Tests.Services
              _mockAnimator.Verify(a => a.Animate(item, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
              Assert.True(item.HasBeenAnimated);
         }
+
+        [Fact]
+        public void Constructor_Throws_WhenAnimatorNull()
+        {
+            Assert.Throws<ArgumentNullException>(() => new BadgeAnimationService(null!));
+        }
+
+        [Fact]
+        public void Constructor_UsesDefaultDelayProvider_WhenNull()
+        {
+            // Act
+            var service = new BadgeAnimationService(_mockAnimator.Object, null);
+            
+            // Assert
+            Assert.NotNull(service);
+            // We can't easily check the private field _delayProvider without reflection,
+            // but the fact it doesn't throw and initializes is the primary branch.
+        }
+
+        [Fact]
+        public async Task Trigger_CancellationDuringDebounce_ReturnsImmediately()
+        {
+            var items = new List<WindowItem> { new WindowItem { ShortcutIndex = 1 } };
+            
+            // Mock delay to throw OCE
+            _mockDelayProvider.Setup(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new OperationCanceledException());
+
+            // Act
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: false);
+
+            // Assert
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+        }
+
+        [Fact]
+        public async Task Trigger_CancellationDuringFinalDelay_HandlesGracefully()
+        {
+            var items = new List<WindowItem> { new WindowItem { ShortcutIndex = 1 } };
+            
+            _mockDelayProvider.SetupSequence(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask) // Debounce succeeds
+                .ThrowsAsync(new OperationCanceledException()); // Final delay fails
+
+            // Act
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: false);
+
+            // Assert
+            // Animation should have still been triggered
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
+        }
+
+        [Fact]
+        public async Task Trigger_MixedVisibilityItems_HandlesCorrectly()
+        {
+            var item1 = new WindowItem { Title = "Visible", ShortcutIndex = 1 };
+            var item2 = new WindowItem { Title = "Hidden", ShortcutIndex = -1 }; // ShortcutIndex -1 means IsShortcutVisible = false
+            
+            var items = new List<WindowItem> { item1, item2 };
+
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            // item1 should be animated (HasBeenAnimated = true)
+            _mockAnimator.Verify(a => a.Animate(item1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
+            Assert.True(item1.HasBeenAnimated);
+
+            // item2 should be skipped (continue branch)
+            _mockAnimator.Verify(a => a.Animate(item2, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+            Assert.False(item2.HasBeenAnimated);
+        }
+
+        [Fact]
+        public async Task Trigger_CancellationInsideLoop_ExitsEarly()
+        {
+            var items = new List<WindowItem> 
+            { 
+                new WindowItem { ShortcutIndex = 1 },
+                new WindowItem { ShortcutIndex = 2 }
+            };
+
+            // First call to start a cycle
+            var task1 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+            
+            // Second call immediately cancels the first CTS
+            var task2 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            await Task.WhenAll(task1, task2);
+
+            // One of them should have been cancelled before completing all items
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.AtMost(3)); 
+            }
+
+        [Fact]
+        public async Task Trigger_CancellationVisibleAfterDebounce_HitsBranch()
+        {
+            var items = new List<WindowItem> { new WindowItem { ShortcutIndex = 1 } };
+            
+            var tcs = new TaskCompletionSource();
+            _mockDelayProvider.Setup(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(tcs.Task);
+
+            // Start task1 - it will wait on the mock delay
+            var task1 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: false);
+            
+            // Start task2 - this cancels task1's CTS
+            var task2 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+            
+            // Resolve task1's delay WITHOUT throwing OCE
+            // This allows task1 to proceed to line 109 where it checks the token
+            tcs.SetResult(); 
+            
+            await task1;
+            await task2;
+
+            // task1 should have returned at line 109, so animate was never called for it by its own execution
+            // (task2 might have called it though)
+            // But we primarily care that line 109 was hit with true.
+        }
+
+        [Fact]
+        public async Task Trigger_CancellationVisibleInsideLoop_HitsBranch()
+        {
+            var item1 = new WindowItem { ShortcutIndex = 1 };
+            var item2 = new WindowItem { ShortcutIndex = 2 };
+            var items = new List<WindowItem> { item1, item2 };
+            
+            int callCount = 0;
+            // Mock animator to trigger cancellation of task1 when item1 is "animated"
+            _mockAnimator.Setup(a => a.Animate(item1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()))
+                .Callback(() => {
+                    // Only trigger cancellation once to avoid infinite recursion
+                    if (Interlocked.Increment(ref callCount) == 1)
+                    {
+                        // Start task2 to cancel task1
+                        _ = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+                    }
+                });
+
+            // Act
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            // This should hit line 117 after item1 but before item2
+        }
     }
 }

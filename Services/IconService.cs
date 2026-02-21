@@ -39,7 +39,7 @@ namespace SwitchBlade.Services
                 return null;
 
             // Check cache size limit before adding new items
-            int limit = _settingsService?.Settings?.IconCacheSize ?? FallbackMaxCacheSize;
+            int limit = _settingsService.Settings?.IconCacheSize ?? FallbackMaxCacheSize;
 
             // If cache is full and this is a new item, clear it to prevent unbounded growth
             if (_iconCache.Count >= limit && !_iconCache.ContainsKey(executablePath))

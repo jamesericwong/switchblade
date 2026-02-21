@@ -77,11 +77,7 @@ namespace SwitchBlade.Services
                     ForceLogMemoryStats();
                 }
             }
-            catch (OperationCanceledException)
-            {
-                // Normal shutdown
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (!(ex is OperationCanceledException))
             {
                 _logger.LogError("MemoryDiagnosticsService loop error", ex);
             }

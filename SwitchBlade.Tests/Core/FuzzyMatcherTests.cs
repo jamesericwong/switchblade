@@ -262,16 +262,18 @@ namespace SwitchBlade.Tests.Core
         [Fact]
         public void Score_TitleLongerThan256_UsesHeapAllocation()
         {
-            string longTitle = new string('a', 300) + "target";
-            int score = FuzzyMatcher.Score(longTitle, "target");
+            // Must NOT trigger exact match fast path
+            string longTitle = new string('a', 300) + "x y z";
+            int score = FuzzyMatcher.Score(longTitle, "xyz"); // Fuzzy match 'x', 'y', 'z'
             Assert.True(score > 0);
         }
 
         [Fact]
         public void Score_QueryLongerThan64_UsesHeapAllocation()
         {
-            string longQuery = new string('a', 70) + "target";
-            string title = new string('a', 100) + "target";
+            // Must NOT trigger exact match fast path
+            string longQuery = new string('a', 70) + "x y z";
+            string title = new string('a', 100) + "x-y-z";
             int score = FuzzyMatcher.Score(title, longQuery);
             Assert.True(score > 0);
         }
@@ -368,6 +370,22 @@ namespace SwitchBlade.Tests.Core
             // 'o' matches at 1. No match at start.
             // Ensures matchedAtStart remains false.
             int score = FuzzyMatcher.Score("G_oogle", "ogle");
+            Assert.True(score > 0);
+
+            // Verify matchedAtStart is false by comparing with a starts-with match
+            int startsWithScore = FuzzyMatcher.Score("google", "goog");
+            int nonStartScore = FuzzyMatcher.Score("xgoogle", "goog");
+            Assert.True(startsWithScore > nonStartScore);
+        }
+
+        [Fact]
+        public void Score_Normalization_BufferTruncation_ExercisesBranch()
+        {
+            // This is a bit tricky to hit, but if we have a title that is exactly the length 
+            // of the buffer but contains delimiters, Normalize will finish i loop before writeIndex hits buffer end.
+            // If it HAS NO delimiters, writeIndex hits buffer end.
+            string maxLenTitle = new string('a', 512); 
+            int score = FuzzyMatcher.Score(maxLenTitle, "aaaa");
             Assert.True(score > 0);
         }
 

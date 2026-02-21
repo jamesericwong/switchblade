@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
 using Moq;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
@@ -71,6 +73,20 @@ namespace SwitchBlade.Tests.Services
             Assert.Contains(service.Providers, p => p is WindowFinder);
             // Should verify logging happened
             _mockLogger.Verify(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
+        public void LoadProviders_DoesNotCrash_WhenLoaderThrowsAndLoggerIsNull()
+        {
+            // Arrange
+            _mockLoader.Setup(l => l.LoadPlugins()).Throws(new Exception("Load failed"));
+
+            // Act
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, null, _mockLoader.Object);
+
+            // Assert
+            Assert.Contains(service.Providers, p => p is WindowFinder);
+            // No crash means success
         }
 
         [Fact]
@@ -169,6 +185,88 @@ namespace SwitchBlade.Tests.Services
              Assert.Throws<ArgumentNullException>(() => new PluginService(null!, _mockSettings.Object, _mockLogger.Object, _mockLoader.Object));
              Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, null!, _mockLogger.Object, _mockLoader.Object));
              Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, (IPluginLoader)null!));
+        }
+
+        [Fact]
+        public void GetTypeName_HitsAllBranches()
+        {
+            // FullName is not null
+            Assert.Equal("System.String", PluginService.GetTypeName(typeof(string)));
+            
+            // FullName is null for generic parameters
+            var genericParam = typeof(List<>).GetGenericArguments()[0];
+            Assert.Equal("T", PluginService.GetTypeName(genericParam));
+        }
+
+        [Fact]
+        public void GetAssemblyName_HitsAllBranches()
+        {
+            // Name is not null
+            var name1 = new AssemblyName("Test");
+            Assert.Equal("Test", PluginService.GetAssemblyName(name1));
+            
+            // Name is null
+            var name2 = new AssemblyName();
+            Assert.Equal("Unknown", PluginService.GetAssemblyName(name2));
+        }
+
+        [Fact]
+        public void GetVersion_HitsAllBranches()
+        {
+            // Version is not null
+            var name1 = new AssemblyName("Test") { Version = new Version(1, 0) };
+            Assert.Equal("1.0", PluginService.GetVersion(name1));
+            
+            // Version is null
+            var name2 = new AssemblyName("Test") { Version = null };
+            Assert.Equal("0.0.0", PluginService.GetVersion(name2));
+        }
+
+        [Fact]
+        public void IsInternalProvider_HitsAllBranches()
+        {
+            var internalAssembly = typeof(PluginService).Assembly;
+            var externalAssembly = typeof(object).Assembly;
+            
+            // Branch 1: Is internal assembly
+            Assert.True(PluginService.IsInternalProvider(internalAssembly, internalAssembly.GetName()));
+            
+            // Branch 2: Not internal assembly but name is "SwitchBlade"
+            var fakeName = new AssemblyName("SwitchBlade");
+            Assert.True(PluginService.IsInternalProvider(externalAssembly, fakeName));
+            
+            // Branch 3: Not internal and name is not "SwitchBlade"
+            var otherName = new AssemblyName("Other");
+            Assert.False(PluginService.IsInternalProvider(externalAssembly, otherName));
+        }
+
+        [Fact]
+        public void MapToInfo_HitsBasicBranches()
+        {
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.Setup(p => p.PluginName).Returns("Test");
+            mockProvider.Setup(p => p.HasSettings).Returns(true);
+            
+            var info = PluginService.MapToInfo(mockProvider.Object, "T", "A", "V", true);
+            Assert.Equal("Test", info.Name);
+            Assert.Equal("T", info.TypeName);
+            Assert.Equal("A", info.AssemblyName);
+            Assert.Equal("V", info.Version);
+            Assert.True(info.IsInternal);
+            Assert.True(info.HasSettings);
+            Assert.Same(mockProvider.Object, info.Provider);
+        }
+
+        [Fact]
+        public void MapToInfo_Wrapper_Works()
+        {
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.Setup(p => p.PluginName).Returns("Test");
+            
+            var info = PluginService.MapToInfo(mockProvider.Object);
+            Assert.NotNull(info.TypeName);
+            Assert.NotNull(info.AssemblyName);
+            Assert.NotNull(info.Version);
         }
     }
 }

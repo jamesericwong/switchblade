@@ -52,6 +52,18 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
+        public void Constructors_ExercisesDefaultAssignment()
+        {
+            // Test default constructor
+            var finder1 = new WindowFinder();
+            Assert.Equal("WindowFinder", finder1.PluginName);
+
+            // Test parameterized constructor with null interop
+            var finder2 = new WindowFinder(_mockSettingsService.Object);
+            Assert.Equal("WindowFinder", finder2.PluginName);
+        }
+
+        [Fact]
         public void SetExclusions_ShouldUpdateExclusions()
         {
             var finder = CreateFinder();
@@ -273,7 +285,10 @@ namespace SwitchBlade.Tests.Core
             var title = "Error Window";
 
             _mockInterop.Setup(x => x.EnumWindows(It.IsAny<NativeInterop.EnumWindowsProc>(), It.IsAny<IntPtr>()))
-               .Callback<NativeInterop.EnumWindowsProc, IntPtr>((callback, param) => callback(hWnd, param));
+               .Callback<NativeInterop.EnumWindowsProc, IntPtr>((callback, param) =>
+               {
+                   callback(hWnd, param);
+               });
             _mockInterop.Setup(x => x.IsWindowVisible(hWnd)).Returns(true);
 
             _mockInterop.Setup(x => x.GetWindowTextUnsafe(hWnd, It.IsAny<IntPtr>(), It.IsAny<int>()))
@@ -292,6 +307,22 @@ namespace SwitchBlade.Tests.Core
             // Should default to "Window" process and still return it if not excluded
             Assert.Single(results);
             Assert.Equal("Window", results.First().ProcessName);
+        }
+
+        [Fact]
+        public void GetWindows_WithNullLogger_ShouldNotThrow()
+        {
+            var hWnd = (IntPtr)0x750;
+            _mockInterop.Setup(x => x.EnumWindows(It.IsAny<NativeInterop.EnumWindowsProc>(), It.IsAny<IntPtr>()))
+               .Callback<NativeInterop.EnumWindowsProc, IntPtr>((callback, param) => callback(hWnd, param));
+            _mockInterop.Setup(x => x.IsWindowVisible(hWnd)).Returns(true);
+            _mockInterop.Setup(x => x.GetWindowTextUnsafe(hWnd, It.IsAny<IntPtr>(), It.IsAny<int>())).Returns(5);
+            
+            // Finder with settings but NO Initialize(context) called, so Logger is null
+            var finder = new WindowFinder(_mockSettingsService.Object, _mockInterop.Object);
+            var results = finder.GetWindows();
+            
+            Assert.Single(results);
         }
 
         [Fact]
@@ -387,6 +418,17 @@ namespace SwitchBlade.Tests.Core
             public WindowFinderTestWrapper(ISettingsService settings, IWindowInterop interop) : base(settings, interop) { }
             public int GetPidPublic(IntPtr hwnd) => base.GetPid(hwnd);
             public (string, string?) GetProcessInfoPublic(uint pid) => base.GetProcessInfo(pid);
+            public bool IsWindowValidPublic(IntPtr hwnd) => base.IsWindowValid(hwnd);
+        }
+
+        [Fact]
+        public void IsWindowValid_CallsInterop()
+        {
+            var finder = new WindowFinderTestWrapper(_mockSettingsService.Object, _mockInterop.Object);
+            _mockInterop.Setup(x => x.IsWindowVisible((IntPtr)456)).Returns(true);
+            
+            Assert.True(finder.IsWindowValidPublic((IntPtr)456));
+            _mockInterop.Verify(x => x.IsWindowVisible((IntPtr)456), Times.Once);
         }
 
         [Fact]

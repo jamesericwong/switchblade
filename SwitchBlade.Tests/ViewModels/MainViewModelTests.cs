@@ -418,5 +418,227 @@ namespace SwitchBlade.Tests.ViewModels
 
             Assert.True(eventRaised);
         }
+
+        // ===== Coverage Gap Tests =====
+
+        [Fact]
+        public void Constructor_NullOrchestrationService_Throws()
+        {
+            Assert.Throws<System.ArgumentNullException>(() =>
+                new MainViewModel(null!, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object));
+        }
+
+        [Fact]
+        public void Constructor_NullSearchService_Throws()
+        {
+            Assert.Throws<System.ArgumentNullException>(() =>
+                new MainViewModel(new Mock<IWindowOrchestrationService>().Object, null!, new Mock<INavigationService>().Object));
+        }
+
+        [Fact]
+        public void Constructor_NullNavigationService_Throws()
+        {
+            Assert.Throws<System.ArgumentNullException>(() =>
+                new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, null!));
+        }
+
+        [Fact]
+        public void ItemHeight_WithSettings_ReturnsSettingsValue()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { ItemHeight = 100.0 });
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+
+            Assert.Equal(100.0, vm.ItemHeight);
+        }
+
+        [Fact]
+        public void ItemHeight_WithNullSettings_ReturnsDefault()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+
+            Assert.Equal(64.0, vm.ItemHeight);
+        }
+
+        [Fact]
+        public void EnableNumberShortcuts_WithSettings_ReturnsSettingsValue()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { EnableNumberShortcuts = false });
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+
+            Assert.False(vm.EnableNumberShortcuts);
+        }
+
+        [Fact]
+        public void EnableNumberShortcuts_WithNullSettings_ReturnsDefault()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+
+            Assert.True(vm.EnableNumberShortcuts);
+        }
+
+        [Fact]
+        public void ShortcutModifierText_WithNullSettings_ReturnsAlt()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+
+            Assert.Equal("Alt", vm.ShortcutModifierText);
+        }
+
+        [Fact]
+        public void ShowInTaskbar_WithSettings_ReturnsFalseWhenHidden()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { HideTaskbarIcon = true });
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+
+            Assert.False(vm.ShowInTaskbar);
+        }
+
+        [Fact]
+        public void ShowIcons_WithSettings_ReturnsSettingsValue()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { ShowIcons = false });
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+
+            Assert.False(vm.ShowIcons);
+        }
+
+        [Fact]
+        public void ShowIcons_WithNullSettings_ReturnsDefault()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+
+            Assert.True(vm.ShowIcons);
+        }
+
+        [Fact]
+        public void UpdateSearch_MoreThan10Items_SetsMinusOneShortcut()
+        {
+            var items = Enumerable.Range(0, 12).Select(i => new WindowItem { Title = $"W{i}" }).ToList();
+            var mockSearch = new Mock<IWindowSearchService>();
+            mockSearch.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
+                      .Returns(items);
+            var mockOrch = new Mock<IWindowOrchestrationService>();
+            mockOrch.Setup(o => o.AllWindows).Returns(items);
+
+            var vm = new MainViewModel(mockOrch.Object, mockSearch.Object, new Mock<INavigationService>().Object, null, new Mock<IDispatcherService>().Object);
+
+            // Trigger UpdateSearch
+            vm.SearchText = "trigger";
+
+            // Items 0-9 should have ShortcutIndex 0-9, items 10+ should be -1
+            Assert.Equal(0, vm.FilteredWindows[0].ShortcutIndex);
+            Assert.Equal(9, vm.FilteredWindows[9].ShortcutIndex);
+            Assert.Equal(-1, vm.FilteredWindows[10].ShortcutIndex);
+            Assert.Equal(-1, vm.FilteredWindows[11].ShortcutIndex);
+        }
+
+        [Fact]
+        public void MoveSelection_NullSelectedWindow_WithItems_UsesMinusOneIndex()
+        {
+            var item1 = new WindowItem { Title = "1" };
+            var nav = new Mock<INavigationService>();
+            nav.Setup(n => n.CalculateMoveIndex(-1, 1, 1)).Returns(0);
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1 };
+            vm.SelectedWindow = null;
+
+            vm.MoveSelection(1);
+
+            nav.Verify(n => n.CalculateMoveIndex(-1, 1, 1), Times.Once);
+            Assert.Equal(item1, vm.SelectedWindow);
+        }
+
+        [Fact]
+        public void MoveSelection_OutOfBoundsIndex_DoesNotChangeSelection()
+        {
+            var item1 = new WindowItem { Title = "1" };
+            var nav = new Mock<INavigationService>();
+            // Return -1 to simulate out-of-bounds result
+            nav.Setup(n => n.CalculateMoveIndex(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>())).Returns(-1);
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1 };
+            vm.SelectedWindow = item1;
+
+            vm.MoveSelection(1);
+
+            // Selection should not change because newIndex is -1
+            Assert.Equal(item1, vm.SelectedWindow);
+        }
+
+        [Fact]
+        public void MoveSelectionByPage_NullSelectedWindow_WithItems_UsesZeroIndex()
+        {
+            var item1 = new WindowItem { Title = "1" };
+            var nav = new Mock<INavigationService>();
+            nav.Setup(n => n.CalculatePageMoveIndex(0, 1, 5, 1)).Returns(0);
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
+            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1 };
+            vm.SelectedWindow = null;
+
+            vm.MoveSelectionByPage(1, 5);
+
+            nav.Verify(n => n.CalculatePageMoveIndex(0, 1, 5, 1), Times.Once);
+        }
+
+        [Fact]
+        public async System.Threading.Tasks.Task WindowProviders_WithConcreteOrchestrationService_ReturnsSources()
+        {
+            var provider = new Mock<IWindowProvider>();
+            provider.Setup(p => p.GetWindows()).Returns(new[] { new WindowItem { Title = "Win", Source = provider.Object } });
+
+            // Use the legacy constructor which creates a real WindowOrchestrationService
+            var vm = new MainViewModel(new[] { provider.Object });
+
+            // Force a refresh so AllWindows has data
+            await vm.RefreshWindows();
+
+            var providers = vm.WindowProviders;
+            Assert.NotEmpty(providers);
+            Assert.Contains(provider.Object, providers);
+        }
+
+        [Fact]
+        public void SyncCollection_InnerScanPassesMismatch()
+        {
+            // Scenario: inner scan loop iterates past a non-matching item before finding target
+            // Collection: [A, D, C, B] → Source: [A, B, D, C]
+            // When syncing B, inner scan passes C (false branch of collection[j]==item),
+            // then finds B at j=3.
+            var itemA = new WindowItem { Title = "A" };
+            var itemB = new WindowItem { Title = "B" };
+            var itemC = new WindowItem { Title = "C" };
+            var itemD = new WindowItem { Title = "D" };
+
+            var mockSearch = new Mock<IWindowSearchService>();
+            mockSearch.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
+                      .Returns(new List<WindowItem> { itemA, itemB, itemD, itemC });
+            var mockOrch = new Mock<IWindowOrchestrationService>();
+            mockOrch.Setup(o => o.AllWindows).Returns(new List<WindowItem>());
+
+            var vm = new MainViewModel(mockOrch.Object, mockSearch.Object, new Mock<INavigationService>().Object, null, new Mock<IDispatcherService>().Object);
+            vm.FilteredWindows.Add(itemA);
+            vm.FilteredWindows.Add(itemD);
+            vm.FilteredWindows.Add(itemC);
+            vm.FilteredWindows.Add(itemB);
+
+            vm.SearchText = "trigger";
+
+            Assert.Equal(4, vm.FilteredWindows.Count);
+            Assert.Equal(itemA, vm.FilteredWindows[0]);
+            Assert.Equal(itemB, vm.FilteredWindows[1]);
+            Assert.Equal(itemD, vm.FilteredWindows[2]);
+            Assert.Equal(itemC, vm.FilteredWindows[3]);
+        }
     }
 }

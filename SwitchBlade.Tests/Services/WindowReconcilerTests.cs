@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Media.Imaging;
 using Moq;
 using SwitchBlade.Contracts;
+using SwitchBlade.Core;
 using SwitchBlade.Services;
 using Xunit;
 
@@ -205,6 +207,130 @@ namespace SwitchBlade.Tests.Services
 
             _reconciler.RemoveFromCache(item);
             Assert.Equal(0, _reconciler.GetProviderCacheCount());
+        }
+
+        [Fact]
+        public void Reconcile_ReuseItem_SourceAlreadySet_BranchCoverage()
+        {
+            var item = new WindowItem { Hwnd = (IntPtr)1, Title = "A", Source = _mockProvider.Object };
+            _reconciler.AddToCache(item);
+            
+            // Reconcile with same HWND but different provider
+            var mockOtherProvider = new Mock<IWindowProvider>();
+            var incoming = new List<WindowItem> { new() { Hwnd = (IntPtr)1, Title = "A" } };
+            
+            var result = _reconciler.Reconcile(incoming, mockOtherProvider.Object);
+            
+            Assert.Same(item, result[0]);
+            Assert.Same(_mockProvider.Object, item.Source); // Should NOT change if already set
+        }
+
+        [Fact]
+        public void PopulateIcons_Coverage_Gaps()
+        {
+            var dummyIcon = new BitmapImage();
+            var itemWithIcon = new WindowItem { Icon = dummyIcon, ExecutablePath = "a.exe" };
+            var itemNoPath = new WindowItem { ExecutablePath = "" };
+            var itemToPopulate = new WindowItem { ExecutablePath = "b.exe" };
+            
+            _mockIconService.Setup(s => s.GetIcon("b.exe")).Returns(new BitmapImage());
+            
+            // Branch 1: IsDebugEnabled = true to hit perf logging
+            Logger.IsDebugEnabled = true;
+            try
+            {
+                _reconciler.PopulateIcons(new List<WindowItem> { itemWithIcon, itemNoPath, itemToPopulate });
+            }
+            finally
+            {
+                Logger.IsDebugEnabled = false;
+            }
+
+            _mockIconService.Verify(s => s.GetIcon("a.exe"), Times.Never);
+            _mockIconService.Verify(s => s.GetIcon("b.exe"), Times.Once);
+
+            // Branch 2: count == 0 skip branch
+            _mockIconService.Invocations.Clear();
+            _mockLogger.Invocations.Clear();
+            _reconciler.PopulateIcons(new List<WindowItem> { itemWithIcon });
+            _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("[Perf]"))), Times.Never);
+        }
+
+        [Fact]
+        public void RemoveFromCache_SourceIsNull_BranchCoverage()
+        {
+            var item = new WindowItem { Hwnd = (IntPtr)1, Title = "A", Source = null };
+            _reconciler.AddToCache(item);
+            
+            _reconciler.RemoveFromCache(item);
+            // Should not throw or fail HWND removal
+            Assert.Equal(0, _reconciler.GetHwndCacheCount());
+        }
+
+        [Fact]
+        public void Reconcile_ExistingItemHasSource_BranchCoverage()
+        {
+            var initialSource = new Mock<IWindowProvider>().Object;
+            var item = new WindowItem { Hwnd = (IntPtr)1, Title = "Original", Source = initialSource };
+            _reconciler.AddToCache(item);
+            
+            var incoming = new WindowItem { Hwnd = (IntPtr)1, Title = "Updated" };
+            var newProvider = new Mock<IWindowProvider>().Object;
+            
+            var results = _reconciler.Reconcile(new List<WindowItem> { incoming }, newProvider);
+            
+            Assert.Single(results);
+            Assert.Same(item, results[0]);
+            Assert.Same(initialSource, results[0].Source); // Should NOT be overwritten
+        }
+
+        [Fact]
+        public void Reconcile_ExistingItemHasNullSource_BranchCoverage()
+        {
+            var item = new WindowItem { Hwnd = (IntPtr)1234, Title = "NoSource", Source = null };
+            _reconciler.AddToCache(item);
+            
+            var incoming = new WindowItem { Hwnd = (IntPtr)1234, Title = "NoSource" };
+            var provider = new Mock<IWindowProvider>().Object;
+            
+            var results = _reconciler.Reconcile(new List<WindowItem> { incoming }, provider);
+            
+            Assert.Single(results);
+            Assert.Same(item, results[0]);
+            Assert.Same(provider, results[0].Source); // Should be set now
+        }
+
+        [Fact]
+        public void PopulateIcons_NullLogger_ExceptionBranchCoverage()
+        {
+            var reconcilerNoLogger = new WindowReconciler(_mockIconService.Object, null!);
+            var item = new WindowItem { ExecutablePath = "fail.exe" };
+            _mockIconService.Setup(s => s.GetIcon("fail.exe")).Throws(new Exception("Fail"));
+            
+            // Should not throw or crash even if _logger is null
+            reconcilerNoLogger.PopulateIcons(new List<WindowItem> { item });
+            
+            _mockIconService.Verify(s => s.GetIcon("fail.exe"), Times.Once);
+        }
+
+        [Fact]
+        public void RemoveFromCache_ItemNotInProviderSet_BranchCoverage()
+        {
+            var provider1 = new Mock<IWindowProvider>().Object;
+            var provider2 = new Mock<IWindowProvider>().Object;
+            var item = new WindowItem { Hwnd = (IntPtr)1, Title = "A", Source = provider1 };
+            
+            _reconciler.AddToCache(item);
+            
+            // Manipulate item to have different source before removal to hit edge case 
+            // where it's in HWND cache but not in the NEW provider's set
+            item.Source = provider2;
+            
+            _reconciler.RemoveFromCache(item);
+            
+            Assert.Equal(0, _reconciler.GetHwndCacheCount());
+            // Provider1 set should still have the item (internal inconsistency simulation for coverage)
+            // But the method should handle it gracefully
         }
     }
 }

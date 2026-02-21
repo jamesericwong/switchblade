@@ -73,6 +73,8 @@ namespace SwitchBlade.Services
                 return new WindowSearchService(new LruRegexCache(cacheSize));
             });
 
+            services.AddSingleton<INumberShortcutService, NumberShortcutService>();
+
             // UIA Worker Client (out-of-process UIA scanning)
             services.AddSingleton<IUiaWorkerClient>(sp =>
             {

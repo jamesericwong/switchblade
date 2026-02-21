@@ -70,6 +70,17 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public void Constructor_PartialDependencies_CreatedSuccessfully()
+        {
+             // Test some optional args provided, others null
+             var service = new MemoryDiagnosticsService(
+                _mockOrch.Object, _mockIcon.Object, _mockSearch.Object, _mockLogger.Object, 
+                _mockProcFactory.Object, null, null, null);
+             Assert.NotNull(service);
+             service.Dispose();
+        }
+
+        [Fact]
         public void ForceLogMemoryStats_LogsMessage()
         {
             using var service = CreateService();
@@ -162,17 +173,18 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public async Task RunDiagnosticsLoop_HandlesOperationCanceledException()
+        public async Task RunDiagnosticsLoop_HandlesOperationCanceledException_ByBubblingToStopAsync()
         {
              _mockTimer.Setup(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()))
                        .ThrowsAsync(new OperationCanceledException());
 
              using var service = CreateService();
              await service.StartAsync(CancellationToken.None);
-             await Task.Delay(20);
              
-             // Should catch and exit cleanly
-             // No error log
+             // StopAsync should await the loop and catch the TCE
+             await service.StopAsync(CancellationToken.None);
+             
+             // Verify no error log (loop's catch block was bypassed)
              _mockLogger.Verify(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()), Times.Never());
         }
         

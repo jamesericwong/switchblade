@@ -125,6 +125,10 @@ namespace SwitchBlade.Services
                     yield break;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger?.LogError($"[UiaWorkerClient] Failed to start worker process", ex);

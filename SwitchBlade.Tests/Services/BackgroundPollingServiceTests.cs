@@ -237,5 +237,25 @@ namespace SwitchBlade.Tests.Services
             // Hard to strict-verify internal disposal without complex signaling, 
             // but we verified the restart mechanism logic.
         }
+
+        [Fact]
+        public void Constructor_WithDefaultDependencies_Works()
+        {
+            // Arrange
+            _settings.EnableBackgroundPolling = false; // Prevent background loop from starting with real timer
+
+            // Act
+            using var service = new BackgroundPollingService(
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
+                null, // Use default WorkstationService
+                null  // Use default SystemPeriodicTimer factory
+            );
+
+            // Assert
+            // If we reached here without exception, branches were covered
+            Assert.NotNull(service);
+        }
     }
 }
