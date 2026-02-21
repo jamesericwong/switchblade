@@ -938,6 +938,74 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public async Task RefreshAsync_SkipsFastPath_LogsWithLogger()
+        {
+            // Exercises L74: _logger?.Log(...) with a NON-null logger during fast-path skip
+            var slowProvider = new Mock<IWindowProvider>();
+            slowProvider.Setup(p => p.PluginName).Returns("SlowProvider");
+            slowProvider.Setup(p => p.IsUiaProvider).Returns(false);
+            slowProvider.Setup(p => p.GetHandledProcesses()).Returns(Enumerable.Empty<string>());
+
+            var scanStarted = new ManualResetEventSlim(false);
+            var scanContinue = new ManualResetEventSlim(false);
+
+            slowProvider.Setup(p => p.GetWindows()).Returns(() =>
+            {
+                scanStarted.Set();
+                scanContinue.Wait(TimeSpan.FromSeconds(10));
+                return new List<WindowItem>();
+            });
+
+            var mockLogger = new Mock<ILogger>();
+            var service = CreateService(new[] { slowProvider.Object }, logger: mockLogger.Object);
+
+            var task1 = service.RefreshAsync(new HashSet<string>());
+            Assert.True(scanStarted.Wait(TimeSpan.FromSeconds(10)), "First scan did not start");
+
+            // Second call hits the fast-path skip WITH logger present
+            var task2 = service.RefreshAsync(new HashSet<string>());
+            scanContinue.Set();
+            await Task.WhenAll(task1, task2);
+
+            mockLogger.Verify(l => l.Log(It.Is<string>(s =>
+                s.Contains("RefreshAsync skipped"))), Times.Once);
+        }
+
+        [Fact]
+        public async Task RefreshAsync_ReloadSettingsError_LogsWithLogger()
+        {
+            // Exercises L103: _logger?.LogError(...) with a NON-null logger when settings reload throws
+            var provider = CreateMockProvider("BadSettings", new List<WindowItem>());
+            provider.Setup(p => p.ReloadSettings()).Throws(new Exception("Settings reload failed"));
+
+            var mockLogger = new Mock<ILogger>();
+            var service = CreateService(new[] { provider.Object }, logger: mockLogger.Object);
+
+            await service.RefreshAsync(new HashSet<string>());
+
+            mockLogger.Verify(l => l.LogError(
+                It.Is<string>(s => s.Contains("Error reloading settings")),
+                It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task RefreshAsync_ProviderCrash_LogsWithLogger()
+        {
+            // Exercises L131: _logger?.LogError(...) with a NON-null logger when GetWindows() throws
+            var provider = CreateMockProvider("CrashProvider", new List<WindowItem>());
+            provider.Setup(p => p.GetWindows()).Throws(new Exception("Provider crashed"));
+
+            var mockLogger = new Mock<ILogger>();
+            var service = CreateService(new[] { provider.Object }, logger: mockLogger.Object);
+
+            await service.RefreshAsync(new HashSet<string>());
+
+            mockLogger.Verify(l => l.LogError(
+                It.Is<string>(s => s.Contains("Provider CrashProvider failed")),
+                It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
         public async Task RefreshAsync_HandlesNullDisabledPlugins()
         {
             var provider = CreateMockProvider("Provider1", new List<WindowItem>());

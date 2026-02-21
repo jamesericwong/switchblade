@@ -723,5 +723,253 @@ namespace SwitchBlade.Tests.Services
             
             await Task.WhenAll(t1, t2);
         }
+
+        // ── Null-logger variants ──────────────────────────────────────────
+        // These exercise the _logger?.Log/LogError false-branch (null logger)
+        // for every _logger?. call that was previously only tested with a logger.
+
+        [Fact]
+        public async Task ScanStreamingAsync_WorkerMissing_NullLogger_NoThrow()
+        {
+            // Covers L86: _logger?.Log("Worker executable not found") with null logger
+            _mockFs.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            var results = new List<UiaPluginResult>();
+            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+
+            Assert.Empty(results);
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_ProcessStartReturnsNull_NullLogger_NoThrow()
+        {
+            // Covers L124: _logger?.Log("Worker process failed to start (null return)")
+            _mockProcFactory.Setup(f => f.Start(It.IsAny<ProcessStartInfo>())).Returns((IProcess?)null);
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            var results = new List<UiaPluginResult>();
+            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+
+            Assert.Empty(results);
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_ProcessStartFails_NullLogger_NoThrow()
+        {
+            // Covers L134: _logger?.LogError("Failed to start worker process")
+            _mockProcFactory.Setup(f => f.Start(It.IsAny<ProcessStartInfo>())).Throws(new Exception("Fail"));
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            var results = new List<UiaPluginResult>();
+            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+
+            Assert.Empty(results);
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_Timeout_NullLogger_NoThrow()
+        {
+            // Covers L188: _logger?.Log("Streaming read cancelled/timed out")
+            var shortTimeout = TimeSpan.FromMilliseconds(10);
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .Returns<CancellationToken>(async ct =>
+                {
+                    await Task.Delay(200, ct);
+                    return "{}";
+                });
+
+            var client = new UiaWorkerClient(null, shortTimeout, _mockProcFactory.Object, _mockFs.Object);
+
+            var results = new List<UiaPluginResult>();
+            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+
+            Assert.Empty(results);
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_JsonError_NullLogger_NoThrow()
+        {
+            // Covers L206: _logger?.Log("Failed to parse streaming line")
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            _mockProcess.SetupSequence(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync("invalid json")
+                .ReturnsAsync("{\"isFinal\": true}");
+
+            await foreach (var _ in client.ScanStreamingAsync()) { }
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_SuccessFlow_NullLogger_NoThrow()
+        {
+            // Covers L215 (_logger?.Log("Received final marker")),
+            //        L219 (_logger?.Log("Received N windows from...")),
+            //        and all happy-path _logger?. calls in ScanStreamingAsync
+            var sequence = new Queue<string?>(new[]
+            {
+                "{\"pluginName\": \"P1\", \"windows\": [{\"title\": \"W1\", \"hwnd\": 100}], \"isFinal\": false}",
+                "{\"isFinal\": true}",
+                null
+            });
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .Returns<CancellationToken>(ct => ValueTask.FromResult(sequence.Count > 0 ? sequence.Dequeue() : null));
+
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            var results = new List<UiaPluginResult>();
+            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+
+            Assert.Single(results);
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_CleanupError_NullLogger_NoThrow()
+        {
+            // Covers L255: _logger?.Log("Error during process cleanup")
+            //     and L256: try { if (!process.HasExited) process.Kill } catch {} inner branch
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            _mockProcess.Setup(p => p.HasExited).Returns(false);
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string?)null);
+            _mockProcess.Setup(p => p.WaitForExitAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Wait fail"));
+            _mockProcess.Setup(p => p.Kill(true)).Throws(new Exception("Kill fail"));
+
+            await foreach (var _ in client.ScanStreamingAsync()) { }
+        }
+
+        [Fact]
+        public async Task ScanAsync_WorkerMissing_NullLogger_NoThrow()
+        {
+            // Covers L285: _logger?.Log("Worker executable not found") in ScanAsync
+            _mockFs.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            var result = await client.ScanAsync();
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task ScanAsync_PluginError_NullLogger_NoThrow()
+        {
+            // Covers L297: _logger?.Log("Plugin error") in ScanAsync
+            var sequence = new Queue<string?>(new[]
+            {
+                "{\"pluginName\": \"P1\", \"error\": \"Err\", \"isFinal\": false}",
+                "{\"isFinal\": true}",
+                null
+            });
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .Returns<CancellationToken>(ct => ValueTask.FromResult(sequence.Count > 0 ? sequence.Dequeue() : null));
+
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+            var result = await client.ScanAsync();
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task ScanAsync_Cancelled_NullLogger_NoThrow()
+        {
+            // Covers L306: _logger?.Log("Scan cancelled") in ScanAsync
+            _mockProcFactory.Setup(f => f.Start(It.IsAny<ProcessStartInfo>()))
+                .Throws(new OperationCanceledException());
+
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+            var result = await client.ScanAsync();
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task ScanAsync_GenericException_NullLogger_NoThrow()
+        {
+            // Covers L311: _logger?.LogError("ScanAsync failed mid-stream") in ScanAsync
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Generic Fail"));
+
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+            var result = await client.ScanAsync();
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void Dispose_KillsActiveProcess_NullLogger_NoThrow()
+        {
+            // Covers L343: _logger?.Log("Dispose called - killing active worker") with null logger
+            var process = new Mock<IProcess>();
+            process.Setup(p => p.HasExited).Returns(false);
+            process.Setup(p => p.StandardInput).Returns(new Mock<TextWriter>().Object);
+            process.Setup(p => p.StandardOutput).Returns(new Mock<TextReader>().Object);
+
+            _mockProcFactory.Setup(f => f.Start(It.IsAny<ProcessStartInfo>())).Returns(process.Object);
+            process.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<string?>(new TaskCompletionSource<string?>().Task));
+
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
+            _ = Task.Run(async () => await enumerator.MoveNextAsync());
+            Thread.Sleep(150);
+
+            client.Dispose();
+
+            process.Verify(p => p.Kill(true), Times.AtLeastOnce());
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_CleanupError_ProcessAlreadyExited_SkipsKill()
+        {
+            // Covers L256: !process.HasExited false-branch (process exited during cleanup)
+            // Flow: L234 HasExited=false → WaitForExitAsync throws → inner catch L249 HasExited=false,
+            //       Kill throws → outer catch L253 → L256 HasExited=true → skip Kill
+            var callCount = 0;
+            _mockProcess.Setup(p => p.HasExited)
+                .Returns(() =>
+                {
+                    callCount++;
+                    return callCount > 2; // false, false, then true on 3rd+ call
+                });
+
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string?)null);
+            _mockProcess.Setup(p => p.WaitForExitAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Wait fail"));
+            _mockProcess.Setup(p => p.Kill(true)).Throws(new Exception("Kill fail"));
+
+            var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+
+            await foreach (var _ in client.ScanStreamingAsync()) { }
+
+            _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("Error during process cleanup"))), Times.Once());
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_CleanupError_ProcessExited_NullLogger_NoThrow()
+        {
+            // Same as above but with null logger — covers L255 _logger?.Log null branch
+            // combined with L256 HasExited=true path
+            var callCount = 0;
+            _mockProcess.Setup(p => p.HasExited)
+                .Returns(() =>
+                {
+                    callCount++;
+                    return callCount > 2;
+                });
+
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string?)null);
+            _mockProcess.Setup(p => p.WaitForExitAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Wait fail"));
+            _mockProcess.Setup(p => p.Kill(true)).Throws(new Exception("Kill fail"));
+
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            await foreach (var _ in client.ScanStreamingAsync()) { }
+        }
     }
 }

@@ -72,7 +72,7 @@ namespace SwitchBlade.Services
 
         private void ActivateWindowByIndex(int index, IWindowListViewModel viewModel, Action<WindowItem?> activateWindow)
         {
-            if (index >= 0 && index < viewModel.FilteredWindows.Count)
+            if (index < viewModel.FilteredWindows.Count)
             {
                 var windowItem = viewModel.FilteredWindows[index];
                 _logger.Log($"Number shortcut activated: index {index} -> '{windowItem.Title}'");

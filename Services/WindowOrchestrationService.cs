@@ -340,9 +340,7 @@ namespace SwitchBlade.Services
         {
             foreach (var w in _allWindows)
             {
-                if (w.Source != provider)
-                    continue;
-                if (!w.IsFallback)
+                if (w.Source == provider && !w.IsFallback)
                     return true;
             }
             return false;

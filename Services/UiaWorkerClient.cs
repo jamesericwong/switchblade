@@ -336,8 +336,6 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
-            if (_disposed) return;
-            
             lock (_processLock)
             {
                 if (_disposed) return;
