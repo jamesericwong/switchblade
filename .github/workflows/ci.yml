@@ -34,18 +34,18 @@ jobs:
       uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1
       with:
         reports: coverage/**/coverage.cobertura.xml
-        targetdir: coverage
+        targetdir: coverage-report
         reporttypes: MarkdownSummaryGithub;Html;Badges
 
     - name: Publish Coverage Summary
-      run: cat coverage/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+      run: cat coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
     - name: Upload Coverage Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
-        path: coverage
+        path: coverage-report
 
   deploy:
     needs: build
@@ -59,9 +59,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: coverage-report
-          path: coverage
+          path: coverage-report
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: coverage
+          folder: coverage-report

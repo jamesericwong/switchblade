@@ -2,7 +2,7 @@
 
 **Current Version: 1.9.11**
 
-[![Coverage Status](https://jamesericwong.github.io/switchblade/badge.svg)](https://jamesericwong.github.io/switchblade/)
+[![Coverage Status](https://jamesericwong.github.io/switchblade/badge_linecoverage.svg)](https://jamesericwong.github.io/switchblade/)
 
 ## 📚 Documentation
 
