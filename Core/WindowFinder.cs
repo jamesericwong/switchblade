@@ -10,22 +10,24 @@ namespace SwitchBlade.Core
     public class WindowFinder : CachingWindowProviderBase
     {
         private ISettingsService? _settingsService;
+        private readonly IWindowInterop _interop;
         private IEnumerable<string> _dynamicExclusions = new List<string>();
 
         public override string PluginName => "WindowFinder";
         public override bool HasSettings => false;
         public override bool IsUiaProvider => false; // Uses EnumWindows, not UIA
 
-        public WindowFinder() { }
+        public WindowFinder() : this(null, null) { }
 
         public override void SetExclusions(IEnumerable<string> exclusions)
         {
             _dynamicExclusions = exclusions;
         }
 
-        public WindowFinder(ISettingsService settingsService)
+        public WindowFinder(ISettingsService? settingsService, IWindowInterop? interop = null)
         {
             _settingsService = settingsService;
+            _interop = interop ?? new WindowInterop();
         }
 
         public override void Initialize(IPluginContext context)
@@ -50,10 +52,9 @@ namespace SwitchBlade.Core
             // Note: Browser processes are now managed by the ChromeTabFinder plugin.
             // To prevent duplicate windows, add browser process names to ExcludedProcesses in Settings.
 
-            // Define callback as a local function to avoid lambda syntax issues with unsafe blocks
             unsafe bool EnumCallback(IntPtr hwnd, IntPtr lParam)
             {
-                if (!NativeInterop.IsWindowVisible(hwnd))
+                if (!_interop.IsWindowVisible(hwnd))
                     return true;
 
                 // Bleeding edge optimization: Use stackalloc for zero-allocation title retrieval
@@ -61,7 +62,7 @@ namespace SwitchBlade.Core
                 const int simplifyTitleBuffer = 512;
                 char* buffer = stackalloc char[simplifyTitleBuffer];
 
-                int length = NativeInterop.GetWindowTextUnsafe(hwnd, buffer, simplifyTitleBuffer);
+                int length = _interop.GetWindowTextUnsafe(hwnd, (IntPtr)buffer, simplifyTitleBuffer);
                 if (length == 0)
                     return true;
 
@@ -86,10 +87,10 @@ namespace SwitchBlade.Core
                 try
                 {
                     uint pid;
-                    NativeInterop.GetWindowThreadProcessId(hwnd, out pid);
+                    _interop.GetWindowThreadProcessId(hwnd, out pid);
                     if (pid != 0)
                     {
-                        (processName, executablePath) = NativeInterop.GetProcessInfo(pid);
+                        (processName, executablePath) = _interop.GetProcessInfo(pid);
                     }
                 }
                 catch
@@ -121,7 +122,7 @@ namespace SwitchBlade.Core
                 return true;
             }
 
-            NativeInterop.EnumWindows(EnumCallback, IntPtr.Zero);
+            _interop.EnumWindows(EnumCallback, IntPtr.Zero);
 
             return results;
         }
@@ -129,7 +130,39 @@ namespace SwitchBlade.Core
         public override void ActivateWindow(WindowItem windowItem)
         {
             // Robust window activation using the improved helper
-            NativeInterop.ForceForegroundWindow(windowItem.Hwnd);
+            _interop.ForceForegroundWindow(windowItem.Hwnd);
+        }
+
+        protected override int GetPid(IntPtr hwnd)
+        {
+            try
+            {
+                _interop.GetWindowThreadProcessId(hwnd, out uint pid);
+                return (int)pid != 0 ? (int)pid : -1;
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        protected override (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
+        {
+             if ((int)pid == -1) return ("Window", null);
+             
+             try
+             {
+                return _interop.GetProcessInfo(pid);
+             }
+             catch
+             {
+                return ("Window", null);
+             }
+        }
+
+        protected override bool IsWindowValid(IntPtr hwnd)
+        {
+            return _interop.IsWindowVisible(hwnd);
         }
     }
 }

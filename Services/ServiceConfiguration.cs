@@ -18,11 +18,21 @@ namespace SwitchBlade.Services
         public static IServiceProvider ConfigureServices()
         {
             var services = new ServiceCollection();
+            ConfigureServices(services);
+            return services.BuildServiceProvider();
+        }
+
+        /// <summary>
+        /// Configures the service collection with all application services.
+        /// </summary>
+        public static void ConfigureServices(IServiceCollection services)
+        {
 
             // System Abstractions (v1.9.11 coverage improvements)
             services.AddSingleton<IProcessFactory, ProcessFactory>();
             services.AddSingleton<IFileSystem, FileSystemWrapper>();
             services.AddSingleton<IRegistryService, RegistryServiceWrapper>();
+            services.AddSingleton<INativeInteropWrapper, NativeInteropWrapper>();
 
             // Core Services
             services.AddSingleton<SettingsService>(sp => {
@@ -36,19 +46,24 @@ namespace SwitchBlade.Services
             services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<SettingsService>());
             services.AddSingleton<ThemeService>();
             services.AddSingleton<IDispatcherService, WpfDispatcherService>();
-            services.AddSingleton<IIconService>(sp => new IconService(sp.GetRequiredService<ISettingsService>()));
+            services.AddSingleton<IIconService>(sp => new IconService(sp.GetRequiredService<ISettingsService>(), sp.GetRequiredService<IIconExtractor>()));
+            services.AddSingleton<IIconExtractor, IconExtractor>();
 
             // Logger & Plugin Context
             services.AddSingleton<ILogger>(Logger.Instance);
             services.AddSingleton<IPluginContext>(sp => new PluginContext(sp.GetRequiredService<ILogger>()));
+            services.AddSingleton<IWorkstationService, WorkstationService>();
 
             // New Services (v1.6.4)
+            services.AddSingleton<IPluginLoader>(sp => 
+                new PluginLoader(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins"), sp.GetRequiredService<ILogger>()));
+
             services.AddSingleton<INavigationService, NavigationService>();
             services.AddSingleton<IPluginService>(sp => new PluginService(
                 sp.GetRequiredService<IPluginContext>(),
                 sp.GetRequiredService<ISettingsService>(),
                 sp.GetRequiredService<ILogger>(),
-                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins")));
+                sp.GetRequiredService<IPluginLoader>()));
 
             // Window Search Service (with LRU cache)
             services.AddSingleton<IWindowSearchService>(sp =>
@@ -57,6 +72,8 @@ namespace SwitchBlade.Services
                 int cacheSize = settings.Settings.RegexCacheSize;
                 return new WindowSearchService(new LruRegexCache(cacheSize));
             });
+
+            services.AddSingleton<INumberShortcutService, NumberShortcutService>();
 
             // UIA Worker Client (out-of-process UIA scanning)
             services.AddSingleton<IUiaWorkerClient>(sp =>
@@ -72,16 +89,17 @@ namespace SwitchBlade.Services
 
             // Window Orchestration Service (replaces manual provider coordination)
             services.AddSingleton<IWindowReconciler>(sp => 
-                new WindowReconciler(sp.GetRequiredService<IIconService>()));
+                new WindowReconciler(sp.GetRequiredService<IIconService>(), sp.GetRequiredService<ILogger>()));
 
             services.AddSingleton<IWindowOrchestrationService>(sp =>
             {
                 var pluginService = sp.GetRequiredService<IPluginService>();
                 var reconciler = sp.GetRequiredService<IWindowReconciler>();
                 var uiaWorkerClient = sp.GetRequiredService<IUiaWorkerClient>();
+                var nativeInterop = sp.GetRequiredService<INativeInteropWrapper>();
                 var logger = sp.GetRequiredService<ILogger>();
                 var settingsService = sp.GetRequiredService<ISettingsService>();
-                return new WindowOrchestrationService(pluginService.Providers, reconciler, uiaWorkerClient, logger, settingsService);
+                return new WindowOrchestrationService(pluginService.Providers, reconciler, uiaWorkerClient, nativeInterop, logger, settingsService);
             });
 
             // ViewModels
@@ -104,8 +122,6 @@ namespace SwitchBlade.Services
 
             // Diagnostics (Investigation)
             services.AddSingleton<MemoryDiagnosticsService>();
-
-            return services.BuildServiceProvider();
         }
     }
 }

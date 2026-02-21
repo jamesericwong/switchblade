@@ -26,14 +26,15 @@ namespace SwitchBlade.Services
         /// </summary>
         public static string ToString(uint modifier)
         {
-            return modifier switch
-            {
-                Alt => "Alt",
-                Ctrl => "Ctrl",
-                Shift => "Shift",
-                Win => "Win",
-                _ => "None"
-            };
+            if (modifier == None) return "None";
+            
+            var parts = new System.Collections.Generic.List<string>();
+            if ((modifier & Alt) != 0) parts.Add("Alt");
+            if ((modifier & Ctrl) != 0) parts.Add("Ctrl");
+            if ((modifier & Shift) != 0) parts.Add("Shift");
+            if ((modifier & Win) != 0) parts.Add("Win");
+            
+            return parts.Count > 0 ? string.Join("+", parts) : "None";
         }
 
         /// <summary>

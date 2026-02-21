@@ -115,10 +115,19 @@ namespace SwitchBlade.Services
                 RedirectStandardError = true
             };
 
-            IProcess process;
+            IProcess? process;
             try
             {
                 process = _processFactory.Start(psi);
+                if (process == null)
+                {
+                    _logger?.Log("[UiaWorkerClient] Worker process failed to start (null return)");
+                    yield break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -327,8 +336,6 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
-            if (_disposed) return;
-            
             lock (_processLock)
             {
                 if (_disposed) return;

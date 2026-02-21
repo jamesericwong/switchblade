@@ -12,25 +12,25 @@ namespace SwitchBlade.Services
     /// </summary>
     public class PluginService : IPluginService
     {
-        private readonly string _pluginPath;
         private readonly IPluginContext _context;
         private readonly ISettingsService _settingsService;
         private readonly ILogger? _logger;
+        private readonly IPluginLoader _pluginLoader;
         private readonly List<IWindowProvider> _providers = new();
 
         public IReadOnlyList<IWindowProvider> Providers => _providers;
 
         public PluginService(IPluginContext context, ISettingsService settingsService)
-            : this(context, settingsService, null, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins"))
+            : this(context, settingsService, null, new PluginLoader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins")))
         {
         }
 
-        public PluginService(IPluginContext context, ISettingsService settingsService, ILogger? logger, string pluginPath)
+        public PluginService(IPluginContext context, ISettingsService settingsService, ILogger? logger, IPluginLoader pluginLoader)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _logger = logger;
-            _pluginPath = pluginPath ?? throw new ArgumentNullException(nameof(pluginPath));
+            _pluginLoader = pluginLoader ?? throw new ArgumentNullException(nameof(pluginLoader));
 
             LoadProviders();
         }
@@ -47,24 +47,23 @@ namespace SwitchBlade.Services
             // 2. External plugins — discover and then initialize each exactly once
             try
             {
-                if (Directory.Exists(_pluginPath))
+                var plugins = _pluginLoader.LoadPlugins();
+                
+                foreach (var plugin in plugins)
                 {
-                    var loader = new PluginLoader(_pluginPath, _logger);
-                    var plugins = loader.LoadPlugins();
-                    
-                    foreach (var plugin in plugins)
-                    {
-                        // Create per-plugin context with settings and initialize once
-                        var pluginSettings = new PluginSettingsService(plugin.PluginName, _context.Logger);
-                        var pluginContext = new PluginContext(_context.Logger, pluginSettings);
-                        plugin.Initialize(pluginContext);
-                        _providers.Add(plugin);
-                    }
+                    // Create per-plugin context with settings and initialize once
+                    var pluginSettings = new PluginSettingsService(plugin.PluginName, _context.Logger);
+                    var pluginContext = new PluginContext(_context.Logger, pluginSettings);
+                    plugin.Initialize(pluginContext);
+                    _providers.Add(plugin);
                 }
             }
             catch (Exception ex)
             {
-                _logger?.LogError("Error loading plugins", ex);
+                if (_logger != null)
+                {
+                    _logger.LogError("Error loading plugins", ex);
+                }
             }
         }
 
@@ -75,22 +74,7 @@ namespace SwitchBlade.Services
 
         public IEnumerable<PluginInfo> GetPluginInfos()
         {
-            return _providers.Select(p =>
-            {
-                var type = p.GetType();
-                var assembly = type.Assembly;
-                return new PluginInfo
-                {
-                    Name = p.PluginName,
-                    TypeName = type.FullName ?? type.Name,
-                    AssemblyName = assembly.GetName().Name ?? "Unknown",
-                    Version = assembly.GetName().Version?.ToString() ?? "0.0.0",
-                    IsInternal = assembly == typeof(PluginService).Assembly || assembly.GetName().Name == "SwitchBlade",
-                    HasSettings = p.HasSettings,
-                    Provider = p,
-                    IsEnabled = true
-                };
-            });
+            return _providers.Select(PluginInfoMapper.MapToInfo);
         }
     }
 }

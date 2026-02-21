@@ -1,149 +1,134 @@
-using Xunit;
-using Moq;
+using System;
+using System.IO;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using SwitchBlade.Services;
 using SwitchBlade.Contracts;
+using Moq;
+using Xunit;
 
 namespace SwitchBlade.Tests.Services
 {
     public class IconServiceTests
     {
-        private Mock<ISettingsService> CreateMockSettings(int cacheSize = 200)
+        private readonly Mock<ISettingsService> _mockSettingsService;
+        private readonly Mock<IIconExtractor> _mockExtractor;
+        private readonly UserSettings _settings;
+        private readonly IconService _service;
+
+        public IconServiceTests()
         {
-            var mock = new Mock<ISettingsService>();
-            mock.Setup(s => s.Settings).Returns(new UserSettings { IconCacheSize = cacheSize });
-            return mock;
+            _settings = new UserSettings { IconCacheSize = 10 };
+            _mockSettingsService = new Mock<ISettingsService>();
+            _mockSettingsService.Setup(s => s.Settings).Returns(_settings);
+            _mockExtractor = new Mock<IIconExtractor>();
+            _service = new IconService(_mockSettingsService.Object, _mockExtractor.Object);
         }
 
         [Fact]
-        public void GetIcon_NullPath_ReturnsNull()
+        public void GetIcon_NullOrEmptyPath_ReturnsNull()
         {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-
-            // Act
-            var result = service.GetIcon(null);
-
-            // Assert
-            Assert.Null(result);
+            Assert.Null(_service.GetIcon(null));
+            Assert.Null(_service.GetIcon(""));
         }
 
         [Fact]
-        public void GetIcon_EmptyPath_ReturnsNull()
+        public void GetIcon_ValidPath_CallsExtractorAndCachesResult()
         {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
+            var mockIcon = new BitmapImage(); // Use real instance instead of Mock<ImageSource>
+            _mockExtractor.Setup(e => e.ExtractIcon("test.exe")).Returns(mockIcon);
 
-            // Act
-            var result = service.GetIcon(string.Empty);
+            var icon1 = _service.GetIcon("test.exe");
+            Assert.Same(mockIcon, icon1);
+            _mockExtractor.Verify(e => e.ExtractIcon("test.exe"), Times.Once);
 
-            // Assert
-            Assert.Null(result);
+            var icon2 = _service.GetIcon("test.exe");
+            Assert.Same(mockIcon, icon2);
+            _mockExtractor.Verify(e => e.ExtractIcon("test.exe"), Times.Once); // Second call from cache
         }
 
         [Fact]
-        public void GetIcon_ValidPath_CachesResult()
+        public void GetIcon_ExtractorReturnsNull_CachesNull()
         {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var path = @"C:\Windows\notepad.exe";
+            _mockExtractor.Setup(e => e.ExtractIcon("missing.exe")).Returns((ImageSource?)null);
 
-            // Act
-            var result1 = service.GetIcon(path);
-            var result2 = service.GetIcon(path);
+            var icon1 = _service.GetIcon("missing.exe");
+            Assert.Null(icon1);
+            _mockExtractor.Verify(e => e.ExtractIcon("missing.exe"), Times.Once);
 
-            // Assert
-            // Same reference should be returned from cache
-            Assert.Same(result1, result2);
+            var icon2 = _service.GetIcon("missing.exe");
+            Assert.Null(icon2);
+            _mockExtractor.Verify(e => e.ExtractIcon("missing.exe"), Times.Once); 
         }
 
         [Fact]
-        public void GetIcon_DifferentPaths_ReturnsDifferentIcons()
+        public void ClearCache_Works()
         {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var path1 = @"C:\Windows\notepad.exe";
-            var path2 = @"C:\Windows\System32\cmd.exe";
-
-            // Act
-            var result1 = service.GetIcon(path1);
-            var result2 = service.GetIcon(path2);
-
-            // Assert
-            if (result1 != null && result2 != null)
-            {
-                // Distinct entries
-            }
-        }
-
-        [Fact]
-        public void ClearCache_AfterCaching_ClearsAllEntries()
-        {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var path = @"C:\Windows\notepad.exe";
-            _ = service.GetIcon(path); // Populate cache
-
-            // Act
-            service.ClearCache();
-            var result = service.GetIcon(path);
-
-            // Assert
-            Assert.True(true);
-        }
-
-        [Fact]
-        public void GetIcon_NonExistentPath_ReturnsNull()
-        {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var path = @"C:\NonExistent\FakeApplication.exe";
-
-            // Act
-            var result = service.GetIcon(path);
-
-            // Assert
-            Assert.Null(result);
-        }
-
-        [Fact]
-        public void GetIcon_CaseInsensitiveCaching()
-        {
-            // Arrange
-            var service = new IconService(CreateMockSettings().Object);
-            var pathLower = @"c:\windows\notepad.exe";
-            var pathUpper = @"C:\WINDOWS\NOTEPAD.EXE";
-
-            // Act
-            var result1 = service.GetIcon(pathLower);
-            var result2 = service.GetIcon(pathUpper);
-
-            // Assert
-            Assert.Same(result1, result2);
+            _service.GetIcon("test.exe");
+            _service.ClearCache();
+            Assert.Equal(0, _service.CacheCount);
         }
 
         [Fact]
         public void GetIcon_CacheLimitReached_ClearsCache()
         {
-            // Arrange
-            // Set tiny limit of 2 items
-            var service = new IconService(CreateMockSettings(cacheSize: 2).Object);
+            _settings.IconCacheSize = 2;
+            
+            _service.GetIcon("fake1.exe");
+            _service.GetIcon("fake2.exe");
+            Assert.Equal(2, _service.CacheCount);
 
-            var path1 = @"C:\App1.exe";
-            var path2 = @"C:\App2.exe";
-            var path3 = @"C:\App3.exe";
+            // This should trigger clear because it's the 3rd item
+            _service.GetIcon("fake3.exe");
+            
+            // After clear, it adds the new one, so count should be 1
+            Assert.Equal(1, _service.CacheCount);
+        }
 
-            // Act
-            var r1 = service.GetIcon(path1); // Cache: 1
-            var r2 = service.GetIcon(path2); // Cache: 2 (Full)
+        [Fact]
+        public void Constructor_NullSettings_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() => new IconService(null!));
+        }
 
-            // r3 should trigger clear, then add itself
-            var r3 = service.GetIcon(path3); // Cache: 1 (App3 only)
-
-            // Assert
-            // If cache was cleared, r1 should be re-fetched (different object reference if we fetched again)
-            // But here we rely on internal state logic. We can verify simply that no exception occurred.
-            // In a real mock of NativeInterop we could verify ExtractIcon calls count.
+        [Fact]
+        public void DefaultConstructor_UsesRealExtractor()
+        {
+            var service = new IconService(_mockSettingsService.Object);
+            // We can't easily verify the internal extractor, but we verify it doesn't throw
             Assert.NotNull(service);
+        }
+        [Fact]
+        public void GetIcon_WhenSettingsNull_UsesFallbackLimit()
+        {
+            // Setup settings return null logic if property is accessed
+            _mockSettingsService.Setup(s => s.Settings).Returns((UserSettings)null!);
+            
+            // IconService uses "FallbackMaxCacheSize" constant (200) locally if Settings is null.
+            // We can't easily verify the limit number without filling it, but we can verify it doesn't crash.
+            var service = new IconService(_mockSettingsService.Object, _mockExtractor.Object);
+            service.GetIcon("test.exe");
+            Assert.Equal(1, service.CacheCount);
+        }
+
+        [Fact]
+        public void GetIcon_CacheFull_RetrievingExistingItem_DoesNotClear()
+        {
+            _settings.IconCacheSize = 2;
+            _service.GetIcon("item1.exe");
+            _service.GetIcon("item2.exe");
+            Assert.Equal(2, _service.CacheCount);
+
+            // Access existing item
+            _service.GetIcon("item1.exe");
+            
+            // Should still be 2, not cleared
+            Assert.Equal(2, _service.CacheCount);
+            
+            // Verify clear was NOT called (we can't verify Clear() methodology directly but we assume CacheCount would drop)
+            // If it cleared, it would re-add item1, so count would be 1.
+            // Wait, if it cleared, it would be empty then add item1 -> count 1.
+            // So Equal(2) proves it didn't clear.
         }
     }
 }

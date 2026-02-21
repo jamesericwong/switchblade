@@ -7,6 +7,7 @@ using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Core
 {
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class ProcessWrapper : IProcess
     {
         private readonly Process _process;
@@ -27,6 +28,21 @@ namespace SwitchBlade.Core
         public long PrivateMemorySize64 => _process.PrivateMemorySize64;
         public int HandleCount => _process.HandleCount;
         public int ThreadCount => _process.Threads.Count;
+
+        public string? MainModuleFileName
+        {
+            get
+            {
+                try
+                {
+                    return _process.MainModule?.FileName;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+        }
 
         public void Kill(bool entireProcessTree)
         {

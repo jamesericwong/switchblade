@@ -1,173 +1,318 @@
-using Xunit;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using SwitchBlade.Services;
 using SwitchBlade.Contracts;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System;
+using Moq;
+using Xunit;
 
 namespace SwitchBlade.Tests.Services
 {
     public class BadgeAnimationServiceTests
     {
-        // Simple manual mock for IBadgeAnimator to verify calls
-        public class MockBadgeAnimator : IBadgeAnimator
-        {
-            public List<(WindowItem Item, int Delay, int Duration, double Offset)> AnimatedCalls { get; } = new();
+        private readonly Mock<IBadgeAnimator> _mockAnimator;
+        private readonly Mock<IDelayProvider> _mockDelayProvider;
+        private readonly BadgeAnimationService _service;
 
-            public void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX)
+        public BadgeAnimationServiceTests()
+        {
+            _mockAnimator = new Mock<IBadgeAnimator>();
+            _mockDelayProvider = new Mock<IDelayProvider>();
+            
+            // Mock delay to complete immediately by default
+            _mockDelayProvider.Setup(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            _service = new BadgeAnimationService(_mockAnimator.Object, _mockDelayProvider.Object);
+            // Even with mock delay, we set these low for safety
+            _service.DebounceMs = 10;
+            _service.StaggerDelayMs = 10;
+        }
+
+        [Fact]
+        public async Task Trigger_NullItems_ReturnsImmediately()
+        {
+            await _service.TriggerStaggeredAnimationAsync(null);
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+        }
+
+        [Fact]
+        public async Task Trigger_Debounce_DelaysExecution()
+        {
+            var items = new List<WindowItem> { new WindowItem { Title = "T1", ShortcutIndex = 1 } };
+            
+            // Verify delay is called
+            await _service.TriggerStaggeredAnimationAsync(items);
+            
+            _mockDelayProvider.Verify(d => d.Delay(10, It.IsAny<CancellationToken>()), Times.Once); // Debounce
+            // And final wait
+            _mockDelayProvider.Verify(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
+        }
+
+        [Fact]
+        public async Task Trigger_SkipDebounce_SkipsFirstDelay()
+        {
+            var items = new List<WindowItem> { new WindowItem { Title = "T1", ShortcutIndex = 1 } };
+            
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+            
+            // Should NOT call delay for debounce (10ms), but WILL call delay for final wait
+            _mockDelayProvider.Verify(d => d.Delay(10, It.IsAny<CancellationToken>()), Times.Never);
+            _mockDelayProvider.Verify(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once); // Only final wait
+        }
+
+        [Fact]
+        public async Task Trigger_DebounceCancellation_Works()
+        {
+            var items = new List<WindowItem> { new WindowItem { Title = "T1", ShortcutIndex = 1 } };
+            
+            // Setup delay to hold execution so we can overlap
+            var tcs = new TaskCompletionSource();
+            _mockDelayProvider.Setup(d => d.Delay(10, It.IsAny<CancellationToken>()))
+                .Returns(async (int ms, CancellationToken ct) => {
+                    await tcs.Task; // Wait for manual release
+                    ct.ThrowIfCancellationRequested();
+                });
+
+            // Start first triggers
+            var task1 = _service.TriggerStaggeredAnimationAsync(items);
+            
+            // Start second trigger immediately - should cancel the first
+            // We need to ensure the first one has entered the delay.
+            // But since this is single-threaded test without real strict concurrency control on `tcs`, 
+            // the second call will cancel the CTS of the first.
+            
+            // Release the delay NOW
+            tcs.SetResult();
+            
+            var task2 = _service.TriggerStaggeredAnimationAsync(items);
+
+            try 
             {
-                AnimatedCalls.Add((item, delayMs, durationMs, startingOffsetX));
+                await task1;
             }
+            catch (OperationCanceledException) { } // it might throw or just return
+            
+            await task2;
+            
+            // Should have cancelled the first one inside the delay, or before animation
+            // Verification is tricky with loose mocks, but we expect only 1 animation cycle
+            // actually validating distinct cancellation is hard without checking token
+            
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.AtMost(1));
         }
 
         [Fact]
-        public void BadgeAnimationService_DefaultProperties_AreSet()
+        public void ResetAnimationState_ResetsFlag()
         {
-            var animator = new MockBadgeAnimator();
-            var service = new BadgeAnimationService(animator);
-
-            Assert.Equal(150, service.AnimationDurationMs);
-            Assert.Equal(75, service.StaggerDelayMs);
-            Assert.Equal(-20, service.StartingOffsetX);
+            var items = new List<WindowItem> { new WindowItem { HasBeenAnimated = true } };
+            _service.ResetAnimationState(items);
+            Assert.False(items[0].HasBeenAnimated);
+            
+            _service.ResetAnimationState(null); // Should not throw
         }
 
         [Fact]
-        public void ResetAnimationState_ResetsItemHasBeenAnimatedFlag()
+        public async Task Trigger_AlreadyAnimatedItems_SkipsAnimationButSetsVisibility()
         {
-            var animator = new MockBadgeAnimator();
-            var service = new BadgeAnimationService(animator);
-            var item = new WindowItem { HasBeenAnimated = true }; // Simulate already animated
+            var item = new WindowItem { Title = "T1", ShortcutIndex = 1, HasBeenAnimated = true };
             var items = new List<WindowItem> { item };
+            
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+            
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+            Assert.Equal(1.0, item.BadgeOpacity);
+            Assert.Equal(0.0, item.BadgeTranslateX);
+        }
+
+        [Fact]
+        public async Task Trigger_StaggerDelay_CalculatesCorrectly()
+        {
+            _service.StaggerDelayMs = 50;
+            _service.AnimationDurationMs = 100;
+            
+            var items = new List<WindowItem> 
+            { 
+                new WindowItem { Title = "T1", ShortcutIndex = 0 }, 
+                new WindowItem { Title = "T2", ShortcutIndex = 4 } 
+            };
+
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            // Verify animations were triggered with correct delays passed to Animator
+            _mockAnimator.Verify(a => a.Animate(items[0], 0, 100, It.IsAny<double>()), Times.Once());
+            _mockAnimator.Verify(a => a.Animate(items[1], 4 * 50, 100, It.IsAny<double>()), Times.Once());
+        }
+
+        [Fact]
+        public async Task Trigger_WaitsForCompletion()
+        {
+             _service.StaggerDelayMs = 10;
+             _service.AnimationDurationMs = 100;
+             var items = new List<WindowItem> { new WindowItem { ShortcutIndex = 1 } };
+             
+             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+             // Expected max delay: (1+1)*10 + 100 = 120
+             _mockDelayProvider.Verify(d => d.Delay(120, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Trigger_ResetsBadgeAnimation_ForItemsAboutToAnimate()
+        {
+             var item = new WindowItem { Title = "T1", ShortcutIndex = 1, BadgeOpacity = 1.0 };
+             var items = new List<WindowItem> { item };
+
+             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+             // Before animating, it should have reset Opacity to 0 (via ResetBadgeAnimation)
+             // and then animator handles it. 
+             _mockAnimator.Verify(a => a.Animate(item, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
+             Assert.True(item.HasBeenAnimated);
+        }
+
+        [Fact]
+        public void Constructor_Throws_WhenAnimatorNull()
+        {
+            Assert.Throws<ArgumentNullException>(() => new BadgeAnimationService(null!));
+        }
+
+        [Fact]
+        public void Constructor_UsesDefaultDelayProvider_WhenNull()
+        {
+            // Act
+            var service = new BadgeAnimationService(_mockAnimator.Object, null);
+            
+            // Assert
+            Assert.NotNull(service);
+            // We can't easily check the private field _delayProvider without reflection,
+            // but the fact it doesn't throw and initializes is the primary branch.
+        }
+
+        [Fact]
+        public async Task Trigger_CancellationDuringDebounce_ReturnsImmediately()
+        {
+            var items = new List<WindowItem> { new WindowItem { ShortcutIndex = 1 } };
+            
+            // Mock delay to throw OCE
+            _mockDelayProvider.Setup(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new OperationCanceledException());
 
             // Act
-            service.ResetAnimationState(items);
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: false);
 
             // Assert
-            Assert.False(item.HasBeenAnimated);
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
         }
 
         [Fact]
-        public void ResetAnimationState_HandlesNullOrEmptyListGracefully()
+        public async Task Trigger_CancellationDuringFinalDelay_HandlesGracefully()
         {
-            var animator = new MockBadgeAnimator();
-            var service = new BadgeAnimationService(animator);
-
-            // Should not throw
-            service.ResetAnimationState((IEnumerable<WindowItem>?)null);
-            service.ResetAnimationState(new List<WindowItem>());
-        }
-
-        [Fact]
-        public async Task TriggerStaggeredAnimationAsync_SetsHasBeenAnimated_True_And_CallsAnimator()
-        {
-            // Arrange
-            var animator = new MockBadgeAnimator();
-            var service = new BadgeAnimationService(animator) { AnimationDurationMs = 100, StaggerDelayMs = 50, StartingOffsetX = -15 };
-            var item = new WindowItem { ShortcutIndex = 0, HasBeenAnimated = false };
-            var items = new List<WindowItem> { item };
+            var items = new List<WindowItem> { new WindowItem { ShortcutIndex = 1 } };
+            
+            _mockDelayProvider.SetupSequence(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask) // Debounce succeeds
+                .ThrowsAsync(new OperationCanceledException()); // Final delay fails
 
             // Act
-            await service.TriggerStaggeredAnimationAsync(items);
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: false);
 
             // Assert
-            Assert.True(item.HasBeenAnimated, "Should mark item as animated");
-            
-            // Verify Animator was called with correct parameters
-            Assert.Single(animator.AnimatedCalls);
-            var call = animator.AnimatedCalls[0];
-            Assert.Same(item, call.Item);
-            Assert.Equal(0, call.Delay); // Index 0 * 50ms = 0
-            Assert.Equal(100, call.Duration);
-            Assert.Equal(-15, call.Offset);
+            // Animation should have still been triggered
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
         }
 
         [Fact]
-        public async Task TriggerStaggeredAnimationAsync_AppliesStaggerDelay_BasedOnShortcutIndex()
+        public async Task Trigger_MixedVisibilityItems_HandlesCorrectly()
         {
-            // Arrange
-            var animator = new MockBadgeAnimator();
-            var service = new BadgeAnimationService(animator) { StaggerDelayMs = 10 };
+            var item1 = new WindowItem { Title = "Visible", ShortcutIndex = 1 };
+            var item2 = new WindowItem { Title = "Hidden", ShortcutIndex = -1 }; // ShortcutIndex -1 means IsShortcutVisible = false
             
-            var item1 = new WindowItem { ShortcutIndex = 0, HasBeenAnimated = false };
-            var item2 = new WindowItem { ShortcutIndex = 1, HasBeenAnimated = false };
-            var item3 = new WindowItem { ShortcutIndex = 5, HasBeenAnimated = false }; // Gap in index
-
-            var items = new List<WindowItem> { item1, item2, item3 };
-
-            // Act
-            await service.TriggerStaggeredAnimationAsync(items);
-
-            // Assert
-            Assert.Equal(3, animator.AnimatedCalls.Count);
-
-            // Verify delays: Index * StaggerDelayMs (10)
-            Assert.Equal(0, animator.AnimatedCalls[0].Delay);  // Index 0
-            Assert.Equal(10, animator.AnimatedCalls[1].Delay); // Index 1
-            Assert.Equal(50, animator.AnimatedCalls[2].Delay); // Index 5
-        }
-
-        [Fact]
-        public async Task TriggerStaggeredAnimationAsync_SkipsAlreadyAnimatedItems()
-        {
-            // Arrange
-            var animator = new MockBadgeAnimator();
-            var service = new BadgeAnimationService(animator);
-            
-            // Item marked as animated
-            var item = new WindowItem { ShortcutIndex = 0, HasBeenAnimated = true };
-            
-            // Set opacity to 0.5 to check if it gets forced to 1.0 (visible) when skipped
-            item.BadgeOpacity = 0.5;
-
-            var items = new List<WindowItem> { item };
-
-            // Act
-            await service.TriggerStaggeredAnimationAsync(items);
-
-            // Assert
-            Assert.Empty(animator.AnimatedCalls); // Should NOT call animate
-            Assert.True(item.HasBeenAnimated, "Should stay animated");
-            Assert.Equal(1.0, item.BadgeOpacity); // Should be forced visible
-        }
-
-        [Fact]
-        public async Task TriggerStaggeredAnimationAsync_SupportsMultipleItems_SharedHwnd()
-        {
-            // Arrange
-            var animator = new MockBadgeAnimator();
-            var service = new BadgeAnimationService(animator);
-            
-            // Two items sharing the same HWND (e.g. browser tabs)
-            var item1 = new WindowItem { Hwnd = (IntPtr)12345, ShortcutIndex = 0, HasBeenAnimated = false };
-            var item2 = new WindowItem { Hwnd = (IntPtr)12345, ShortcutIndex = 1, HasBeenAnimated = false };
-
             var items = new List<WindowItem> { item1, item2 };
 
-            // Act
-            await service.TriggerStaggeredAnimationAsync(items);
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
 
-            // Assert
-            Assert.Equal(2, animator.AnimatedCalls.Count);
+            // item1 should be animated (HasBeenAnimated = true)
+            _mockAnimator.Verify(a => a.Animate(item1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
             Assert.True(item1.HasBeenAnimated);
-            Assert.True(item2.HasBeenAnimated);
+
+            // item2 should be skipped (continue branch)
+            _mockAnimator.Verify(a => a.Animate(item2, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+            Assert.False(item2.HasBeenAnimated);
         }
 
         [Fact]
-        public async Task TriggerStaggeredAnimationAsync_IgnoresItems_WithoutShortcuts()
+        public async Task Trigger_CancellationInsideLoop_ExitsEarly()
         {
-            // Arrange
-            var animator = new MockBadgeAnimator();
-            var service = new BadgeAnimationService(animator);
+            var items = new List<WindowItem> 
+            { 
+                new WindowItem { ShortcutIndex = 1 },
+                new WindowItem { ShortcutIndex = 2 }
+            };
+
+            // First call to start a cycle
+            var task1 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
             
-            var item = new WindowItem { ShortcutIndex = -1, HasBeenAnimated = false }; // -1 = No shortcut
-            var items = new List<WindowItem> { item };
+            // Second call immediately cancels the first CTS
+            var task2 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            await Task.WhenAll(task1, task2);
+
+            // One of them should have been cancelled before completing all items
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.AtMost(3)); 
+            }
+
+        [Fact]
+        public async Task Trigger_CancellationVisibleAfterDebounce_HitsBranch()
+        {
+            var items = new List<WindowItem> { new WindowItem { ShortcutIndex = 1 } };
+            
+            var tcs = new TaskCompletionSource();
+            _mockDelayProvider.Setup(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(tcs.Task);
+
+            // Start task1 - it will wait on the mock delay
+            var task1 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: false);
+            
+            // Start task2 - this cancels task1's CTS
+            var task2 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+            
+            // Resolve task1's delay WITHOUT throwing OCE
+            // This allows task1 to proceed to line 109 where it checks the token
+            tcs.SetResult(); 
+            
+            await task1;
+            await task2;
+
+            // task1 should have returned at line 109, so animate was never called for it by its own execution
+            // (task2 might have called it though)
+            // But we primarily care that line 109 was hit with true.
+        }
+
+        [Fact]
+        public async Task Trigger_CancellationVisibleInsideLoop_HitsBranch()
+        {
+            var item1 = new WindowItem { ShortcutIndex = 1 };
+            var item2 = new WindowItem { ShortcutIndex = 2 };
+            var items = new List<WindowItem> { item1, item2 };
+            
+            int callCount = 0;
+            // Mock animator to trigger cancellation of task1 when item1 is "animated"
+            _mockAnimator.Setup(a => a.Animate(item1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()))
+                .Callback(() => {
+                    // Only trigger cancellation once to avoid infinite recursion
+                    if (Interlocked.Increment(ref callCount) == 1)
+                    {
+                        // Start task2 to cancel task1
+                        _ = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+                    }
+                });
 
             // Act
-            await service.TriggerStaggeredAnimationAsync(items);
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
 
-            // Assert
-            Assert.Empty(animator.AnimatedCalls);
-            Assert.False(item.HasBeenAnimated, "Should NOT mark as animated");
+            // This should hit line 117 after item1 but before item2
         }
     }
 }

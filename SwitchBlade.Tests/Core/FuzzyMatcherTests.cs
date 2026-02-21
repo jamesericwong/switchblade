@@ -255,44 +255,138 @@ namespace SwitchBlade.Tests.Core
 
         #endregion
 
-        #region Edge Cases
+        #region Edge Cases - Coverage Extension
+
+
 
         [Fact]
-        public void Score_VeryLongTitle_DoesNotCrash()
+        public void Score_TitleLongerThan256_UsesHeapAllocation()
         {
-            string longTitle = new string('a', 1000) + "target" + new string('b', 1000);
-            int score = FuzzyMatcher.Score(longTitle, "target");
-            Assert.True(score > 0, "Should handle very long titles");
+            // Must NOT trigger exact match fast path
+            string longTitle = new string('a', 300) + "x y z";
+            int score = FuzzyMatcher.Score(longTitle, "xyz"); // Fuzzy match 'x', 'y', 'z'
+            Assert.True(score > 0);
         }
 
         [Fact]
-        public void Score_SpecialCharacters_Handled()
+        public void Score_QueryLongerThan64_UsesHeapAllocation()
         {
-            int score = FuzzyMatcher.Score("File (1).txt - Notepad", "file notepad");
-            Assert.True(score > 0, "Should handle special characters");
+            // Must NOT trigger exact match fast path
+            string longQuery = new string('a', 70) + "x y z";
+            string title = new string('a', 100) + "x-y-z";
+            int score = FuzzyMatcher.Score(title, longQuery);
+            Assert.True(score > 0);
         }
 
         [Fact]
-        public void Score_UnicodeCharacters_Handled()
+        public void Score_NormalizedQueryEmpty_ReturnsZero()
         {
-            int score = FuzzyMatcher.Score("résumé.docx", "resume");
-            // Unicode characters may or may not match depending on normalization
-            // The important thing is it doesn't crash
-            Assert.True(score >= 0, "Should not crash on unicode");
+            // Normalize skips spaces, underscores, and dashes
+            int score = FuzzyMatcher.Score("title", " _- ");
+            Assert.Equal(0, score);
         }
 
         [Fact]
-        public void Score_SingleCharacterQuery_Works()
+        public void Score_NormalizedQueryLongerThanTitle_ReturnsZero()
         {
-            int score = FuzzyMatcher.Score("Chrome", "c");
-            Assert.True(score > 0, "Single character query should work");
+            // Normalized "abc" is length 3, "ab" is length 2
+            int score = FuzzyMatcher.Score("ab", "abc");
+            Assert.Equal(0, score);
         }
 
         [Fact]
-        public void Score_SingleCharacterTitle_Works()
+        public void Score_NormalizedQueryLongerThanTitleWithDelimiters_ReturnsZero()
         {
-            int score = FuzzyMatcher.Score("C", "c");
-            Assert.True(score > 0, "Single character title should work");
+            // Normalized title "a" (len 1), normalized query "ab" (len 2)
+            int score = FuzzyMatcher.Score("a-_ ", "a b");
+            Assert.Equal(0, score);
+        }
+
+        [Fact]
+        public void Score_MaximizeNormalizedLengths_DoesNotCrash()
+        {
+            // Hits the logic where length is truncated to MaxNormalizedLength (512)
+            string superLongTitle = new string('a', 600);
+            string superLongQuery = new string('a', 600);
+            int score = FuzzyMatcher.Score(superLongTitle, superLongQuery);
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_MixedDelimitersAndCase_CalculatesCorrectly()
+        {
+            // "G_C" should match "google-chrome"
+            int score = FuzzyMatcher.Score("google-chrome", "G_C");
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_Subsequence_MatchAtExactEnd_ExercisesCondition()
+        {
+            // Title "abc", Query "c"
+            // lastMatchIndex will be 2, title.Length is 3
+            // Exercises: if (matchedAtStart && lastMatchIndex < title.Length)
+            // But matchedAtStart is false here.
+            int score = FuzzyMatcher.Score("abc", "c");
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_MatchedAtStart_WithLastMatchAtEnd_ExercisesCondition()
+        {
+            // Title "abc", Query "abc"
+            // matchedAtStart = true, lastMatchIndex = 2, title.Length = 3
+            // Exercises the branch: if (matchedAtStart && lastMatchIndex < title.Length)
+            int score = FuzzyMatcher.Score("abc", "abc");
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_MatchedAtStart_Partial_ExercisesCondition()
+        {
+            // Title "abcd", Query "ab"
+            // matchedAtStart = true, lastMatchIndex = 1, title.Length = 4
+            int score = FuzzyMatcher.Score("abcd", "ab");
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void Score_ExactContains_NotStartsWith()
+        {
+            // Tests the branch where title.Contains(query) is true, but StartsWith is false.
+            // "Hello World" contains "World", but doesn't start with it.
+            int score = FuzzyMatcher.Score("Hello World", "World");
+            Assert.True(score > 0);
+            // Should score lower than "World Hello" (starts with) which gets bonus.
+            int startsWithScore = FuzzyMatcher.Score("World Hello", "World");
+            Assert.True(startsWithScore > score);
+        }
+
+        [Fact]
+        public void Score_Fuzzy_NotAtStart()
+        {
+            // Explicitly test fuzzy match that does NOT start at 0 normalized index.
+            // "G_oogle", "ogle" -> Norm "google", "ogle".
+            // 'o' matches at 1. No match at start.
+            // Ensures matchedAtStart remains false.
+            int score = FuzzyMatcher.Score("G_oogle", "ogle");
+            Assert.True(score > 0);
+
+            // Verify matchedAtStart is false by comparing with a starts-with match
+            int startsWithScore = FuzzyMatcher.Score("google", "goog");
+            int nonStartScore = FuzzyMatcher.Score("xgoogle", "goog");
+            Assert.True(startsWithScore > nonStartScore);
+        }
+
+        [Fact]
+        public void Score_Normalization_BufferTruncation_ExercisesBranch()
+        {
+            // This is a bit tricky to hit, but if we have a title that is exactly the length 
+            // of the buffer but contains delimiters, Normalize will finish i loop before writeIndex hits buffer end.
+            // If it HAS NO delimiters, writeIndex hits buffer end.
+            string maxLenTitle = new string('a', 512); 
+            int score = FuzzyMatcher.Score(maxLenTitle, "aaaa");
+            Assert.True(score > 0);
         }
 
         #endregion

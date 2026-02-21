@@ -40,7 +40,8 @@ namespace SwitchBlade
             MainViewModel viewModel,
             ISettingsService settingsService,
             IDispatcherService dispatcherService,
-            ILogger logger)
+            ILogger logger,
+            INumberShortcutService numberShortcutService)
         {
             InitializeComponent();
 
@@ -63,6 +64,7 @@ namespace SwitchBlade
             _keyboardHandler = new KeyboardInputHandler(
                 _viewModel,
                 _settingsService,
+                numberShortcutService,
                 () => this.Hide(),
                 ActivateWindow,
                 () => ResultsConfig.ListActualHeight);

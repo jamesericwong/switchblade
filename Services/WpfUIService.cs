@@ -6,6 +6,7 @@ using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Services
 {
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class WpfUIService : IUIService
     {
         public System.Windows.MessageBoxResult ShowMessageBox(string message, string title, System.Windows.MessageBoxButton button, System.Windows.MessageBoxImage icon)
@@ -30,39 +31,9 @@ namespace SwitchBlade.Services
 
             var currentPid = Process.GetCurrentProcess().Id;
             var workingDir = Path.GetDirectoryName(processPath) ?? "";
+            bool isElevated = Program.IsRunningAsAdmin();
 
-            // Determine if we're de-elevating (currently admin, turning it off)
-            bool isDeElevating = Program.IsRunningAsAdmin();
-
-            ProcessStartInfo startInfo;
-
-            if (isDeElevating)
-            {
-                var escapedPath = processPath.Replace("\"", "`\"");
-                var command = $"Wait-Process -Id {currentPid} -ErrorAction SilentlyContinue; Start-Process explorer.exe -ArgumentList '\"{escapedPath}\"'";
-
-                startInfo = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -WindowStyle Hidden -Command \"{command}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = workingDir
-                };
-            }
-            else
-            {
-                var command = $"Wait-Process -Id {currentPid} -ErrorAction SilentlyContinue; Start-Process '{processPath}' -WorkingDirectory '{workingDir}'";
-
-                startInfo = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -WindowStyle Hidden -Command \"{command}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = workingDir
-                };
-            }
+            var startInfo = RestartLogic.BuildRestartStartInfo(processPath, workingDir, currentPid, isElevated);
 
             try
             {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SwitchBlade.Contracts;
+using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
 {
@@ -16,6 +17,7 @@ namespace SwitchBlade.Services
         private readonly ISettingsStorage _storage;
         private readonly IWindowsStartupManager _startupManager;
         private readonly ILogger? _logger;
+        private readonly IProcessFactory _processFactory;
 
         public UserSettings Settings { get; private set; }
         public event Action? SettingsChanged;
@@ -38,11 +40,12 @@ namespace SwitchBlade.Services
         /// <summary>
         /// Creates a SettingsService with custom storage and startup manager (for testing).
         /// </summary>
-        public SettingsService(ISettingsStorage storage, IWindowsStartupManager startupManager, ILogger? logger = null)
+        public SettingsService(ISettingsStorage storage, IWindowsStartupManager startupManager, ILogger? logger = null, IProcessFactory? processFactory = null)
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _startupManager = startupManager ?? throw new ArgumentNullException(nameof(startupManager));
             _logger = logger;
+            _processFactory = processFactory ?? new ProcessFactory();
             Settings = new UserSettings();
             LoadSettings();
         }
@@ -213,7 +216,8 @@ namespace SwitchBlade.Services
         {
             if (Settings.LaunchOnStartup)
             {
-                string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                using var currentProcess = _processFactory.GetCurrentProcess();
+                string? exePath = currentProcess.MainModuleFileName;
                 if (!string.IsNullOrEmpty(exePath))
                 {
                     _startupManager.EnableStartup(exePath);

@@ -208,12 +208,5 @@ namespace SwitchBlade.Services
             }
         }
 
-        private void PopulateIconIfMissing(WindowItem item, string? executablePath)
-        {
-            if (item.Icon == null && _iconService != null && !string.IsNullOrEmpty(executablePath))
-            {
-                item.Icon = _iconService.GetIcon(executablePath);
-            }
-        }
     }
 }

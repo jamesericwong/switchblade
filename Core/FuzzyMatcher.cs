@@ -149,7 +149,7 @@ namespace SwitchBlade.Core
                 return 0; // Incomplete match
 
             // Starts-with bonus: if matching started at the beginning
-            if (matchedAtStart && lastMatchIndex < title.Length)
+            if (matchedAtStart)
             {
                 score += StartsWithBonus;
             }

@@ -28,7 +28,7 @@ jobs:
 
     - name: Run Tests (Release)
       # Safety check before publishing with coverage collection
-      run: dotnet test SwitchBlade.sln -c Release --collect:"XPlat Code Coverage" --results-directory ./coverage
+      run: dotnet test SwitchBlade.sln -c Release --collect:"XPlat Code Coverage" --settings CodeCoverage.runsettings --results-directory ./coverage
 
     - name: Code Coverage Report
       uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1

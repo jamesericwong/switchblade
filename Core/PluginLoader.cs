@@ -9,7 +9,7 @@ using SwitchBlade.Contracts;
 namespace SwitchBlade.Core
 {
     [ExcludeFromCodeCoverage]
-    public class PluginLoader
+    public class PluginLoader : IPluginLoader
     {
         private readonly string _pluginsPath;
         private readonly ILogger? _logger;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using SwitchBlade.Contracts;
+using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
 {
@@ -14,6 +15,7 @@ namespace SwitchBlade.Services
     public class BadgeAnimationService
     {
         private readonly IBadgeAnimator _animator;
+        private readonly IDelayProvider _delayProvider;
         private CancellationTokenSource? _animationCts;
 
         /// <summary>
@@ -38,9 +40,10 @@ namespace SwitchBlade.Services
         /// </summary>
         public int DebounceMs { get; set; } = 75;
 
-        public BadgeAnimationService(IBadgeAnimator animator)
+        public BadgeAnimationService(IBadgeAnimator animator, IDelayProvider? delayProvider = null)
         {
             _animator = animator ?? throw new ArgumentNullException(nameof(animator));
+            _delayProvider = delayProvider ?? new SystemDelayProvider();
         }
 
         /// <summary>
@@ -95,7 +98,7 @@ namespace SwitchBlade.Services
             {
                 try
                 {
-                    await Task.Delay(DebounceMs, ct);
+                    await _delayProvider.Delay(DebounceMs, ct);
                 }
                 catch (OperationCanceledException)
                 {
@@ -153,7 +156,7 @@ namespace SwitchBlade.Services
                 int maxDelay = (maxShortcutIndex + 1) * StaggerDelayMs + AnimationDurationMs;
                 try
                 {
-                    await Task.Delay(maxDelay, ct);
+                    await _delayProvider.Delay(maxDelay, ct);
                 }
                 catch (OperationCanceledException)
                 {

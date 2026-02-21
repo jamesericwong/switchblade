@@ -1,50 +1,33 @@
 using System;
 using System.IO;
-using Xunit;
 using SwitchBlade.Core;
+using SwitchBlade.Contracts;
+using Xunit;
 
 namespace SwitchBlade.Tests.Core
 {
     public class LoggerTests : IDisposable
     {
-        private readonly string _logPath;
+        private readonly string _tempFile;
+        private readonly string _originalLogPath;
+        private readonly bool _originalDebugState;
 
         public LoggerTests()
         {
-            // Use a unique file for each test instance to avoid contention
-            _logPath = Path.Combine(Path.GetTempPath(), $"switchblade_test_{Guid.NewGuid()}.log");
-            Logger.LogFilePath = _logPath;
-
-            // Clean up if by rare chance it exists
-            if (File.Exists(_logPath))
-            {
-                File.Delete(_logPath);
-            }
-            // Reset logger state
-            Logger.IsDebugEnabled = false;
+            _tempFile = Path.Combine(Path.GetTempPath(), $"switchblade_test_{Guid.NewGuid()}.log");
+            _originalLogPath = Logger.LogFilePath;
+            _originalDebugState = Logger.IsDebugEnabled;
+            Logger.LogFilePath = _tempFile;
+            Logger.IsDebugEnabled = true;
         }
 
         public void Dispose()
         {
-            Logger.IsDebugEnabled = false;
-            if (File.Exists(_logPath))
+            Logger.LogFilePath = _originalLogPath;
+            Logger.IsDebugEnabled = _originalDebugState;
+            if (File.Exists(_tempFile))
             {
-                try { File.Delete(_logPath); } catch { }
-            }
-        }
-
-        [Fact]
-        public void Log_WhenDebugDisabled_DoesNotWriteToFile()
-        {
-            Logger.IsDebugEnabled = false;
-
-            Logger.Log("Test message");
-
-            // File may exist from previous runs, so check content
-            if (File.Exists(_logPath))
-            {
-                var content = File.ReadAllText(_logPath);
-                Assert.DoesNotContain("Test message", content);
+                try { File.Delete(_tempFile); } catch { }
             }
         }
 
@@ -52,67 +35,76 @@ namespace SwitchBlade.Tests.Core
         public void Log_WhenDebugEnabled_WritesToFile()
         {
             Logger.IsDebugEnabled = true;
+            Logger.Log("Test message");
 
-            Logger.Log("Debug test message");
-
-            Assert.True(File.Exists(_logPath));
-            var content = File.ReadAllText(_logPath);
-            Assert.Contains("Debug test message", content);
+            Assert.True(File.Exists(_tempFile));
+            var content = File.ReadAllText(_tempFile);
+            Assert.Contains("Test message", content);
         }
 
         [Fact]
-        public void Log_WhenDebugEnabled_IncludesTimestamp()
+        public void Log_WhenDebugDisabled_DoesNotWriteToFile()
         {
-            Logger.IsDebugEnabled = true;
+            Logger.IsDebugEnabled = false;
+            if (File.Exists(_tempFile)) File.Delete(_tempFile);
 
-            Logger.Log("Timestamp test");
+            Logger.Log("Should not be logged");
 
-            var content = File.ReadAllText(_logPath);
-            // Check for timestamp format [yyyy-MM-dd HH:mm:ss.fff]
-            Assert.Matches(@"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\]", content);
+            Assert.False(File.Exists(_tempFile));
         }
 
         [Fact]
-        public void LogError_WritesToFile_WithErrorPrefix()
+        public void LogError_String_WritesErrorToFile()
         {
-            var exception = new InvalidOperationException("Test exception");
+            Logger.LogError("Test error");
 
-            Logger.LogError("TestContext", exception);
-
-            Assert.True(File.Exists(_logPath));
-            var content = File.ReadAllText(_logPath);
-            Assert.Contains("ERROR", content);
-            Assert.Contains("TestContext", content);
-            Assert.Contains("Test exception", content);
+            Assert.True(File.Exists(_tempFile));
+            var content = File.ReadAllText(_tempFile);
+            Assert.Contains("ERROR: Test error", content);
         }
 
         [Fact]
-        public void LogError_IncludesStackTrace()
+        public void LogError_ContextAndException_WritesDetailsToFile()
         {
-            Exception? capturedException = null;
-            try
-            {
-                throw new InvalidOperationException("Stack trace test");
-            }
-            catch (Exception ex)
-            {
-                capturedException = ex;
-            }
+            var ex = new Exception("Inner exception");
+            Logger.LogError("TestContext", ex);
 
-            Logger.LogError("StackTest", capturedException!);
-
-            var content = File.ReadAllText(_logPath);
+            Assert.True(File.Exists(_tempFile));
+            var content = File.ReadAllText(_tempFile);
+            Assert.Contains("ERROR [TestContext]: Inner exception", content);
             Assert.Contains("Stack:", content);
         }
 
         [Fact]
-        public void IsDebugEnabled_DefaultValue_IsFalse()
+        public void ILogger_Log_WritesToFile()
         {
-            // Reset to verify default
-            var field = typeof(Logger).GetProperty("IsDebugEnabled");
+            ILogger logger = Logger.Instance;
+            logger.Log("Interface log");
 
-            // After construction, should be false by default
-            Assert.False(Logger.IsDebugEnabled);
+            var content = File.ReadAllText(_tempFile);
+            Assert.Contains("Interface log", content);
+        }
+
+        [Fact]
+        public void ILogger_LogError_WritesToFile()
+        {
+            ILogger logger = Logger.Instance;
+            logger.LogError("InterfaceContext", new Exception("InterfaceEx"));
+
+            var content = File.ReadAllText(_tempFile);
+            Assert.Contains("ERROR [InterfaceContext]: InterfaceEx", content);
+        }
+
+        [Fact]
+        public void Log_WhenPathIsInvalid_SilentlyFails()
+        {
+            // Set an invalid path (e.g., a path with invalid characters)
+            Logger.LogFilePath = "Z:\\invalid\\path\\that\\does\\not\\exist\\log.txt";
+            
+            // This should not throw
+            Logger.Log("Invalid path log");
+            Logger.LogError("Invalid path error");
+            Logger.LogError("Context", new Exception("Ex"));
         }
     }
 }

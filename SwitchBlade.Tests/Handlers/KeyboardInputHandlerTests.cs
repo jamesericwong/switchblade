@@ -14,6 +14,7 @@ namespace SwitchBlade.Tests.Handlers
     {
         private readonly Mock<IWindowListViewModel> _mockViewModel;
         private readonly Mock<ISettingsService> _mockSettingsService;
+        private readonly Mock<INumberShortcutService> _mockNumberShortcutService;
         private readonly Mock<Action> _mockHideWindow;
         private readonly Mock<Action<WindowItem?>> _mockActivateWindow;
         private readonly Mock<Func<double>> _mockGetListBoxHeight;
@@ -24,6 +25,7 @@ namespace SwitchBlade.Tests.Handlers
         {
             _mockViewModel = new Mock<IWindowListViewModel>();
             _mockSettingsService = new Mock<ISettingsService>();
+            _mockNumberShortcutService = new Mock<INumberShortcutService>();
             _mockHideWindow = new Mock<Action>();
             _mockActivateWindow = new Mock<Action<WindowItem?>>();
             _mockGetListBoxHeight = new Mock<Func<double>>();
@@ -35,6 +37,7 @@ namespace SwitchBlade.Tests.Handlers
             _handler = new KeyboardInputHandler(
                 _mockViewModel.Object,
                 _mockSettingsService.Object,
+                _mockNumberShortcutService.Object,
                 _mockHideWindow.Object,
                 _mockActivateWindow.Object,
                 _mockGetListBoxHeight.Object);
@@ -48,7 +51,7 @@ namespace SwitchBlade.Tests.Handlers
 
             // Assert
             _mockHideWindow.Verify(x => x(), Times.Once);
-            Assert.False(result); // Escape logic returns false in current impl (bubble up?)
+            Assert.False(result); // Escape logic returns false in current impl
         }
 
         [Fact]
@@ -116,8 +119,7 @@ namespace SwitchBlade.Tests.Handlers
             // Arrange
             _settings.ItemHeight = 50;
             _mockGetListBoxHeight.Setup(f => f()).Returns(500); // 10 items
-            // Page size should be 10
-
+            
             // Act
             bool result = _handler.HandleKeyInput(Key.PageUp, ModifierKeys.None);
 
@@ -142,41 +144,66 @@ namespace SwitchBlade.Tests.Handlers
         }
 
         [Fact]
-        public void HandleKeyInput_NumberShortcut_ActivatedIfEnabled()
+        public void HandleKeyInput_DelegatesToNumberShortcutService()
         {
             // Arrange
-            _settings.EnableNumberShortcuts = true;
-            _settings.NumberShortcutModifier = 1; // Alt
-
-            var windows = new ObservableCollection<WindowItem>
-            {
-                new WindowItem { Hwnd = IntPtr.Zero, Title = "One" },
-                new WindowItem { Hwnd = IntPtr.Zero, Title = "Two" },
-                new WindowItem { Hwnd = IntPtr.Zero, Title = "Three" }
-            };
-            _mockViewModel.Setup(vm => vm.FilteredWindows).Returns(windows);
+            _mockNumberShortcutService
+                .Setup(s => s.HandleShortcut(It.IsAny<Key>(), It.IsAny<ModifierKeys>(), It.IsAny<IWindowListViewModel>(), It.IsAny<Action<WindowItem?>>()))
+                .Returns(true);
 
             // Act
-            // Alt+2 -> Index 1 ("Two")
-            bool result = _handler.HandleKeyInput(Key.D2, ModifierKeys.Alt);
+            bool result = _handler.HandleKeyInput(Key.D1, ModifierKeys.Alt);
 
             // Assert
-            _mockActivateWindow.Verify(x => x(windows[1]), Times.Once);
             Assert.True(result);
+            _mockNumberShortcutService.Verify(s => s.HandleShortcut(
+                Key.D1, 
+                ModifierKeys.Alt, 
+                _mockViewModel.Object, 
+                _mockActivateWindow.Object), Times.Once);
         }
 
         [Fact]
-        public void HandleKeyInput_NumberShortcut_IgnoredIfDisabled()
+        public void CalculatePageSize_HandlesZeroHeights_DefaultsSafely()
         {
-            // Arrange
-            _settings.EnableNumberShortcuts = false;
+            _settings.ItemHeight = 0; // Should trigger default 64
+            _mockGetListBoxHeight.Setup(f => f()).Returns(500);
+            
+            // Page size = 500 / 64 = 7.8 -> 7
+            _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
+            
+            _mockViewModel.Verify(vm => vm.MoveSelectionByPage(1, 7), Times.Once);
+        }
 
-            // Act
-            bool result = _handler.HandleKeyInput(Key.D2, ModifierKeys.Alt);
+        [Fact]
+        public void CalculatePageSize_HandlesZeroListBoxHeight()
+        {
+            _settings.ItemHeight = 100;
+            _mockGetListBoxHeight.Setup(f => f()).Returns(0); // Should trigger default 400
+            
+            // Page size = 400 / 100 = 4
+            _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
+            
+            _mockViewModel.Verify(vm => vm.MoveSelectionByPage(1, 4), Times.Once);
+        }
+        
+        [Fact]
+        public void CalculatePageSize_EnsuresMinimumPageSizeOfOne()
+        {
+             _settings.ItemHeight = 500;
+             _mockGetListBoxHeight.Setup(f => f()).Returns(100); 
+             
+             // 100 / 500 = 0 -> Max(1, 0) -> 1
+             _handler.HandleKeyInput(Key.PageDown, ModifierKeys.None);
+             
+             _mockViewModel.Verify(vm => vm.MoveSelectionByPage(1, 1), Times.Once);
+        }
 
-            // Assert
-            _mockActivateWindow.Verify(x => x(It.IsAny<WindowItem>()), Times.Never);
-            Assert.False(result);
+        [Fact]
+        public void HandleKeyInput_UnhandledKeys_ReturnFalse()
+        {
+            Assert.False(_handler.HandleKeyInput(Key.A, ModifierKeys.None));
+            Assert.False(_handler.HandleKeyInput(Key.F1, ModifierKeys.None));
         }
     }
 }

@@ -181,10 +181,26 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void CalculatePageMoveIndex_ClampsToStart()
+        public void ResolveSelection_NullList_ReturnsNull()
         {
-            int result = _service.CalculatePageMoveIndex(2, -1, 5, 20);
-            Assert.Equal(0, result);
+            var result = _service.ResolveSelection(
+                null!, null, null, 0, RefreshBehavior.PreserveScroll, false);
+
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void CalculatePageMoveIndex_PageSizeZero_ReturnsMinusOne()
+        {
+            int result = _service.CalculatePageMoveIndex(0, 1, 0, 10);
+            Assert.Equal(-1, result);
+        }
+
+        [Fact]
+        public void CalculatePageMoveIndex_NegativeIndex_TreatsAsZero()
+        {
+            int result = _service.CalculatePageMoveIndex(-1, 1, 5, 20);
+            Assert.Equal(5, result);
         }
 
         #endregion
