@@ -28,7 +28,7 @@ jobs:
       run: dotnet test SwitchBlade.sln --no-build --verbosity normal --collect:"XPlat Code Coverage" --settings CodeCoverage.runsettings --results-directory ./coverage
 
     - name: Code Coverage Report
-      uses: danielpalme/ReportGenerator-GitHub-Action@5.3.11
+      uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1
       with:
         reports: coverage/**/coverage.cobertura.xml
         targetdir: coverage
