@@ -90,9 +90,17 @@ namespace SwitchBlade.Tests.Services
 
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
             
+            var inputWritten = new ManualResetEventSlim(false);
+            var mockIn = new Mock<TextWriter>();
+            mockIn.Setup(w => w.WriteLineAsync(It.IsAny<string>()))
+                  .Callback(() => inputWritten.Set())
+                  .Returns(Task.CompletedTask);
+            _mockProcess.Setup(p => p.StandardInput).Returns(mockIn.Object);
+
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
-            Task.Run(async () => await enumerator.MoveNextAsync());
-            Thread.Sleep(100); 
+            var moveNextTask = enumerator.MoveNextAsync().AsTask();
+            
+            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
 
             client.Dispose();
             
@@ -271,12 +279,23 @@ namespace SwitchBlade.Tests.Services
                   .Callback(() => inputWritten.Set())
                   .Returns(Task.CompletedTask);
             _mockProcess.Setup(p => p.StandardInput).Returns(mockIn.Object);
-
-             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
-            Task.Run(async () => await enumerator.MoveNextAsync()); 
             
-            // Wait for input to be written, ensuring _activeProcess is set
-            Assert.True(inputWritten.Wait(2000), "Timed out waiting for process to become active");
+            // Setup ReadLineAsync to hang so process stays "active" in the client
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<string?>(new TaskCompletionSource<string?>().Task));
+
+            var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
+            var moveNextTask = enumerator.MoveNextAsync().AsTask();
+            
+            // Wait for input to be written, ensuring _activeProcess is set.
+            // Increased timeout for CI runners.
+            if (!inputWritten.Wait(5000))
+            {
+                if (moveNextTask.IsFaulted)
+                    throw new Exception("MoveNextAsync failed immediately", moveNextTask.Exception);
+                
+                throw new Exception("Timed out waiting for process to become active (input was never written)");
+            }
              
              client.Dispose();
              
@@ -518,9 +537,17 @@ namespace SwitchBlade.Tests.Services
 
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
             
+            var inputWritten = new ManualResetEventSlim(false);
+            var mockIn = new Mock<TextWriter>();
+            mockIn.Setup(w => w.WriteLineAsync(It.IsAny<string>()))
+                  .Callback(() => inputWritten.Set())
+                  .Returns(Task.CompletedTask);
+            _mockProcess.Setup(p => p.StandardInput).Returns(mockIn.Object);
+
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
-            Task.Run(async () => await enumerator.MoveNextAsync());
-            Thread.Sleep(100); 
+            var moveNextTask = enumerator.MoveNextAsync().AsTask();
+            
+            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
 
             // Now set HasExited to true so Dispose avoids Kill
             _mockProcess.Setup(p => p.HasExited).Returns(true);
@@ -623,12 +650,22 @@ namespace SwitchBlade.Tests.Services
             
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
             _mockProcFactory.Setup(f => f.Start(It.IsAny<ProcessStartInfo>())).Returns(process.Object);
+            
+            // Setup ReadLineAsync to hang so process stays "active" in the client
             process.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<string?>(new TaskCompletionSource<string?>().Task));
-                
+
+            var inputWritten = new ManualResetEventSlim(false);
+            var mockIn = new Mock<TextWriter>();
+            mockIn.Setup(w => w.WriteLineAsync(It.IsAny<string>()))
+                  .Callback(() => inputWritten.Set())
+                  .Returns(Task.CompletedTask);
+            process.Setup(p => p.StandardInput).Returns(mockIn.Object);
+
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
-            _ = Task.Run(async () => await enumerator.MoveNextAsync());
-            Thread.Sleep(150); 
+            var moveNextTask = enumerator.MoveNextAsync().AsTask();
+            
+            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
             
             client.Dispose();
             
@@ -644,12 +681,22 @@ namespace SwitchBlade.Tests.Services
             
             var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
             _mockProcFactory.Setup(f => f.Start(It.IsAny<ProcessStartInfo>())).Returns(process.Object);
+            
+            // Setup ReadLineAsync to hang so process stays "active" in the client
             process.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<string?>(new TaskCompletionSource<string?>().Task));
-                
+
+            var inputWritten = new ManualResetEventSlim(false);
+            var mockIn = new Mock<TextWriter>();
+            mockIn.Setup(w => w.WriteLineAsync(It.IsAny<string>()))
+                  .Callback(() => inputWritten.Set())
+                  .Returns(Task.CompletedTask);
+            process.Setup(p => p.StandardInput).Returns(mockIn.Object);
+
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
-            _ = Task.Run(async () => await enumerator.MoveNextAsync());
-            Thread.Sleep(150); 
+            var moveNextTask = enumerator.MoveNextAsync().AsTask();
+            
+            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
             
             client.Dispose();
             // No crash
