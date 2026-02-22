@@ -1,4 +1,5 @@
 using SwitchBlade.Core;
+using System.Linq;
 using Xunit;
 
 namespace SwitchBlade.Tests.Core
@@ -125,6 +126,62 @@ namespace SwitchBlade.Tests.Core
             Assert.Single(segments);
             Assert.Equal("abc", segments[0].Text);
             Assert.True(segments[0].IsBold);
+        }
+
+        [Fact]
+        public void DependencyProperty_Accessors_WorkCorrectly()
+        {
+            // TextBlock creation requires STA thread
+            var thread = new System.Threading.Thread(() =>
+            {
+                var textBlock = new System.Windows.Controls.TextBlock();
+
+                SearchHighlightBehavior.SetTitle(textBlock, "Title");
+                Assert.Equal("Title", SearchHighlightBehavior.GetTitle(textBlock));
+
+                SearchHighlightBehavior.SetSearchText(textBlock, "Search");
+                Assert.Equal("Search", SearchHighlightBehavior.GetSearchText(textBlock));
+
+                SearchHighlightBehavior.SetIsEnabled(textBlock, false);
+                Assert.False(SearchHighlightBehavior.GetIsEnabled(textBlock));
+
+                SearchHighlightBehavior.SetUseFuzzy(textBlock, false);
+                Assert.False(SearchHighlightBehavior.GetUseFuzzy(textBlock));
+
+                SearchHighlightBehavior.SetUseFuzzy(textBlock, true);
+                Assert.True(SearchHighlightBehavior.GetUseFuzzy(textBlock));
+            });
+
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.Start();
+            thread.Join(2000);
+        }
+
+        [Fact]
+        public void OnPropertyChanged_RebuildsInlines()
+        {
+            // TextBlock.Inlines requires STA thread
+            var thread = new System.Threading.Thread(() =>
+            {
+                var textBlock = new System.Windows.Controls.TextBlock();
+                SearchHighlightBehavior.SetTitle(textBlock, "Chrome");
+                SearchHighlightBehavior.SetSearchText(textBlock, "rom");
+                SearchHighlightBehavior.SetIsEnabled(textBlock, true);
+
+                // OnPropertyChanged is triggered by DP changes
+                // Verify Inlines
+                Assert.Equal(3, textBlock.Inlines.Count);
+                
+                var runs = textBlock.Inlines.Cast<System.Windows.Documents.Run>().ToList();
+                Assert.Equal("Ch", runs[0].Text);
+                Assert.Equal("rom", runs[1].Text);
+                Assert.Equal(System.Windows.FontWeights.Bold, runs[1].FontWeight);
+                Assert.Equal("e", runs[2].Text);
+            });
+
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.Start();
+            thread.Join(2000); // 2s timeout
         }
     }
 }

@@ -502,6 +502,44 @@ namespace SwitchBlade.Tests.Core
             Assert.Empty(result);
         }
 
+        [Fact]
+        public void GetMatchedIndices_LongTitle_UsesHeapAllocation_ReturnsCorrectIndices()
+        {
+            // Title > 256 chars (MaxNormalizedLength is 256)
+            var longTitle = new string('a', 300) + "bc";
+            var query = "bc";
+            
+            // "bc" will be at the end, far beyond 256 limit. 
+            // NormalizeWithMap truncates at MaxNormalizedLength (256).
+            // So "bc" at index 300 will NOT be found in first 256 chars.
+            var result = FuzzyMatcher.GetMatchedIndices(longTitle, query, true);
+            
+            // Should match "bc" at the end, using heap-allocated buffers
+            Assert.Equal(new[] { 300, 301 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_LongQuery_UsesHeapAllocation_ReturnsEmpty()
+        {
+            // Query > 64 chars
+            var longQuery = new string('a', 100);
+            var result = FuzzyMatcher.GetMatchedIndices("aaa", longQuery, true);
+            
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_MatchWithinTruncatedTitle_ReturnsIndices()
+        {
+            // Title is 300 chars, query "xyz" is at index 10 (well within 256 limit)
+            var baseTitle = "abcxyzdef";
+            var longTitle = baseTitle + new string('a', 300);
+            
+            var result = FuzzyMatcher.GetMatchedIndices(longTitle, "xyz", true);
+            
+            Assert.Equal(new[] { 3, 4, 5 }, result);
+        }
+
         #endregion
     }
 }
