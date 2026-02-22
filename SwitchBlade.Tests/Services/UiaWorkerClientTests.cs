@@ -959,9 +959,17 @@ namespace SwitchBlade.Tests.Services
 
             var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
 
+            var inputWritten = new ManualResetEventSlim(false);
+            var mockIn = new Mock<TextWriter>();
+            mockIn.Setup(w => w.WriteLineAsync(It.IsAny<string>()))
+                  .Callback(() => inputWritten.Set())
+                  .Returns(Task.CompletedTask);
+            process.Setup(p => p.StandardInput).Returns(mockIn.Object);
+
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
             _ = Task.Run(async () => await enumerator.MoveNextAsync());
-            Thread.Sleep(150);
+            
+            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
 
             client.Dispose();
 
