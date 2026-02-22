@@ -111,6 +111,7 @@ namespace SwitchBlade.ViewModels
         public bool EnableNumberShortcuts => _settingsService?.Settings.EnableNumberShortcuts ?? true;
 
         public bool EnableSearchHighlighting => _settingsService?.Settings.EnableSearchHighlighting ?? true;
+        public string SearchHighlightColor => _settingsService?.Settings.SearchHighlightColor ?? "#FF0078D4";
 
         public bool EnableFuzzySearch => _settingsService?.Settings.EnableFuzzySearch ?? true;
 

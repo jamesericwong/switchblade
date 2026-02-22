@@ -144,6 +144,12 @@ namespace SwitchBlade.Services
         public bool EnableSearchHighlighting { get; set; } = true;
 
         /// <summary>
+        /// Hex color string for search highlighting (format: #AARRGGBB or #RRGGBB).
+        /// Default: Windows Blue (#FF0078D4).
+        /// </summary>
+        public string SearchHighlightColor { get; set; } = "#FF0078D4";
+
+        /// <summary>
         /// Maximum number of icons to cache in memory.
         /// Caching prevents expensive icon extraction, but too many cached icons can cause memory growth.
         /// Default: 200.

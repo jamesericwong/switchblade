@@ -391,5 +391,28 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Contains("Alt", _viewModel.AvailableShortcutModifiers);
             Assert.Contains("None", _viewModel.AvailableShortcutModifiers);
         }
+
+        [Fact]
+        public void SearchHighlightColor_Property_NotifyAndSave()
+        {
+            _viewModel.SearchHighlightColor = "#FF0000"; // Initial
+            _settingsServiceMock.Invocations.Clear();
+
+            bool notified = false;
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.SearchHighlightColor)) notified = true; };
+
+            _viewModel.SearchHighlightColor = "#00FF00";
+
+            Assert.True(notified);
+            Assert.Equal("#00FF00", _settingsServiceMock.Object.Settings.SearchHighlightColor);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
+        }
+
+        [Fact]
+        public void SetHighlightColorCommand_Executes_Correctly()
+        {
+            _viewModel.SetHighlightColorCommand.Execute("#123456");
+            Assert.Equal("#123456", _viewModel.SearchHighlightColor);
+        }
     }
 }

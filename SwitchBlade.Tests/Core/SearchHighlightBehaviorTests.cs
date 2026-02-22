@@ -150,6 +150,9 @@ namespace SwitchBlade.Tests.Core
 
                 SearchHighlightBehavior.SetUseFuzzy(textBlock, true);
                 Assert.True(SearchHighlightBehavior.GetUseFuzzy(textBlock));
+
+                SearchHighlightBehavior.SetHighlightColor(textBlock, "#FF0000");
+                Assert.Equal("#FF0000", SearchHighlightBehavior.GetHighlightColor(textBlock));
             });
 
             thread.SetApartmentState(System.Threading.ApartmentState.STA);
@@ -176,6 +179,14 @@ namespace SwitchBlade.Tests.Core
                 Assert.Equal("Ch", runs[0].Text);
                 Assert.Equal("rom", runs[1].Text);
                 Assert.Equal(System.Windows.FontWeights.Bold, runs[1].FontWeight);
+                
+                // Set color and verify
+                SearchHighlightBehavior.SetHighlightColor(textBlock, "#FF0000");
+                runs = textBlock.Inlines.Cast<System.Windows.Documents.Run>().ToList();
+                var foreground = runs[1].Foreground as System.Windows.Media.SolidColorBrush;
+                Assert.NotNull(foreground);
+                Assert.Equal(System.Windows.Media.Colors.Red, foreground.Color);
+
                 Assert.Equal("e", runs[2].Text);
             });
 

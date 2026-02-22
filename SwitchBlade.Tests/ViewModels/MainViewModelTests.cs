@@ -678,5 +678,23 @@ namespace SwitchBlade.Tests.ViewModels
 
             Assert.True(vm.EnableFuzzySearch);
         }
+        [Fact]
+        public void SearchHighlightColor_WithSettings_ReturnsSettingsValue()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { SearchHighlightColor = "#FF0000" });
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+
+            Assert.Equal("#FF0000", vm.SearchHighlightColor);
+        }
+
+        [Fact]
+        public void SearchHighlightColor_WithNullSettings_ReturnsDefault()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, null);
+
+            Assert.Equal("#FF0078D4", vm.SearchHighlightColor);
+        }
     }
 }
