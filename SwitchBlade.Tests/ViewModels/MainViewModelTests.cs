@@ -696,5 +696,28 @@ namespace SwitchBlade.Tests.ViewModels
 
             Assert.Equal("#FF0078D4", vm.SearchHighlightColor);
         }
+
+        [Fact]
+        public void OpenSettingsCommand_ExecutesAndRaisesEvent()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var eventRaised = false;
+            vm.OpenSettingsRequested += (s, e) => eventRaised = true;
+            
+            vm.OpenSettingsCommand.Execute(null);
+            
+            Assert.True(eventRaised);
+        }
+
+        [Fact]
+        public void OpenSettingsCommand_CanExecute_WithoutSubscriber_DoesNotThrow()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            
+            var exception = Record.Exception(() => vm.OpenSettingsCommand.Execute(null));
+            
+            Assert.Null(exception);
+            Assert.True(vm.OpenSettingsCommand.CanExecute(null));
+        }
     }
 }

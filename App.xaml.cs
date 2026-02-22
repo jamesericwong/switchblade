@@ -124,6 +124,11 @@ public partial class App : Application
 
         // Create MainWindow with injected dependencies
         _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+        
+        if (_mainWindow.DataContext is MainViewModel mainVm)
+        {
+            mainVm.OpenSettingsRequested += (s, e) => OpenSettings();
+        }
 
         // Only show the main window if not starting minimized
         if (!StartMinimized)
@@ -196,7 +201,7 @@ public partial class App : Application
         return SystemIcons.Application;
     }
 
-    private void OpenSettings()
+    internal void OpenSettings()
     {
         var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
         var settingsWindow = new SettingsWindow

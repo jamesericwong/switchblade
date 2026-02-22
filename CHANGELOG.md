@@ -1,14 +1,17 @@
 ## [1.9.13] - 2026-02-22
 ### Added
+- **Quick-Access Settings**: Added a gear icon to the search bar for fast navigation to the settings window.
 - **Customizable Search Highlight Color**: Choose your preferred highlight color for search matches in Settings -> Search & Performance.
   - Includes preset colors (Gold, Magenta, Cyan, etc.) and custom hex code support.
   - Real-time preview of color changes in the results list.
+  - Implemented a graphical `ColorPicker` component for the search highlight color in Settings.
 - **Enhanced Test Coverage**: 100% line and branch coverage achieved for all new search highlighting components (FuzzyMatcher, MainViewModel, SearchHighlightBehavior, SettingsViewModel).
 
 ### Fixed
 - **CI Test Reliability**: Resolved intermittent race conditions in `UiaWorkerClientTests` by implementing deterministic process synchronization, ensuring stable CI builds.
 
 ---
+
 
 ## [1.9.12] - 2026-02-21
 ### Added

@@ -12,6 +12,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             
             <Path Data="M12.5,11L11.7,11L11.4,10.7C12.4,9.5 13,8 13,6.5C13,2.9 10.1,0 6.5,0C2.9,0 0,2.9 0,6.5C0,10.1 2.9,13 6.5,13C8,13 9.5,12.4 10.7,11.4L11,11.7L11,12.5L16,17.5L17.5,16L12.5,11ZM6.5,11C4,11 2,9 2,6.5C2,4 4,2 6.5,2C9,2 11,4 11,6.5C11,9 9,11 6.5,11Z"
@@ -31,6 +32,38 @@
                      VerticalContentAlignment="Center"
                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                      />
+                     
+            <Button Grid.Column="2"
+                    Command="{Binding OpenSettingsCommand}"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="5"
+                    Margin="10,0,0,0"
+                    VerticalAlignment="Center"
+                    ToolTip="Settings"
+                    Cursor="Hand">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource HighlightBrush}" />
+                                <Setter Property="Opacity" Value="0.8" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+                <Path Data="M19.4,13c0-0.2,0.1-0.4,0.1-0.6c0-0.2,0-0.4-0.1-0.6l2-1.5c0.2-0.1,0.2-0.4,0.1-0.6l-1.9-3.3c-0.1-0.2-0.4-0.3-0.6-0.2 l-2.3,0.9c-0.5-0.4-1-0.7-1.6-1l-0.4-2.5C14.8,3.2,14.6,3,14.3,3h-3.8c-0.2,0-0.5,0.2-0.5,0.5l-0.4,2.5c-0.6,0.3-1.1,0.6-1.6,1 l-2.3-0.9c-0.2-0.1-0.5,0-0.6,0.2L3.1,9.6C3,9.8,3,10,3.2,10.2l2,1.5C5.1,11.9,5,12.1,5,12.4c0,0.2,0,0.4,0.1,0.6l-2,1.5 c-0.2,0.1-0.2,0.4-0.1,0.6l1.9,3.3c0.1,0.2,0.4,0.3,0.6,0.2l2.3-0.9c0.5,0.4,1,0.7,1.6,1l0.4,2.5c0,0.2,0.2,0.5,0.5,0.5h3.8 c0.2,0,0.5-0.2,0.5-0.5l0.4-2.5c0.6-0.3,1.1-0.6,1.6-1l2.3,0.9c0.2,0.1,0.5,0,0.6-0.2l1.9-3.3c0.1-0.2,0.1-0.5-0.1-0.6L19.4,13z M12.4,16.5c-2.3,0-4.1-1.8-4.1-4.1c0-2.3,1.8-4.1,4.1-4.1c2.3,0,4.1,1.8,4.1,4.1C16.5,14.6,14.7,16.5,12.4,16.5z"
+                      Fill="{DynamicResource ForegroundBrush}"
+                      Width="18" Height="18"
+                      Stretch="Uniform"
+                      Opacity="0.8"/>
+            </Button>
         </Grid>
     </Border>
 </UserControl>
