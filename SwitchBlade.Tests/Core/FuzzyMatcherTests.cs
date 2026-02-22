@@ -519,6 +519,24 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
+        public void GetMatchedIndices_LongTitle_FuzzyMatch_UsesHeapAllocation_ReturnsCorrectIndices()
+        {
+            // Title > 256, Query > 64 NOT REQUIRED for fuzzy branch, just Title > 256
+            // But let's make it long enough to trigger the true branch in GetFuzzyMatchIndices:
+            // TERNARY: char* titlePtr = title.Length > 256 ? (char*)Marshal.AllocHGlobal(...) : stackalloc char[256];
+            
+            var title = new string('a', 300) + "b" + new string('d', 10) + "c";
+            var query = "bc";
+
+            // Act
+            var result = FuzzyMatcher.GetMatchedIndices(title, query, true);
+
+            // Assert
+            // Should match 'b' at 300 and 'c' at 311
+            Assert.Equal(new[] { 300, 311 }, result);
+        }
+
+        [Fact]
         public void GetMatchedIndices_LongQuery_UsesHeapAllocation_ReturnsEmpty()
         {
             // Query > 64 chars

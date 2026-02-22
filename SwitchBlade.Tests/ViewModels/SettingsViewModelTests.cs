@@ -45,6 +45,7 @@ namespace SwitchBlade.Tests.ViewModels
         [InlineData(nameof(SettingsViewModel.EnableNumberShortcuts), true)]
         [InlineData(nameof(SettingsViewModel.EnableBadgeAnimations), true)]
         [InlineData(nameof(SettingsViewModel.EnableFuzzySearch), true)]
+        [InlineData(nameof(SettingsViewModel.EnableSearchHighlighting), true)]
         [InlineData(nameof(SettingsViewModel.NewExcludedProcessName), "test.exe")]
         [InlineData(nameof(SettingsViewModel.SelectedExcludedProcess), "test.exe")]
         public void BooleanAndStringProperties_NotifyAndSave(string propertyName, object value)
@@ -331,6 +332,7 @@ namespace SwitchBlade.Tests.ViewModels
             _ = _viewModel.EnableBadgeAnimations;
             _ = _viewModel.RegexCacheSize;
             _ = _viewModel.EnableFuzzySearch;
+            _ = _viewModel.EnableSearchHighlighting;
             _ = _viewModel.IconCacheSize;
             _ = _viewModel.UiaWorkerTimeoutSeconds;
             _ = _viewModel.SelectedShortcutModifier;
