@@ -168,5 +168,104 @@ namespace SwitchBlade.Core
         {
             return Score(title, query) > 0;
         }
+        /// <summary>
+        /// Returns the indices in the original <paramref name="title"/> that match
+        /// the <paramref name="query"/> using fuzzy subsequence matching.
+        /// Indices refer to positions in the original title string, not the normalized version.
+        /// </summary>
+        /// <param name="title">The window title to search in.</param>
+        /// <param name="query">The user's search query.</param>
+        /// <param name="useFuzzy">When true, uses fuzzy subsequence matching; when false, uses substring matching.</param>
+        /// <returns>Sorted array of 0-based character indices that matched, or empty array if no match.</returns>
+        public static int[] GetMatchedIndices(string title, string query, bool useFuzzy)
+        {
+            if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(title))
+                return Array.Empty<int>();
+
+            if (!useFuzzy)
+                return GetSubstringMatchIndices(title, query);
+
+            // Fast path: exact contains check (use substring indices)
+            if (title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                return GetSubstringMatchIndices(title, query);
+
+            // Fuzzy path: normalize both, match subsequence, then map back to original indices
+            return GetFuzzyMatchIndices(title, query);
+        }
+
+        /// <summary>
+        /// Gets indices for a case-insensitive substring match.
+        /// </summary>
+        private static int[] GetSubstringMatchIndices(string title, string query)
+        {
+            int start = title.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+            if (start < 0)
+                return Array.Empty<int>();
+
+            var indices = new int[query.Length];
+            for (int i = 0; i < query.Length; i++)
+                indices[i] = start + i;
+            return indices;
+        }
+
+        /// <summary>
+        /// Gets indices for fuzzy subsequence matching, mapped back to original title positions.
+        /// </summary>
+        private static int[] GetFuzzyMatchIndices(string title, string query)
+        {
+            // Build a mapping from normalized index -> original index
+            int titleLen = Math.Min(title.Length, MaxNormalizedLength);
+            int queryLen = Math.Min(query.Length, MaxNormalizedLength);
+
+            Span<char> normalizedTitle = titleLen <= 256 ? stackalloc char[titleLen] : new char[titleLen];
+            Span<int> indexMap = titleLen <= 256 ? stackalloc int[titleLen] : new int[titleLen];
+            Span<char> normalizedQuery = queryLen <= 64 ? stackalloc char[queryLen] : new char[queryLen];
+
+            int actualTitleLen = NormalizeWithMap(title.AsSpan(0, titleLen), normalizedTitle, indexMap);
+            int actualQueryLen = Normalize(query.AsSpan(0, queryLen), normalizedQuery);
+
+            if (actualQueryLen == 0 || actualQueryLen > actualTitleLen)
+                return Array.Empty<int>();
+
+            // Perform subsequence matching on normalized strings
+            var matchedNormalized = new System.Collections.Generic.List<int>(actualQueryLen);
+            int qi = 0;
+            for (int ti = 0; ti < actualTitleLen && qi < actualQueryLen; ti++)
+            {
+                if (normalizedTitle[ti] == normalizedQuery[qi])
+                {
+                    matchedNormalized.Add(ti);
+                    qi++;
+                }
+            }
+
+            if (qi < actualQueryLen)
+                return Array.Empty<int>(); // Incomplete match
+
+            // Map normalized indices back to original title indices
+            var result = new int[matchedNormalized.Count];
+            for (int i = 0; i < matchedNormalized.Count; i++)
+                result[i] = indexMap[matchedNormalized[i]];
+            return result;
+        }
+
+        /// <summary>
+        /// Normalizes input while building a mapping from normalized index to original index.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int NormalizeWithMap(ReadOnlySpan<char> input, Span<char> output, Span<int> indexMap)
+        {
+            int writeIndex = 0;
+            for (int i = 0; i < input.Length && writeIndex < output.Length; i++)
+            {
+                char c = input[i];
+                if (c == ' ' || c == '_' || c == '-')
+                    continue;
+                output[writeIndex] = char.ToLowerInvariant(c);
+                indexMap[writeIndex] = i;
+                writeIndex++;
+            }
+            return writeIndex;
+        }
     }
 }

@@ -390,5 +390,174 @@ namespace SwitchBlade.Tests.Core
         }
 
         #endregion
+
+        #region GetMatchedIndices
+
+        [Fact]
+        public void GetMatchedIndices_NullTitle_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices(null!, "abc", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_NullQuery_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("title", null!, true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_EmptyQuery_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("title", "", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_EmptyTitle_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("", "abc", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_ExactSubstring_ReturnsContiguousIndices()
+        {
+            // "Chrome" contains "rom" at index 2
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "rom", true);
+            Assert.Equal(new[] { 2, 3, 4 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_CaseInsensitiveSubstring_ReturnsIndices()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "CHR", true);
+            Assert.Equal(new[] { 0, 1, 2 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyMatch_ReturnsNonContiguousIndices()
+        {
+            // "Google Chrome" normalized -> "googlechrome"
+            // query "gc" -> g at 0, c at 6 in normalized
+            // Original: G(0) o(1) o(2) g(3) l(4) e(5) (space)(6) C(7)
+            // Normalized map: g->0, o->1, o->2, g->3, l->4, e->5, c->7, h->8, r->9, o->10, m->11, e->12
+            // So fuzzy 'g' at norm[0] -> orig 0, 'c' at norm[6] -> orig 7
+            var result = FuzzyMatcher.GetMatchedIndices("Google Chrome", "gc", true);
+            Assert.Equal(new[] { 0, 7 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_NoMatch_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "xyz", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_NotFuzzy_SubstringOnly()
+        {
+            // With fuzzy disabled, only exact substring match works
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "rom", false);
+            Assert.Equal(new[] { 2, 3, 4 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_NotFuzzy_NoSubstringMatch_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("Chrome", "gc", false);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyWithDelimiters_MapsBackCorrectly()
+        {
+            // "hello_world" normalized -> "helloworld"
+            // query "hw" -> h at norm[0] -> orig 0, w at norm[5] -> orig 6
+            var result = FuzzyMatcher.GetMatchedIndices("hello_world", "hw", true);
+            Assert.Equal(new[] { 0, 6 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyQueryLongerThanNormalized_ReturnsEmpty()
+        {
+            var result = FuzzyMatcher.GetMatchedIndices("ab", "abcdef", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyIncompleteMatch_ReturnsEmpty()
+        {
+            // "abc" normalized -> "abc", query "abz" -> a,b match but z doesn't
+            var result = FuzzyMatcher.GetMatchedIndices("abc", "abz", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_FuzzyNormalizedQueryEmpty_ReturnsEmpty()
+        {
+            // Query " _-" normalizes to empty
+            var result = FuzzyMatcher.GetMatchedIndices("title", " _-", true);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_LongTitle_UsesHeapAllocation_ReturnsCorrectIndices()
+        {
+            // Title > 256 chars (MaxNormalizedLength is 256)
+            var longTitle = new string('a', 300) + "bc";
+            var query = "bc";
+            
+            // "bc" will be at the end, far beyond 256 limit. 
+            // NormalizeWithMap truncates at MaxNormalizedLength (256).
+            // So "bc" at index 300 will NOT be found in first 256 chars.
+            var result = FuzzyMatcher.GetMatchedIndices(longTitle, query, true);
+            
+            // Should match "bc" at the end, using heap-allocated buffers
+            Assert.Equal(new[] { 300, 301 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_LongTitle_FuzzyMatch_UsesHeapAllocation_ReturnsCorrectIndices()
+        {
+            // Title > 256, Query > 64 NOT REQUIRED for fuzzy branch, just Title > 256
+            // But let's make it long enough to trigger the true branch in GetFuzzyMatchIndices:
+            // TERNARY: char* titlePtr = title.Length > 256 ? (char*)Marshal.AllocHGlobal(...) : stackalloc char[256];
+            
+            var title = new string('a', 300) + "b" + new string('d', 10) + "c";
+            var query = "bc";
+
+            // Act
+            var result = FuzzyMatcher.GetMatchedIndices(title, query, true);
+
+            // Assert
+            // Should match 'b' at 300 and 'c' at 311
+            Assert.Equal(new[] { 300, 311 }, result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_LongQuery_UsesHeapAllocation_ReturnsEmpty()
+        {
+            // Query > 64 chars
+            var longQuery = new string('a', 100);
+            var result = FuzzyMatcher.GetMatchedIndices("aaa", longQuery, true);
+            
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void GetMatchedIndices_MatchWithinTruncatedTitle_ReturnsIndices()
+        {
+            // Title is 300 chars, query "xyz" is at index 10 (well within 256 limit)
+            var baseTitle = "abcxyzdef";
+            var longTitle = baseTitle + new string('a', 300);
+            
+            var result = FuzzyMatcher.GetMatchedIndices(longTitle, "xyz", true);
+            
+            Assert.Equal(new[] { 3, 4, 5 }, result);
+        }
+
+        #endregion
     }
 }

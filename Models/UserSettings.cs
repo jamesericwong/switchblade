@@ -138,6 +138,12 @@ namespace SwitchBlade.Services
         public bool EnableFuzzySearch { get; set; } = true;
 
         /// <summary>
+        /// Whether to highlight matching search characters in window titles with bold text.
+        /// When enabled, characters matching the search query are displayed bold in the result list.
+        /// </summary>
+        public bool EnableSearchHighlighting { get; set; } = true;
+
+        /// <summary>
         /// Maximum number of icons to cache in memory.
         /// Caching prevents expensive icon extraction, but too many cached icons can cause memory growth.
         /// Default: 200.

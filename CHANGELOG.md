@@ -1,3 +1,13 @@
+## [1.9.12] - 2026-02-21
+### Added
+- **Search Highlighting**: Matched characters in window titles are displayed **bold** while typing a search query.
+  - Supports both fuzzy and substring matching modes.
+  - Togglable via "Highlight Search Matches" in Settings → Search & Performance (enabled by default).
+- `FuzzyMatcher.GetMatchedIndices`: New public API to retrieve matched character positions for a given query.
+- `SearchHighlightBehavior`: WPF attached behavior for declarative search highlighting in XAML.
+
+---
+
 ## [1.9.11] - 2026-02-16
 ### Fixed
 - Resolved intermittent CI test failures caused by race conditions in `MainViewModel.UpdateSearch`.

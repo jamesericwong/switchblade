@@ -640,5 +640,43 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Equal(itemD, vm.FilteredWindows[2]);
             Assert.Equal(itemC, vm.FilteredWindows[3]);
         }
+
+        [Fact]
+        public void EnableSearchHighlighting_WithSettings_ReturnsSettingsValue()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { EnableSearchHighlighting = false });
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+
+            Assert.False(vm.EnableSearchHighlighting);
+        }
+
+        [Fact]
+        public void EnableSearchHighlighting_WithNullSettings_ReturnsDefaultTrue()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+
+            Assert.True(vm.EnableSearchHighlighting);
+        }
+
+        [Fact]
+        public void EnableFuzzySearch_WithSettings_ReturnsSettingsValue()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { EnableFuzzySearch = false });
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+
+            Assert.False(vm.EnableFuzzySearch);
+        }
+
+        [Fact]
+        public void EnableFuzzySearch_WithNullSettings_ReturnsDefaultTrue()
+        {
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+
+            Assert.True(vm.EnableFuzzySearch);
+        }
     }
 }
