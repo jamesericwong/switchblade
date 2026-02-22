@@ -214,12 +214,14 @@ var assemblies = [
     "name": "SwitchBlade",
     "classes": [
       { "name": "SwitchBlade.Core.FileSystemWrapper", "rp": "SwitchBlade_FileSystemWrapper.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 19, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Core.FuzzyMatcher", "rp": "SwitchBlade_FuzzyMatcher.html", "cl": 71, "ucl": 0, "cal": 71, "tl": 172, "cb": 40, "tb": 40, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Core.FuzzyMatcher", "rp": "SwitchBlade_FuzzyMatcher.html", "cl": 129, "ucl": 0, "cal": 129, "tl": 271, "cb": 82, "tb": 82, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Core.HighlightSegment", "rp": "SwitchBlade_HighlightSegment.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 145, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.InverseBooleanConverter", "rp": "SwitchBlade_InverseBooleanConverter.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 27, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.Logger", "rp": "SwitchBlade_Logger.html", "cl": 43, "ucl": 0, "cal": 43, "tl": 83, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.LruRegexCache", "rp": "SwitchBlade_LruRegexCache.html", "cl": 49, "ucl": 0, "cal": 49, "tl": 101, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.PluginInfo", "rp": "SwitchBlade_PluginInfo.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 20, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.ProcessFactory", "rp": "SwitchBlade_ProcessFactory.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 33, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Core.SearchHighlightBehavior", "rp": "SwitchBlade_SearchHighlightBehavior.html", "cl": 71, "ucl": 0, "cal": 71, "tl": 145, "cb": 22, "tb": 22, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.ShortcutVisibilityConverter", "rp": "SwitchBlade_ShortcutVisibilityConverter.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 37, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.WindowFinder", "rp": "SwitchBlade_WindowFinder.html", "cl": 91, "ucl": 0, "cal": 91, "tl": 168, "cb": 28, "tb": 28, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.WindowSearchService", "rp": "SwitchBlade_WindowSearchService.html", "cl": 50, "ucl": 0, "cal": 50, "tl": 90, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
@@ -237,18 +239,18 @@ var assemblies = [
       { "name": "SwitchBlade.Services.RegistryServiceWrapper", "rp": "SwitchBlade_RegistryServiceWrapper.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 29, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.RestartLogic", "rp": "SwitchBlade_RestartLogic.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 58, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.ServiceConfiguration", "rp": "SwitchBlade_ServiceConfiguration.html", "cl": 80, "ucl": 0, "cal": 80, "tl": 127, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.SettingsService", "rp": "SwitchBlade_SettingsService.html", "cl": 125, "ucl": 0, "cal": 125, "tl": 238, "cb": 34, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.SettingsService", "rp": "SwitchBlade_SettingsService.html", "cl": 127, "ucl": 0, "cal": 127, "tl": 244, "cb": 34, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.ThemeInfo", "rp": "SwitchBlade_ThemeInfo.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 110, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.ThemeService", "rp": "SwitchBlade_ThemeService.html", "cl": 61, "ucl": 0, "cal": 61, "tl": 110, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.UiaWorkerClient", "rp": "SwitchBlade_UiaWorkerClient.html", "cl": 234, "ucl": 0, "cal": 234, "tl": 371, "cb": 101, "tb": 102, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.UserSettings", "rp": "SwitchBlade_UserSettings.html", "cl": 25, "ucl": 0, "cal": 25, "tl": 154, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.UserSettings", "rp": "SwitchBlade_UserSettings.html", "cl": 26, "ucl": 0, "cal": 26, "tl": 160, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.WindowListUpdatedEventArgs", "rp": "SwitchBlade_WindowListUpdatedEventArgs.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 44, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.WindowOrchestrationService", "rp": "SwitchBlade_WindowOrchestrationService.html", "cl": 279, "ucl": 0, "cal": 279, "tl": 387, "cb": 79, "tb": 80, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.WindowReconciler", "rp": "SwitchBlade_WindowReconciler.html", "cl": 134, "ucl": 0, "cal": 134, "tl": 212, "cb": 52, "tb": 52, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.WindowsStartupManager", "rp": "SwitchBlade_WindowsStartupManager.html", "cl": 49, "ucl": 0, "cal": 49, "tl": 97, "cb": 14, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.ViewModels.MainViewModel", "rp": "SwitchBlade_MainViewModel.html", "cl": 192, "ucl": 0, "cal": 192, "tl": 305, "cb": 94, "tb": 94, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.ViewModels.MainViewModel", "rp": "SwitchBlade_MainViewModel.html", "cl": 196, "ucl": 0, "cal": 196, "tl": 311, "cb": 98, "tb": 98, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.ViewModels.RelayCommand", "rp": "SwitchBlade_RelayCommand.html", "cl": 13, "ucl": 0, "cal": 13, "tl": 33, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.ViewModels.SettingsViewModel", "rp": "SwitchBlade_SettingsViewModel.html", "cl": 196, "ucl": 0, "cal": 196, "tl": 367, "cb": 50, "tb": 50, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.ViewModels.SettingsViewModel", "rp": "SwitchBlade_SettingsViewModel.html", "cl": 198, "ucl": 0, "cal": 198, "tl": 373, "cb": 50, "tb": 50, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];
 
@@ -293,10 +295,16 @@ var riskHotspots = [
       { "value": 22, "exceeded": true },
     ]},
   {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.ViewModels.MainViewModel", "reportPath": "SwitchBlade_MainViewModel.html", "methodName": "UpdateSearch(System.Boolean)", "methodShortName": "UpdateSearch(...)", "fileIndex": 0, "line": 177,
+    "assembly": "SwitchBlade", "class": "SwitchBlade.ViewModels.MainViewModel", "reportPath": "SwitchBlade_MainViewModel.html", "methodName": "UpdateSearch(System.Boolean)", "methodShortName": "UpdateSearch(...)", "fileIndex": 0, "line": 183,
     "metrics": [
       { "value": 22, "exceeded": false },
       { "value": 22, "exceeded": true },
+    ]},
+  {
+    "assembly": "SwitchBlade", "class": "SwitchBlade.Core.FuzzyMatcher", "reportPath": "SwitchBlade_FuzzyMatcher.html", "methodName": "GetFuzzyMatchIndices(System.String,System.String)", "methodShortName": "GetFuzzyMatchIndices(...)", "fileIndex": 0, "line": 215,
+    "metrics": [
+      { "value": 20, "exceeded": false },
+      { "value": 20, "exceeded": true },
     ]},
   {
     "assembly": "SwitchBlade", "class": "SwitchBlade.Core.WindowFinder", "reportPath": "SwitchBlade_WindowFinder.html", "methodName": "EnumCallback()", "methodShortName": "EnumCallback()", "fileIndex": 0, "line": 56,
@@ -323,6 +331,12 @@ var riskHotspots = [
       { "value": 18, "exceeded": true },
     ]},
   {
+    "assembly": "SwitchBlade", "class": "SwitchBlade.Core.SearchHighlightBehavior", "reportPath": "SwitchBlade_SearchHighlightBehavior.html", "methodName": "BuildSegments(System.String,System.String,System.Boolean,System.Boolean)", "methodShortName": "BuildSegments(...)", "fileIndex": 0, "line": 99,
+    "metrics": [
+      { "value": 16, "exceeded": false },
+      { "value": 16, "exceeded": true },
+    ]},
+  {
     "assembly": "SwitchBlade", "class": "SwitchBlade.Services.SettingsService", "reportPath": "SwitchBlade_SettingsService.html", "methodName": "LoadSettings()", "methodShortName": "LoadSettings()", "fileIndex": 0, "line": 54,
     "metrics": [
       { "value": 16, "exceeded": false },
@@ -341,7 +355,7 @@ var riskHotspots = [
       { "value": 16, "exceeded": true },
     ]},
   {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.ViewModels.MainViewModel", "reportPath": "SwitchBlade_MainViewModel.html", "methodName": "SyncCollection(System.Collections.ObjectModel.ObservableCollection`1<SwitchBlade.Contracts.WindowItem>,System.Collections.Generic.IList`1<SwitchBlade.Contracts.WindowItem>)", "methodShortName": "SyncCollection(...)", "fileIndex": 0, "line": 226,
+    "assembly": "SwitchBlade", "class": "SwitchBlade.ViewModels.MainViewModel", "reportPath": "SwitchBlade_MainViewModel.html", "methodName": "SyncCollection(System.Collections.ObjectModel.ObservableCollection`1<SwitchBlade.Contracts.WindowItem>,System.Collections.Generic.IList`1<SwitchBlade.Contracts.WindowItem>)", "methodShortName": "SyncCollection(...)", "fileIndex": 0, "line": 232,
     "metrics": [
       { "value": 16, "exceeded": false },
       { "value": 16, "exceeded": true },

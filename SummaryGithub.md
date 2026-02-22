@@ -3,22 +3,22 @@
 
 |||
 |:---|:---|
-| Generated on: | 2/21/2026 - 4:14:49 PM |
-| Coverage date: | 2/21/2026 - 4:14:47 PM |
+| Generated on: | 2/22/2026 - 1:40:02 AM |
+| Coverage date: | 2/22/2026 - 1:39:59 AM |
 | Parser: | Cobertura |
 | Assemblies: | 1 |
-| Classes: | 36 |
-| Files: | 35 |
-| **Line coverage:** | 100% (2294 of 2294) |
-| Covered lines: | 2294 |
+| Classes: | 38 |
+| Files: | 36 |
+| **Line coverage:** | 100% (2438 of 2438) |
+| Covered lines: | 2438 |
 | Uncovered lines: | 0 |
-| Coverable lines: | 2294 |
-| Total lines: | 4325 |
-| **Branch coverage:** | 99.7% (782 of 784) |
-| Covered branches: | 782 |
-| Total branches: | 784 |
+| Coverable lines: | 2438 |
+| Total lines: | 4593 |
+| **Branch coverage:** | 99.7% (850 of 852) |
+| Covered branches: | 850 |
+| Total branches: | 852 |
 | **Method coverage:** | [Feature is only available for sponsors](https://reportgenerator.io/pro) |
-| Tag: | 129_22260002329 |
+| Tag: | 133_22268194841 |
 
 </details>
 
@@ -30,11 +30,13 @@
 |**SwitchBlade**|**100%**|**99.7%**|
 |SwitchBlade.Core.FileSystemWrapper|100%||
 |SwitchBlade.Core.FuzzyMatcher|100%|100%|
+|SwitchBlade.Core.HighlightSegment|100%||
 |SwitchBlade.Core.InverseBooleanConverter|100%|100%|
 |SwitchBlade.Core.Logger|100%|100%|
 |SwitchBlade.Core.LruRegexCache|100%|100%|
 |SwitchBlade.Core.PluginInfo|100%||
 |SwitchBlade.Core.ProcessFactory|100%|100%|
+|SwitchBlade.Core.SearchHighlightBehavior|100%|100%|
 |SwitchBlade.Core.ShortcutVisibilityConverter|100%|100%|
 |SwitchBlade.Core.WindowFinder|100%|100%|
 |SwitchBlade.Core.WindowSearchService|100%|100%|
