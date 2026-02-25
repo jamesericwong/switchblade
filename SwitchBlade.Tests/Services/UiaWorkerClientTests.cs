@@ -967,7 +967,7 @@ namespace SwitchBlade.Tests.Services
             process.Setup(p => p.StandardInput).Returns(mockIn.Object);
 
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
-            _ = Task.Run(async () => await enumerator.MoveNextAsync());
+            var moveNextTask = enumerator.MoveNextAsync().AsTask();
             
             if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
 
