@@ -1070,6 +1070,23 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public async Task ScanStreamingAsync_CancelledAfterRead_NullLogger()
+        {
+            var cts = new CancellationTokenSource();
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            _mockProcess.Setup(p => p.HasExited).Returns(false);
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .Returns<CancellationToken>(ct =>
+                {
+                    cts.Cancel();
+                    return ValueTask.FromResult<string?>("{\"pluginName\": \"P1\", \"isFinal\": false}");
+                });
+
+            await foreach (var _ in client.ScanStreamingAsync(cancellationToken: cts.Token)) { }
+        }
+
+        [Fact]
         public async Task ScanStreamingAsync_ExitsNaturallyButCancelled_Logs()
         {
             var cts = new CancellationTokenSource();
@@ -1085,6 +1102,22 @@ namespace SwitchBlade.Tests.Services
             await foreach (var _ in client.ScanStreamingAsync(cancellationToken: cts.Token)) { }
 
             _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("Streaming read cancelled/timed out"))), Times.AtLeastOnce());
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_ExitsNaturallyButCancelled_NullLogger()
+        {
+            var cts = new CancellationTokenSource();
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .Returns<CancellationToken>(ct =>
+                {
+                    cts.Cancel();
+                    return ValueTask.FromResult<string?>(null); // Natural exit
+                });
+
+            await foreach (var _ in client.ScanStreamingAsync(cancellationToken: cts.Token)) { }
         }
 
         [Fact]
