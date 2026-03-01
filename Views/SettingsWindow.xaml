@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:core="clr-namespace:SwitchBlade.Core"
+        xmlns:components="clr-namespace:SwitchBlade.Views.Components"
         Title="SwitchBlade Settings" Height="650" Width="550"
         ResizeMode="CanResize"
         AllowsTransparency="True"
@@ -154,7 +155,19 @@
                                 
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Fuzzy Search" IsChecked="{Binding EnableFuzzySearch}" Margin="0,0,0,10" ToolTip="Intelligent search that matches 'hello there' to 'hello_there'. Treats spaces, underscores, and dashes as equivalent."/>
                                 
-                                <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Highlight Search Matches" IsChecked="{Binding EnableSearchHighlighting}" Margin="0,0,0,10" ToolTip="Bold the characters in window titles that match your search query"/>
+                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Highlight Search Matches" IsChecked="{Binding EnableSearchHighlighting}" Margin="0,0,0,10" ToolTip="Bold the characters in window titles that match your search query"/>
+
+                                <StackPanel Margin="20,0,0,15" Visibility="{Binding EnableSearchHighlighting, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Highlight Color:" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,8"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                        <Button Width="24" Height="24" Background="#FF0078D4" Margin="0,0,8,0" BorderThickness="0" Command="{Binding SetHighlightColorCommand}" CommandParameter="#FF0078D4" ToolTip="Windows Blue"/>
+                                        <Button Width="24" Height="24" Background="#FFFFD700" Margin="0,0,8,0" BorderThickness="0" Command="{Binding SetHighlightColorCommand}" CommandParameter="#FFFFD700" ToolTip="Gold"/>
+                                        <Button Width="24" Height="24" Background="#FF32CD32" Margin="0,0,8,0" BorderThickness="0" Command="{Binding SetHighlightColorCommand}" CommandParameter="#FF32CD32" ToolTip="Lime Green"/>
+                                        <Button Width="24" Height="24" Background="#FFFF00FF" Margin="0,0,8,0" BorderThickness="0" Command="{Binding SetHighlightColorCommand}" CommandParameter="#FFFF00FF" ToolTip="Magenta"/>
+                                        <Button Width="24" Height="24" Background="#FFFF4500" Margin="0,0,8,0" BorderThickness="0" Command="{Binding SetHighlightColorCommand}" CommandParameter="#FFFF4500" ToolTip="Orange Red"/>
+                                    </StackPanel>
+                                    <components:ColorPicker SelectedColor="{Binding SearchHighlightColor, Mode=TwoWay}" Margin="0,5,0,0"/>
+                                </StackPanel>
                                 
                                 <CheckBox Style="{StaticResource ModernCheckBoxStyle}" Content="Enable Number Shortcuts (1-9, 0)" IsChecked="{Binding EnableNumberShortcuts}" Margin="0,0,0,0" ToolTip="Hold modifier + number to quickly switch to a window"/>
                                 
