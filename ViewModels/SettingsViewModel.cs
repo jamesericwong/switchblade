@@ -1,7 +1,9 @@
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Windows.Input;
 using SwitchBlade.Services;
 using SwitchBlade.Core;
@@ -15,6 +17,8 @@ namespace SwitchBlade.ViewModels
         private readonly ThemeService _themeService;
         private readonly IUIService _uiService;
         private string _selectedTheme;
+        private System.Threading.Timer? _saveTimer;
+        private const int SaveDebounceMs = 300;
 
         public ObservableCollection<string> AvailableThemes { get; set; }
         public ObservableCollection<PluginInfo> LoadedPlugins { get; private set; }
@@ -38,26 +42,26 @@ namespace SwitchBlade.ViewModels
         public bool EnablePreviews
         {
             get => _settingsService.Settings.EnablePreviews;
-            set { _settingsService.Settings.EnablePreviews = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.EnablePreviews = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool HideTaskbarIcon
         {
             get => _settingsService.Settings.HideTaskbarIcon;
-            set { _settingsService.Settings.HideTaskbarIcon = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.HideTaskbarIcon = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool ShowIcons
         {
             get => _settingsService.Settings.ShowIcons;
-            set { _settingsService.Settings.ShowIcons = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.ShowIcons = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool LaunchOnStartup
         {
             // Read directly from Windows Run registry - single source of truth
             get => _settingsService.IsStartupEnabled();
-            set { _settingsService.Settings.LaunchOnStartup = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.LaunchOnStartup = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool RunAsAdministrator
@@ -108,73 +112,73 @@ namespace SwitchBlade.ViewModels
         public int FadeDurationMs
         {
             get => _settingsService.Settings.FadeDurationMs;
-            set { _settingsService.Settings.FadeDurationMs = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.FadeDurationMs = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public double WindowOpacity
         {
             get => _settingsService.Settings.WindowOpacity;
-            set { _settingsService.Settings.WindowOpacity = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.WindowOpacity = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public double ItemHeight
         {
             get => _settingsService.Settings.ItemHeight;
-            set { _settingsService.Settings.ItemHeight = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.ItemHeight = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool EnableBackgroundPolling
         {
             get => _settingsService.Settings.EnableBackgroundPolling;
-            set { _settingsService.Settings.EnableBackgroundPolling = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.EnableBackgroundPolling = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public int BackgroundPollingIntervalSeconds
         {
             get => _settingsService.Settings.BackgroundPollingIntervalSeconds;
-            set { _settingsService.Settings.BackgroundPollingIntervalSeconds = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.BackgroundPollingIntervalSeconds = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool EnableNumberShortcuts
         {
             get => _settingsService.Settings.EnableNumberShortcuts;
-            set { _settingsService.Settings.EnableNumberShortcuts = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.EnableNumberShortcuts = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool EnableBadgeAnimations
         {
             get => _settingsService.Settings.EnableBadgeAnimations;
-            set { _settingsService.Settings.EnableBadgeAnimations = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.EnableBadgeAnimations = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public int RegexCacheSize
         {
             get => _settingsService.Settings.RegexCacheSize;
-            set { _settingsService.Settings.RegexCacheSize = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.RegexCacheSize = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool EnableFuzzySearch
         {
             get => _settingsService.Settings.EnableFuzzySearch;
-            set { _settingsService.Settings.EnableFuzzySearch = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.EnableFuzzySearch = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool EnableSearchHighlighting
         {
             get => _settingsService.Settings.EnableSearchHighlighting;
-            set { _settingsService.Settings.EnableSearchHighlighting = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.EnableSearchHighlighting = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public string SearchHighlightColor
         {
             get => _settingsService.Settings.SearchHighlightColor;
-            set 
-            { 
+            set
+            {
                 if (_settingsService.Settings.SearchHighlightColor != value)
                 {
-                    _settingsService.Settings.SearchHighlightColor = value; 
-                    OnPropertyChanged(); 
-                    _settingsService.SaveSettings(); 
+                    _settingsService.Settings.SearchHighlightColor = value;
+                    OnPropertyChanged();
+                    ScheduleSave();
                 }
             }
         }
@@ -184,13 +188,13 @@ namespace SwitchBlade.ViewModels
         public int IconCacheSize
         {
             get => _settingsService.Settings.IconCacheSize;
-            set { _settingsService.Settings.IconCacheSize = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.IconCacheSize = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public int UiaWorkerTimeoutSeconds
         {
             get => _settingsService.Settings.UiaWorkerTimeoutSeconds;
-            set { _settingsService.Settings.UiaWorkerTimeoutSeconds = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
+            set { _settingsService.Settings.UiaWorkerTimeoutSeconds = value; OnPropertyChanged(); ScheduleSave(); }
         }
 
         public bool IsPreserveScrollSelected
@@ -202,7 +206,7 @@ namespace SwitchBlade.ViewModels
                 {
                     _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveScroll;
                     OnPropertyChanged();
-                    _settingsService.SaveSettings();
+                    ScheduleSave();
                 }
             }
         }
@@ -216,7 +220,7 @@ namespace SwitchBlade.ViewModels
                 {
                     _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveIdentity;
                     OnPropertyChanged();
-                    _settingsService.SaveSettings();
+                    ScheduleSave();
                 }
             }
         }
@@ -230,7 +234,7 @@ namespace SwitchBlade.ViewModels
                 {
                     _settingsService.Settings.RefreshBehavior = RefreshBehavior.PreserveIndex;
                     OnPropertyChanged();
-                    _settingsService.SaveSettings();
+                    ScheduleSave();
                 }
             }
         }
@@ -247,7 +251,7 @@ namespace SwitchBlade.ViewModels
             {
                 _settingsService.Settings.NumberShortcutModifier = StringToModifierValue(value);
                 OnPropertyChanged();
-                _settingsService.SaveSettings();
+                ScheduleSave();
             }
         }
 
@@ -379,6 +383,27 @@ namespace SwitchBlade.ViewModels
                 _settingsService.Settings.ExcludedProcesses.Remove(processToRemove);
                 _settingsService.SaveSettings();
             }
+        }
+
+        /// <summary>
+        /// Schedules a debounced save. Multiple rapid calls reset the timer,
+        /// resulting in a single save after the debounce period.
+        /// </summary>
+        private void ScheduleSave()
+        {
+            _saveTimer?.Dispose();
+            _saveTimer = new System.Threading.Timer(_ => _settingsService.SaveSettings(), null, SaveDebounceMs, Timeout.Infinite);
+        }
+
+        /// <summary>
+        /// Flushes any pending debounced save immediately.
+        /// Call this in tests or during teardown to ensure all changes are persisted.
+        /// </summary>
+        public void FlushPendingSave()
+        {
+            _saveTimer?.Dispose();
+            _saveTimer = null;
+            _settingsService.SaveSettings();
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

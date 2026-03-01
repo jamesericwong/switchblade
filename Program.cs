@@ -14,10 +14,13 @@ namespace SwitchBlade
     [ExcludeFromCodeCoverage]
     public static class Program
     {
+        private const string SingleInstanceMutexName = "Global\\SwitchBlade_SingleInstance_Mutex";
+        private const string RegistrySettingsKey = @"Software\SwitchBlade";
+
         [STAThread]
         public static void Main()
         {
-            const string appName = "Global\\SwitchBlade_SingleInstance_Mutex";
+            const string appName = SingleInstanceMutexName;
             bool createdNew;
 
             using (var mutex = new Mutex(true, appName, out createdNew))
@@ -163,7 +166,7 @@ namespace SwitchBlade
         {
             try
             {
-                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\SwitchBlade");
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegistrySettingsKey);
                 if (key != null)
                 {
                     var value = key.GetValue("RunAsAdministrator");

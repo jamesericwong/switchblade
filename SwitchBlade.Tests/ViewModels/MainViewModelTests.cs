@@ -259,11 +259,12 @@ namespace SwitchBlade.Tests.ViewModels
             var items = new List<WindowItem> { new() { Source = p1 }, new() { Source = p1 } };
             var mockOrch = new Mock<IWindowOrchestrationService>();
             mockOrch.Setup(o => o.AllWindows).Returns(items);
-            
+
             var vm = new MainViewModel(mockOrch.Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
-            
-            // Should be empty because it's not a WindowOrchestrationService (concrete class check in VM)
-            Assert.Empty(vm.WindowProviders);
+
+            // DIP fix: WindowProviders now works against the interface, returning distinct sources
+            Assert.Single(vm.WindowProviders);
+            Assert.Contains(p1, vm.WindowProviders);
         }
 
         [Fact]
@@ -272,12 +273,12 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             var settings = new UserSettings { DisabledPlugins = new List<string> { "P1" }, EnablePreviews = true };
             mockSettings.Setup(s => s.Settings).Returns(settings);
-            
+
             var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
-            
+
             settings.EnablePreviews = false;
             mockSettings.Raise(s => s.SettingsChanged += null);
-            
+
             Assert.False(vm.EnablePreviews);
         }
 
@@ -288,27 +289,27 @@ namespace SwitchBlade.Tests.ViewModels
             var i1 = new WindowItem { Title = "1" };
             var i2 = new WindowItem { Title = "2" };
             var i3 = new WindowItem { Title = "3" };
-            
+
             vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { i1, i2 };
-            
+
             // Simulate SyncCollection through UpdateSearch 
             // We need to mock SearchService to return [i3, i1] (insert i3, keep i1, remove i2)
             var mockSearch = new Mock<IWindowSearchService>();
             mockSearch.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
                       .Returns(new List<WindowItem> { i3, i1 });
-            
+
             var mockOrch = new Mock<IWindowOrchestrationService>();
             mockOrch.Setup(o => o.AllWindows).Returns(new List<WindowItem>());
-            
+
             var nav = new Mock<INavigationService>();
-            
+
             var vm2 = new MainViewModel(mockOrch.Object, mockSearch.Object, nav.Object, null, new Mock<IDispatcherService>().Object);
             vm2.FilteredWindows.Add(i1);
             vm2.FilteredWindows.Add(i2);
-            
+
             // Private UpdateSearch call via SearchText setter
             vm2.SearchText = "update";
-            
+
             Assert.Equal(2, vm2.FilteredWindows.Count);
             Assert.Equal(i3, vm2.FilteredWindows[0]);
             Assert.Equal(i1, vm2.FilteredWindows[1]);
@@ -322,9 +323,9 @@ namespace SwitchBlade.Tests.ViewModels
             var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
             vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem>(items);
             vm.SelectedWindow = items[0];
-            
+
             vm.MoveSelectionByPage(1, 5);
-            
+
             nav.Verify(n => n.CalculatePageMoveIndex(0, 1, 5, 1), Times.Once);
         }
 
@@ -333,9 +334,9 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { NumberShortcutModifier = ModifierKeyFlags.Ctrl | ModifierKeyFlags.Shift });
-            
+
             var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
-            
+
             Assert.Equal("Ctrl+Shift", vm.ShortcutModifierText);
         }
 
@@ -344,9 +345,9 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
             var initial = vm.FilteredWindows;
-            
+
             vm.FilteredWindows = null!;
-            
+
             Assert.NotNull(vm.FilteredWindows);
             Assert.Same(initial, vm.FilteredWindows);
         }
@@ -359,7 +360,7 @@ namespace SwitchBlade.Tests.ViewModels
             var itemA = new WindowItem { Title = "A" };
             var itemB = new WindowItem { Title = "B" };
             var itemC = new WindowItem { Title = "C" };
-            
+
             var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
             vm.FilteredWindows.Add(itemA);
             vm.FilteredWindows.Add(itemB);
@@ -368,7 +369,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSearchSwap = new Mock<IWindowSearchService>();
             mockSearchSwap.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
                           .Returns(new List<WindowItem> { itemB, itemA }); // Reversed order
-                          
+
             // Inject new dependencies via constructor is hard, so we'll just test SyncCollection indirectly via subclass or reflection? 
             // Or just trust the previous SyncCollection_EdgeCases test covered "moves" well enough?
             // "Move" happens when item is found later in list. 
@@ -376,20 +377,20 @@ namespace SwitchBlade.Tests.ViewModels
             // ptr=0. source[0]=B. collection[0]=A != B. scan forward. found B at 1. Move(1, 0).
             // collection is now [B, A]. ptr=1. source[1]=A. collection[1]=A. match. ptr++.
             // Done.
-            
+
             // Let's verify this specific swap behavior logic with a new test instance
             var vm2 = new MainViewModel(
-                new Mock<IWindowOrchestrationService>().Object, 
-                mockSearchSwap.Object, 
-                new Mock<INavigationService>().Object, 
-                null, 
+                new Mock<IWindowOrchestrationService>().Object,
+                mockSearchSwap.Object,
+                new Mock<INavigationService>().Object,
+                null,
                 new Mock<IDispatcherService>().Object);
-            
+
             vm2.FilteredWindows.Add(itemA);
             vm2.FilteredWindows.Add(itemB);
-            
+
             vm2.SearchText = "force_update"; // triggers UpdateSearch -> SyncCollection
-            
+
             Assert.Equal(itemB, vm2.FilteredWindows[0]);
             Assert.Equal(itemA, vm2.FilteredWindows[1]);
         }
@@ -703,9 +704,9 @@ namespace SwitchBlade.Tests.ViewModels
             var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
             var eventRaised = false;
             vm.OpenSettingsRequested += (s, e) => eventRaised = true;
-            
+
             vm.OpenSettingsCommand.Execute(null);
-            
+
             Assert.True(eventRaised);
         }
 
@@ -713,9 +714,9 @@ namespace SwitchBlade.Tests.ViewModels
         public void OpenSettingsCommand_CanExecute_WithoutSubscriber_DoesNotThrow()
         {
             var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
-            
+
             var exception = Record.Exception(() => vm.OpenSettingsCommand.Execute(null));
-            
+
             Assert.Null(exception);
             Assert.True(vm.OpenSettingsCommand.CanExecute(null));
         }

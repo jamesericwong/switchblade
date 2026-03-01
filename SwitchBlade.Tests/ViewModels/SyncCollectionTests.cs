@@ -1,5 +1,5 @@
 using Xunit;
-using SwitchBlade.ViewModels;
+using SwitchBlade.Core;
 using SwitchBlade.Contracts;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
@@ -8,8 +8,7 @@ using System;
 namespace SwitchBlade.Tests.ViewModels
 {
     /// <summary>
-    /// Tests for the SyncCollection algorithm in MainViewModel.
-    /// Uses reflection to test the private method via UpdateSearch.
+    /// Tests for the <see cref="ObservableCollectionSync"/> helper.
     /// </summary>
     public class SyncCollectionTests
     {
@@ -28,7 +27,7 @@ namespace SwitchBlade.Tests.ViewModels
             var source = new List<WindowItem> { item1, item2, item3 };
 
             // Act
-            SyncCollectionHelper(collection, source);
+            ObservableCollectionSync.Sync(collection, source);
 
             // Assert
             Assert.Equal(3, collection.Count);
@@ -50,7 +49,7 @@ namespace SwitchBlade.Tests.ViewModels
             var source = new List<WindowItem> { item1 };
 
             // Act
-            SyncCollectionHelper(collection, source);
+            ObservableCollectionSync.Sync(collection, source);
 
             // Assert
             Assert.Single(collection);
@@ -69,7 +68,7 @@ namespace SwitchBlade.Tests.ViewModels
             var source = new List<WindowItem> { item1, item2 };
 
             // Act
-            SyncCollectionHelper(collection, source);
+            ObservableCollectionSync.Sync(collection, source);
 
             // Assert
             Assert.Equal(2, collection.Count);
@@ -87,7 +86,7 @@ namespace SwitchBlade.Tests.ViewModels
             var source = new List<WindowItem>();
 
             // Act
-            SyncCollectionHelper(collection, source);
+            ObservableCollectionSync.Sync(collection, source);
 
             // Assert
             Assert.Empty(collection);
@@ -102,57 +101,11 @@ namespace SwitchBlade.Tests.ViewModels
             var source = new List<WindowItem> { item1 };
 
             // Act
-            SyncCollectionHelper(collection, source);
+            ObservableCollectionSync.Sync(collection, source);
 
             // Assert
             Assert.Single(collection);
             Assert.Same(item1, collection[0]);
-        }
-
-        /// <summary>
-        /// Helper to mimic the SyncCollection logic for testing.
-        /// </summary>
-        private static void SyncCollectionHelper(ObservableCollection<WindowItem> collection, IList<WindowItem> source)
-        {
-            var sourceSet = new HashSet<WindowItem>(source);
-            for (int i = collection.Count - 1; i >= 0; i--)
-            {
-                if (!sourceSet.Contains(collection[i]))
-                    collection.RemoveAt(i);
-            }
-
-            int ptr = 0;
-            for (int i = 0; i < source.Count; i++)
-            {
-                var item = source[i];
-                if (ptr < collection.Count && collection[ptr] == item)
-                {
-                    ptr++;
-                }
-                else
-                {
-                    int foundAt = -1;
-                    for (int j = ptr + 1; j < collection.Count; j++)
-                    {
-                        if (collection[j] == item)
-                        {
-                            foundAt = j;
-                            break;
-                        }
-                    }
-
-                    if (foundAt != -1)
-                    {
-                        collection.Move(foundAt, ptr);
-                        ptr++;
-                    }
-                    else
-                    {
-                        collection.Insert(ptr, item);
-                        ptr++;
-                    }
-                }
-            }
         }
     }
 }

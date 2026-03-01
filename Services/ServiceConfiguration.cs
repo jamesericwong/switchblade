@@ -35,7 +35,8 @@ namespace SwitchBlade.Services
             services.AddSingleton<INativeInteropWrapper, NativeInteropWrapper>();
 
             // Core Services
-            services.AddSingleton<SettingsService>(sp => {
+            services.AddSingleton<SettingsService>(sp =>
+            {
                 var registryService = sp.GetRequiredService<IRegistryService>();
                 var logger = sp.GetRequiredService<ILogger>();
                 return new SettingsService(
@@ -55,7 +56,7 @@ namespace SwitchBlade.Services
             services.AddSingleton<IWorkstationService, WorkstationService>();
 
             // New Services (v1.6.4)
-            services.AddSingleton<IPluginLoader>(sp => 
+            services.AddSingleton<IPluginLoader>(sp =>
                 new PluginLoader(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins"), sp.GetRequiredService<ILogger>()));
 
             services.AddSingleton<INavigationService, NavigationService>();
@@ -65,12 +66,16 @@ namespace SwitchBlade.Services
                 sp.GetRequiredService<ILogger>(),
                 sp.GetRequiredService<IPluginLoader>()));
 
+            // Matching Algorithm
+            services.AddSingleton<IMatcher, FuzzyMatcherAdapter>();
+
             // Window Search Service (with LRU cache)
             services.AddSingleton<IWindowSearchService>(sp =>
             {
                 var settings = sp.GetRequiredService<ISettingsService>();
                 int cacheSize = settings.Settings.RegexCacheSize;
-                return new WindowSearchService(new LruRegexCache(cacheSize));
+                var matcher = sp.GetRequiredService<IMatcher>();
+                return new WindowSearchService(new LruRegexCache(cacheSize), matcher);
             });
 
             services.AddSingleton<INumberShortcutService, NumberShortcutService>();
@@ -88,7 +93,7 @@ namespace SwitchBlade.Services
             });
 
             // Window Orchestration Service (replaces manual provider coordination)
-            services.AddSingleton<IWindowReconciler>(sp => 
+            services.AddSingleton<IWindowReconciler>(sp =>
                 new WindowReconciler(sp.GetRequiredService<IIconService>(), sp.GetRequiredService<ILogger>()));
 
             services.AddSingleton<IWindowOrchestrationService>(sp =>
