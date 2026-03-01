@@ -1,3 +1,22 @@
+## [1.9.14] - 2026-02-28
+### Added
+- **Full Branch Coverage Verification**: Achieved 100% branch coverage for critical services including `WindowOrchestrationService`, `SettingsViewModel`, and `UiaWorkerClient`.
+- **IMatcher Interface**: Introduced `IMatcher` abstraction and `FuzzyMatcherAdapter` to decouple string matching from the search service (DIP/OCP).
+
+### Improved
+- **Strategy Pattern for Provider Execution**: Refactored `WindowOrchestrationService` to use a Strategy pattern for running providers (`IProviderRunner`), separating fast in-process scans from out-of-process UIA scans (SRP/OCP).
+- **Debounced Settings Save**: Implemented a background debounce timer for settings saves to reduce disk I/O and improve performance during rapid configuration changes.
+- **SOLID Refactoring**: 
+  - Extracted `ObservableCollectionSync` helper to localize list synchronization logic (SRP).
+  - Eliminated concrete downcasts in `MainViewModel` by utilizing the `AllWindows` interface property (DIP).
+  - Centralized global mutex and registry names as constants in `Program.cs`.
+
+### Fixed
+- **Launch on Startup UI Consistency**: Resolved a "double-click" bug where the Launch on Startup toggle would flip back before saving due to a race condition with the Windows Registry.
+- **Test Integrity**: Fixed async warnings and ensured all 757 tests pass with 100% coverage on targeted logic.
+
+---
+
 ## [1.9.13] - 2026-02-22
 ### Added
 - **Quick-Access Settings**: Added a gear icon to the search bar for fast navigation to the settings window.
