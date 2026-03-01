@@ -19,14 +19,14 @@ namespace SwitchBlade.Tests.Services
 
         public BackgroundPollingServiceTests()
         {
-            _settings = new UserSettings 
-            { 
+            _settings = new UserSettings
+            {
                 EnableBackgroundPolling = true,
                 BackgroundPollingIntervalSeconds = 10
             };
             _mockSettingsService = new Mock<ISettingsService>();
             _mockSettingsService.Setup(s => s.Settings).Returns(_settings);
-            
+
             _mockDispatcherService = new Mock<IDispatcherService>();
             _mockDispatcherService.Setup(d => d.InvokeAsync(It.IsAny<Func<Task>>()))
                 .Returns<Func<Task>>(async action => await action());
@@ -56,9 +56,9 @@ namespace SwitchBlade.Tests.Services
 
             // Act
             using var service = new BackgroundPollingService(
-                _mockSettingsService.Object, 
-                _mockDispatcherService.Object, 
-                refreshAction, 
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                refreshAction,
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
@@ -68,7 +68,7 @@ namespace SwitchBlade.Tests.Services
             // Assert
             _mockTimerFactory.Verify(f => f(TimeSpan.FromSeconds(10)), Times.Once);
             _mockTimer.Verify(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
-            
+
             // Note: Since proper async coordination requires a bit more than just mocking (because the loop runs on background),
             // verifying the refresh action happened is best done if we can control the flow.
             // But since WaitForNextTickAsync returns immediately in mock, the loop runs fast.
@@ -80,7 +80,7 @@ namespace SwitchBlade.Tests.Services
         {
             // Arrange
             _mockWorkstationService.Setup(w => w.IsWorkstationLocked()).Returns(true);
-            
+
             _mockTimer.SetupSequence(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true)
                 .ReturnsAsync(false);
@@ -90,9 +90,9 @@ namespace SwitchBlade.Tests.Services
 
             // Act
             using var service = new BackgroundPollingService(
-                _mockSettingsService.Object, 
-                _mockDispatcherService.Object, 
-                refreshAction, 
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                refreshAction,
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
@@ -113,17 +113,18 @@ namespace SwitchBlade.Tests.Services
                 .ReturnsAsync(false); // Stop
 
             int callCount = 0;
-            Func<Task> refreshAction = () => { 
-                callCount++; 
+            Func<Task> refreshAction = () =>
+            {
+                callCount++;
                 if (callCount == 1) throw new Exception("Boom");
-                return Task.CompletedTask; 
+                return Task.CompletedTask;
             };
 
             // Act
             using var service = new BackgroundPollingService(
-                _mockSettingsService.Object, 
-                _mockDispatcherService.Object, 
-                refreshAction, 
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                refreshAction,
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
@@ -138,11 +139,11 @@ namespace SwitchBlade.Tests.Services
         {
             // Arrange
             _mockTimer.Setup(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
-            
+
             using var service = new BackgroundPollingService(
-                _mockSettingsService.Object, 
-                _mockDispatcherService.Object, 
-                () => Task.CompletedTask, 
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
@@ -164,9 +165,9 @@ namespace SwitchBlade.Tests.Services
 
             // Act
             using var service = new BackgroundPollingService(
-                _mockSettingsService.Object, 
-                _mockDispatcherService.Object, 
-                () => Task.CompletedTask, 
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
@@ -177,51 +178,52 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public void Polling_MinimumInterval_ClampedTo1Second()
         {
-             // Arrange
+            // Arrange
             _settings.BackgroundPollingIntervalSeconds = 0; // Invalid
             _settings.EnableBackgroundPolling = true;
 
-             // Act
+            // Act
             using var service = new BackgroundPollingService(
-                _mockSettingsService.Object, 
-                _mockDispatcherService.Object, 
-                () => Task.CompletedTask, 
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
-             // Assert
-             _mockTimerFactory.Verify(f => f(TimeSpan.FromSeconds(1)), Times.Once);
+            // Assert
+            _mockTimerFactory.Verify(f => f(TimeSpan.FromSeconds(1)), Times.Once);
         }
 
         [Fact]
         public async Task StartPolling_CancelsPreviousTimer_BeforeStartingNew()
         {
-             // Arrange
+            // Arrange
             var mockTimer1 = new Mock<IPeriodicTimer>();
             var mockTimer2 = new Mock<IPeriodicTimer>();
-             
+
             // Return different timers on valid calls
             _mockTimerFactory.SetupSequence(f => f(It.IsAny<TimeSpan>()))
                 .Returns(mockTimer1.Object)
                 .Returns(mockTimer2.Object);
 
             mockTimer1.Setup(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()))
-                 .Returns(async (CancellationToken ct) => { 
+                 .Returns(async (CancellationToken ct) =>
+                 {
                      await Task.Delay(500, ct); // Simulate blocking wait
-                     return true; 
+                     return true;
                  });
 
             using var service = new BackgroundPollingService(
-                _mockSettingsService.Object, 
-                _mockDispatcherService.Object, 
-                () => Task.CompletedTask, 
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
-            
+
             // Timer 1 started. Now change settings to restart.
             _settings.BackgroundPollingIntervalSeconds = 5;
             _mockSettingsService.Raise(s => s.SettingsChanged += null);
-            
+
             // Assert
             // Timer 1 should be disposed (via the `using` block in the async method when cancelled)
             // But Wait! `using var timer` inside `PollingLoop` handles disposal.
@@ -230,8 +232,8 @@ namespace SwitchBlade.Tests.Services
             // Our mock `WaitForNextTickAsync` should handle cancellation token correctly to test this fully.
             // For now, let's verify factory was called twice.
             _mockTimerFactory.Verify(f => f(It.IsAny<TimeSpan>()), Times.Exactly(2));
-            
-            await Task.Delay(50); 
+
+            await Task.Delay(50);
             // Assert timer 1 disposed? It's inside a using block in an async method.
             // The async method exits on cancellation.
             // Hard to strict-verify internal disposal without complex signaling, 
@@ -256,6 +258,28 @@ namespace SwitchBlade.Tests.Services
             // Assert
             // If we reached here without exception, branches were covered
             Assert.NotNull(service);
+        }
+
+        [Fact]
+        public void Dispose_CalledTwice_IgnoresSubsequentCalls()
+        {
+            // Arrange
+            _settings.EnableBackgroundPolling = false;
+            using var service = new BackgroundPollingService(
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
+                null,
+                null
+            );
+
+            // Act
+            service.Dispose();
+            // Second dispose should hit the if (_disposed) return; branch
+            service.Dispose();
+
+            // Assert
+            Assert.NotNull(service); // Simply ensuring no exceptions are thrown
         }
     }
 }

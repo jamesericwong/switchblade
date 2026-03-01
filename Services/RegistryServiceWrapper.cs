@@ -14,7 +14,11 @@ namespace SwitchBlade.Services
         public void SetCurrentUserValue(string keyPath, string valueName, object value, RegistryValueKind valueKind)
         {
             using var key = Registry.CurrentUser.CreateSubKey(keyPath);
-            key?.SetValue(valueName, value, valueKind);
+            if (key == null)
+            {
+                throw new InvalidOperationException($"Failed to create registry key: {keyPath}");
+            }
+            key.SetValue(valueName, value, valueKind);
         }
 
         public void DeleteCurrentUserValue(string keyPath, string valueName, bool throwOnMissing)
