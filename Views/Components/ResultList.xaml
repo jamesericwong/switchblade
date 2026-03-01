@@ -120,7 +120,8 @@
                                         <TextBlock Foreground="{DynamicResource ForegroundBrush}" FontSize="14" TextTrimming="CharacterEllipsis"
                                                    core:SearchHighlightBehavior.Title="{Binding Title}"
                                                    core:SearchHighlightBehavior.SearchText="{Binding DataContext.SearchText, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                   core:SearchHighlightBehavior.IsEnabled="{Binding DataContext.EnableSearchHighlighting, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                    core:SearchHighlightBehavior.IsEnabled="{Binding DataContext.EnableSearchHighlighting, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                   core:SearchHighlightBehavior.HighlightColor="{Binding DataContext.SearchHighlightColor, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                    core:SearchHighlightBehavior.UseFuzzy="{Binding DataContext.EnableFuzzySearch, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
                                         <TextBlock Text="{Binding ProcessName}" Foreground="{DynamicResource BorderBrush}" FontSize="12" Opacity="0.85"/>
                                     </StackPanel>

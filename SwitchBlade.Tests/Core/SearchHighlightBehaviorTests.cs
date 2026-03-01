@@ -150,6 +150,9 @@ namespace SwitchBlade.Tests.Core
 
                 SearchHighlightBehavior.SetUseFuzzy(textBlock, true);
                 Assert.True(SearchHighlightBehavior.GetUseFuzzy(textBlock));
+
+                SearchHighlightBehavior.SetHighlightColor(textBlock, "#FF0000");
+                Assert.Equal("#FF0000", SearchHighlightBehavior.GetHighlightColor(textBlock));
             });
 
             thread.SetApartmentState(System.Threading.ApartmentState.STA);
@@ -176,12 +179,89 @@ namespace SwitchBlade.Tests.Core
                 Assert.Equal("Ch", runs[0].Text);
                 Assert.Equal("rom", runs[1].Text);
                 Assert.Equal(System.Windows.FontWeights.Bold, runs[1].FontWeight);
+                
+                // Set color and verify
+                SearchHighlightBehavior.SetHighlightColor(textBlock, "#FF0000");
+                runs = textBlock.Inlines.Cast<System.Windows.Documents.Run>().ToList();
+                var foreground = runs[1].Foreground as System.Windows.Media.SolidColorBrush;
+                Assert.NotNull(foreground);
+                Assert.Equal(System.Windows.Media.Colors.Red, foreground.Color);
+
                 Assert.Equal("e", runs[2].Text);
             });
 
             thread.SetApartmentState(System.Threading.ApartmentState.STA);
             thread.Start();
             thread.Join(2000); // 2s timeout
+        }
+
+        [Fact]
+        public void OnPropertyChanged_NonTextBlock_DoesNothing()
+        {
+            var thread = new System.Threading.Thread(() =>
+            {
+                var button = new System.Windows.Controls.Button();
+                SearchHighlightBehavior.SetTitle(button, "Title"); // Sets DP, triggering OnPropertyChanged
+                
+                // If it doesn't throw or crash, it means the early return worked
+                Assert.Equal("Title", SearchHighlightBehavior.GetTitle(button));
+            });
+
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.Start();
+            thread.Join(2000);
+        }
+
+        [Fact]
+        public void OnPropertyChanged_InvalidColor_FallsBackToNullBrush()
+        {
+            var thread = new System.Threading.Thread(() =>
+            {
+                var textBlock = new System.Windows.Controls.TextBlock();
+                SearchHighlightBehavior.SetTitle(textBlock, "Chrome");
+                SearchHighlightBehavior.SetSearchText(textBlock, "rom");
+                SearchHighlightBehavior.SetIsEnabled(textBlock, true);
+
+                // Set invalid color
+                SearchHighlightBehavior.SetHighlightColor(textBlock, "invalid_color_string");
+                
+                var runs = textBlock.Inlines.Cast<System.Windows.Documents.Run>().ToList();
+                Assert.Equal(System.Windows.FontWeights.Bold, runs[1].FontWeight);
+                
+                // Brush should be null due to catch block fallback (depends on default system foreground, but explicit set is null/unset)
+                // In WPF, if not explicitly set on Run, DependencyProperty.UnsetValue applies.
+                // We just need to check if the catch block ran, meaning it didn't crash.
+                Assert.Equal(System.Windows.DependencyProperty.UnsetValue, runs[1].ReadLocalValue(System.Windows.Documents.TextElement.ForegroundProperty));
+            });
+
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.Start();
+            thread.Join(2000);
+        }
+
+        [Fact]
+        public void OnPropertyChanged_EmptyColor_FallsBackToNullBrush()
+        {
+            var thread = new System.Threading.Thread(() =>
+            {
+                var textBlock = new System.Windows.Controls.TextBlock();
+                SearchHighlightBehavior.SetTitle(textBlock, "Chrome");
+                SearchHighlightBehavior.SetSearchText(textBlock, "rom");
+                SearchHighlightBehavior.SetIsEnabled(textBlock, true);
+
+                // Set empty color
+                SearchHighlightBehavior.SetHighlightColor(textBlock, "");
+                
+                var runs = textBlock.Inlines.Cast<System.Windows.Documents.Run>().ToList();
+                Assert.Equal(System.Windows.FontWeights.Bold, runs[1].FontWeight);
+                
+                // Brush should not be set
+                Assert.Equal(System.Windows.DependencyProperty.UnsetValue, runs[1].ReadLocalValue(System.Windows.Documents.TextElement.ForegroundProperty));
+            });
+
+            thread.SetApartmentState(System.Threading.ApartmentState.STA);
+            thread.Start();
+            thread.Join(2000);
         }
     }
 }

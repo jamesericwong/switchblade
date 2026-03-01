@@ -69,6 +69,15 @@ namespace SwitchBlade.Core
         public static bool GetUseFuzzy(DependencyObject obj) => (bool)obj.GetValue(UseFuzzyProperty);
         public static void SetUseFuzzy(DependencyObject obj, bool value) => obj.SetValue(UseFuzzyProperty, value);
 
+        // --- HighlightColor ---
+        public static readonly DependencyProperty HighlightColorProperty =
+            DependencyProperty.RegisterAttached(
+                "HighlightColor", typeof(string), typeof(SearchHighlightBehavior),
+                new PropertyMetadata("#FF0078D4", OnPropertyChanged));
+
+        public static string GetHighlightColor(DependencyObject obj) => (string)obj.GetValue(HighlightColorProperty);
+        public static void SetHighlightColor(DependencyObject obj, string value) => obj.SetValue(HighlightColorProperty, value);
+
         // --- Core logic ---
         private static void OnPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -78,14 +87,31 @@ namespace SwitchBlade.Core
             string searchText = GetSearchText(textBlock);
             bool isEnabled = GetIsEnabled(textBlock);
             bool useFuzzy = GetUseFuzzy(textBlock);
+            string highlightColor = GetHighlightColor(textBlock);
 
             var segments = BuildSegments(title, searchText, isEnabled, useFuzzy);
+            
+            System.Windows.Media.Brush? highlightBrush = null;
+            try
+            {
+                if (!string.IsNullOrEmpty(highlightColor))
+                {
+                    var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(highlightColor);
+                    highlightBrush = new System.Windows.Media.SolidColorBrush(color);
+                }
+            }
+            catch { /* Fallback to default/none */ }
+
             textBlock.Inlines.Clear();
             foreach (var seg in segments)
             {
                 var run = new Run(seg.Text);
                 if (seg.IsBold)
+                {
                     run.FontWeight = FontWeights.Bold;
+                    if (highlightBrush != null)
+                        run.Foreground = highlightBrush;
+                }
                 textBlock.Inlines.Add(run);
             }
         }
