@@ -113,6 +113,7 @@ namespace SwitchBlade.Services
 
             // Search Highlighting
             Settings.EnableSearchHighlighting = Load(nameof(Settings.EnableSearchHighlighting), true, ref settingsDirty);
+            Settings.SearchHighlightColor = Load(nameof(Settings.SearchHighlightColor), "#FF0078D4", ref settingsDirty);
 
             // UIA Worker Timeout
             Settings.UiaWorkerTimeoutSeconds = Load(nameof(Settings.UiaWorkerTimeoutSeconds), 60, ref settingsDirty);
@@ -200,6 +201,7 @@ namespace SwitchBlade.Services
 
                 // Search Highlighting
                 _storage.SetValue(nameof(Settings.EnableSearchHighlighting), Settings.EnableSearchHighlighting);
+                _storage.SetValue(nameof(Settings.SearchHighlightColor), Settings.SearchHighlightColor);
 
                 // UIA Worker Timeout
                 _storage.SetValue(nameof(Settings.UiaWorkerTimeoutSeconds), Settings.UiaWorkerTimeoutSeconds);

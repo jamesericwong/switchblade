@@ -35,6 +35,12 @@ namespace SwitchBlade.ViewModels
         /// <summary>Event fired when search text changes (user typing).</summary>
         public event EventHandler? SearchTextChanged;
 
+        /// <summary>Event fired when settings opening is requested.</summary>
+        public event EventHandler? OpenSettingsRequested;
+
+        /// <summary>Command to open the Settings window.</summary>
+        public ICommand OpenSettingsCommand { get; }
+
         /// <summary>Gets the window providers from the orchestration service.</summary>
         public IReadOnlyList<IWindowProvider> WindowProviders =>
             _orchestrationService is WindowOrchestrationService wos
@@ -82,6 +88,8 @@ namespace SwitchBlade.ViewModels
                     OnPropertyChanged(nameof(EnableFuzzySearch));
                 };
             }
+
+            OpenSettingsCommand = new RelayCommand(_ => OpenSettingsRequested?.Invoke(this, EventArgs.Empty));
         }
 
         // Legacy constructor for backward compatibility
@@ -111,6 +119,7 @@ namespace SwitchBlade.ViewModels
         public bool EnableNumberShortcuts => _settingsService?.Settings.EnableNumberShortcuts ?? true;
 
         public bool EnableSearchHighlighting => _settingsService?.Settings.EnableSearchHighlighting ?? true;
+        public string SearchHighlightColor => _settingsService?.Settings.SearchHighlightColor ?? "#FF0078D4";
 
         public bool EnableFuzzySearch => _settingsService?.Settings.EnableFuzzySearch ?? true;
 

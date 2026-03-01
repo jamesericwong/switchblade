@@ -165,6 +165,22 @@ namespace SwitchBlade.ViewModels
             set { _settingsService.Settings.EnableSearchHighlighting = value; OnPropertyChanged(); _settingsService.SaveSettings(); }
         }
 
+        public string SearchHighlightColor
+        {
+            get => _settingsService.Settings.SearchHighlightColor;
+            set 
+            { 
+                if (_settingsService.Settings.SearchHighlightColor != value)
+                {
+                    _settingsService.Settings.SearchHighlightColor = value; 
+                    OnPropertyChanged(); 
+                    _settingsService.SaveSettings(); 
+                }
+            }
+        }
+
+        public ICommand SetHighlightColorCommand { get; }
+
         public int IconCacheSize
         {
             get => _settingsService.Settings.IconCacheSize;
@@ -268,6 +284,7 @@ namespace SwitchBlade.ViewModels
             TogglePluginCommand = new RelayCommand(param => TogglePlugin(param));
             AddExcludedProcessCommand = new RelayCommand(_ => AddExcludedProcess(), _ => !string.IsNullOrWhiteSpace(NewExcludedProcessName));
             RemoveExcludedProcessCommand = new RelayCommand(_ => RemoveExcludedProcess(), _ => !string.IsNullOrEmpty(SelectedExcludedProcess));
+            SetHighlightColorCommand = new RelayCommand(param => { if (param is string color) SearchHighlightColor = color; });
         }
 
 
