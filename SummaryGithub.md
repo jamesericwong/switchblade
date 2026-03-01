@@ -3,31 +3,31 @@
 
 |||
 |:---|:---|
-| Generated on: | 3/1/2026 - 5:10:40 AM |
-| Coverage date: | 3/1/2026 - 5:10:37 AM |
+| Generated on: | 3/1/2026 - 5:23:11 AM |
+| Coverage date: | 3/1/2026 - 5:23:07 AM |
 | Parser: | Cobertura |
 | Assemblies: | 1 |
 | Classes: | 42 |
 | Files: | 40 |
-| **Line coverage:** | 99.8% (2531 of 2535) |
-| Covered lines: | 2531 |
-| Uncovered lines: | 4 |
+| **Line coverage:** | 100% (2535 of 2535) |
+| Covered lines: | 2535 |
+| Uncovered lines: | 0 |
 | Coverable lines: | 2535 |
 | Total lines: | 4834 |
-| **Branch coverage:** | 99.3% (888 of 894) |
-| Covered branches: | 888 |
+| **Branch coverage:** | 99.7% (892 of 894) |
+| Covered branches: | 892 |
 | Total branches: | 894 |
 | **Method coverage:** | [Feature is only available for sponsors](https://reportgenerator.io/pro) |
-| Tag: | 165_22536514966 |
+| Tag: | 168_22536699059 |
 
 </details>
 
 ## Coverage
-<details><summary>SwitchBlade - 99.8%</summary>
+<details><summary>SwitchBlade - 100%</summary>
 
 |**Name**|**Line**|**Branch**|
 |:---|---:|---:|
-|**SwitchBlade**|**99.8%**|**99.3%**|
+|**SwitchBlade**|**100%**|**99.7%**|
 |SwitchBlade.Core.FileSystemWrapper|100%||
 |SwitchBlade.Core.FuzzyMatcher|100%|100%|
 |SwitchBlade.Core.FuzzyMatcherAdapter|100%||
@@ -61,7 +61,7 @@
 |SwitchBlade.Services.ThemeInfo|100%||
 |SwitchBlade.Services.ThemeService|100%|100%|
 |SwitchBlade.Services.UiaProviderRunner|100%|100%|
-|SwitchBlade.Services.UiaWorkerClient|98.3%|94.7%|
+|SwitchBlade.Services.UiaWorkerClient|100%|98.2%|
 |SwitchBlade.Services.UserSettings|100%||
 |SwitchBlade.Services.WindowListUpdatedEventArgs|100%||
 |SwitchBlade.Services.WindowOrchestrationService|100%|100%|
