@@ -3,22 +3,22 @@
 
 |||
 |:---|:---|
-| Generated on: | 3/1/2026 - 3:54:36 AM |
-| Coverage date: | 3/1/2026 - 3:54:33 AM |
+| Generated on: | 3/1/2026 - 4:58:22 AM |
+| Coverage date: | 3/1/2026 - 4:58:20 AM |
 | Parser: | Cobertura |
 | Assemblies: | 1 |
-| Classes: | 38 |
-| Files: | 36 |
-| **Line coverage:** | 100% (2475 of 2475) |
-| Covered lines: | 2475 |
+| Classes: | 42 |
+| Files: | 40 |
+| **Line coverage:** | 100% (2526 of 2526) |
+| Covered lines: | 2526 |
 | Uncovered lines: | 0 |
-| Coverable lines: | 2475 |
-| Total lines: | 4653 |
-| **Branch coverage:** | 99.7% (864 of 866) |
-| Covered branches: | 864 |
-| Total branches: | 866 |
+| Coverable lines: | 2526 |
+| Total lines: | 4818 |
+| **Branch coverage:** | 100% (882 of 882) |
+| Covered branches: | 882 |
+| Total branches: | 882 |
 | **Method coverage:** | [Feature is only available for sponsors](https://reportgenerator.io/pro) |
-| Tag: | 156_22535398222 |
+| Tag: | 162_22536329455 |
 
 </details>
 
@@ -27,13 +27,15 @@
 
 |**Name**|**Line**|**Branch**|
 |:---|---:|---:|
-|**SwitchBlade**|**100%**|**99.7%**|
+|**SwitchBlade**|**100%**|**100%**|
 |SwitchBlade.Core.FileSystemWrapper|100%||
 |SwitchBlade.Core.FuzzyMatcher|100%|100%|
+|SwitchBlade.Core.FuzzyMatcherAdapter|100%||
 |SwitchBlade.Core.HighlightSegment|100%||
 |SwitchBlade.Core.InverseBooleanConverter|100%|100%|
 |SwitchBlade.Core.Logger|100%|100%|
 |SwitchBlade.Core.LruRegexCache|100%|100%|
+|SwitchBlade.Core.ObservableCollectionSync|100%|100%|
 |SwitchBlade.Core.PluginInfo|100%||
 |SwitchBlade.Core.ProcessFactory|100%|100%|
 |SwitchBlade.Core.SearchHighlightBehavior|100%|100%|
@@ -44,6 +46,7 @@
 |SwitchBlade.Services.BackgroundPollingService|100%|100%|
 |SwitchBlade.Services.BadgeAnimationService|100%|100%|
 |SwitchBlade.Services.IconService|100%|100%|
+|SwitchBlade.Services.InProcessProviderRunner|100%|100%|
 |SwitchBlade.Services.MemoryDiagnosticsService|100%|100%|
 |SwitchBlade.Services.ModifierKeyFlags|100%|100%|
 |SwitchBlade.Services.NavigationService|100%|100%|
@@ -57,10 +60,11 @@
 |SwitchBlade.Services.SettingsService|100%|100%|
 |SwitchBlade.Services.ThemeInfo|100%||
 |SwitchBlade.Services.ThemeService|100%|100%|
-|SwitchBlade.Services.UiaWorkerClient|100%|99%|
+|SwitchBlade.Services.UiaProviderRunner|100%|100%|
+|SwitchBlade.Services.UiaWorkerClient|100%|100%|
 |SwitchBlade.Services.UserSettings|100%||
 |SwitchBlade.Services.WindowListUpdatedEventArgs|100%||
-|SwitchBlade.Services.WindowOrchestrationService|100%|98.7%|
+|SwitchBlade.Services.WindowOrchestrationService|100%|100%|
 |SwitchBlade.Services.WindowReconciler|100%|100%|
 |SwitchBlade.Services.WindowsStartupManager|100%|100%|
 |SwitchBlade.ViewModels.MainViewModel|100%|100%|
