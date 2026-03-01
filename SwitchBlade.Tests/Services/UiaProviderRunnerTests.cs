@@ -129,7 +129,7 @@ namespace SwitchBlade.Tests.Services
 
             await _runner.RunAsync(new List<IWindowProvider>(), new HashSet<string>(), new HashSet<string>(), (p, items) => { });
 
-            await Task.Delay(100); // Give fire-and-forget time to finish
+            await WaitForBackgroundTaskAsync(_runner);
             _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("No provider found"))), Times.Once);
         }
 
@@ -166,7 +166,7 @@ namespace SwitchBlade.Tests.Services
 
             await _runner.RunAsync(new List<IWindowProvider>(), new HashSet<string>(), new HashSet<string>(), (p, items) => { });
 
-            await Task.Delay(100);
+            await WaitForBackgroundTaskAsync(_runner);
             _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("UIA Worker streaming error")), It.IsAny<Exception>()), Times.Once);
         }
 
@@ -179,7 +179,7 @@ namespace SwitchBlade.Tests.Services
 
             await noLoggerRunner.RunAsync(new List<IWindowProvider>(), new HashSet<string>(), new HashSet<string>(), (p, items) => { });
 
-            await Task.Delay(100); // Wait for background task
+            await WaitForBackgroundTaskAsync(noLoggerRunner);
             noLoggerRunner.Dispose();
         }
 
@@ -188,6 +188,14 @@ namespace SwitchBlade.Tests.Services
             _runner.Dispose();
             // Call again to test if (_disposed) return;
             _runner.Dispose();
+        }
+
+        private async Task WaitForBackgroundTaskAsync(UiaProviderRunner runner)
+        {
+            var field = typeof(UiaProviderRunner).GetField("_uiaRefreshLock", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var semaphore = (SemaphoreSlim)field!.GetValue(runner)!;
+            await semaphore.WaitAsync(TimeSpan.FromSeconds(5));
+            semaphore.Release();
         }
     }
 }
