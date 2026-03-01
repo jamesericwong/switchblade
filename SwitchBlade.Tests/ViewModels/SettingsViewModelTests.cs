@@ -62,8 +62,7 @@ namespace SwitchBlade.Tests.ViewModels
             // Assert
             Assert.True(eventFired, $"PropertyChanged event did not fire for {propertyName}");
             if (propertyName != nameof(SettingsViewModel.NewExcludedProcessName) &&
-                propertyName != nameof(SettingsViewModel.SelectedExcludedProcess) &&
-                propertyName != nameof(SettingsViewModel.LaunchOnStartup))
+                propertyName != nameof(SettingsViewModel.SelectedExcludedProcess))
             {
                 _viewModel.FlushPendingSave();
                 _settingsServiceMock.Verify(s => s.SaveSettings(), Times.AtLeastOnce());
@@ -376,9 +375,9 @@ namespace SwitchBlade.Tests.ViewModels
         }
 
         [Fact]
-        public void LaunchOnStartup_Getter_ReadsFromService()
+        public void LaunchOnStartup_Getter_ReadsFromSettings()
         {
-            _settingsServiceMock.Setup(s => s.IsStartupEnabled()).Returns(true);
+            _settingsServiceMock.Object.Settings.LaunchOnStartup = true;
             Assert.True(_viewModel.LaunchOnStartup);
         }
 

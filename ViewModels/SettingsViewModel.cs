@@ -59,9 +59,16 @@ namespace SwitchBlade.ViewModels
 
         public bool LaunchOnStartup
         {
-            // Read directly from Windows Run registry - single source of truth
-            get => _settingsService.IsStartupEnabled();
-            set { _settingsService.Settings.LaunchOnStartup = value; OnPropertyChanged(); ScheduleSave(); }
+            get => _settingsService.Settings.LaunchOnStartup;
+            set
+            {
+                if (_settingsService.Settings.LaunchOnStartup != value)
+                {
+                    _settingsService.Settings.LaunchOnStartup = value;
+                    OnPropertyChanged();
+                    _settingsService.SaveSettings();
+                }
+            }
         }
 
         public bool RunAsAdministrator
