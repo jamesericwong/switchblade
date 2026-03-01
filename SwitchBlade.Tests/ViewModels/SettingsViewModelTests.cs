@@ -418,5 +418,14 @@ namespace SwitchBlade.Tests.ViewModels
             _viewModel.SetHighlightColorCommand.Execute("#123456");
             Assert.Equal("#123456", _viewModel.SearchHighlightColor);
         }
+
+        [Fact]
+        public void FlushPendingSave_HandlesNullTimer()
+        {
+            // Act & Assert
+            var exception = Record.Exception(() => _viewModel.FlushPendingSave());
+            Assert.Null(exception);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.AtLeastOnce());
+        }
     }
 }
