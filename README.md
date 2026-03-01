@@ -1,6 +1,6 @@
 # SwitchBlade Technical Documentation
 
-**Current Version: 1.9.14**
+**Current Version: 1.9.15**
 
 [![Coverage Status](https://jamesericwong.github.io/switchblade/badge_linecoverage.svg)](https://jamesericwong.github.io/switchblade/)
 
