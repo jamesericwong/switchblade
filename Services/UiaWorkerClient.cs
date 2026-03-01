@@ -25,7 +25,7 @@ namespace SwitchBlade.Services
         private readonly IProcessFactory _processFactory;
         private readonly IFileSystem _fileSystem;
         private bool _disposed;
-        
+
         // Concurrency management
         private IProcess? _activeProcess;
         private readonly object _processLock = new();
@@ -45,7 +45,7 @@ namespace SwitchBlade.Services
         /// <param name="processFactory">Process factory for spawning workers.</param>
         /// <param name="fileSystem">File system abstraction.</param>
         public UiaWorkerClient(
-            ILogger? logger = null, 
+            ILogger? logger = null,
             TimeSpan? timeout = null,
             IProcessFactory? processFactory = null,
             IFileSystem? fileSystem = null)
@@ -100,8 +100,8 @@ namespace SwitchBlade.Services
             // Pass Parent PID for watchdog
             var currentProcess = _processFactory.GetCurrentProcess();
             int currentPid = currentProcess.Id;
-            var args = SwitchBlade.Core.Logger.IsDebugEnabled 
-                ? $"/debug --parent {currentPid}" 
+            var args = SwitchBlade.Core.Logger.IsDebugEnabled
+                ? $"/debug --parent {currentPid}"
                 : $"--parent {currentPid}";
 
             var psi = new ProcessStartInfo
@@ -137,9 +137,9 @@ namespace SwitchBlade.Services
 
             lock (_processLock)
             {
-                if (_disposed) 
+                if (_disposed)
                 {
-                    try { process.Kill(entireProcessTree: true); } catch {}
+                    try { process.Kill(entireProcessTree: true); } catch { }
                     process.Dispose();
                     throw new ObjectDisposedException(nameof(UiaWorkerClient));
                 }
@@ -185,8 +185,9 @@ namespace SwitchBlade.Services
                     }
                     catch (OperationCanceledException)
                     {
+                        // Explicitly caught - this is the expected path for timeouts
                         _logger?.Log("[UiaWorkerClient] Streaming read cancelled/timed out.");
-                        try { process.Kill(entireProcessTree: true); } catch { }
+                        try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
                         yield break;
                     }
 
@@ -194,6 +195,14 @@ namespace SwitchBlade.Services
                     {
                         // Process ended or closed stdout
                         break;
+                    }
+
+                    // Final check before yielding: if we were cancelled during the read, don't return partial garbage
+                    if (combinedCts.Token.IsCancellationRequested)
+                    {
+                        _logger?.Log("[UiaWorkerClient] Streaming read cancelled/timed out.");
+                        try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                        yield break;
                     }
 
                     UiaPluginResult? result;
@@ -219,6 +228,13 @@ namespace SwitchBlade.Services
                     _logger?.Log($"[UiaWorkerClient] Received {result.Windows?.Count ?? 0} windows from {result.PluginName}");
                     yield return result;
                 }
+
+                // If we exited the loop naturally but cancellation was requested, log it.
+                // This handles cases where ReadLineAsync might return a cached line or finish just as the token is cancelled.
+                if (combinedCts.Token.IsCancellationRequested)
+                {
+                    _logger?.Log("[UiaWorkerClient] Streaming read cancelled/timed out.");
+                }
             }
             finally
             {
@@ -233,7 +249,7 @@ namespace SwitchBlade.Services
                 {
                     if (!process.HasExited)
                     {
-                        try 
+                        try
                         {
                             if (combinedCts.Token.IsCancellationRequested)
                             {
@@ -244,9 +260,9 @@ namespace SwitchBlade.Services
                                 await process.WaitForExitAsync(combinedCts.Token);
                             }
                         }
-                        catch 
+                        catch
                         {
-                             if (!process.HasExited) process.Kill(entireProcessTree: true);
+                            if (!process.HasExited) process.Kill(entireProcessTree: true);
                         }
                     }
                 }
@@ -258,7 +274,7 @@ namespace SwitchBlade.Services
 
                 process.Dispose();
                 combinedCts.Dispose();
-                
+
                 var elapsed = Stopwatch.GetElapsedTime(startTime);
                 _logger?.Log($"[UiaWorkerClient] Streaming worker completed in {elapsed.TotalMilliseconds:F0}ms");
             }
@@ -363,7 +379,7 @@ namespace SwitchBlade.Services
                     }
                 }
             }
-            
+
             _disposeCts.Dispose();
         }
     }
