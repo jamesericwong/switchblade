@@ -43,9 +43,11 @@ namespace SwitchBlade.ViewModels
 
         /// <summary>Gets the window providers from the orchestration service.</summary>
         public IReadOnlyList<IWindowProvider> WindowProviders =>
-            _orchestrationService is WindowOrchestrationService wos
-                ? wos.AllWindows.Select(w => w.Source!).Distinct().ToList()
-                : new List<IWindowProvider>();
+            _orchestrationService.AllWindows
+                .Where(w => w.Source != null)
+                .Select(w => w.Source!)
+                .Distinct()
+                .ToList();
 
         // Primary constructor with all dependencies
         public MainViewModel(
@@ -237,48 +239,9 @@ namespace SwitchBlade.ViewModels
             ResultsUpdated?.Invoke(this, EventArgs.Empty);
         }
 
-        private void SyncCollection(ObservableCollection<WindowItem> collection, IList<WindowItem> source)
+        private static void SyncCollection(ObservableCollection<WindowItem> collection, IList<WindowItem> source)
         {
-            var sourceSet = new HashSet<WindowItem>(source);
-            for (int i = collection.Count - 1; i >= 0; i--)
-            {
-                if (!sourceSet.Contains(collection[i]))
-                    collection.RemoveAt(i);
-            }
-
-            // Two-Pointer sync: O(N) complexity
-            int ptr = 0;
-            for (int i = 0; i < source.Count; i++)
-            {
-                var item = source[i];
-                if (ptr < collection.Count && collection[ptr] == item)
-                {
-                    ptr++;
-                }
-                else
-                {
-                    int foundAt = -1;
-                    for (int j = ptr + 1; j < collection.Count; j++)
-                    {
-                        if (collection[j] == item)
-                        {
-                            foundAt = j;
-                            break;
-                        }
-                    }
-
-                    if (foundAt != -1)
-                    {
-                        collection.Move(foundAt, ptr);
-                        ptr++;
-                    }
-                    else
-                    {
-                        collection.Insert(ptr, item);
-                        ptr++;
-                    }
-                }
-            }
+            ObservableCollectionSync.Sync(collection, source);
         }
 
         public void MoveSelection(int direction)

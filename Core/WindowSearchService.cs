@@ -12,14 +12,17 @@ namespace SwitchBlade.Core
     public class WindowSearchService : IWindowSearchService
     {
         private readonly IRegexCache _regexCache;
+        private readonly IMatcher _matcher;
 
         /// <summary>
-        /// Creates a new WindowSearchService with the specified regex cache.
+        /// Creates a new WindowSearchService with the specified regex cache and matcher.
         /// </summary>
         /// <param name="regexCache">The regex cache to use for pattern compilation.</param>
-        public WindowSearchService(IRegexCache regexCache)
+        /// <param name="matcher">The matching algorithm to use for fuzzy search.</param>
+        public WindowSearchService(IRegexCache regexCache, IMatcher? matcher = null)
         {
             _regexCache = regexCache ?? throw new ArgumentNullException(nameof(regexCache));
+            _matcher = matcher ?? new FuzzyMatcherAdapter();
         }
 
         /// <inheritdoc />
@@ -47,7 +50,7 @@ namespace SwitchBlade.Core
             {
                 // Fuzzy search: Score all items and filter/sort by score
                 results = windowList
-                    .Select(w => new { Item = w, Score = FuzzyMatcher.Score(w.Title, query) })
+                    .Select(w => new { Item = w, Score = _matcher.Score(w.Title, query) })
                     .Where(x => x.Score > 0)
                     .OrderByDescending(x => x.Score)
                     .ThenBy(x => x.Item.ProcessName)

@@ -24,10 +24,10 @@ namespace SwitchBlade.Tests.ViewModels
             _settingsServiceMock = new Mock<ISettingsService>();
             var userSettings = new UserSettings();
             _settingsServiceMock.Setup(s => s.Settings).Returns(userSettings);
-            
+
             _resourceHandlerMock = new Mock<IApplicationResourceHandler>();
             _themeServiceMock = new Mock<ThemeService>(_settingsServiceMock.Object, _resourceHandlerMock.Object);
-            
+
             _pluginServiceMock = new Mock<IPluginService>();
             _pluginServiceMock.Setup(p => p.GetPluginInfos()).Returns(new List<PluginInfo>());
 
@@ -61,10 +61,10 @@ namespace SwitchBlade.Tests.ViewModels
 
             // Assert
             Assert.True(eventFired, $"PropertyChanged event did not fire for {propertyName}");
-            if (propertyName != nameof(SettingsViewModel.NewExcludedProcessName) && 
-                propertyName != nameof(SettingsViewModel.SelectedExcludedProcess) &&
-                propertyName != nameof(SettingsViewModel.LaunchOnStartup))
+            if (propertyName != nameof(SettingsViewModel.NewExcludedProcessName) &&
+                propertyName != nameof(SettingsViewModel.SelectedExcludedProcess))
             {
+                _viewModel.FlushPendingSave();
                 _settingsServiceMock.Verify(s => s.SaveSettings(), Times.AtLeastOnce());
             }
         }
@@ -90,6 +90,7 @@ namespace SwitchBlade.Tests.ViewModels
 
             // Assert
             Assert.True(eventFired, $"PropertyChanged event did not fire for {propertyName}");
+            _viewModel.FlushPendingSave();
             _settingsServiceMock.Verify(s => s.SaveSettings(), Times.AtLeastOnce());
         }
 
@@ -99,7 +100,7 @@ namespace SwitchBlade.Tests.ViewModels
             // Arrange
             _settingsServiceMock.Setup(s => s.Settings).Returns(new UserSettings { RunAsAdministrator = false });
             _uiServiceMock.Setup(u => u.IsRunningAsAdmin()).Returns(false);
-            
+
             // Act
             _viewModel.RunAsAdministrator = false;
 
@@ -369,13 +370,14 @@ namespace SwitchBlade.Tests.ViewModels
         {
             _viewModel.SelectedShortcutModifier = "Ctrl";
             Assert.Equal(2u, _settingsServiceMock.Object.Settings.NumberShortcutModifier);
+            _viewModel.FlushPendingSave();
             _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
         [Fact]
-        public void LaunchOnStartup_Getter_ReadsFromService()
+        public void LaunchOnStartup_Getter_ReadsFromSettings()
         {
-            _settingsServiceMock.Setup(s => s.IsStartupEnabled()).Returns(true);
+            _settingsServiceMock.Object.Settings.LaunchOnStartup = true;
             Assert.True(_viewModel.LaunchOnStartup);
         }
 
@@ -405,6 +407,7 @@ namespace SwitchBlade.Tests.ViewModels
 
             Assert.True(notified);
             Assert.Equal("#00FF00", _settingsServiceMock.Object.Settings.SearchHighlightColor);
+            _viewModel.FlushPendingSave();
             _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once());
         }
 
@@ -413,6 +416,15 @@ namespace SwitchBlade.Tests.ViewModels
         {
             _viewModel.SetHighlightColorCommand.Execute("#123456");
             Assert.Equal("#123456", _viewModel.SearchHighlightColor);
+        }
+
+        [Fact]
+        public void FlushPendingSave_HandlesNullTimer()
+        {
+            // Act & Assert
+            var exception = Record.Exception(() => _viewModel.FlushPendingSave());
+            Assert.Null(exception);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.AtLeastOnce());
         }
     }
 }
