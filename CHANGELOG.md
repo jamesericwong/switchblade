@@ -1,3 +1,12 @@
+## [1.9.15] - 2026-03-01
+### Fixed
+- **Chrome Error Tabs**: Stopped Chrome tab detection from mistakenly parsing ARIA tabs inside webpage DOMs (e.g. "GitLab Duo Chat").
+  - **Root Cause**: The surgical tab discovery BFS didn't explicitly check and avoid `ControlType.Document` tags, enabling the scan to slip into active webpage content and detect elements matching the UIA tab structure.
+  - **Fix**: Pruned the `ControlType.Document` elements from the traversal branch.
+  - **Impact**: This also further accelerates Chrome tab indexing, as the code no longer needs to query webpage trees.
+
+---
+
 ## [1.9.14] - 2026-02-28
 ### Added
 - **Full Branch Coverage Verification**: Achieved 100% branch coverage for critical services including `WindowOrchestrationService`, `SettingsViewModel`, and `UiaWorkerClient`.

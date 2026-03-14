@@ -38,7 +38,8 @@ namespace SwitchBlade.Plugins.Chrome
             "Search Tabs",
             "Google Chrome",
             "Chrome",
-            "Side panel"
+            "Side panel",
+            "Active GitLab Duo Chat"
         };
 
 
@@ -232,15 +233,15 @@ namespace SwitchBlade.Plugins.Chrome
 
                         // 1. Get children WITH caching
                         List<AutomationElement> children = new();
-                        try 
-                        { 
-                            var collection = container.FindAll(TreeScope.Children, Condition.TrueCondition); 
+                        try
+                        {
+                            var collection = container.FindAll(TreeScope.Children, Condition.TrueCondition);
                             foreach (AutomationElement child in collection) children.Add(child);
                         }
                         catch (Exception ex)
                         {
                             _logger?.Log($"    FindAll failed on level {containersChecked} ({ex.Message}). Falling back to manual walking...");
-                            
+
                             // FALLBACK: Use TreeWalker if FindAll fails (common for suspended tabs or RPC faults)
                             try
                             {
@@ -271,7 +272,7 @@ namespace SwitchBlade.Plugins.Chrome
                                     isTabStrip = true;
                                     break;
                                 }
-                                
+
                                 string localType = child.Cached.LocalizedControlType;
                                 if (!string.IsNullOrEmpty(localType) && localType.Equals("tab", StringComparison.OrdinalIgnoreCase))
                                 {
@@ -279,8 +280,8 @@ namespace SwitchBlade.Plugins.Chrome
                                     break;
                                 }
                             }
-                            catch 
-                            { 
+                            catch
+                            {
                                 // Property might not be cached if we fell back to manual walk
                                 try
                                 {
@@ -343,6 +344,8 @@ namespace SwitchBlade.Plugins.Chrome
                             {
                                 ControlType type;
                                 try { type = child.Cached.ControlType; } catch { type = child.Current.ControlType; }
+
+                                if (type == ControlType.Document) continue;
 
                                 if (type != ControlType.TabItem)
                                 {
@@ -505,6 +508,8 @@ namespace SwitchBlade.Plugins.Chrome
 
                 try
                 {
+                    if (current.Current.ControlType == ControlType.Document) continue;
+
                     bool isTab = false;
                     if (current.Current.ControlType == ControlType.TabItem) isTab = true;
                     if (!isTab && !string.IsNullOrEmpty(current.Current.LocalizedControlType))
