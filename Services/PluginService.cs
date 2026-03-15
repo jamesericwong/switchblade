@@ -15,22 +15,21 @@ namespace SwitchBlade.Services
         private readonly IPluginContext _context;
         private readonly ISettingsService _settingsService;
         private readonly ILogger? _logger;
+        private readonly IRegistryService _registryService;
         private readonly IPluginLoader _pluginLoader;
+        private readonly WindowFinder _windowFinder;
         private readonly List<IWindowProvider> _providers = new();
 
         public IReadOnlyList<IWindowProvider> Providers => _providers;
 
-        public PluginService(IPluginContext context, ISettingsService settingsService)
-            : this(context, settingsService, null, new PluginLoader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins")))
-        {
-        }
-
-        public PluginService(IPluginContext context, ISettingsService settingsService, ILogger? logger, IPluginLoader pluginLoader)
+        public PluginService(IPluginContext context, ISettingsService settingsService, IRegistryService registryService, ILogger? logger, IPluginLoader pluginLoader, WindowFinder windowFinder)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+            _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
             _logger = logger;
             _pluginLoader = pluginLoader ?? throw new ArgumentNullException(nameof(pluginLoader));
+            _windowFinder = windowFinder ?? throw new ArgumentNullException(nameof(windowFinder));
 
             LoadProviders();
         }
@@ -40,9 +39,8 @@ namespace SwitchBlade.Services
             _providers.Clear();
 
             // 1. Internal provider: WindowFinder
-            var windowFinder = new WindowFinder(_settingsService);
-            windowFinder.Initialize(_context);
-            _providers.Add(windowFinder);
+            _windowFinder.Initialize(_context);
+            _providers.Add(_windowFinder);
 
             // 2. External plugins — discover and then initialize each exactly once
             try
@@ -52,8 +50,8 @@ namespace SwitchBlade.Services
                 foreach (var plugin in plugins)
                 {
                     // Create per-plugin context with settings and initialize once
-                    var pluginSettings = new PluginSettingsService(plugin.PluginName, _context.Logger);
-                    var pluginContext = new PluginContext(_context.Logger, pluginSettings);
+                    var pluginSettings = new PluginSettingsService(plugin.PluginName, _registryService, _context.Logger);
+                    var pluginContext = new PluginContext(_context.Logger, _context.Interop, _registryService, pluginSettings);
                     plugin.Initialize(pluginContext);
                     _providers.Add(plugin);
                 }

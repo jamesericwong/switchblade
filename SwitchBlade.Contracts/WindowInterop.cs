@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using SwitchBlade.Contracts;
 
-namespace SwitchBlade.Core
+namespace SwitchBlade.Contracts
 {
     [ExcludeFromCodeCoverage]
     public class WindowInterop : IWindowInterop

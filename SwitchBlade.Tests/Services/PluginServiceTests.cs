@@ -33,7 +33,7 @@ namespace SwitchBlade.Tests.Services
             _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider>());
 
             // Act
-            var service = new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, _mockLoader.Object);
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
 
             // Assert
             Assert.Contains(service.Providers, p => p is WindowFinder);
@@ -49,7 +49,7 @@ namespace SwitchBlade.Tests.Services
             _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider> { mockPlugin.Object });
 
             // Act
-            var service = new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, _mockLoader.Object);
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
 
             // Assert
             Assert.Contains(service.Providers, p => p == mockPlugin.Object);
@@ -64,7 +64,7 @@ namespace SwitchBlade.Tests.Services
             _mockLoader.Setup(l => l.LoadPlugins()).Throws(new Exception("Load failed"));
 
             // Act
-            var service = new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, _mockLoader.Object);
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
 
             // Assert
             // Should still have internal provider
@@ -80,7 +80,7 @@ namespace SwitchBlade.Tests.Services
             _mockLoader.Setup(l => l.LoadPlugins()).Throws(new Exception("Load failed"));
 
             // Act
-            var service = new PluginService(_mockContext.Object, _mockSettings.Object, null, _mockLoader.Object);
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, null, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
 
             // Assert
             Assert.Contains(service.Providers, p => p is WindowFinder);
@@ -92,7 +92,7 @@ namespace SwitchBlade.Tests.Services
         {
             // Arrange
             _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider>());
-            var service = new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, _mockLoader.Object);
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
             int initialCount = service.Providers.Count;
 
             // Act
@@ -115,7 +115,7 @@ namespace SwitchBlade.Tests.Services
             // Setup mock plugin to return true/false for HasSettings if needed, defaults are false.
 
             _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider> { mockPlugin.Object });
-            var service = new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, _mockLoader.Object);
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
 
             // Act
             var infos = service.GetPluginInfos().ToList();
@@ -145,7 +145,7 @@ namespace SwitchBlade.Tests.Services
             _mockLogger.Setup(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()))
                        .Callback<string, Exception>((msg, ex) => capturedEx = ex);
 
-            var service = new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, _mockLoader.Object);
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
 
             if (capturedEx != null)
                 throw new Exception("Caught exception during LoadProviders: " + capturedEx.ToString());
@@ -172,7 +172,7 @@ namespace SwitchBlade.Tests.Services
             // It will try to create a PluginLoader pointing to BaseDirector/Plugins.
             // This directory might not exist, but PluginLoader constructor might not check existence immediately or just accept it.
             // Let's create it.
-            var service = new PluginService(_mockContext.Object, _mockSettings.Object);
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
             Assert.NotNull(service);
             Assert.NotNull(service.Providers);
         }
@@ -180,9 +180,9 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public void Constructor_Throws_WhenArgumentsNull()
         {
-             Assert.Throws<ArgumentNullException>(() => new PluginService(null!, _mockSettings.Object, _mockLogger.Object, _mockLoader.Object));
-             Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, null!, _mockLogger.Object, _mockLoader.Object));
-             Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, _mockSettings.Object, _mockLogger.Object, (IPluginLoader)null!));
+             Assert.Throws<ArgumentNullException>(() => new PluginService(null!, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object)));
+             Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, null!, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object)));
+             Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, (IPluginLoader)null!, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object)));
         }
 
     }

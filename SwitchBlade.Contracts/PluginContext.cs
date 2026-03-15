@@ -7,10 +7,14 @@ namespace SwitchBlade.Contracts
     {
         public ILogger Logger { get; }
         public IPluginSettingsService? Settings { get; }
+        public IWindowInterop Interop { get; }
+        public IRegistryService Registry { get; }
 
-        public PluginContext(ILogger logger, IPluginSettingsService? settings = null)
+        public PluginContext(ILogger logger, IWindowInterop interop, IRegistryService registry, IPluginSettingsService? settings = null)
         {
             Logger = logger;
+            Interop = interop;
+            Registry = registry;
             Settings = settings;
         }
     }

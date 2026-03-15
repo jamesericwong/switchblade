@@ -55,11 +55,11 @@ namespace SwitchBlade.Tests.Core
         public void Constructors_ExercisesDefaultAssignment()
         {
             // Test default constructor
-            var finder1 = new WindowFinder();
+            var finder1 = new WindowFinder(new Mock<ISettingsService>().Object, new Mock<IWindowInterop>().Object);
             Assert.Equal("WindowFinder", finder1.PluginName);
 
-            // Test parameterized constructor with null interop
-            var finder2 = new WindowFinder(_mockSettingsService.Object);
+            // Test parameterized constructor
+            var finder2 = new WindowFinder(_mockSettingsService.Object, new Mock<IWindowInterop>().Object);
             Assert.Equal("WindowFinder", finder2.PluginName);
         }
 
@@ -381,11 +381,9 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
-        public void GetWindows_SettingsNull_ReturnsEmpty()
+        public void Constructor_SettingsNull_Throws()
         {
-            var finder = new WindowFinder(null, _mockInterop.Object);
-            var results = finder.GetWindows();
-            Assert.Empty(results);
+            Assert.Throws<ArgumentNullException>(() => new WindowFinder(null!, _mockInterop.Object));
         }
 
         [Fact]

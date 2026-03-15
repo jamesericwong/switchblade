@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace SwitchBlade.Core
 {
     [ExcludeFromCodeCoverage]
-    internal class SystemProcessProvider : ISystemProcessProvider
+    public class SystemProcessProvider : ISystemProcessProvider
     {
         public Process? Start(ProcessStartInfo startInfo)
         {

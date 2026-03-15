@@ -18,7 +18,7 @@ namespace SwitchBlade.Contracts
     /// Plugin developers should inherit from this class and override
     /// <see cref="ScanWindowsCore"/> with their scanning logic.
     /// </summary>
-    public abstract class CachingWindowProviderBase : IWindowProvider, IDisposable
+    public abstract class CachingWindowProviderBase : IWindowProvider, IConfigurablePlugin, IProviderExclusionSettings, IExtrusionStrategy, IDisposable
     {
         private readonly ReaderWriterLockSlim _cacheLock = new(LockRecursionPolicy.NoRecursion);
         private volatile bool _isScanRunning = false;
@@ -32,6 +32,12 @@ namespace SwitchBlade.Contracts
         /// Derived classes can use this for logging.
         /// </summary>
         protected ILogger? Logger { get; private set; }
+
+        /// <summary>
+        /// Native interop wrapper provided by the plugin context.
+        /// Derived classes can use this for window and process operations.
+        /// </summary>
+        protected IWindowInterop? Interop { get; private set; }
 
         /// <summary>
         /// Indicates whether a scan is currently in progress.
@@ -65,34 +71,29 @@ namespace SwitchBlade.Contracts
         public abstract bool HasSettings { get; }
 
         /// <inheritdoc />
-        /// <remarks>
-        /// Base implementation returns false. Override to return true in UIA plugins.
-        /// </remarks>
         public virtual bool IsUiaProvider => false;
+
+        /// <inheritdoc />
+        public virtual ISettingsControl? SettingsControl => null;
 
         /// <inheritdoc />
         public virtual void Initialize(IPluginContext context)
         {
             Logger = context.Logger;
+            Interop = context.Interop;
         }
 
-        /// <inheritdoc />
-        public virtual void ReloadSettings()
-        {
-            // Override in derived classes if needed
-        }
+        /// <summary>
+        /// Reloads settings for the provider.
+        /// Default implementation is no-op.
+        /// </summary>
+        public virtual void ReloadSettings() { }
 
         /// <inheritdoc />
         public virtual IEnumerable<string> GetHandledProcesses() => Array.Empty<string>();
 
         /// <inheritdoc />
-        public virtual void SetExclusions(IEnumerable<string> exclusions)
-        {
-            // Default implementation: do nothing
-        }
-
-        /// <inheritdoc />
-        public virtual ISettingsControl? SettingsControl => null;
+        public virtual void SetExclusions(IEnumerable<string> exclusions) { }
 
         /// <inheritdoc />
         public abstract void ActivateWindow(WindowItem item);
@@ -268,8 +269,14 @@ namespace SwitchBlade.Contracts
         /// </summary>
         protected virtual int GetPid(IntPtr hwnd)
         {
-            NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
-            return (int)pid;
+            if (Interop != null)
+            {
+                Interop.GetWindowThreadProcessId(hwnd, out uint pid);
+                return (int)pid;
+            }
+            
+            NativeInterop.GetWindowThreadProcessId(hwnd, out uint pidStatic);
+            return (int)pidStatic;
         }
 
         /// <summary>
@@ -277,7 +284,7 @@ namespace SwitchBlade.Contracts
         /// </summary>
         protected virtual (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
         {
-            return NativeInterop.GetProcessInfo(pid);
+            return Interop?.GetProcessInfo(pid) ?? NativeInterop.GetProcessInfo(pid);
         }
 
         /// <summary>
@@ -285,7 +292,7 @@ namespace SwitchBlade.Contracts
         /// </summary>
         protected virtual bool IsWindowValid(IntPtr hwnd)
         {
-            return NativeInterop.IsWindowVisible(hwnd);
+            return Interop?.IsWindowVisible(hwnd) ?? NativeInterop.IsWindowVisible(hwnd);
         }
 
         /// <summary>

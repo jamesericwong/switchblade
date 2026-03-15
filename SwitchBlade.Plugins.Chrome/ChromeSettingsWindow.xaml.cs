@@ -42,7 +42,7 @@ namespace SwitchBlade.Plugins.Chrome
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            _settingsService.SetStringList("BrowserProcesses", new List<string>(_processes));
+            _settingsService.SetStringList("BrowserProcesses", [.. _processes]);
             DialogResult = true;
             Close();
         }

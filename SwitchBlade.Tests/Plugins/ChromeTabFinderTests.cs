@@ -18,9 +18,10 @@ namespace SwitchBlade.Tests.Plugins
         {
             _mockContext = new Mock<IPluginContext>();
             _mockLogger = new Mock<ILogger>();
-            _mockContext.Setup(c => c.Logger).Returns(_mockLogger.Object);
-
             _mockSettingsService = new Mock<IPluginSettingsService>();
+            
+            _mockContext.Setup(c => c.Logger).Returns(_mockLogger.Object);
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettingsService.Object);
 
             // Inject mock settings service using the new constructor
             _plugin = new ChromeTabFinder(_mockSettingsService.Object);
@@ -65,6 +66,7 @@ namespace SwitchBlade.Tests.Plugins
         public void ReloadSettings_RefreshesProcesses()
         {
             // Arrange
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettingsService.Object);
             _plugin.Initialize(_mockContext.Object);
 
             // Now mock a change
@@ -89,6 +91,7 @@ namespace SwitchBlade.Tests.Plugins
             _mockSettingsService.Setup(s => s.GetStringList("BrowserProcesses", It.IsAny<List<string>>()))
                 .Returns(new List<string> { "Chrome", "MSEDGE", "brave" });
 
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettingsService.Object);
             _plugin.Initialize(_mockContext.Object);
 
             // Act
@@ -110,6 +113,7 @@ namespace SwitchBlade.Tests.Plugins
             _mockSettingsService.Setup(s => s.GetStringList("BrowserProcesses", It.IsAny<List<string>>()))
                 .Returns(new List<string> { "chrome", "Chrome", "CHROME" });
 
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettingsService.Object);
             _plugin.Initialize(_mockContext.Object);
 
             // Act

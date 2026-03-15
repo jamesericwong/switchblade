@@ -54,7 +54,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             _logger = context.Logger;
 
             // Use injected settings if available (v1.9.3+), fallback to self-instantiation
-            _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
+            _settingsService = context.Settings;
 
             ReloadSettings();
         }
@@ -131,7 +131,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                 
                 // If we found specific tabs at all for this PID, use only them.
                 // This prevents "Main Window" from appearing if we successfully peered into even one handle.
-                if (windowsWithTabs.Any())
+                if (windowsWithTabs.Count != 0)
                 {
                     // Filter: Only include items that are not just the 'main window' fallback.
                     // How to detect? In ScanWindow, fallback uses 'windowTitle'. 
@@ -143,7 +143,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                     // For now, if we found any tabs, use only the windows that found tabs.
                     allResults.AddRange(windowsWithTabs);
                 }
-                else if (items.Any())
+                else if (items.Count != 0)
                 {
                     // If no tabs found at all for any handle, just take the first unique handle's fallback
                     // to avoid "Found 2 windows" (both being main window).
@@ -338,7 +338,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
         /// <summary>
         /// Surgical BFS for tab activation: Uses CacheRequest + FindAll with Document pruning.
         /// </summary>
-        private AutomationElement? FindTabByName(AutomationElement root, string targetName)
+        private static AutomationElement? FindTabByName(AutomationElement root, string targetName)
         {
             var cacheRequest = new CacheRequest();
             cacheRequest.Add(AutomationElement.NameProperty);

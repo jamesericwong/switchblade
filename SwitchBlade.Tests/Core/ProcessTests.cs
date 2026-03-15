@@ -4,13 +4,14 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using SwitchBlade.Core;
+using Moq;
 using Xunit;
 
 namespace SwitchBlade.Tests.Core
 {
     public class ProcessTests : IDisposable
     {
-        private readonly ProcessFactory _factory = new ProcessFactory();
+        private readonly ProcessFactory _factory = new ProcessFactory(new SystemProcessProvider());
 
         public void Dispose()
         {

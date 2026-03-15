@@ -18,16 +18,16 @@ namespace SwitchBlade.Services
         /// immediately as they complete in the worker process.
         /// </summary>
         IAsyncEnumerable<UiaPluginResult> ScanStreamingAsync(
-            ISet<string>? disabledPlugins = null,
-            ISet<string>? excludedProcesses = null,
+            IEnumerable<string>? disabledPlugins = null,
+            IEnumerable<string>? excludedProcesses = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Convenience wrapper that collects all streaming results into a single list.
         /// </summary>
         Task<List<WindowItem>> ScanAsync(
-            ISet<string>? disabledPlugins = null,
-            ISet<string>? excludedProcesses = null,
+            IEnumerable<string>? disabledPlugins = null,
+            IEnumerable<string>? excludedProcesses = null,
             CancellationToken cancellationToken = default);
     }
 }

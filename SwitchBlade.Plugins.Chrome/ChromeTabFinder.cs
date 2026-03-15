@@ -71,7 +71,7 @@ namespace SwitchBlade.Plugins.Chrome
             _logger = context.Logger;
 
             // Use injected settings if available (v1.9.3+), fallback to self-instantiation
-            _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
+            _settingsService = context.Settings;
 
             // Initialize settings from Registry or use defaults
             ReloadSettings();
@@ -113,7 +113,7 @@ namespace SwitchBlade.Plugins.Chrome
 
 
             var walker = TreeWalker.RawViewWalker;
-            _logger?.Log($"--- Scan started at {DateTime.Now} in Process {System.Diagnostics.Process.GetCurrentProcess().Id} ---");
+            _logger?.Log($"--- Scan started at {DateTime.Now} in Process {Environment.ProcessId} ---");
 
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
@@ -496,7 +496,7 @@ namespace SwitchBlade.Plugins.Chrome
             }
         }
 
-        private AutomationElement? FindTabByNameBFS(AutomationElement root, TreeWalker walker, int maxDepth, string targetName)
+        private static AutomationElement? FindTabByNameBFS(AutomationElement root, TreeWalker walker, int maxDepth, string targetName)
         {
             var queue = new Queue<(AutomationElement Element, int Depth)>();
             queue.Enqueue((root, 0));

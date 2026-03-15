@@ -1,7 +1,8 @@
 using Microsoft.Win32;
 using SwitchBlade.Contracts;
+using System.Diagnostics.CodeAnalysis;
 
-namespace SwitchBlade.Services
+namespace SwitchBlade.Contracts
 {
     public class RegistryServiceWrapper : IRegistryService
     {
@@ -31,6 +32,12 @@ namespace SwitchBlade.Services
             {
                 key.DeleteValue(valueName, throwOnMissing);
             }
+        }
+
+        public bool KeyExists(string keyPath)
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(keyPath);
+            return key != null;
         }
     }
 }

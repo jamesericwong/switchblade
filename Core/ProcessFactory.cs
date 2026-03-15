@@ -8,13 +8,9 @@ namespace SwitchBlade.Core
     {
         private readonly ISystemProcessProvider _provider;
 
-        internal ProcessFactory(ISystemProcessProvider provider)
+        public ProcessFactory(ISystemProcessProvider provider)
         {
-            _provider = provider;
-        }
-
-        public ProcessFactory() : this(new SystemProcessProvider())
-        {
+            _provider = provider ?? throw new ArgumentNullException(nameof(provider));
         }
 
         public IProcess? Start(ProcessStartInfo startInfo)

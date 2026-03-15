@@ -29,7 +29,7 @@ namespace SwitchBlade.Services
                 return;
             }
 
-            var currentPid = Process.GetCurrentProcess().Id;
+            var currentPid = Environment.ProcessId;
             var workingDir = Path.GetDirectoryName(processPath) ?? "";
             bool isElevated = Program.IsRunningAsAdmin();
 
