@@ -52,7 +52,7 @@ namespace SwitchBlade.Services
         {
             _logger = logger;
             _timeout = timeout ?? TimeSpan.FromSeconds(10);
-            _processFactory = processFactory ?? new ProcessFactory();
+            _processFactory = processFactory ?? new ProcessFactory(new SystemProcessProvider());
             _fileSystem = fileSystem ?? new FileSystemWrapper();
 
             // Find the worker executable relative to the main app
@@ -154,7 +154,7 @@ namespace SwitchBlade.Services
             {
                 string requestJson = JsonSerializer.Serialize(request, JsonOptions);
                 await process.StandardInput.WriteLineAsync(requestJson);
-                await process.StandardInput.FlushAsync();
+                await process.StandardInput.FlushAsync(cancellationToken);
                 process.StandardInput.Close();
             }
             catch (Exception ex)
@@ -329,7 +329,7 @@ namespace SwitchBlade.Services
             }
         }
 
-        private List<WindowItem> ConvertToWindowItems(List<UiaWindowResult>? results)
+        private static List<WindowItem> ConvertToWindowItems(List<UiaWindowResult>? results)
         {
             if (results == null || results.Count == 0)
                 return new List<WindowItem>();

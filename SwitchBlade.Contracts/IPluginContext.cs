@@ -13,6 +13,16 @@ namespace SwitchBlade.Contracts
         /// Pre-configured settings service for the plugin.
         /// Null when not available (backward compatibility).
         /// </summary>
-        IPluginSettingsService? Settings => null;
+        IPluginSettingsService? Settings { get; }
+
+        /// <summary>
+        /// Native interop wrapper for window and process operations.
+        /// </summary>
+        IWindowInterop Interop { get; }
+
+        /// <summary>
+        /// Registry service for direct access if needed.
+        /// </summary>
+        IRegistryService Registry { get; }
     }
 }

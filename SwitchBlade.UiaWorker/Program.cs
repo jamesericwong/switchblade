@@ -1,8 +1,14 @@
-using System.Reflection;
-using System.Text.Json;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Threading.Tasks;
 using SwitchBlade.Contracts;
+
+[assembly: DisableRuntimeMarshalling]
 
 namespace SwitchBlade.UiaWorker;
 
@@ -61,7 +67,7 @@ internal static class Program
         {
             if ((args[i] == "--parent" || args[i] == "-parent") && i + 1 < args.Length)
             {
-                int.TryParse(args[i + 1], out parentPid);
+                _ = int.TryParse(args[i + 1], out parentPid);
                 break;
             }
         }
@@ -175,9 +181,13 @@ internal static class Program
             {
                 DebugLog($"Initializing {plugin.PluginName}...");
                 // Create per-plugin context with settings
+                var registry = new RegistryServiceWrapper();
+                var interop = new WindowInterop();
                 var context = new MinimalPluginContext
                 {
-                    Settings = new PluginSettingsService(plugin.PluginName, BridgedLogger.Instance)
+                    Settings = new PluginSettingsService(plugin.PluginName, registry, BridgedLogger.Instance),
+                    Interop = interop,
+                    Registry = registry
                 };
                 plugin.Initialize(context);
             }
@@ -201,15 +211,15 @@ internal static class Program
             try
             {
                 DebugLog($"Running plugin: {plugin.PluginName}");
-                plugin.ReloadSettings();
-                plugin.SetExclusions(excludedProcesses);
+                if (plugin is IConfigurablePlugin configurable) configurable.ReloadSettings();
+                if (plugin is IProviderExclusionSettings exclusionSettings) exclusionSettings.SetExclusions(excludedProcesses);
 
                 var pluginWindows = plugin.GetWindows().ToList();
                 DebugLog($"Plugin {plugin.PluginName} found {pluginWindows.Count} windows.");
 
                 var windowResults = pluginWindows.Select(w => new UiaWindowResult
                 {
-                    Hwnd = w.Hwnd.ToInt64(),
+                    Hwnd = (long)w.Hwnd,
                     Title = w.Title,
                     ProcessName = w.ProcessName,
                     ExecutablePath = w.ExecutablePath,
@@ -244,14 +254,14 @@ internal static class Program
         {
             Success = errors.Count == 0,
             Error = errors.Count > 0 ? string.Join("; ", errors) : null,
-            Windows = new List<UiaWindowResult>() // Results already streamed
+            Windows = [] // Results already streamed
         };
     }
 
     /// <summary>
     /// Thread-safe writer lock to prevent output interleaving between parallel plugins.
     /// </summary>
-    private static readonly object WriteLock = new();
+    private static readonly System.Threading.Lock WriteLock = new();
 
     /// <summary>
     /// Writes a single plugin's results as one atomic JSON line.
@@ -344,7 +354,7 @@ internal static class Program
                         var provider = (IWindowProvider)Activator.CreateInstance(type)!;
 
                         // Only load UIA providers (the whole point of this worker)
-                        if (provider.IsUiaProvider)
+                        if (provider is IExtrusionStrategy { IsUiaProvider: true })
                         {
                             DebugLog($"Adding UIA provider: {type.FullName}");
                             plugins.Add(provider);
@@ -390,6 +400,8 @@ internal sealed class MinimalPluginContext : IPluginContext
 {
     public ILogger Logger => BridgedLogger.Instance;
     public IPluginSettingsService? Settings { get; init; }
+    public IWindowInterop Interop { get; init; } = default!;
+    public IRegistryService Registry { get; init; } = default!;
 }
 
 /// <summary>
@@ -401,6 +413,7 @@ internal sealed class BridgedLogger : ILogger
     public static readonly BridgedLogger Instance = new();
     private BridgedLogger() { }
 
+    public bool IsDebugEnabled { get; set; } = true;
     public void Log(string message) => Program.DebugLog(message);
     public void LogError(string context, Exception ex) => Program.DebugLog($"ERROR [{context}]: {ex}");
 }

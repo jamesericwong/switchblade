@@ -17,6 +17,12 @@ namespace SwitchBlade.Core
         private static string LogPath => LogFilePath;
 
         // Instance methods implementing ILogger
+        bool SwitchBlade.Contracts.ILogger.IsDebugEnabled
+        {
+            get => IsDebugEnabled;
+            set => IsDebugEnabled = value;
+        }
+
         void SwitchBlade.Contracts.ILogger.Log(string message) => LogStatic(message);
         void SwitchBlade.Contracts.ILogger.LogError(string context, Exception ex) => LogErrorStatic(context, ex);
 

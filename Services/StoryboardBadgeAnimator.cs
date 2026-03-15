@@ -116,7 +116,7 @@ namespace SwitchBlade.Services
             });
         }
 
-        private ListBoxItem? FindContainer(WindowItem item)
+        private static ListBoxItem? FindContainer(WindowItem item)
         {
             var mainWindow = System.Windows.Application.Current.MainWindow as MainWindow;
             if (mainWindow == null) return null;

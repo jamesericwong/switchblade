@@ -19,10 +19,44 @@ namespace SwitchBlade.Tests.ViewModels
             return mock;
         }
 
+        private MainViewModel CreateViewModel(IEnumerable<IWindowProvider>? providers = null!)
+        {
+            var pList = (providers ?? Enumerable.Empty<IWindowProvider>()).ToList();
+            var mockOrch = new Mock<IWindowOrchestrationService>();
+            mockOrch.Setup(o => o.AllWindows).Returns(() => pList.SelectMany(p => p.GetWindows()).ToList());
+            mockOrch.Setup(o => o.RefreshAsync(It.IsAny<ISet<string>>()))
+                .Returns(Task.CompletedTask)
+                .Raises(o => o.WindowListUpdated += null, new WindowListUpdatedEventArgs(null!, true));
+            
+            var mockSearch = new Mock<IWindowSearchService>();
+            mockSearch.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Returns((IEnumerable<WindowItem> windows, string text, bool fuzzy) => windows.ToList());
+
+            var mockNav = new Mock<INavigationService>();
+            mockNav.Setup(n => n.ResolveSelection(It.IsAny<IList<WindowItem>>(), It.IsAny<IntPtr?>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<RefreshBehavior>(), It.IsAny<bool>()))
+                .Returns((IList<WindowItem> windows, IntPtr? hwnd, string title, int index, RefreshBehavior behavior, bool reset) => 
+                    windows.FirstOrDefault());
+
+            mockNav.Setup(n => n.CalculateMoveIndex(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
+                .Returns((int current, int direction, int count) => 
+                {
+                    if (count == 0) return -1;
+                    int next = current + direction;
+                    return Math.Clamp(next, 0, count - 1);
+                });
+
+            return new MainViewModel(
+                mockOrch.Object,
+                mockSearch.Object,
+                mockNav.Object,
+                null,
+                new SynchronousDispatcherService());
+        }
+
         [Fact]
         public void Constructor_WithEmptyProviders_CreatesEmptyFilteredWindows()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             Assert.Empty(vm.FilteredWindows);
         }
@@ -30,7 +64,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void Constructor_SetsDefaultEnablePreviews_ToTrue()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             Assert.True(vm.EnablePreviews);
         }
@@ -38,7 +72,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void SearchText_DefaultValue_IsEmptyString()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             Assert.Equal(string.Empty, vm.SearchText);
         }
@@ -46,7 +80,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void SelectedWindow_DefaultValue_IsNull()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             Assert.Null(vm.SelectedWindow);
         }
@@ -54,7 +88,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void SearchText_SetValue_UpdatesProperty()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             vm.SearchText = "test";
 
@@ -64,13 +98,13 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void SearchText_Change_RaisesPropertyChanged()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
             var propertyChangedRaised = false;
             vm.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(MainViewModel.SearchText))
                     propertyChangedRaised = true;
-            };
+            }; // Closing the event handler here
 
             vm.SearchText = "test";
 
@@ -80,7 +114,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void EnablePreviews_SetValue_UpdatesProperty()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             vm.EnablePreviews = false;
 
@@ -90,7 +124,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void EnablePreviews_Change_RaisesPropertyChanged()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
             var propertyChangedRaised = false;
             vm.PropertyChanged += (s, e) =>
             {
@@ -106,7 +140,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void MoveSelection_WithEmptyList_DoesNotThrow()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             var exception = Record.Exception(() => vm.MoveSelection(1));
 
@@ -116,7 +150,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void MoveSelection_WithNullSelectedWindow_DoesNotThrow()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
             vm.SelectedWindow = null;
 
             var exception = Record.Exception(() => vm.MoveSelection(1));
@@ -127,7 +161,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void FilteredWindows_ImplementsINotifyPropertyChanged()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
         }
@@ -135,7 +169,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void ShowInTaskbar_WithNullSettingsService_ReturnsTrue()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>(), null);
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, null);
 
             Assert.True(vm.ShowInTaskbar);
         }
@@ -143,7 +177,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void MoveSelectionToFirst_WithEmptyList_DoesNotThrow()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             var exception = Record.Exception(() => vm.MoveSelectionToFirst());
 
@@ -153,7 +187,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void MoveSelectionToLast_WithEmptyList_DoesNotThrow()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             var exception = Record.Exception(() => vm.MoveSelectionToLast());
 
@@ -163,7 +197,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void MoveSelectionByPage_WithEmptyList_DoesNotThrow()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             var exception = Record.Exception(() => vm.MoveSelectionByPage(1, 10));
 
@@ -173,7 +207,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void MoveSelectionByPage_WithZeroPageSize_DoesNotThrow()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             var exception = Record.Exception(() => vm.MoveSelectionByPage(1, 0));
 
@@ -183,7 +217,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void MoveSelectionByPage_WithNegativePageSize_DoesNotThrow()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             var exception = Record.Exception(() => vm.MoveSelectionByPage(1, -5));
 
@@ -195,11 +229,9 @@ namespace SwitchBlade.Tests.ViewModels
             var item1 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "1", ProcessName = "exe", Source = null };
             var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
             // MainViewModel constructor expects IEnumerable<IWindowProvider>
-            var vm = new MainViewModel(System.Linq.Enumerable.Empty<IWindowProvider>());
-
+            var vm = CreateViewModel();
             vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
             vm.SelectedWindow = item2;
-
             vm.MoveSelectionToFirst();
 
             Assert.Equal(item1, vm.SelectedWindow);
@@ -210,7 +242,7 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var item1 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "1", ProcessName = "exe", Source = null };
             var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
-            var vm = new MainViewModel(System.Linq.Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
             vm.SelectedWindow = item1;
@@ -225,7 +257,7 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var item1 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "1", ProcessName = "exe", Source = null };
             var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
-            var vm = new MainViewModel(System.Linq.Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
             vm.SelectedWindow = item2;
@@ -241,7 +273,7 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var item1 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "1", ProcessName = "exe", Source = null };
             var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
-            var vm = new MainViewModel(System.Linq.Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
 
             vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
             vm.SelectedWindow = item1;
@@ -285,7 +317,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void SyncCollection_EdgeCases()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
             var i1 = new WindowItem { Title = "1" };
             var i2 = new WindowItem { Title = "2" };
             var i3 = new WindowItem { Title = "3" };
@@ -343,7 +375,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void FilteredWindows_SetToNull_DoesNothing()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
             var initial = vm.FilteredWindows;
 
             vm.FilteredWindows = null!;
@@ -361,7 +393,7 @@ namespace SwitchBlade.Tests.ViewModels
             var itemB = new WindowItem { Title = "B" };
             var itemC = new WindowItem { Title = "C" };
 
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
             vm.FilteredWindows.Add(itemA);
             vm.FilteredWindows.Add(itemB);
 
@@ -398,7 +430,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void SearchText_Change_RaisesSearchTextChanged()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
             var eventRaised = false;
             vm.SearchTextChanged += (s, e) => eventRaised = true;
 
@@ -410,7 +442,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void UpdateSearch_RaisesResultsUpdated()
         {
-            var vm = new MainViewModel(Enumerable.Empty<IWindowProvider>());
+            var vm = CreateViewModel();
             var eventRaised = false;
             vm.ResultsUpdated += (s, e) => eventRaised = true;
 
@@ -457,7 +489,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void ItemHeight_WithNullSettings_ReturnsDefault()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var vm = CreateViewModel();
 
             Assert.Equal(64.0, vm.ItemHeight);
         }
@@ -476,7 +508,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void EnableNumberShortcuts_WithNullSettings_ReturnsDefault()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var vm = CreateViewModel();
 
             Assert.True(vm.EnableNumberShortcuts);
         }
@@ -484,7 +516,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void ShortcutModifierText_WithNullSettings_ReturnsAlt()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var vm = CreateViewModel();
 
             Assert.Equal("Alt", vm.ShortcutModifierText);
         }
@@ -514,7 +546,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void ShowIcons_WithNullSettings_ReturnsDefault()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var vm = CreateViewModel();
 
             Assert.True(vm.ShowIcons);
         }
@@ -599,7 +631,31 @@ namespace SwitchBlade.Tests.ViewModels
             provider.Setup(p => p.GetWindows()).Returns(new[] { new WindowItem { Title = "Win", Source = provider.Object } });
 
             // Use the legacy constructor which creates a real WindowOrchestrationService
-            var vm = new MainViewModel(new[] { provider.Object });
+            var mockRunner = new Mock<IProviderRunner>();
+            mockRunner.Setup(r => r.RunAsync(
+                It.IsAny<IList<IWindowProvider>>(),
+                It.IsAny<ISet<string>>(),
+                It.IsAny<HashSet<string>>(),
+                It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
+                .Returns((IList<IWindowProvider> providers, ISet<string> disabled, HashSet<string> excluded, Action<IWindowProvider, List<WindowItem>> callback) =>
+                {
+                    foreach (var p in providers)
+                    {
+                        var results = p.GetWindows().ToList();
+                        callback(p, results);
+                    }
+                    return System.Threading.Tasks.Task.CompletedTask;
+                });
+            var runner = mockRunner.Object;
+            var orch = new WindowOrchestrationService(
+                new[] { provider.Object },
+                new WindowReconciler(null),
+                new NullUiaWorkerClient(),
+                new Mock<INativeInteropWrapper>().Object,
+                runner,
+                runner);
+
+            var vm = new MainViewModel(orch, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
 
             // Force a refresh so AllWindows has data
             await vm.RefreshWindows();
@@ -656,7 +712,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void EnableSearchHighlighting_WithNullSettings_ReturnsDefaultTrue()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var vm = CreateViewModel();
 
             Assert.True(vm.EnableSearchHighlighting);
         }
@@ -675,7 +731,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void EnableFuzzySearch_WithNullSettings_ReturnsDefaultTrue()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var vm = CreateViewModel();
 
             Assert.True(vm.EnableFuzzySearch);
         }
@@ -701,7 +757,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void OpenSettingsCommand_ExecutesAndRaisesEvent()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var vm = CreateViewModel();
             var eventRaised = false;
             vm.OpenSettingsRequested += (s, e) => eventRaised = true;
 
@@ -713,7 +769,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void OpenSettingsCommand_CanExecute_WithoutSubscriber_DoesNotThrow()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            var vm = CreateViewModel();
 
             var exception = Record.Exception(() => vm.OpenSettingsCommand.Execute(null));
 
@@ -722,3 +778,5 @@ namespace SwitchBlade.Tests.ViewModels
         }
     }
 }
+
+

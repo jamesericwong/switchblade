@@ -108,7 +108,7 @@ namespace SwitchBlade.Services
                 }
             }
 
-            if (count > 0 && _logger != null && SwitchBlade.Core.Logger.IsDebugEnabled)
+            if (count > 0 && _logger != null && _logger.IsDebugEnabled)
             {
                 var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(start);
                 _logger.Log($"[Perf] Populated {count} icons in {elapsed.TotalMilliseconds:F2}ms");

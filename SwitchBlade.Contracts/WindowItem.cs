@@ -205,6 +205,17 @@ namespace SwitchBlade.Contracts
         }
 
 
+        public override bool Equals(object? obj)
+        {
+            if (obj is not WindowItem other) return false;
+            return Hwnd == other.Hwnd && Title == other.Title;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Hwnd, Title);
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
         {

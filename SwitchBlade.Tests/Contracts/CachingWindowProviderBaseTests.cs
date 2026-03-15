@@ -216,7 +216,7 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange
             var provider = new TestCachingWindowProvider();
             var mockLogger = new Mock<ILogger>();
-            var context = new PluginContext(mockLogger.Object);
+            var context = new PluginContext(mockLogger.Object, new Mock<IWindowInterop>().Object, new Mock<IRegistryService>().Object, new Mock<IPluginSettingsService>().Object);
 
             // Act & Assert - should not throw
             provider.Initialize(context);

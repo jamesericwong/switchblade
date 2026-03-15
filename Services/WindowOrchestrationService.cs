@@ -66,29 +66,6 @@ namespace SwitchBlade.Services
             _logger = logger;
         }
 
-        /// <summary>
-        /// Backward compatibility constructor — creates default runners internally.
-        /// </summary>
-        public WindowOrchestrationService(
-            IEnumerable<IWindowProvider> providers,
-            IWindowReconciler reconciler,
-            IUiaWorkerClient uiaWorkerClient,
-            INativeInteropWrapper nativeInterop,
-            ILogger? logger = null,
-            ISettingsService? settingsService = null)
-            : this(providers, reconciler, uiaWorkerClient, nativeInterop,
-                   new InProcessProviderRunner(logger),
-                   new UiaProviderRunner(uiaWorkerClient, logger),
-                   logger, settingsService)
-        {
-        }
-
-        // Backward compatibility constructor for tests
-        public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IIconService? iconService = null, ISettingsService? settingsService = null)
-            : this(providers, new WindowReconciler(iconService), new NullUiaWorkerClient(), new SwitchBlade.Core.NativeInteropWrapper(), null, settingsService)
-        {
-        }
-
         public async Task RefreshAsync(ISet<string> disabledPlugins)
         {
             // Non-blocking re-entrancy guard for fast (Non-UIA) providers.
@@ -100,54 +77,79 @@ namespace SwitchBlade.Services
 
             try
             {
-                await Task.Run(async () =>
+                disabledPlugins ??= new HashSet<string>();
+
+                // Clear process cache for fresh lookups
+                _nativeInterop.ClearProcessCache();
+
+                // 1. Reload settings and gather handled processes (for all providers)
+                var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var provider in _providers)
                 {
-                    disabledPlugins ??= new HashSet<string>();
-
-                    // Clear process cache for fresh lookups
-                    _nativeInterop.ClearProcessCache();
-
-                    // 1. Reload settings and gather handled processes (for all providers)
-                    var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var provider in _providers)
+                    try
                     {
-                        try
+                        if (provider is IConfigurablePlugin configurable)
                         {
-                            provider.ReloadSettings();
-                            foreach (var p in provider.GetHandledProcesses())
+                            configurable.ReloadSettings();
+                        }
+
+                        if (provider is IProviderExclusionSettings exclusionSettings)
+                        {
+                            foreach (var p in exclusionSettings.GetHandledProcesses())
                             {
                                 handledProcesses.Add(p);
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            _logger?.LogError($"Error reloading settings for {provider.PluginName}", ex);
-                        }
                     }
-
-                    // 2. Inject exclusions (for all providers)
-                    foreach (var provider in _providers)
+                    catch (Exception ex)
                     {
-                        provider.SetExclusions(handledProcesses);
+                        _logger?.LogError($"Error reloading settings for {provider.PluginName}", ex);
                     }
+                }
 
-                    // 3. Split providers into UIA (out-of-process) and non-UIA (in-process)
-                    var nonUiaProviders = _providers.Where(p => !p.IsUiaProvider).ToList();
-                    var uiaProviders = _providers.Where(p => p.IsUiaProvider).ToList();
-
-                    // 4a. Run fast providers via the fast runner strategy
-                    await _fastRunner.RunAsync(nonUiaProviders, disabledPlugins, handledProcesses, ProcessProviderResults);
-
-                    // 4b. Run UIA providers via the UIA runner strategy (fire-and-forget)
-                    if (uiaProviders.Count > 0)
+                // 2. Inject exclusions (for all providers)
+                foreach (var provider in _providers)
+                {
+                    if (provider is IProviderExclusionSettings exclusionSettings)
                     {
-                        await _uiaRunner.RunAsync(uiaProviders, disabledPlugins, handledProcesses, ProcessProviderResults);
+                        exclusionSettings.SetExclusions(handledProcesses);
                     }
-                });
+                }
+
+                // 3. Split providers into UIA (out-of-process) and non-UIA (in-process)
+                var nonUiaProviders = _providers.Where(p => !(p is IExtrusionStrategy s && s.IsUiaProvider)).ToList();
+                var uiaProviders = _providers.Where(p => p is IExtrusionStrategy s && s.IsUiaProvider).ToList();
+
+                // 4a. Run fast providers via the fast runner strategy
+                await _fastRunner.RunAsync(nonUiaProviders, disabledPlugins, handledProcesses, ProcessProviderResults);
+
+                // 4b. Run UIA providers via the UIA runner strategy (background)
+                // UIA providers: fire-and-forget in background to avoid blocking core updates
+                if (uiaProviders.Count > 0)
+                {
+                    _ = LaunchUiaRefresh(uiaProviders, disabledPlugins, handledProcesses);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("Critical error during RefreshAsync", ex);
             }
             finally
             {
                 _fastRefreshLock.Release();
+            }
+        }
+
+        private async Task LaunchUiaRefresh(IList<IWindowProvider> uiaProviders, ISet<string> disabledPlugins, HashSet<string> handledProcesses)
+        {
+            try
+            {
+                _logger?.Log($"Launching background UIA refresh for {uiaProviders.Count} providers");
+                await _uiaRunner.RunAsync(uiaProviders, disabledPlugins, handledProcesses, ProcessProviderResults);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("Background UIA refresh failed", ex);
             }
         }
 

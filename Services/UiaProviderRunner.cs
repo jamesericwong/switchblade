@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SwitchBlade.Contracts;
+using SwitchBlade.Core;
 
 namespace SwitchBlade.Services
 {
@@ -122,11 +123,14 @@ namespace SwitchBlade.Services
             var map = new Dictionary<string, IWindowProvider>(StringComparer.OrdinalIgnoreCase);
             foreach (var provider in providers)
             {
-                foreach (var process in provider.GetHandledProcesses())
+                if (provider is IProviderExclusionSettings exclusionSettings)
                 {
-                    if (!map.ContainsKey(process))
+                    foreach (var process in exclusionSettings.GetHandledProcesses())
                     {
-                        map[process] = provider;
+                        if (!map.ContainsKey(process))
+                        {
+                            map[process] = provider;
+                        }
                     }
                 }
             }

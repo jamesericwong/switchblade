@@ -231,14 +231,14 @@ namespace SwitchBlade.Tests.Services
             // but we just need line coverage if possible.
             // However, SettingsService() calls this(...) which calls LoadSettings().
             // RegistrySettingsStorage constructor might fail if registry is blocked.
-            var service = new SettingsService();
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
             Assert.NotNull(service);
         }
 
         [Fact]
         public void Constructor_WithStartupManager_Works()
         {
-            var service = new SettingsService(_mockStartupManager.Object);
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object);
             Assert.NotNull(service);
         }
 

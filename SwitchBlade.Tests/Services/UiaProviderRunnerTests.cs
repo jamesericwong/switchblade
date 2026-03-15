@@ -70,7 +70,7 @@ namespace SwitchBlade.Tests.Services
         {
             var mockProvider = new Mock<IWindowProvider>();
             mockProvider.Setup(p => p.PluginName).Returns("P1");
-            mockProvider.Setup(p => p.GetHandledProcesses()).Returns(Array.Empty<string>());
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(Array.Empty<string>());
 
             var tcs = new TaskCompletionSource<bool>();
             var results = new[] {
@@ -98,7 +98,7 @@ namespace SwitchBlade.Tests.Services
         {
             var mockProvider = new Mock<IWindowProvider>();
             mockProvider.Setup(p => p.PluginName).Returns("P1"); // different from result PluginName
-            mockProvider.Setup(p => p.GetHandledProcesses()).Returns(new[] { "chrome.exe" });
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(new[] { "chrome.exe" });
 
             var tcs = new TaskCompletionSource<bool>();
             var results = new[] {
@@ -138,7 +138,7 @@ namespace SwitchBlade.Tests.Services
         {
             var mockProvider = new Mock<IWindowProvider>();
             mockProvider.Setup(p => p.PluginName).Returns("P1");
-            mockProvider.Setup(p => p.GetHandledProcesses()).Returns(Array.Empty<string>());
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(Array.Empty<string>());
 
             var tcs = new TaskCompletionSource<bool>();
             var results = new[] {
@@ -199,3 +199,4 @@ namespace SwitchBlade.Tests.Services
         }
     }
 }
+

@@ -29,10 +29,12 @@ namespace SwitchBlade.Services
         {
 
             // System Abstractions (v1.9.11 coverage improvements)
+            services.AddSingleton<ISystemProcessProvider, SystemProcessProvider>();
             services.AddSingleton<IProcessFactory, ProcessFactory>();
             services.AddSingleton<IFileSystem, FileSystemWrapper>();
             services.AddSingleton<IRegistryService, RegistryServiceWrapper>();
             services.AddSingleton<INativeInteropWrapper, NativeInteropWrapper>();
+            services.AddSingleton<IWindowInterop, WindowInterop>();
 
             // Core Services
             services.AddSingleton<SettingsService>(sp =>
@@ -52,19 +54,28 @@ namespace SwitchBlade.Services
 
             // Logger & Plugin Context
             services.AddSingleton<ILogger>(Logger.Instance);
-            services.AddSingleton<IPluginContext>(sp => new PluginContext(sp.GetRequiredService<ILogger>()));
+            services.AddSingleton<IPluginContext>(sp => new PluginContext(
+                sp.GetRequiredService<ILogger>(),
+                sp.GetRequiredService<IWindowInterop>(),
+                sp.GetRequiredService<IRegistryService>()));
             services.AddSingleton<IWorkstationService, WorkstationService>();
 
             // New Services (v1.6.4)
             services.AddSingleton<IPluginLoader>(sp =>
                 new PluginLoader(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins"), sp.GetRequiredService<ILogger>()));
 
+            services.AddSingleton<WindowFinder>(sp => new WindowFinder(
+                sp.GetRequiredService<ISettingsService>(),
+                sp.GetRequiredService<IWindowInterop>()));
+
             services.AddSingleton<INavigationService, NavigationService>();
             services.AddSingleton<IPluginService>(sp => new PluginService(
                 sp.GetRequiredService<IPluginContext>(),
                 sp.GetRequiredService<ISettingsService>(),
+                sp.GetRequiredService<IRegistryService>(),
                 sp.GetRequiredService<ILogger>(),
-                sp.GetRequiredService<IPluginLoader>()));
+                sp.GetRequiredService<IPluginLoader>(),
+                sp.GetRequiredService<WindowFinder>()));
 
             // Matching Algorithm
             services.AddSingleton<IMatcher, FuzzyMatcherAdapter>();
@@ -104,7 +115,16 @@ namespace SwitchBlade.Services
                 var nativeInterop = sp.GetRequiredService<INativeInteropWrapper>();
                 var logger = sp.GetRequiredService<ILogger>();
                 var settingsService = sp.GetRequiredService<ISettingsService>();
-                return new WindowOrchestrationService(pluginService.Providers, reconciler, uiaWorkerClient, nativeInterop, logger, settingsService);
+
+                return new WindowOrchestrationService(
+                    pluginService.Providers,
+                    reconciler,
+                    uiaWorkerClient,
+                    nativeInterop,
+                    new InProcessProviderRunner(logger),
+                    new UiaProviderRunner(uiaWorkerClient, logger),
+                    logger,
+                    settingsService);
             });
 
             // ViewModels

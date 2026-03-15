@@ -49,7 +49,7 @@ namespace SwitchBlade.Services
             };
         }
 
-        private ThemeInfo CreateTheme(string name, string background, string controlBackground, string foreground, string border)
+        private static ThemeInfo CreateTheme(string name, string background, string controlBackground, string foreground, string border)
         {
             var dict = new ResourceDictionary();
 

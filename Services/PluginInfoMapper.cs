@@ -43,7 +43,7 @@ namespace SwitchBlade.Services
                 AssemblyName = assemblyName,
                 Version = version,
                 IsInternal = isInternal,
-                HasSettings = provider.HasSettings,
+                HasSettings = provider is IConfigurablePlugin configurable && configurable.HasSettings,
                 Provider = provider,
                 IsEnabled = true
             };

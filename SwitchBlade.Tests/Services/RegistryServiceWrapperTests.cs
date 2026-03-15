@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using SwitchBlade.Contracts;
 using SwitchBlade.Services;
 using Xunit;
 using System;

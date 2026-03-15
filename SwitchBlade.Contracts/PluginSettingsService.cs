@@ -17,13 +17,15 @@ namespace SwitchBlade.Contracts
         public string RegistryPath => $@"{BASE_REGISTRY_PATH}\{PluginName}";
 
         private readonly ILogger? _logger;
+        private readonly IRegistryService _registryService;
 
-        public PluginSettingsService(string pluginName, ILogger? logger = null)
+        public PluginSettingsService(string pluginName, IRegistryService registryService, ILogger? logger = null)
         {
             if (string.IsNullOrWhiteSpace(pluginName))
                 throw new ArgumentException("Plugin name cannot be empty", nameof(pluginName));
 
             PluginName = pluginName;
+            _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
             _logger = logger;
         }
 
@@ -34,10 +36,7 @@ namespace SwitchBlade.Contracts
         {
             try
             {
-                using var regKey = Registry.CurrentUser.OpenSubKey(RegistryPath);
-                if (regKey == null) return defaultValue;
-
-                var value = regKey.GetValue(key);
+                var value = _registryService.GetCurrentUserValue(RegistryPath, key);
                 if (value == null) return defaultValue;
 
                 // Handle type conversions
@@ -66,19 +65,18 @@ namespace SwitchBlade.Contracts
         {
             try
             {
-                using var regKey = Registry.CurrentUser.CreateSubKey(RegistryPath);
-                if (regKey == null) return;
-
                 if (typeof(T) == typeof(bool))
-                    regKey.SetValue(key, (bool)(object)value! ? 1 : 0, RegistryValueKind.DWord);
-                else if (typeof(T) == typeof(int))
-                    regKey.SetValue(key, value!, RegistryValueKind.DWord);
-                else if (typeof(T) == typeof(uint))
-                    regKey.SetValue(key, value!, RegistryValueKind.DWord);
-                else if (typeof(T) == typeof(string))
-                    regKey.SetValue(key, value?.ToString() ?? "", RegistryValueKind.String);
+                {
+                    _registryService.SetCurrentUserValue(RegistryPath, key, (bool)(object)value! ? 1 : 0, RegistryValueKind.DWord);
+                }
+                else if (typeof(T) == typeof(int) || typeof(T) == typeof(uint))
+                {
+                    _registryService.SetCurrentUserValue(RegistryPath, key, value!, RegistryValueKind.DWord);
+                }
                 else
-                    regKey.SetValue(key, value?.ToString() ?? "");
+                {
+                    _registryService.SetCurrentUserValue(RegistryPath, key, value?.ToString() ?? "", RegistryValueKind.String);
+                }
             }
             catch (Exception ex)
             {
@@ -94,18 +92,15 @@ namespace SwitchBlade.Contracts
         {
             try
             {
-                using var regKey = Registry.CurrentUser.OpenSubKey(RegistryPath);
-                if (regKey == null) return defaultValue ?? new List<string>();
+                var json = _registryService.GetCurrentUserValue(RegistryPath, key) as string;
+                if (string.IsNullOrEmpty(json)) return defaultValue ?? [];
 
-                var json = regKey.GetValue(key) as string;
-                if (string.IsNullOrEmpty(json)) return defaultValue ?? new List<string>();
-
-                return JsonSerializer.Deserialize<List<string>>(json) ?? defaultValue ?? new List<string>();
+                return JsonSerializer.Deserialize<List<string>>(json) ?? defaultValue ?? [];
             }
             catch (Exception ex)
             {
                 _logger?.LogError($"PluginSettings[{PluginName}].GetStringList('{key}')", ex);
-                return defaultValue ?? new List<string>();
+                return defaultValue ?? [];
             }
         }
 
@@ -116,11 +111,8 @@ namespace SwitchBlade.Contracts
         {
             try
             {
-                using var regKey = Registry.CurrentUser.CreateSubKey(RegistryPath);
-                if (regKey == null) return;
-
                 var json = JsonSerializer.Serialize(value);
-                regKey.SetValue(key, json, RegistryValueKind.String);
+                _registryService.SetCurrentUserValue(RegistryPath, key, json, RegistryValueKind.String);
             }
             catch (Exception ex)
             {
@@ -129,13 +121,9 @@ namespace SwitchBlade.Contracts
             }
         }
 
-        /// <summary>
-        /// Checks if the plugin's Registry key exists.
-        /// </summary>
         public bool SettingsExist()
         {
-            using var regKey = Registry.CurrentUser.OpenSubKey(RegistryPath);
-            return regKey != null;
+            return _registryService.KeyExists(RegistryPath);
         }
 
         /// <summary>
@@ -145,8 +133,7 @@ namespace SwitchBlade.Contracts
         {
             try
             {
-                using var regKey = Registry.CurrentUser.OpenSubKey(RegistryPath);
-                return regKey?.GetValue(key) != null;
+                return _registryService.GetCurrentUserValue(RegistryPath, key) != null;
             }
             catch
             {
