@@ -12,24 +12,18 @@ namespace SwitchBlade.Services
     /// Runs UIA providers out-of-process via the UIA Worker Client with streaming.
     /// Uses a separate lock so slow UIA scans don't block core window updates.
     /// </summary>
-    public class UiaProviderRunner : IProviderRunner, IDisposable
+    public class UiaProviderRunner(IUiaWorkerClient uiaWorkerClient, ILogger? logger = null) : IProviderRunner, IDisposable
     {
-        private readonly IUiaWorkerClient _uiaWorkerClient;
-        private readonly ILogger? _logger;
+        private readonly IUiaWorkerClient _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
+        private readonly ILogger? _logger = logger;
         private readonly SemaphoreSlim _uiaRefreshLock = new(1, 1);
         private bool _disposed;
-
-        public UiaProviderRunner(IUiaWorkerClient uiaWorkerClient, ILogger? logger = null)
-        {
-            _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
-            _logger = logger;
-        }
 
         /// <inheritdoc />
         public Task RunAsync(
             IList<IWindowProvider> providers,
-            ISet<string> disabledPlugins,
-            HashSet<string> handledProcesses,
+            IEnumerable<string> disabledPlugins,
+            IEnumerable<string> handledProcesses,
             Action<IWindowProvider, List<WindowItem>> onResults)
         {
             // Non-blocking: skip if a previous UIA scan is still running.
@@ -95,7 +89,7 @@ namespace SwitchBlade.Services
                                 IsFallback = w.IsFallback,
                                 Source = uiaProvider
                             })
-                            .ToList() ?? new List<WindowItem>();
+                            .ToList() ?? [];
 
                         _logger?.Log($"[UIA] Plugin {pluginResult.PluginName} returned {windowItems.Count} windows - processing immediately.");
 
@@ -142,6 +136,7 @@ namespace SwitchBlade.Services
             if (_disposed) return;
             _disposed = true;
             _uiaRefreshLock.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

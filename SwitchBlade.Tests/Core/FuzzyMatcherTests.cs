@@ -460,7 +460,7 @@ namespace SwitchBlade.Tests.Core
         {
             // With fuzzy disabled, only exact substring match works
             var result = FuzzyMatcher.GetMatchedIndices("Chrome", "rom", false);
-            Assert.Equal(new[] { 2, 3, 4 }, result);
+            Assert.Equal([2, 3, 4], result);
         }
 
         [Fact]
@@ -476,7 +476,7 @@ namespace SwitchBlade.Tests.Core
             // "hello_world" normalized -> "helloworld"
             // query "hw" -> h at norm[0] -> orig 0, w at norm[5] -> orig 6
             var result = FuzzyMatcher.GetMatchedIndices("hello_world", "hw", true);
-            Assert.Equal(new[] { 0, 6 }, result);
+            Assert.Equal([0, 6], result);
         }
 
         [Fact]
@@ -515,7 +515,7 @@ namespace SwitchBlade.Tests.Core
             var result = FuzzyMatcher.GetMatchedIndices(longTitle, query, true);
             
             // Should match "bc" at the end, using heap-allocated buffers
-            Assert.Equal(new[] { 300, 301 }, result);
+            Assert.Equal([300, 301], result);
         }
 
         [Fact]
@@ -533,7 +533,7 @@ namespace SwitchBlade.Tests.Core
 
             // Assert
             // Should match 'b' at 300 and 'c' at 311
-            Assert.Equal(new[] { 300, 311 }, result);
+            Assert.Equal([300, 311], result);
         }
 
         [Fact]
@@ -555,7 +555,7 @@ namespace SwitchBlade.Tests.Core
             
             var result = FuzzyMatcher.GetMatchedIndices(longTitle, "xyz", true);
             
-            Assert.Equal(new[] { 3, 4, 5 }, result);
+            Assert.Equal([3, 4, 5], result);
         }
 
         #endregion

@@ -37,10 +37,10 @@ namespace SwitchBlade.Tests.Services
             var lockObj = new SemaphoreSlim(1, 1);
             mock.Setup(r => r.RunAsync(
                 It.IsAny<IList<IWindowProvider>>(),
-                It.IsAny<ISet<string>>(),
-                It.IsAny<HashSet<string>>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IEnumerable<string>>(),
                 It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
-                .Returns((IList<IWindowProvider> providers, ISet<string> disabled, HashSet<string> excluded, Action<IWindowProvider, List<WindowItem>> callback) =>
+                .Returns((IList<IWindowProvider> providers, IEnumerable<string> disabled, IEnumerable<string> excluded, Action<IWindowProvider, List<WindowItem>> callback) =>
                 {
                     if (isUia && !lockObj.Wait(0))
                     {
@@ -140,8 +140,7 @@ namespace SwitchBlade.Tests.Services
                 interop ?? new Mock<INativeInteropWrapper>().Object,
                 fastRunner,
                 uiaRunner,
-                logger,
-                settings ?? CreateMockSettingsService()
+                logger
             );
         }
 
@@ -385,10 +384,10 @@ namespace SwitchBlade.Tests.Services
             var uiaScanStarted = new TaskCompletionSource<bool>();
             var mockUiaWorker = new Mock<IUiaWorkerClient>();
             mockUiaWorker.Setup(c => c.ScanStreamingAsync(
-                    It.IsAny<ISet<string>?>(),
-                    It.IsAny<ISet<string>?>(),
+                    It.IsAny<IEnumerable<string>?>(),
+                    It.IsAny<IEnumerable<string>?>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((ISet<string>? d, ISet<string>? h, CancellationToken t) =>
+                .Returns((IEnumerable<string>? d, IEnumerable<string>? h, CancellationToken t) =>
                 {
                     uiaScanStarted.TrySetResult(true);
                     return DelayedEmptyEnumerable(500, t);
@@ -410,8 +409,8 @@ namespace SwitchBlade.Tests.Services
             coreProvider.Verify(p => p.GetWindows(), Times.Exactly(2));
 
             mockUiaWorker.Verify(c => c.ScanStreamingAsync(
-                It.IsAny<ISet<string>?>(),
-                It.IsAny<ISet<string>?>(),
+                It.IsAny<IEnumerable<string>?>(),
+                It.IsAny<IEnumerable<string>?>(),
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -510,7 +509,7 @@ namespace SwitchBlade.Tests.Services
             var mockWorker = new Mock<IUiaWorkerClient>();
             var scannedSignal = new ManualResetEventSlim(false);
 
-            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()))
                       .Callback(() => scannedSignal.Set())
                       .Throws(new Exception("Worker crashed"));
 
@@ -523,7 +522,7 @@ namespace SwitchBlade.Tests.Services
 
             Assert.True(scannedSignal.Wait(2000), "Background UIA scan was not triggered in time");
 
-            mockWorker.Verify(w => w.ScanStreamingAsync(It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()), Times.Once);
+            mockWorker.Verify(w => w.ScanStreamingAsync(It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -580,7 +579,7 @@ namespace SwitchBlade.Tests.Services
                 Windows = new List<UiaWindowResult> { new() { Title = "W1", Hwnd = 123, ProcessName = "dynamic-proc" } }
             };
 
-            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()))
                       .Returns(new[] { pluginResult }.ToAsyncEnumerable());
 
             var service = CreateService(new[] { uiaProvider.Object }, worker: mockWorker.Object);
@@ -606,7 +605,7 @@ namespace SwitchBlade.Tests.Services
                 Windows = new List<UiaWindowResult> { new() { Title = "W1", Hwnd = 123, ProcessName = "unknown-proc" } }
             };
 
-            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
+            mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()))
                       .Returns(new[] { pluginResult }.ToAsyncEnumerable());
 
             var service = CreateService(new IWindowProvider[0], worker: mockWorker.Object);
@@ -717,8 +716,8 @@ namespace SwitchBlade.Tests.Services
             var scanCount = 0;
 
             mockWorker.Setup(w => w.ScanStreamingAsync(
-                    It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
-                .Returns((ISet<string>? d, ISet<string>? h, CancellationToken t) =>
+                    It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()))
+                .Returns((IEnumerable<string>? d, IEnumerable<string>? h, CancellationToken t) =>
                 {
                     Interlocked.Increment(ref scanCount);
                     scanStarted.Set();
@@ -766,7 +765,7 @@ namespace SwitchBlade.Tests.Services
             };
 
             mockWorker.Setup(w => w.ScanStreamingAsync(
-                    It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()))
                 .Returns(new[] { pluginResult }.ToAsyncEnumerable());
 
             var mockLogger = new Mock<ILogger>();
@@ -802,7 +801,7 @@ namespace SwitchBlade.Tests.Services
             };
 
             mockWorker.Setup(w => w.ScanStreamingAsync(
-                    It.IsAny<ISet<string>?>(), It.IsAny<ISet<string>?>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()))
                 .Returns(new[] { pluginResult }.ToAsyncEnumerable());
 
             var mockLogger = new Mock<ILogger>();
@@ -1253,10 +1252,10 @@ namespace SwitchBlade.Tests.Services
 
         internal class NullUiaWorkerClient : IUiaWorkerClient
         {
-            public IAsyncEnumerable<UiaPluginResult> ScanStreamingAsync(ISet<string>? c, ISet<string>? h, CancellationToken t = default)
+            public IAsyncEnumerable<UiaPluginResult> ScanStreamingAsync(IEnumerable<string>? c, IEnumerable<string>? h, CancellationToken t = default)
                 => Enumerable.Empty<UiaPluginResult>().ToAsyncEnumerable();
 
-            public Task<List<WindowItem>> ScanAsync(ISet<string>? c, ISet<string>? h, CancellationToken t = default)
+            public Task<List<WindowItem>> ScanAsync(IEnumerable<string>? c, IEnumerable<string>? h, CancellationToken t = default)
                 => Task.FromResult(new List<WindowItem>());
 
             public void Dispose() { }

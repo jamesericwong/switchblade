@@ -574,8 +574,8 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task ScanStreamingAsync_WithFilters_Works()
         {
-            var disabled = new HashSet<string> { "P1" };
-            var excluded = new HashSet<string> { "Proc1" };
+            IEnumerable<string> disabled = ["P1"];
+            IEnumerable<string> excluded = ["Proc1"];
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
 
             _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))

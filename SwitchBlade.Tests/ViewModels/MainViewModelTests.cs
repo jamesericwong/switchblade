@@ -19,18 +19,18 @@ namespace SwitchBlade.Tests.ViewModels
             return mock;
         }
 
-        private MainViewModel CreateViewModel(IEnumerable<IWindowProvider>? providers = null!)
+        private static MainViewModel CreateViewModel(IEnumerable<IWindowProvider>? providers = null!)
         {
-            var pList = (providers ?? Enumerable.Empty<IWindowProvider>()).ToList();
+            var pList = (providers ?? []).ToList();
             var mockOrch = new Mock<IWindowOrchestrationService>();
-            mockOrch.Setup(o => o.AllWindows).Returns(() => pList.SelectMany(p => p.GetWindows()).ToList());
-            mockOrch.Setup(o => o.RefreshAsync(It.IsAny<ISet<string>>()))
+            mockOrch.Setup(o => o.AllWindows).Returns(() => [.. pList.SelectMany(p => p.GetWindows())]);
+            mockOrch.Setup(o => o.RefreshAsync(It.IsAny<IEnumerable<string>>()))
                 .Returns(Task.CompletedTask)
                 .Raises(o => o.WindowListUpdated += null, new WindowListUpdatedEventArgs(null!, true));
             
             var mockSearch = new Mock<IWindowSearchService>();
             mockSearch.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
-                .Returns((IEnumerable<WindowItem> windows, string text, bool fuzzy) => windows.ToList());
+                .Returns((IEnumerable<WindowItem> windows, string text, bool fuzzy) => [.. windows]);
 
             var mockNav = new Mock<INavigationService>();
             mockNav.Setup(n => n.ResolveSelection(It.IsAny<IList<WindowItem>>(), It.IsAny<IntPtr?>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<RefreshBehavior>(), It.IsAny<bool>()))
@@ -163,7 +163,7 @@ namespace SwitchBlade.Tests.ViewModels
         {
             var vm = CreateViewModel();
 
-            Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
+            Assert.IsType<MainViewModel>(vm);
         }
 
         [Fact]
@@ -230,7 +230,7 @@ namespace SwitchBlade.Tests.ViewModels
             var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
             // MainViewModel constructor expects IEnumerable<IWindowProvider>
             var vm = CreateViewModel();
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
+            vm.FilteredWindows = [item1, item2];
             vm.SelectedWindow = item2;
             vm.MoveSelectionToFirst();
 
@@ -244,7 +244,7 @@ namespace SwitchBlade.Tests.ViewModels
             var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
             var vm = CreateViewModel();
 
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
+            vm.FilteredWindows = [item1, item2];
             vm.SelectedWindow = item1;
 
             vm.MoveSelectionToLast();
@@ -259,7 +259,7 @@ namespace SwitchBlade.Tests.ViewModels
             var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
             var vm = CreateViewModel();
 
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
+            vm.FilteredWindows = [item1, item2];
             vm.SelectedWindow = item2;
 
             vm.MoveSelection(1);
@@ -275,7 +275,7 @@ namespace SwitchBlade.Tests.ViewModels
             var item2 = new WindowItem { Hwnd = System.IntPtr.Zero, Title = "2", ProcessName = "exe", Source = null };
             var vm = CreateViewModel();
 
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1, item2 };
+            vm.FilteredWindows = [item1, item2];
             vm.SelectedWindow = item1;
 
             vm.MoveSelection(-1);
@@ -303,7 +303,7 @@ namespace SwitchBlade.Tests.ViewModels
         public void SettingsChanged_UpdatesProperties()
         {
             var mockSettings = new Mock<ISettingsService>();
-            var settings = new UserSettings { DisabledPlugins = new List<string> { "P1" }, EnablePreviews = true };
+            var settings = new UserSettings { DisabledPlugins = ["P1"], EnablePreviews = true };
             mockSettings.Setup(s => s.Settings).Returns(settings);
 
             var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
@@ -322,16 +322,16 @@ namespace SwitchBlade.Tests.ViewModels
             var i2 = new WindowItem { Title = "2" };
             var i3 = new WindowItem { Title = "3" };
 
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { i1, i2 };
+            vm.FilteredWindows = [i1, i2];
 
             // Simulate SyncCollection through UpdateSearch 
             // We need to mock SearchService to return [i3, i1] (insert i3, keep i1, remove i2)
             var mockSearch = new Mock<IWindowSearchService>();
             mockSearch.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
-                      .Returns(new List<WindowItem> { i3, i1 });
+                      .Returns([i3, i1]);
 
             var mockOrch = new Mock<IWindowOrchestrationService>();
-            mockOrch.Setup(o => o.AllWindows).Returns(new List<WindowItem>());
+            mockOrch.Setup(o => o.AllWindows).Returns([]);
 
             var nav = new Mock<INavigationService>();
 
@@ -351,10 +351,12 @@ namespace SwitchBlade.Tests.ViewModels
         public void MoveSelectionByPage_WithValidPageSize_CallsNavigationService()
         {
             var nav = new Mock<INavigationService>();
-            var items = new List<WindowItem> { new() };
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem>(items);
-            vm.SelectedWindow = items[0];
+            var items = (List<WindowItem>)[new()];
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), nav.Object)
+            {
+                FilteredWindows = [.. items],
+                SelectedWindow = items[0]
+            };
 
             vm.MoveSelectionByPage(1, 5);
 
@@ -367,7 +369,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { NumberShortcutModifier = ModifierKeyFlags.Ctrl | ModifierKeyFlags.Shift });
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
 
             Assert.Equal("Ctrl+Shift", vm.ShortcutModifierText);
         }
@@ -400,7 +402,7 @@ namespace SwitchBlade.Tests.ViewModels
             // Simulation 1: Swap to [B, A]
             var mockSearchSwap = new Mock<IWindowSearchService>();
             mockSearchSwap.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
-                          .Returns(new List<WindowItem> { itemB, itemA }); // Reversed order
+                          .Returns([itemB, itemA]); // Reversed order
 
             // Inject new dependencies via constructor is hard, so we'll just test SyncCollection indirectly via subclass or reflection? 
             // Or just trust the previous SyncCollection_EdgeCases test covered "moves" well enough?
@@ -411,12 +413,12 @@ namespace SwitchBlade.Tests.ViewModels
             // Done.
 
             // Let's verify this specific swap behavior logic with a new test instance
-            var vm2 = new MainViewModel(
-                new Mock<IWindowOrchestrationService>().Object,
+            MainViewModel vm2 = new(
+                Mock.Of<IWindowOrchestrationService>(),
                 mockSearchSwap.Object,
-                new Mock<INavigationService>().Object,
+                Mock.Of<INavigationService>(),
                 null,
-                new Mock<IDispatcherService>().Object);
+                Mock.Of<IDispatcherService>());
 
             vm2.FilteredWindows.Add(itemA);
             vm2.FilteredWindows.Add(itemB);
@@ -458,21 +460,21 @@ namespace SwitchBlade.Tests.ViewModels
         public void Constructor_NullOrchestrationService_Throws()
         {
             Assert.Throws<System.ArgumentNullException>(() =>
-                new MainViewModel(null!, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object));
+                new MainViewModel(null!, Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>()));
         }
 
         [Fact]
         public void Constructor_NullSearchService_Throws()
         {
             Assert.Throws<System.ArgumentNullException>(() =>
-                new MainViewModel(new Mock<IWindowOrchestrationService>().Object, null!, new Mock<INavigationService>().Object));
+                new MainViewModel(Mock.Of<IWindowOrchestrationService>(), null!, Mock.Of<INavigationService>()));
         }
 
         [Fact]
         public void Constructor_NullNavigationService_Throws()
         {
             Assert.Throws<System.ArgumentNullException>(() =>
-                new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, null!));
+                new MainViewModel(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), null!));
         }
 
         [Fact]
@@ -481,7 +483,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { ItemHeight = 100.0 });
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
 
             Assert.Equal(100.0, vm.ItemHeight);
         }
@@ -500,7 +502,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { EnableNumberShortcuts = false });
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
 
             Assert.False(vm.EnableNumberShortcuts);
         }
@@ -527,7 +529,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { HideTaskbarIcon = true });
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
 
             Assert.False(vm.ShowInTaskbar);
         }
@@ -538,7 +540,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { ShowIcons = false });
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
 
             Assert.False(vm.ShowIcons);
         }
@@ -561,10 +563,10 @@ namespace SwitchBlade.Tests.ViewModels
             var mockOrch = new Mock<IWindowOrchestrationService>();
             mockOrch.Setup(o => o.AllWindows).Returns(items);
 
-            var vm = new MainViewModel(mockOrch.Object, mockSearch.Object, new Mock<INavigationService>().Object, null, new Mock<IDispatcherService>().Object);
-
-            // Trigger UpdateSearch
-            vm.SearchText = "trigger";
+            MainViewModel vm = new(mockOrch.Object, mockSearch.Object, Mock.Of<INavigationService>(), null, Mock.Of<IDispatcherService>())
+            {
+                SearchText = "trigger"
+            };
 
             // Items 0-9 should have ShortcutIndex 0-9, items 10+ should be -1
             Assert.Equal(0, vm.FilteredWindows[0].ShortcutIndex);
@@ -580,9 +582,11 @@ namespace SwitchBlade.Tests.ViewModels
             var nav = new Mock<INavigationService>();
             nav.Setup(n => n.CalculateMoveIndex(-1, 1, 1)).Returns(0);
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1 };
-            vm.SelectedWindow = null;
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), nav.Object)
+            {
+                FilteredWindows = [item1],
+                SelectedWindow = null
+            };
 
             vm.MoveSelection(1);
 
@@ -598,9 +602,11 @@ namespace SwitchBlade.Tests.ViewModels
             // Return -1 to simulate out-of-bounds result
             nav.Setup(n => n.CalculateMoveIndex(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>())).Returns(-1);
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1 };
-            vm.SelectedWindow = item1;
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), nav.Object)
+            {
+                FilteredWindows = [item1],
+                SelectedWindow = item1
+            };
 
             vm.MoveSelection(1);
 
@@ -615,9 +621,11 @@ namespace SwitchBlade.Tests.ViewModels
             var nav = new Mock<INavigationService>();
             nav.Setup(n => n.CalculatePageMoveIndex(0, 1, 5, 1)).Returns(0);
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, nav.Object);
-            vm.FilteredWindows = new System.Collections.ObjectModel.ObservableCollection<WindowItem> { item1 };
-            vm.SelectedWindow = null;
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), nav.Object)
+            {
+                FilteredWindows = [item1],
+                SelectedWindow = null
+            };
 
             vm.MoveSelectionByPage(1, 5);
 
@@ -628,16 +636,16 @@ namespace SwitchBlade.Tests.ViewModels
         public async System.Threading.Tasks.Task WindowProviders_WithConcreteOrchestrationService_ReturnsSources()
         {
             var provider = new Mock<IWindowProvider>();
-            provider.Setup(p => p.GetWindows()).Returns(new[] { new WindowItem { Title = "Win", Source = provider.Object } });
+            provider.Setup(p => p.GetWindows()).Returns([new WindowItem { Title = "Win", Source = provider.Object }]);
 
             // Use the legacy constructor which creates a real WindowOrchestrationService
             var mockRunner = new Mock<IProviderRunner>();
             mockRunner.Setup(r => r.RunAsync(
                 It.IsAny<IList<IWindowProvider>>(),
-                It.IsAny<ISet<string>>(),
-                It.IsAny<HashSet<string>>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IEnumerable<string>>(),
                 It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
-                .Returns((IList<IWindowProvider> providers, ISet<string> disabled, HashSet<string> excluded, Action<IWindowProvider, List<WindowItem>> callback) =>
+                .Returns((IList<IWindowProvider> providers, IEnumerable<string> disabled, IEnumerable<string> excluded, Action<IWindowProvider, List<WindowItem>> callback) =>
                 {
                     foreach (var p in providers)
                     {
@@ -648,14 +656,14 @@ namespace SwitchBlade.Tests.ViewModels
                 });
             var runner = mockRunner.Object;
             var orch = new WindowOrchestrationService(
-                new[] { provider.Object },
+                [provider.Object],
                 new WindowReconciler(null),
                 new NullUiaWorkerClient(),
                 new Mock<INativeInteropWrapper>().Object,
                 runner,
                 runner);
 
-            var vm = new MainViewModel(orch, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object);
+            MainViewModel vm = new(orch, Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>());
 
             // Force a refresh so AllWindows has data
             await vm.RefreshWindows();
@@ -679,11 +687,11 @@ namespace SwitchBlade.Tests.ViewModels
 
             var mockSearch = new Mock<IWindowSearchService>();
             mockSearch.Setup(s => s.Search(It.IsAny<IEnumerable<WindowItem>>(), It.IsAny<string>(), It.IsAny<bool>()))
-                      .Returns(new List<WindowItem> { itemA, itemB, itemD, itemC });
+                      .Returns([itemA, itemB, itemD, itemC]);
             var mockOrch = new Mock<IWindowOrchestrationService>();
-            mockOrch.Setup(o => o.AllWindows).Returns(new List<WindowItem>());
+            mockOrch.Setup(o => o.AllWindows).Returns([]);
 
-            var vm = new MainViewModel(mockOrch.Object, mockSearch.Object, new Mock<INavigationService>().Object, null, new Mock<IDispatcherService>().Object);
+            MainViewModel vm = new(mockOrch.Object, mockSearch.Object, Mock.Of<INavigationService>(), null, Mock.Of<IDispatcherService>());
             vm.FilteredWindows.Add(itemA);
             vm.FilteredWindows.Add(itemD);
             vm.FilteredWindows.Add(itemC);
@@ -704,7 +712,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { EnableSearchHighlighting = false });
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
 
             Assert.False(vm.EnableSearchHighlighting);
         }
@@ -723,7 +731,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { EnableFuzzySearch = false });
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
 
             Assert.False(vm.EnableFuzzySearch);
         }
@@ -741,7 +749,7 @@ namespace SwitchBlade.Tests.ViewModels
             var mockSettings = new Mock<ISettingsService>();
             mockSettings.Setup(s => s.Settings).Returns(new UserSettings { SearchHighlightColor = "#FF0000" });
 
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
 
             Assert.Equal("#FF0000", vm.SearchHighlightColor);
         }
@@ -749,7 +757,7 @@ namespace SwitchBlade.Tests.ViewModels
         [Fact]
         public void SearchHighlightColor_WithNullSettings_ReturnsDefault()
         {
-            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, null);
+            MainViewModel vm = new(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), null);
 
             Assert.Equal("#FF0078D4", vm.SearchHighlightColor);
         }

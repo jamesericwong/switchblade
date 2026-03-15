@@ -15,18 +15,25 @@ namespace SwitchBlade.Services
     /// - In-process runners for fast, non-UIA providers
     /// - Out-of-process runners for UIA providers (prevents memory leaks)
     /// </summary>
-    public class WindowOrchestrationService : IWindowOrchestrationService, IDisposable
+    public class WindowOrchestrationService(
+        IEnumerable<IWindowProvider> providers,
+        IWindowReconciler reconciler,
+        IUiaWorkerClient uiaWorkerClient,
+        INativeInteropWrapper nativeInterop,
+        IProviderRunner fastRunner,
+        IProviderRunner uiaRunner,
+        ILogger? logger = null) : IWindowOrchestrationService, IDisposable
     {
-        private readonly List<IWindowProvider> _providers;
-        private readonly IWindowReconciler _reconciler;
-        private readonly INativeInteropWrapper _nativeInterop;
-        private readonly IProviderRunner _fastRunner;
-        private readonly IProviderRunner _uiaRunner;
-        private readonly IUiaWorkerClient _uiaWorkerClient;
-        private readonly ILogger? _logger;
-        private readonly List<WindowItem> _allWindows = new();
+        private readonly List<IWindowProvider> _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
+        private readonly IWindowReconciler _reconciler = reconciler ?? throw new ArgumentNullException(nameof(reconciler));
+        private readonly INativeInteropWrapper _nativeInterop = nativeInterop ?? throw new ArgumentNullException(nameof(nativeInterop));
+        private readonly IProviderRunner _fastRunner = fastRunner ?? throw new ArgumentNullException(nameof(fastRunner));
+        private readonly IProviderRunner _uiaRunner = uiaRunner ?? throw new ArgumentNullException(nameof(uiaRunner));
+        private readonly IUiaWorkerClient _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
+        private readonly ILogger? _logger = logger;
+        private readonly List<WindowItem> _allWindows = [];
 
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         // Re-entrancy guard for fast (Non-UIA) providers.
         private readonly SemaphoreSlim _fastRefreshLock = new(1, 1);
         private bool _disposed;
@@ -39,34 +46,12 @@ namespace SwitchBlade.Services
             {
                 lock (_lock)
                 {
-                    return _allWindows.ToList();
+                    return [.. _allWindows];
                 }
             }
         }
 
-        /// <summary>
-        /// Primary constructor with explicit runner strategies.
-        /// </summary>
-        public WindowOrchestrationService(
-            IEnumerable<IWindowProvider> providers,
-            IWindowReconciler reconciler,
-            IUiaWorkerClient uiaWorkerClient,
-            INativeInteropWrapper nativeInterop,
-            IProviderRunner fastRunner,
-            IProviderRunner uiaRunner,
-            ILogger? logger = null,
-            ISettingsService? settingsService = null)
-        {
-            _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
-            _reconciler = reconciler ?? throw new ArgumentNullException(nameof(reconciler));
-            _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
-            _nativeInterop = nativeInterop ?? throw new ArgumentNullException(nameof(nativeInterop));
-            _fastRunner = fastRunner ?? throw new ArgumentNullException(nameof(fastRunner));
-            _uiaRunner = uiaRunner ?? throw new ArgumentNullException(nameof(uiaRunner));
-            _logger = logger;
-        }
-
-        public async Task RefreshAsync(ISet<string> disabledPlugins)
+        public async Task RefreshAsync(IEnumerable<string> disabledPlugins)
         {
             // Non-blocking re-entrancy guard for fast (Non-UIA) providers.
             if (!await _fastRefreshLock.WaitAsync(0))
@@ -140,7 +125,7 @@ namespace SwitchBlade.Services
             }
         }
 
-        private async Task LaunchUiaRefresh(IList<IWindowProvider> uiaProviders, ISet<string> disabledPlugins, HashSet<string> handledProcesses)
+        private async Task LaunchUiaRefresh(List<IWindowProvider> uiaProviders, IEnumerable<string> disabledPlugins, IEnumerable<string> handledProcesses)
         {
             try
             {
@@ -272,6 +257,7 @@ namespace SwitchBlade.Services
             {
                 disposableRunner.Dispose();
             }
+            GC.SuppressFinalize(this);
         }
     }
 }

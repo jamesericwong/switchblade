@@ -46,7 +46,7 @@ namespace SwitchBlade.Tests.Services
 
             try
             {
-                await _runner.RunAsync(new List<IWindowProvider>(), new HashSet<string>(), new HashSet<string>(), (p, items) => { });
+                await _runner.RunAsync([], [], [], (p, items) => { });
                 _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("skipped"))), Times.Once);
             }
             finally
@@ -56,7 +56,7 @@ namespace SwitchBlade.Tests.Services
         }
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        private async IAsyncEnumerable<UiaPluginResult> GetResults(params UiaPluginResult[] results)
+        private static async IAsyncEnumerable<UiaPluginResult> GetResults(params UiaPluginResult[] results)
         {
             foreach (var r in results)
             {
@@ -70,17 +70,17 @@ namespace SwitchBlade.Tests.Services
         {
             var mockProvider = new Mock<IWindowProvider>();
             mockProvider.Setup(p => p.PluginName).Returns("P1");
-            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(Array.Empty<string>());
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns([]);
 
             var tcs = new TaskCompletionSource<bool>();
             var results = new[] {
-                new UiaPluginResult { PluginName = "P1", Windows = new List<UiaWindowResult> { new UiaWindowResult { Title = "W1", Hwnd = 123 } }, Error = "Some error" }
+                new UiaPluginResult { PluginName = "P1", Windows = [new() { Title = "W1", Hwnd = 123 }], Error = "Some error" }
             };
 
-            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), default))
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
                        .Returns(GetResults(results));
 
-            await _runner.RunAsync(new[] { mockProvider.Object }, new HashSet<string>(), new HashSet<string>(), (p, items) =>
+            await _runner.RunAsync([mockProvider.Object], [], [], (p, items) =>
             {
                 Assert.Same(mockProvider.Object, p);
                 Assert.Single(items);
@@ -98,17 +98,17 @@ namespace SwitchBlade.Tests.Services
         {
             var mockProvider = new Mock<IWindowProvider>();
             mockProvider.Setup(p => p.PluginName).Returns("P1"); // different from result PluginName
-            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(new[] { "chrome.exe" });
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(["chrome.exe"]);
 
             var tcs = new TaskCompletionSource<bool>();
             var results = new[] {
-                new UiaPluginResult { PluginName = "UnknownPlugin", Windows = new List<UiaWindowResult> { new UiaWindowResult { ProcessName = "chrome.exe" } } }
+                new UiaPluginResult { PluginName = "UnknownPlugin", Windows = [new() { ProcessName = "chrome.exe" }] }
             };
 
-            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), default))
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
                        .Returns(GetResults(results));
 
-            await _runner.RunAsync(new[] { mockProvider.Object }, new HashSet<string>(), new HashSet<string>(), (p, items) =>
+            await _runner.RunAsync([mockProvider.Object], [], [], (p, items) =>
             {
                 Assert.Same(mockProvider.Object, p);
                 tcs.SetResult(true);
@@ -122,12 +122,12 @@ namespace SwitchBlade.Tests.Services
         public async Task RunAsync_ProviderNotFound_Skips()
         {
             var results = new[] {
-                new UiaPluginResult { PluginName = "UnknownPlugin", Windows = new List<UiaWindowResult> { new UiaWindowResult { ProcessName = "unknown.exe" } } }
+                new UiaPluginResult { PluginName = "UnknownPlugin", Windows = [new() { ProcessName = "unknown.exe" }] }
             };
-            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), default))
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
                        .Returns(GetResults(results));
 
-            await _runner.RunAsync(new List<IWindowProvider>(), new HashSet<string>(), new HashSet<string>(), (p, items) => { });
+            await _runner.RunAsync([], [], [], (p, items) => { });
 
             await WaitForBackgroundTaskAsync(_runner);
             _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("No provider found"))), Times.Once);
@@ -138,17 +138,17 @@ namespace SwitchBlade.Tests.Services
         {
             var mockProvider = new Mock<IWindowProvider>();
             mockProvider.Setup(p => p.PluginName).Returns("P1");
-            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(Array.Empty<string>());
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns([]);
 
             var tcs = new TaskCompletionSource<bool>();
             var results = new[] {
                 new UiaPluginResult { PluginName = "P1", Windows = null }
             };
 
-            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), default))
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
                        .Returns(GetResults(results));
 
-            await _runner.RunAsync(new[] { mockProvider.Object }, new HashSet<string>(), new HashSet<string>(), (p, items) =>
+            await _runner.RunAsync([mockProvider.Object], [], [], (p, items) =>
             {
                 Assert.Empty(items);
                 tcs.SetResult(true);
@@ -161,10 +161,10 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RunAsync_ExceptionInStream_Logged()
         {
-            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), default))
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
                        .Throws(new Exception("Stream failure"));
 
-            await _runner.RunAsync(new List<IWindowProvider>(), new HashSet<string>(), new HashSet<string>(), (p, items) => { });
+            await _runner.RunAsync([], [], [], (p, items) => { });
 
             await WaitForBackgroundTaskAsync(_runner);
             _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("UIA Worker streaming error")), It.IsAny<Exception>()), Times.Once);
@@ -174,10 +174,10 @@ namespace SwitchBlade.Tests.Services
         public async Task RunAsync_NullLogger_Exception_Handled()
         {
             var noLoggerRunner = new UiaProviderRunner(_mockClient.Object, null);
-            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<ISet<string>>(), It.IsAny<ISet<string>>(), default))
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
                        .Throws(new Exception("Stream failure"));
 
-            await noLoggerRunner.RunAsync(new List<IWindowProvider>(), new HashSet<string>(), new HashSet<string>(), (p, items) => { });
+            await noLoggerRunner.RunAsync([], [], [], (p, items) => { });
 
             await WaitForBackgroundTaskAsync(noLoggerRunner);
             noLoggerRunner.Dispose();
@@ -188,9 +188,10 @@ namespace SwitchBlade.Tests.Services
             _runner.Dispose();
             // Call again to test if (_disposed) return;
             _runner.Dispose();
+            GC.SuppressFinalize(this);
         }
 
-        private async Task WaitForBackgroundTaskAsync(UiaProviderRunner runner)
+        private static async Task WaitForBackgroundTaskAsync(UiaProviderRunner runner)
         {
             var field = typeof(UiaProviderRunner).GetField("_uiaRefreshLock", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             var semaphore = (SemaphoreSlim)field!.GetValue(runner)!;

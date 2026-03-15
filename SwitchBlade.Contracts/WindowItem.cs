@@ -43,14 +43,7 @@ namespace SwitchBlade.Contracts
         /// </summary>
         public string NormalizedTitle
         {
-            get
-            {
-                if (_normalizedTitle == null)
-                {
-                    _normalizedTitle = NormalizeForSearch(_title);
-                }
-                return _normalizedTitle;
-            }
+            get => _normalizedTitle ??= NormalizeForSearch(_title);
         }
 
         /// <summary>

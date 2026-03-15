@@ -28,7 +28,7 @@ namespace SwitchBlade.Services
 
         // Concurrency management
         private IProcess? _activeProcess;
-        private readonly object _processLock = new();
+        private readonly Lock _processLock = new();
         private readonly CancellationTokenSource _disposeCts = new();
 
         private static readonly JsonSerializerOptions JsonOptions = new()
@@ -74,12 +74,11 @@ namespace SwitchBlade.Services
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>Async stream of plugin results as they arrive.</returns>
         public async IAsyncEnumerable<UiaPluginResult> ScanStreamingAsync(
-            ISet<string>? disabledPlugins = null,
-            ISet<string>? excludedProcesses = null,
+            IEnumerable<string>? disabledPlugins = null,
+            IEnumerable<string>? excludedProcesses = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(UiaWorkerClient));
+            ObjectDisposedException.ThrowIf(_disposed, this);
 
             if (!_fileSystem.FileExists(_workerPath))
             {
@@ -90,8 +89,8 @@ namespace SwitchBlade.Services
             var request = new UiaRequest
             {
                 Command = "scan",
-                DisabledPlugins = disabledPlugins != null ? new List<string>(disabledPlugins) : null,
-                ExcludedProcesses = excludedProcesses != null ? new List<string>(excludedProcesses) : null
+                DisabledPlugins = disabledPlugins != null ? [.. disabledPlugins] : null,
+                ExcludedProcesses = excludedProcesses != null ? [.. excludedProcesses] : null
             };
 
             var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCts.Token);
@@ -289,17 +288,16 @@ namespace SwitchBlade.Services
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>List of discovered windows, or empty list on failure.</returns>
         public async Task<List<WindowItem>> ScanAsync(
-            ISet<string>? disabledPlugins = null,
-            ISet<string>? excludedProcesses = null,
+            IEnumerable<string>? disabledPlugins = null,
+            IEnumerable<string>? excludedProcesses = null,
             CancellationToken cancellationToken = default)
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(UiaWorkerClient));
+            ObjectDisposedException.ThrowIf(_disposed, this);
 
             if (!_fileSystem.FileExists(_workerPath))
             {
                 _logger?.Log($"[UiaWorkerClient] Worker executable not found: {_workerPath}");
-                return new List<WindowItem>();
+                return [];
             }
 
             var allWindows = new List<WindowItem>();
@@ -332,7 +330,7 @@ namespace SwitchBlade.Services
         private static List<WindowItem> ConvertToWindowItems(List<UiaWindowResult>? results)
         {
             if (results == null || results.Count == 0)
-                return new List<WindowItem>();
+                return [];
 
             var items = new List<WindowItem>(results.Count);
             foreach (var r in results)
@@ -381,6 +379,7 @@ namespace SwitchBlade.Services
             }
 
             _disposeCts.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 

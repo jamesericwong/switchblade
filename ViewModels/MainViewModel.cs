@@ -43,11 +43,10 @@ namespace SwitchBlade.ViewModels
 
         /// <summary>Gets the window providers from the orchestration service.</summary>
         public IReadOnlyList<IWindowProvider> WindowProviders =>
-            _orchestrationService.AllWindows
+            [.. _orchestrationService.AllWindows
                 .Where(w => w.Source != null)
                 .Select(w => w.Source!)
-                .Distinct()
-                .ToList();
+                .Distinct()];
 
         // Primary constructor with all dependencies
         public MainViewModel(

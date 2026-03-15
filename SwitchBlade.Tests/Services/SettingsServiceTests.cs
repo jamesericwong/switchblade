@@ -24,7 +24,7 @@ namespace SwitchBlade.Tests.Services
 
             // Default setups
             _mockStorage.Setup(s => s.HasKey(It.IsAny<string>())).Returns(true);
-            _mockStorage.Setup(s => s.GetStringList(It.IsAny<string>())).Returns(new List<string>());
+            _mockStorage.Setup(s => s.GetStringList(It.IsAny<string>())).Returns([]);
             
             // Process setup
             _mockProcessFactory.Setup(f => f.GetCurrentProcess()).Returns(_mockProcess.Object);
@@ -86,7 +86,7 @@ namespace SwitchBlade.Tests.Services
         public void LoadSettings_Lists_WhenPresent_LoadsThem()
         {
             _mockStorage.Setup(s => s.HasKey("ExcludedProcesses")).Returns(true);
-            _mockStorage.Setup(s => s.GetStringList("ExcludedProcesses")).Returns(new List<string> { "foo.exe" });
+            _mockStorage.Setup(s => s.GetStringList("ExcludedProcesses")).Returns(["foo.exe"]);
 
             var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
             

@@ -7,9 +7,11 @@
 - **Infrastructure**: Resolved intermittent XAML compilation errors (`CS2001`) in plugin projects and corrected `UiaWorkerClientTests` reflection flags.
 
 ### Architectural / SOLID
+- **Modernization (C# 12)**: Refactored `IProviderRunner`, `IUiaWorkerClient`, and `IWindowOrchestrationService` to use `IEnumerable<string>` to enable cleaner **collection expressions** (`[]`) and improve caller flexibility.
 - **Dependency Inversion (DIP)**: Standardized `MainViewModel` and `WindowOrchestrationService` to accept interface-based runners and search services, improving testability and decoupling.
 - **Single Responsibility (SRP)**: Refined `WindowOrchestrationService` by delegating execution strategies to specialized runners, eliminating redundant backgrounding logic from the orchestrator.
 - **Interface Segregation (ISP)**: Enhanced `WindowItem` equality logic to support generic `ObservableCollectionSync` without leaking implementation details into the synchronization layer.
+- **Clean Code**: Resolved extensive IDE style diagnostics and modernized collection initializations across the core test suite (`FuzzyMatcher`, `SettingsService`, `RegexCache`).
 
 ---
 

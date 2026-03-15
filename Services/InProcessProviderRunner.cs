@@ -10,20 +10,15 @@ namespace SwitchBlade.Services
     /// Runs non-UIA window providers in-process using parallel tasks.
     /// These providers are fast and do not leak memory, so in-process execution is safe.
     /// </summary>
-    public class InProcessProviderRunner : IProviderRunner
+    public class InProcessProviderRunner(ILogger? logger = null) : IProviderRunner
     {
-        private readonly ILogger? _logger;
-
-        public InProcessProviderRunner(ILogger? logger = null)
-        {
-            _logger = logger;
-        }
+        private readonly ILogger? _logger = logger;
 
         /// <inheritdoc />
         public async Task RunAsync(
             IList<IWindowProvider> providers,
-            ISet<string> disabledPlugins,
-            HashSet<string> handledProcesses,
+            IEnumerable<string> disabledPlugins,
+            IEnumerable<string> handledProcesses,
             Action<IWindowProvider, List<WindowItem>> onResults)
         {
             var tasks = new List<Task>();
@@ -34,14 +29,14 @@ namespace SwitchBlade.Services
                     try
                     {
                         bool isDisabled = disabledPlugins.Contains(provider.PluginName);
-                        var results = isDisabled ? new List<WindowItem>() : provider.GetWindows().ToList();
+                        var results = isDisabled ? [] : provider.GetWindows().ToList();
                         onResults(provider, results);
                     }
                     catch (Exception ex)
                     {
                         _logger?.LogError($"Provider {provider.PluginName} failed during GetWindows()", ex);
                         // Process empty results to clear stale data for this provider
-                        onResults(provider, new List<WindowItem>());
+                        onResults(provider, []);
                     }
                 }));
             }

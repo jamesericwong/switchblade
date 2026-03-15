@@ -123,8 +123,7 @@ namespace SwitchBlade.Services
                     nativeInterop,
                     new InProcessProviderRunner(logger),
                     new UiaProviderRunner(uiaWorkerClient, logger),
-                    logger,
-                    settingsService);
+                    logger);
             });
 
             // ViewModels
