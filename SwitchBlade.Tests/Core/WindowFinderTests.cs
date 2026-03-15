@@ -12,6 +12,7 @@ namespace SwitchBlade.Tests.Core
 {
     public class WindowFinderTests
     {
+        private static readonly string[] ExcludedAppArray = ["ExcludedApp"];
         private readonly Mock<ISettingsService> _mockSettingsService;
         private readonly Mock<IWindowInterop> _mockInterop;
         private readonly Mock<IPluginContext> _mockContext;
@@ -67,7 +68,7 @@ namespace SwitchBlade.Tests.Core
         public void SetExclusions_ShouldUpdateExclusions()
         {
             var finder = CreateFinder();
-            finder.SetExclusions(new[] { "ExcludedApp" });
+            finder.SetExclusions(ExcludedAppArray);
         }
 
         [Fact]
@@ -225,7 +226,7 @@ namespace SwitchBlade.Tests.Core
 
              _mockSettingsService.Setup(s => s.Settings).Returns(new UserSettings 
              { 
-                 ExcludedProcesses = new List<string> { process } 
+                 ExcludedProcesses = [process] 
              });
 
             _mockInterop.Setup(x => x.EnumWindows(It.IsAny<NativeInterop.EnumWindowsProc>(), It.IsAny<IntPtr>()))
@@ -272,7 +273,7 @@ namespace SwitchBlade.Tests.Core
             _mockInterop.Setup(x => x.GetProcessInfo(600)).Returns((process, null));
 
             var finder = CreateFinder();
-            finder.SetExclusions(new[] { process });
+            finder.SetExclusions([process]);
             var results = finder.GetWindows();
 
             Assert.Empty(results);
@@ -411,9 +412,8 @@ namespace SwitchBlade.Tests.Core
             Assert.Null(path2);
         }
 
-        private class WindowFinderTestWrapper : WindowFinder
+        private class WindowFinderTestWrapper(ISettingsService settings, IWindowInterop interop) : WindowFinder(settings, interop)
         {
-            public WindowFinderTestWrapper(ISettingsService settings, IWindowInterop interop) : base(settings, interop) { }
             public int GetPidPublic(IntPtr hwnd) => base.GetPid(hwnd);
             public (string, string?) GetProcessInfoPublic(uint pid) => base.GetProcessInfo(pid);
             public bool IsWindowValidPublic(IntPtr hwnd) => base.IsWindowValid(hwnd);

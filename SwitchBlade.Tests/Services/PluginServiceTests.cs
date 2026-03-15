@@ -30,7 +30,7 @@ namespace SwitchBlade.Tests.Services
         public void Constructor_LoadsInternalProviders()
         {
             // Arrange
-            _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider>());
+            _mockLoader.Setup(l => l.LoadPlugins()).Returns([]);
 
             // Act
             var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
@@ -42,11 +42,10 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public void Constructor_LoadsExternalPlugins_AndInitializesThem()
         {
-            // Arrange
             var mockPlugin = new Mock<IWindowProvider>();
             mockPlugin.Setup(p => p.PluginName).Returns("TestPlugin");
 
-            _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider> { mockPlugin.Object });
+            _mockLoader.Setup(l => l.LoadPlugins()).Returns([mockPlugin.Object]);
 
             // Act
             var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
@@ -91,7 +90,7 @@ namespace SwitchBlade.Tests.Services
         public void ReloadPlugins_ReinitializesProviders()
         {
             // Arrange
-            _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider>());
+            _mockLoader.Setup(l => l.LoadPlugins()).Returns([]);
             var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
             int initialCount = service.Providers.Count;
 
@@ -114,7 +113,7 @@ namespace SwitchBlade.Tests.Services
             mockPlugin.Setup(p => p.PluginName).Returns("TestPlugin");
             // Setup mock plugin to return true/false for HasSettings if needed, defaults are false.
 
-            _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider> { mockPlugin.Object });
+            _mockLoader.Setup(l => l.LoadPlugins()).Returns([mockPlugin.Object]);
             var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
 
             // Act
@@ -138,7 +137,7 @@ namespace SwitchBlade.Tests.Services
         {
             // Arrange
             var fakeProvider = new FakeGlobalProvider();
-            _mockLoader.Setup(l => l.LoadPlugins()).Returns(new List<IWindowProvider> { fakeProvider });
+            _mockLoader.Setup(l => l.LoadPlugins()).Returns([fakeProvider]);
             
             // Capture errors
             Exception? capturedEx = null;

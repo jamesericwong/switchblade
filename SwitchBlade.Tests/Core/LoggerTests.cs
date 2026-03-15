@@ -29,6 +29,7 @@ namespace SwitchBlade.Tests.Core
             {
                 try { File.Delete(_tempFile); } catch { }
             }
+            GC.SuppressFinalize(this);
         }
 
         [Fact]

@@ -43,10 +43,10 @@ namespace SwitchBlade.Tests.Services
         {
             var hwnd = new IntPtr(123);
             var item1 = new WindowItem { Hwnd = hwnd, Title = "Old Title" };
-            _reconciler.Reconcile(new List<WindowItem> { item1 }, _mockProvider.Object);
+            _reconciler.Reconcile([item1], _mockProvider.Object);
 
             var item2 = new WindowItem { Hwnd = hwnd, Title = "New Title" };
-            var result = _reconciler.Reconcile(new List<WindowItem> { item2 }, _mockProvider.Object);
+            var result = _reconciler.Reconcile([item2], _mockProvider.Object);
 
             Assert.Single(result);
             Assert.Same(item1, result[0]); // Should reuse the existing object
@@ -58,9 +58,9 @@ namespace SwitchBlade.Tests.Services
         {
             var item1 = new WindowItem { Hwnd = new IntPtr(1), Title = "Keep" };
             var item2 = new WindowItem { Hwnd = new IntPtr(2), Title = "Remove" };
-            _reconciler.Reconcile(new List<WindowItem> { item1, item2 }, _mockProvider.Object);
+            _reconciler.Reconcile([item1, item2], _mockProvider.Object);
 
-            var result = _reconciler.Reconcile(new List<WindowItem> { item1 }, _mockProvider.Object);
+            var result = _reconciler.Reconcile([item1], _mockProvider.Object);
 
             Assert.Single(result);
             Assert.Equal("Keep", result[0].Title);
@@ -73,7 +73,7 @@ namespace SwitchBlade.Tests.Services
             var item = new WindowItem { Hwnd = new IntPtr(1), Title = "App", ExecutablePath = "app.exe" };
             _mockIconService.Setup(s => s.GetIcon("app.exe")).Returns((System.Windows.Media.ImageSource)null!);
 
-            _reconciler.Reconcile(new List<WindowItem> { item }, _mockProvider.Object);
+            _reconciler.Reconcile([item], _mockProvider.Object);
 
             // Reconcile is now fast path ONLY - no icon extraction
             _mockIconService.Verify(s => s.GetIcon("app.exe"), Times.Never);
@@ -85,7 +85,7 @@ namespace SwitchBlade.Tests.Services
             var item = new WindowItem { Hwnd = new IntPtr(1), Title = "App", ExecutablePath = "app.exe" };
             _mockIconService.Setup(s => s.GetIcon("app.exe")).Returns((System.Windows.Media.ImageSource)null!);
 
-            _reconciler.PopulateIcons(new List<WindowItem> { item });
+            _reconciler.PopulateIcons([item]);
 
             _mockIconService.Verify(s => s.GetIcon("app.exe"), Times.Once);
         }
@@ -95,8 +95,8 @@ namespace SwitchBlade.Tests.Services
         {
             var items = new List<WindowItem>
             {
-                new WindowItem { Hwnd = new IntPtr(100), Title = "A" },
-                new WindowItem { Hwnd = new IntPtr(101), Title = "B" }
+                new() { Hwnd = new IntPtr(100), Title = "A" },
+                new() { Hwnd = new IntPtr(101), Title = "B" }
             };
 
             _reconciler.Reconcile(items, _mockProvider.Object);
@@ -110,13 +110,13 @@ namespace SwitchBlade.Tests.Services
         {
             var items = new List<WindowItem>
             {
-                new WindowItem { Hwnd = new IntPtr(100), Title = "A" },
-                new WindowItem { Hwnd = new IntPtr(101), Title = "B" }
+                new() { Hwnd = new IntPtr(100), Title = "A" },
+                new() { Hwnd = new IntPtr(101), Title = "B" }
             };
             _reconciler.Reconcile(items, _mockProvider.Object);
 
             // Remove one
-            _reconciler.Reconcile(new List<WindowItem> { items[0] }, _mockProvider.Object);
+            _reconciler.Reconcile([items[0]], _mockProvider.Object);
 
             Assert.Equal(1, _reconciler.GetHwndCacheCount());
             Assert.Equal(1, _reconciler.GetProviderCacheCount());
@@ -126,7 +126,7 @@ namespace SwitchBlade.Tests.Services
         public void PopulateIcons_WhenIconServiceIsNull_ReturnsImmediately()
         {
             var reconciler = new WindowReconciler(null);
-            reconciler.PopulateIcons(new List<WindowItem> { new() { ExecutablePath = "a.exe" } });
+            reconciler.PopulateIcons([new() { ExecutablePath = "a.exe" }]);
             // Should not throw
         }
 
@@ -136,7 +136,7 @@ namespace SwitchBlade.Tests.Services
             var item = new WindowItem { ExecutablePath = "fail.exe" };
             _mockIconService.Setup(s => s.GetIcon("fail.exe")).Throws(new Exception("Fail"));
             
-            _reconciler.PopulateIcons(new List<WindowItem> { item });
+            _reconciler.PopulateIcons([item]);
             
             _mockIconService.Verify(s => s.GetIcon("fail.exe"), Times.Once);
             _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Failed to populate icon")), It.IsAny<Exception>()), Times.Once);
@@ -147,11 +147,11 @@ namespace SwitchBlade.Tests.Services
         {
             var hwnd = new IntPtr(100);
             // Cache two items for same HWND
-            _reconciler.Reconcile(new List<WindowItem> 
-            { 
+            _reconciler.Reconcile(
+            [ 
                 new() { Hwnd = hwnd, Title = "T1" },
                 new() { Hwnd = hwnd, Title = "T2" }
-            }, _mockProvider.Object);
+            ], _mockProvider.Object);
 
             // Incoming has T2 and then another T2
             var incoming = new List<WindowItem>
@@ -170,7 +170,7 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public void CacheCount_ReturnsSumOfBothIndexes()
         {
-            _reconciler.Reconcile(new List<WindowItem> { new() { Hwnd = (IntPtr)1, Title = "A" } }, _mockProvider.Object);
+            _reconciler.Reconcile([new() { Hwnd = (IntPtr)1, Title = "A" }], _mockProvider.Object);
             // 1 in HWND cache, 1 in Provider cache = 2
             Assert.Equal(2, _reconciler.CacheCount);
         }
@@ -238,7 +238,7 @@ namespace SwitchBlade.Tests.Services
             // Branch 1: IsDebugEnabled = true to hit perf logging
             _mockLogger.Setup(l => l.IsDebugEnabled).Returns(true);
             
-            _reconciler.PopulateIcons(new List<WindowItem> { itemWithIcon, itemNoPath, itemToPopulate });
+            _reconciler.PopulateIcons([itemWithIcon, itemNoPath, itemToPopulate]);
 
             _mockIconService.Verify(s => s.GetIcon("a.exe"), Times.Never);
             _mockIconService.Verify(s => s.GetIcon("b.exe"), Times.Once);
@@ -248,7 +248,7 @@ namespace SwitchBlade.Tests.Services
             _mockIconService.Invocations.Clear();
             _mockLogger.Invocations.Clear();
             _mockLogger.Setup(l => l.IsDebugEnabled).Returns(false);
-            _reconciler.PopulateIcons(new List<WindowItem> { itemWithIcon });
+            _reconciler.PopulateIcons([itemWithIcon]);
             _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("[Perf]"))), Times.Never);
         }
 
@@ -273,7 +273,7 @@ namespace SwitchBlade.Tests.Services
             var incoming = new WindowItem { Hwnd = (IntPtr)1, Title = "Updated" };
             var newProvider = new Mock<IWindowProvider>().Object;
             
-            var results = _reconciler.Reconcile(new List<WindowItem> { incoming }, newProvider);
+            var results = _reconciler.Reconcile([incoming], newProvider);
             
             Assert.Single(results);
             Assert.Same(item, results[0]);
@@ -289,7 +289,7 @@ namespace SwitchBlade.Tests.Services
             var incoming = new WindowItem { Hwnd = (IntPtr)1234, Title = "NoSource" };
             var provider = new Mock<IWindowProvider>().Object;
             
-            var results = _reconciler.Reconcile(new List<WindowItem> { incoming }, provider);
+            var results = _reconciler.Reconcile([incoming], provider);
             
             Assert.Single(results);
             Assert.Same(item, results[0]);
@@ -304,7 +304,7 @@ namespace SwitchBlade.Tests.Services
             _mockIconService.Setup(s => s.GetIcon("fail.exe")).Throws(new Exception("Fail"));
             
             // Should not throw or crash even if _logger is null
-            reconcilerNoLogger.PopulateIcons(new List<WindowItem> { item });
+            reconcilerNoLogger.PopulateIcons([item]);
             
             _mockIconService.Verify(s => s.GetIcon("fail.exe"), Times.Once);
         }

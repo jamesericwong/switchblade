@@ -15,7 +15,7 @@ namespace SwitchBlade.Tests.Services
         public void ResolveSelection_EmptyList_ReturnsNull()
         {
             var result = _service.ResolveSelection(
-                new List<WindowItem>(), null, null, 0, RefreshBehavior.PreserveScroll, false);
+                [], null, null, 0, RefreshBehavior.PreserveScroll, false);
 
             Assert.Null(result);
         }
