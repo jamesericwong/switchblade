@@ -106,5 +106,19 @@ namespace SwitchBlade.Tests.Core
             Logger.LogError("Invalid path error");
             Logger.LogError("Context", new Exception("Ex"));
         }
+
+        [Fact]
+        public void ILogger_IsDebugEnabled_Property_Works()
+        {
+            ILogger logger = Logger.Instance;
+            
+            logger.IsDebugEnabled = true;
+            Assert.True(logger.IsDebugEnabled);
+            Assert.True(Logger.IsDebugEnabled);
+
+            logger.IsDebugEnabled = false;
+            Assert.False(logger.IsDebugEnabled);
+            Assert.False(Logger.IsDebugEnabled);
+        }
     }
 }

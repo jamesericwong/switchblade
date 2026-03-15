@@ -182,7 +182,9 @@ namespace SwitchBlade.Tests.Services
         {
              Assert.Throws<ArgumentNullException>(() => new PluginService(null!, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object)));
              Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, null!, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object)));
+             Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, _mockSettings.Object, null!, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object)));
              Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, (IPluginLoader)null!, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object)));
+             Assert.Throws<ArgumentNullException>(() => new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, null!));
         }
 
     }

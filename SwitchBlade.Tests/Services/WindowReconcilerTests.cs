@@ -236,22 +236,18 @@ namespace SwitchBlade.Tests.Services
             _mockIconService.Setup(s => s.GetIcon("b.exe")).Returns(new BitmapImage());
             
             // Branch 1: IsDebugEnabled = true to hit perf logging
-            Logger.IsDebugEnabled = true;
-            try
-            {
-                _reconciler.PopulateIcons(new List<WindowItem> { itemWithIcon, itemNoPath, itemToPopulate });
-            }
-            finally
-            {
-                Logger.IsDebugEnabled = false;
-            }
+            _mockLogger.Setup(l => l.IsDebugEnabled).Returns(true);
+            
+            _reconciler.PopulateIcons(new List<WindowItem> { itemWithIcon, itemNoPath, itemToPopulate });
 
             _mockIconService.Verify(s => s.GetIcon("a.exe"), Times.Never);
             _mockIconService.Verify(s => s.GetIcon("b.exe"), Times.Once);
 
-            // Branch 2: count == 0 skip branch
+            _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("[Perf]"))), Times.Once);
+
             _mockIconService.Invocations.Clear();
             _mockLogger.Invocations.Clear();
+            _mockLogger.Setup(l => l.IsDebugEnabled).Returns(false);
             _reconciler.PopulateIcons(new List<WindowItem> { itemWithIcon });
             _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("[Perf]"))), Times.Never);
         }

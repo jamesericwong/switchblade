@@ -784,6 +784,20 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Null(exception);
             Assert.True(vm.OpenSettingsCommand.CanExecute(null));
         }
+
+        [Fact]
+        public async Task RefreshWindows_WithDisabledPlugins_Works()
+        {
+            var mockOrch = new Mock<IWindowOrchestrationService>();
+            var mockSettings = new Mock<ISettingsService>();
+            mockSettings.Setup(s => s.Settings).Returns(new UserSettings { DisabledPlugins = ["P1", "P2"] });
+
+            var vm = new MainViewModel(mockOrch.Object, Mock.Of<IWindowSearchService>(), Mock.Of<INavigationService>(), mockSettings.Object);
+
+            await vm.RefreshWindows();
+
+            mockOrch.Verify(o => o.RefreshAsync(It.Is<IEnumerable<string>>(e => e.Contains("P1") && e.Contains("P2"))), Times.Once);
+        }
     }
 }
 

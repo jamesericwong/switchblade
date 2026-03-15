@@ -81,5 +81,11 @@ namespace SwitchBlade.Tests.Core
             var factory = new ProcessFactory(new Mock<ISystemProcessProvider>().Object);
             Assert.NotNull(factory);
         }
+
+        [Fact]
+        public void Constructor_NullProvider_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(() => new ProcessFactory(null!));
+        }
     }
 }

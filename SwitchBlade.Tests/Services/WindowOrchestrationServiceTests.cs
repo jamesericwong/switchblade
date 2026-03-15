@@ -1015,7 +1015,6 @@ namespace SwitchBlade.Tests.Services
                 reconciler: mockReconciler.Object);
 
             await service.RefreshAsync([]);
-
             // Give time for background icon population Task.Run to execute
             await Task.Delay(300);
 
@@ -1186,30 +1185,16 @@ namespace SwitchBlade.Tests.Services
             var fallbackFromP1 = new WindowItem { Source = provider1.Object, IsFallback = true };
             var realFromP1 = new WindowItem { Source = provider1.Object, IsFallback = false };
 
-            // Internal _allWindows access is via Refresh/ProcessResults
-            // We use the constructor that lets us manipulate state via private calls if needed, 
-            // but here we can just drive it via the public API.
-
             var service = CreateService([provider1.Object, provider2.Object]);
-
-            // 1. Initial state: Empty (Negative match)
-            // HasExistingRealItems is private, but called via ProcessProviderResults when fallback items received
-
-            // To trigger HasExistingRealItems(provider1):
-            // We need ProcessProviderResults(provider1, only_fallbacks)
-
-            // We can't easily call private methods, but we can use the Refresh path.
-            // However, it replaces items.
-
-            // Better: use reflection for 100% targeted branch coverage if public path is too complex to setup
             var method = typeof(WindowOrchestrationService).GetMethod("HasExistingRealItems", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            var allWindowsField = typeof(WindowOrchestrationService).GetField("_allWindows", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var allWindows = (List<WindowItem>)allWindowsField!.GetValue(service)!;
 
             // State: [_allWindows is empty]
             Assert.False((bool)method!.Invoke(service, [provider1.Object])!);
 
             // State: [itemFromP2] (Source mismatch branch)
-            var allWindowsField = typeof(WindowOrchestrationService).GetField("_allWindows", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var allWindows = (List<WindowItem>)allWindowsField!.GetValue(service)!;
             allWindows.Add(itemFromP2);
             Assert.False((bool)method!.Invoke(service, [provider1.Object])!);
 
@@ -1217,11 +1202,10 @@ namespace SwitchBlade.Tests.Services
             allWindows.Add(fallbackFromP1);
             Assert.False((bool)method!.Invoke(service, [provider1.Object])!);
 
-            // State: [itemFromP2, fallbackFromP1, realFromP1] (Source match, Real match -> return true)
+            // State: [itemFromP2, fallbackFromP1, realFromP1] (Source match, IsFallback=false match branch)
             allWindows.Add(realFromP1);
             Assert.True((bool)method!.Invoke(service, [provider1.Object])!);
         }
-
 
         private static async IAsyncEnumerable<UiaPluginResult> DelayedEmptyEnumerable(int delayMs, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
         {
@@ -1239,6 +1223,32 @@ namespace SwitchBlade.Tests.Services
 
             public void Dispose() { }
         }
+
+        [Fact]
+        public async Task RefreshAsync_CatchesAndLogsException()
+        {
+            var mockLogger = new Mock<ILogger>();
+            var mockRunner = new Mock<IProviderRunner>();
+            mockRunner.Setup(r => r.RunAsync(
+                It.IsAny<IList<IWindowProvider>>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
+                .ThrowsAsync(new Exception("Fail"));
+
+            using var orch = new WindowOrchestrationService(
+                [],
+                new Mock<IWindowReconciler>().Object,
+                new Mock<IUiaWorkerClient>().Object,
+                new Mock<INativeInteropWrapper>().Object,
+                mockRunner.Object,
+                new Mock<IProviderRunner>().Object,
+                mockLogger.Object);
+
+            await orch.RefreshAsync([]);
+
+            mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Critical error during RefreshAsync")), It.IsAny<Exception>()), Times.Once);
+        }
     }
 
     public static class TestExtensions
@@ -1253,5 +1263,3 @@ namespace SwitchBlade.Tests.Services
         }
     }
 }
-
-

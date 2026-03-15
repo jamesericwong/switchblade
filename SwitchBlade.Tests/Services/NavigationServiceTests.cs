@@ -203,6 +203,37 @@ namespace SwitchBlade.Tests.Services
             Assert.Equal(5, result);
         }
 
+        [Fact]
+        public void ResolveSelection_PreserveScroll_FindsSameItem()
+        {
+            var items = new List<WindowItem>
+            {
+                new() { Title = "First", Hwnd = (System.IntPtr)1 },
+                new() { Title = "Second", Hwnd = (System.IntPtr)2 }
+            };
+
+            var result = _service.ResolveSelection(
+                items, (System.IntPtr)2, "Second", 1, RefreshBehavior.PreserveScroll, false);
+
+            Assert.Same(items[1], result);
+        }
+
+        [Fact]
+        public void ResolveSelection_PreserveScroll_FallbackToIndex_WhenNotFound()
+        {
+            var items = new List<WindowItem>
+            {
+                new() { Title = "First", Hwnd = (System.IntPtr)1 },
+                new() { Title = "Second", Hwnd = (System.IntPtr)2 }
+            };
+
+            // Previous was index 1, but identity changed. Clamps to items[1].
+            var result = _service.ResolveSelection(
+                items, (System.IntPtr)999, "Third", 1, RefreshBehavior.PreserveScroll, false);
+
+            Assert.Same(items[1], result);
+        }
+
         #endregion
     }
 }

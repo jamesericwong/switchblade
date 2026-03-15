@@ -455,5 +455,24 @@ namespace SwitchBlade.Tests.Core
              Assert.Equal("Window", name);
              Assert.Null(path);
         }
+
+        [Fact]
+        public void Constructor_InteropNull_Throws()
+        {
+             Assert.Throws<ArgumentNullException>(() => new WindowFinder(_mockSettingsService.Object, null!));
+        }
+
+        [Fact]
+        public void GetWindows_WhenSettingsServiceIsNull_ReturnsEmpty_Reflective()
+        {
+            var finder = new WindowFinder(_mockSettingsService.Object, _mockInterop.Object);
+            
+            // Bridge the private field via reflection to test the "safety" check at line 46
+            var field = typeof(WindowFinder).GetField("_settingsService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field?.SetValue(finder, null);
+            
+            var results = finder.GetWindows();
+            Assert.Empty(results);
+        }
     }
 }
