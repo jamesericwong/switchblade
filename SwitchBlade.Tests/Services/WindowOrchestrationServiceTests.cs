@@ -1225,29 +1225,134 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public async Task RefreshAsync_CatchesAndLogsException()
+        public async Task RefreshAsync_LogsCriticalError_WhenFastRunnerThrows()
         {
             var mockLogger = new Mock<ILogger>();
             var mockRunner = new Mock<IProviderRunner>();
-            mockRunner.Setup(r => r.RunAsync(
-                It.IsAny<IList<IWindowProvider>>(),
-                It.IsAny<IEnumerable<string>>(),
-                It.IsAny<IEnumerable<string>>(),
-                It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
-                .ThrowsAsync(new Exception("Fail"));
+            mockRunner.Setup(r => r.RunAsync(It.IsAny<IList<IWindowProvider>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
+                .ThrowsAsync(new Exception("Fast runner failure"));
 
-            using var orch = new WindowOrchestrationService(
-                [],
-                new Mock<IWindowReconciler>().Object,
-                new Mock<IUiaWorkerClient>().Object,
-                new Mock<INativeInteropWrapper>().Object,
-                mockRunner.Object,
-                new Mock<IProviderRunner>().Object,
-                mockLogger.Object);
-
-            await orch.RefreshAsync([]);
+            var service = new WindowOrchestrationService([], new Mock<IWindowReconciler>().Object, new Mock<IUiaWorkerClient>().Object, new Mock<INativeInteropWrapper>().Object, mockRunner.Object, new Mock<IProviderRunner>().Object, mockLogger.Object);
+            await service.RefreshAsync([]);
 
             mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Critical error during RefreshAsync")), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task LaunchUiaRefresh_LogsBackgroundError_WhenUiaRunnerThrows()
+        {
+            var mockLogger = new Mock<ILogger>();
+            var mockUiaRunner = new Mock<IProviderRunner>();
+            mockUiaRunner.Setup(r => r.RunAsync(It.IsAny<IList<IWindowProvider>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
+                .ThrowsAsync(new Exception("UIA runner failure"));
+
+            var uiaProvider = CreateMockProvider("UiaProvider", []);
+            uiaProvider.As<IExtrusionStrategy>().Setup(p => p.IsUiaProvider).Returns(true);
+
+            var service = new WindowOrchestrationService([uiaProvider.Object], new Mock<IWindowReconciler>().Object, new Mock<IUiaWorkerClient>().Object, new Mock<INativeInteropWrapper>().Object, new Mock<IProviderRunner>().Object, mockUiaRunner.Object, mockLogger.Object);
+            
+            await service.RefreshAsync([]);
+            await Task.Delay(200); // Wait for background task
+
+            mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Background UIA refresh failed")), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
+        public void Dispose_HandlesNonDisposableUiaRunner()
+        {
+            var nonDisposableRunner = new Mock<IProviderRunner>(); // Not IDisposable
+            var service = new WindowOrchestrationService([], new Mock<IWindowReconciler>().Object, new Mock<IUiaWorkerClient>().Object, new Mock<INativeInteropWrapper>().Object, new Mock<IProviderRunner>().Object, nonDisposableRunner.Object, null);
+            
+            service.Dispose();
+            // Should not throw
+        }
+
+        [Fact]
+        public async Task ProcessProviderResults_DoesNotPopulateIcons_WhenReconciledListIsEmpty()
+        {
+            var mockReconciler = new Mock<IWindowReconciler>();
+            var provider = CreateMockProvider("Provider", []);
+            
+            mockReconciler.Setup(r => r.Reconcile(It.IsAny<IList<WindowItem>>(), It.IsAny<IWindowProvider>())).Returns([]);
+
+            var service = CreateService([provider.Object], reconciler: mockReconciler.Object);
+            
+            // Invoke ProcessProviderResults via Reflection or just trigger it via RefreshAsync
+            provider.Setup(p => p.GetWindows()).Returns([]);
+            await service.RefreshAsync([]);
+
+            mockReconciler.Verify(r => r.PopulateIcons(It.IsAny<IEnumerable<WindowItem>>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task RefreshAsync_SkipsLogging_WhenFastPathSkippedAndLoggerIsNull()
+        {
+            var slowProvider = new Mock<IWindowProvider>();
+            slowProvider.Setup(p => p.PluginName).Returns("SlowProvider");
+            slowProvider.As<IExtrusionStrategy>().Setup(p => p.IsUiaProvider).Returns(false);
+            slowProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns([]);
+
+            var scanStarted = new ManualResetEventSlim(false);
+            var scanContinue = new ManualResetEventSlim(false);
+
+            slowProvider.Setup(p => p.GetWindows()).Returns(() =>
+            {
+                scanStarted.Set();
+                scanContinue.Wait(TimeSpan.FromSeconds(10));
+                return [];
+            });
+
+            var service = CreateService([slowProvider.Object], logger: null);
+
+            var task1 = Task.Run(() => service.RefreshAsync([]));
+            Assert.True(scanStarted.Wait(TimeSpan.FromSeconds(10)), "First scan did not start");
+
+            // Second call hits the fast-path skip WITHOUT logger — should not throw
+            await service.RefreshAsync([]);
+            
+            scanContinue.Set();
+            await task1;
+        }
+
+        [Fact]
+        public async Task LaunchUiaRefresh_SkipsLogging_WhenLoggerIsNull()
+        {
+            var uiaProvider = CreateMockProvider("UiaProvider", []);
+            uiaProvider.As<IExtrusionStrategy>().Setup(p => p.IsUiaProvider).Returns(true);
+
+            var service = CreateService([uiaProvider.Object], logger: null);
+            await service.RefreshAsync([]);
+            // Should not throw even with null logger
+        }
+
+        [Fact]
+        public async Task LaunchUiaRefresh_HandlesError_WhenLoggerIsNull()
+        {
+            var mockUiaRunner = new Mock<IProviderRunner>();
+            mockUiaRunner.Setup(r => r.RunAsync(It.IsAny<IList<IWindowProvider>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
+                .ThrowsAsync(new Exception("UIA runner failure"));
+
+            var uiaProvider = CreateMockProvider("UiaProvider", []);
+            uiaProvider.As<IExtrusionStrategy>().Setup(p => p.IsUiaProvider).Returns(true);
+
+            var service = new WindowOrchestrationService([uiaProvider.Object], new Mock<IWindowReconciler>().Object, new Mock<IUiaWorkerClient>().Object, new Mock<INativeInteropWrapper>().Object, new Mock<IProviderRunner>().Object, mockUiaRunner.Object, null);
+            
+            await service.RefreshAsync([]);
+            await Task.Delay(200); // Wait for background task
+            
+            // Should not throw
+        }
+
+        [Fact]
+        public async Task RefreshAsync_HandlesError_WhenLoggerIsNull()
+        {
+            var mockRunner = new Mock<IProviderRunner>();
+            mockRunner.Setup(r => r.RunAsync(It.IsAny<IList<IWindowProvider>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<Action<IWindowProvider, List<WindowItem>>>()))
+                .ThrowsAsync(new Exception("Fail"));
+
+            var service = new WindowOrchestrationService([], new Mock<IWindowReconciler>().Object, new Mock<IUiaWorkerClient>().Object, new Mock<INativeInteropWrapper>().Object, mockRunner.Object, new Mock<IProviderRunner>().Object, null);
+            await service.RefreshAsync([]);
+            // Should not throw
         }
     }
 
