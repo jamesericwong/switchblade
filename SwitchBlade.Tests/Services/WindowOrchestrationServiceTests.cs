@@ -147,7 +147,7 @@ namespace SwitchBlade.Tests.Services
         public async Task RefreshAsync_CallsGetWindowsOnAllProviders()
         {
             var provider1 = CreateMockProvider("Provider1", []);
-            var provider2 = CreateMockProvider("Provider2", new List<WindowItem>());
+            var provider2 = CreateMockProvider("Provider2", []);
 
             var service = CreateService([provider1.Object, provider2.Object]);
 
@@ -173,8 +173,8 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RefreshAsync_SkipsDisabledProviders()
         {
-            var provider1 = CreateMockProvider("Provider1", new List<WindowItem>());
-            var provider2 = CreateMockProvider("Provider2", new List<WindowItem>());
+            var provider1 = CreateMockProvider("Provider1", []);
+            var provider2 = CreateMockProvider("Provider2", []);
 
             var service = CreateService([provider1.Object, provider2.Object]);
 
@@ -213,8 +213,8 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RefreshAsync_FiresWindowListUpdatedEvent()
         {
-            var provider = CreateMockProvider("Provider1", new List<WindowItem>());
-            var service = CreateService(new[] { provider.Object });
+            var provider = CreateMockProvider("Provider1", []);
+            var service = CreateService([provider.Object]);
 
             int eventCount = 0;
             service.WindowListUpdated += (s, e) => eventCount++;
@@ -227,8 +227,8 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RefreshAsync_ReloadsSettingsForEachProvider()
         {
-            var provider = CreateMockProvider("Provider1", new List<WindowItem>());
-            var service = CreateService(new[] { provider.Object });
+            var provider = CreateMockProvider("Provider1", []);
+            var service = CreateService([provider.Object]);
 
             await service.RefreshAsync([]);
 
@@ -429,11 +429,11 @@ namespace SwitchBlade.Tests.Services
         public async Task ProcessProviderResults_PreservesExisting_WhenOnlyFallbackItemsReceived()
         {
             var hwnd = (IntPtr)100;
-            var provider = CreateMockProvider("Teams", new List<WindowItem>
-            {
+            var provider = CreateMockProvider("Teams",
+            [
                 new() { Title = "Chat 1", Hwnd = hwnd, ProcessName = "ms-teams" },
                 new() { Title = "Chat 2", Hwnd = hwnd, ProcessName = "ms-teams" }
-            });
+            ]);
 
             var service = CreateService([provider.Object]);
 
@@ -601,7 +601,7 @@ namespace SwitchBlade.Tests.Services
             mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()))
                       .Returns(new[] { pluginResult }.ToAsyncEnumerable());
 
-            var service = CreateService(Array.Empty<IWindowProvider>(), worker: mockWorker.Object);
+            var service = CreateService([], worker: mockWorker.Object);
 
             await service.RefreshAsync([]);
 
@@ -713,7 +713,7 @@ namespace SwitchBlade.Tests.Services
                 {
                     Interlocked.Increment(ref scanCount);
                     scanStarted.Set();
-                    scanContinue.Wait(TimeSpan.FromSeconds(10));
+                    scanContinue.Wait(TimeSpan.FromSeconds(10), t);
                     return Enumerable.Empty<UiaPluginResult>().ToAsyncEnumerable();
                 });
 
@@ -843,7 +843,7 @@ namespace SwitchBlade.Tests.Services
                 .Returns((IList<WindowItem> items, IWindowProvider p) =>
                 {
                     foreach (var item in items) item.Source = p;
-                    return items.ToList();
+                    return [.. items];
                 });
 
             mockReconciler.Setup(r => r.PopulateIcons(It.IsAny<IEnumerable<WindowItem>>()))
@@ -1002,7 +1002,7 @@ namespace SwitchBlade.Tests.Services
                 .Returns((IList<WindowItem> items, IWindowProvider p) =>
                 {
                     foreach (var item in items) item.Source = p;
-                    return items.ToList();
+                    return [.. items];
                 });
 
             mockReconciler.Setup(r => r.PopulateIcons(It.IsAny<IEnumerable<WindowItem>>()))
