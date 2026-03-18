@@ -328,5 +328,61 @@ namespace SwitchBlade.Tests.Services
             // Provider1 set should still have the item (internal inconsistency simulation for coverage)
             // But the method should handle it gracefully
         }
+
+        [Fact]
+        public void Reconcile_MaintainsIdentity_WhenTitleChangesRepeatedly()
+        {
+            // This test catches hash code corruption bugs.
+            // If Title is part of HashCode, mutating it in-place while in a HashSet
+            // will corrupt the set and cause the item to be "lost" during cleanup.
+
+            var hwnd = (IntPtr)1024;
+            var provider = _mockProvider.Object;
+
+            // 1. Initial reconciliation
+            var itemV1 = new WindowItem { Hwnd = hwnd, Title = "Bandwidth: 10kbps" };
+            var resultsV1 = _reconciler.Reconcile([itemV1], provider);
+            var originalReference = resultsV1[0];
+
+            // 2. Update title (simulates bandwidth change)
+            // In the buggy 1.9.16, this mutation would corrupt 'unusedCacheItems' 
+            // inside Reconcile, causing the item to be accidentally purged from the cache.
+            var itemV2 = new WindowItem { Hwnd = hwnd, Title = "Bandwidth: 50kbps" };
+            var resultsV2 = _reconciler.Reconcile([itemV2], provider);
+            
+            Assert.Same(originalReference, resultsV2[0]);
+            Assert.Equal("Bandwidth: 50kbps", resultsV2[0].Title);
+
+            // 3. Third reconciliation (same title as V2)
+            // If V2 call purged the cache due to hash corruption, this will return a NEW instance.
+            var itemV3 = new WindowItem { Hwnd = hwnd, Title = "Bandwidth: 50kbps" };
+            var resultsV3 = _reconciler.Reconcile([itemV3], provider);
+
+            // ASSERT: Must be the same instance as the very first one!
+            Assert.Same(originalReference, resultsV3[0]);
+        }
+
+        [Fact]
+        public void Reconcile_PreservesAnimationState_AcrossTitleChanges()
+        {
+            var hwnd = (IntPtr)2048;
+            var provider = _mockProvider.Object;
+
+            // 1. Initial
+            var item1 = new WindowItem { Hwnd = hwnd, Title = "A" };
+            var result1 = _reconciler.Reconcile([item1], provider)[0];
+            result1.HasBeenAnimated = true; // Mark as animated
+
+            // 2. Refresh with title change
+            var item2 = new WindowItem { Hwnd = hwnd, Title = "B" };
+            var result2 = _reconciler.Reconcile([item2], provider)[0];
+
+            // 3. Refresh again
+            var item3 = new WindowItem { Hwnd = hwnd, Title = "B" };
+            var result3 = _reconciler.Reconcile([item3], provider)[0];
+
+            Assert.Same(result1, result3);
+            Assert.True(result3.HasBeenAnimated, "Animation state should be preserved across title updates");
+        }
     }
 }
