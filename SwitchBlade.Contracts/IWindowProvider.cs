@@ -3,60 +3,57 @@ using System.Collections.Generic;
 
 namespace SwitchBlade.Contracts
 {
+    /// <summary>
+    /// Base interface for all window source plugins.
+    /// Simplified to follow Interface Segregation Principle.
+    /// </summary>
     public interface IWindowProvider
     {
         /// <summary>
         /// Unique plugin name used for Registry storage path.
-        /// Must be a valid folder name (no special characters).
         /// </summary>
         string PluginName { get; }
 
         /// <summary>
-        /// Indicates whether this plugin has user-configurable settings.
-        /// </summary>
-        bool HasSettings { get; }
-
-        /// <summary>
-        /// Indicates whether this plugin uses UI Automation (UIA) for scanning.
-        /// UIA providers run in a separate worker process to prevent memory leaks.
-        /// Default is false (in-process execution).
-        /// </summary>
-        bool IsUiaProvider => false;
-
-        /// <summary>
-        /// Optional: Returns a settings control for modern WPF-based settings UI.
-        /// If implemented, this is preferred over <see cref="ShowSettingsDialog"/>.
-        /// </summary>
-        ISettingsControl? SettingsControl => null;
-
-        /// <summary>
         /// Called after instantiation to pass dependencies via context.
         /// </summary>
-        /// <param name="context">Plugin context containing logger and other dependencies.</param>
         void Initialize(IPluginContext context);
 
         /// <summary>
-        /// Called before GetWindows to reload settings from Registry.
-        /// Allows settings changes to take effect without app restart.
+        /// Scans for windows handled by this provider.
         /// </summary>
-        void ReloadSettings();
-
-        /// <summary>
-        /// Returns a list of process names (without extension) that this plugin exclusively handles.
-        /// The core WindowFinder will exclude these processes to prevent duplicates.
-        /// </summary>
-        IEnumerable<string> GetHandledProcesses() => Array.Empty<string>();
-
-        /// <summary>
-        /// Sets dynamic exclusions for this provider. For providers that need to filter out
-        /// processes handled by other plugins (e.g., WindowFinder excludes browser processes).
-        /// Default implementation is no-op.
-        /// </summary>
-        /// <param name="exclusions">Process names to exclude.</param>
-        void SetExclusions(IEnumerable<string> exclusions) { }
-
         IEnumerable<WindowItem> GetWindows();
 
+        /// <summary>
+        /// Activates the specified window.
+        /// </summary>
         void ActivateWindow(WindowItem item);
+    }
+
+    /// <summary>
+    /// Optional interface for plugins that support user-configurable settings.
+    /// </summary>
+    public interface IConfigurablePlugin
+    {
+        bool HasSettings { get; }
+        ISettingsControl? SettingsControl { get; }
+        void ReloadSettings();
+    }
+
+    /// <summary>
+    /// Optional interface for providers that handle specific processes or need exclusions.
+    /// </summary>
+    public interface IProviderExclusionSettings
+    {
+        IEnumerable<string> GetHandledProcesses();
+        void SetExclusions(IEnumerable<string> exclusions);
+    }
+
+    /// <summary>
+    /// Optional interface defining the execution strategy (e.g. out-of-process UIA).
+    /// </summary>
+    public interface IExtrusionStrategy
+    {
+        bool IsUiaProvider { get; }
     }
 }

@@ -23,29 +23,14 @@ namespace SwitchBlade.Services
         public event Action? SettingsChanged;
 
         /// <summary>
-        /// Creates a SettingsService with the default Registry storage.
-        /// </summary>
-        public SettingsService() : this(new RegistrySettingsStorage(REGISTRY_KEY, new RegistryServiceWrapper()), new WindowsStartupManager(new RegistryServiceWrapper()))
-        {
-        }
-
-        /// <summary>
-        /// Creates a SettingsService with a custom startup manager (for testing).
-        /// </summary>
-        public SettingsService(IWindowsStartupManager startupManager)
-            : this(new RegistrySettingsStorage(REGISTRY_KEY, new RegistryServiceWrapper()), startupManager)
-        {
-        }
-
-        /// <summary>
-        /// Creates a SettingsService with custom storage and startup manager (for testing).
+        /// Creates a SettingsService with custom storage and startup manager.
         /// </summary>
         public SettingsService(ISettingsStorage storage, IWindowsStartupManager startupManager, ILogger? logger = null, IProcessFactory? processFactory = null)
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _startupManager = startupManager ?? throw new ArgumentNullException(nameof(startupManager));
             _logger = logger;
-            _processFactory = processFactory ?? new ProcessFactory();
+            _processFactory = processFactory ?? new ProcessFactory(new SystemProcessProvider());
             Settings = new UserSettings();
             LoadSettings();
         }

@@ -107,10 +107,10 @@ namespace SwitchBlade.Tests.Services
         public void ResetAnimationState_ResetsFlag()
         {
             var items = new List<WindowItem> { new WindowItem { HasBeenAnimated = true } };
-            _service.ResetAnimationState(items);
+            BadgeAnimationService.ResetAnimationState(items);
             Assert.False(items[0].HasBeenAnimated);
             
-            _service.ResetAnimationState(null); // Should not throw
+            BadgeAnimationService.ResetAnimationState(null); // Should not throw
         }
 
         [Fact]

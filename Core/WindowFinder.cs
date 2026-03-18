@@ -9,7 +9,7 @@ namespace SwitchBlade.Core
 {
     public class WindowFinder : CachingWindowProviderBase
     {
-        private ISettingsService? _settingsService;
+        private readonly ISettingsService _settingsService;
         private readonly IWindowInterop _interop;
         private IEnumerable<string> _dynamicExclusions = new List<string>();
 
@@ -17,17 +17,15 @@ namespace SwitchBlade.Core
         public override bool HasSettings => false;
         public override bool IsUiaProvider => false; // Uses EnumWindows, not UIA
 
-        public WindowFinder() : this(null, null) { }
+        public WindowFinder(ISettingsService settingsService, IWindowInterop interop)
+        {
+            _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+            _interop = interop ?? throw new ArgumentNullException(nameof(interop));
+        }
 
         public override void SetExclusions(IEnumerable<string> exclusions)
         {
             _dynamicExclusions = exclusions;
-        }
-
-        public WindowFinder(ISettingsService? settingsService, IWindowInterop? interop = null)
-        {
-            _settingsService = settingsService;
-            _interop = interop ?? new WindowInterop();
         }
 
         public override void Initialize(IPluginContext context)

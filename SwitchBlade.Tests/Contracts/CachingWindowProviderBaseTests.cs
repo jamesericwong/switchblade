@@ -12,20 +12,14 @@ namespace SwitchBlade.Tests.Contracts
     /// <summary>
     /// Test implementation of CachingWindowProviderBase for testing purposes.
     /// </summary>
-    public class TestCachingWindowProvider : CachingWindowProviderBase
+    public class TestCachingWindowProvider(List<WindowItem>? testResults = null, int scanDelayMs = 0) : CachingWindowProviderBase
     {
         public override string PluginName => "TestProvider";
         public override bool HasSettings => false;
 
-        private readonly List<WindowItem> _testResults;
-        private readonly int _scanDelayMs;
+        private readonly List<WindowItem> _testResults = testResults ?? [];
+        private readonly int _scanDelayMs = scanDelayMs;
         public int ScanCallCount { get; private set; } = 0;
-
-        public TestCachingWindowProvider(List<WindowItem>? testResults = null, int scanDelayMs = 0)
-        {
-            _testResults = testResults ?? new List<WindowItem>();
-            _scanDelayMs = scanDelayMs;
-        }
 
         public override void ActivateWindow(WindowItem item) { }
 
@@ -60,8 +54,8 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange
             var expectedItems = new List<WindowItem>
             {
-                new WindowItem { Title = "Test Window 1" },
-                new WindowItem { Title = "Test Window 2" }
+                new() { Title = "Test Window 1" },
+                new() { Title = "Test Window 2" }
             };
             var provider = new TestCachingWindowProvider(expectedItems);
 
@@ -79,13 +73,13 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange
             var expectedItems = new List<WindowItem>
             {
-                new WindowItem { Title = "Test Window" }
+                new() { Title = "Test Window" }
             };
             var provider = new TestCachingWindowProvider(expectedItems);
 
             // Act
-            var result1 = provider.GetWindows();
-            var result2 = provider.GetWindows();
+            _ = provider.GetWindows();
+            _ = provider.GetWindows();
 
             // Assert - each call runs scan since previous scan completed
             Assert.Equal(2, provider.ScanCallCount);
@@ -117,7 +111,7 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange
             var expectedItems = new List<WindowItem>
             {
-                new WindowItem { Title = "Cached Window" }
+                new() { Title = "Cached Window" }
             };
             var provider = new TestCachingWindowProvider(expectedItems);
 
@@ -135,7 +129,7 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange
             var expectedItems = new List<WindowItem>
             {
-                new WindowItem { Title = "Slow Result" }
+                new() { Title = "Slow Result" }
             };
 
             // Use ManualResetEventSlim to coordinate the test flow deterministically
@@ -166,17 +160,10 @@ namespace SwitchBlade.Tests.Contracts
             Assert.Empty(secondResult); // Second call got cached (empty initially)
         }
 
-        private class TestCachingWindowProviderWithHooks : TestCachingWindowProvider
+        private class TestCachingWindowProviderWithHooks(List<WindowItem> items, Action onScanStarted, Action onWaitForContinue) : TestCachingWindowProvider(items)
         {
-            private readonly Action _onScanStarted;
-            private readonly Action _onWaitForContinue;
-
-            public TestCachingWindowProviderWithHooks(List<WindowItem> items, Action onScanStarted, Action onWaitForContinue) 
-                : base(items)
-            {
-                _onScanStarted = onScanStarted;
-                _onWaitForContinue = onWaitForContinue;
-            }
+            private readonly Action _onScanStarted = onScanStarted;
+            private readonly Action _onWaitForContinue = onWaitForContinue;
 
             protected override IEnumerable<WindowItem> ScanWindowsCore()
             {
@@ -216,7 +203,7 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange
             var provider = new TestCachingWindowProvider();
             var mockLogger = new Mock<ILogger>();
-            var context = new PluginContext(mockLogger.Object);
+            var context = new PluginContext(mockLogger.Object, new Mock<IWindowInterop>().Object, new Mock<IRegistryService>().Object, new Mock<IPluginSettingsService>().Object);
 
             // Act & Assert - should not throw
             provider.Initialize(context);
@@ -251,9 +238,9 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange - Tests that ReaderWriterLockSlim allows concurrent reads
             var expectedItems = new List<WindowItem>
             {
-                new WindowItem { Title = "Window 1" },
-                new WindowItem { Title = "Window 2" },
-                new WindowItem { Title = "Window 3" }
+                new() { Title = "Window 1" },
+                new() { Title = "Window 2" },
+                new() { Title = "Window 3" }
             };
             var provider = new TestCachingWindowProvider(expectedItems);
 
@@ -279,7 +266,7 @@ namespace SwitchBlade.Tests.Contracts
             // Arrange - Tests that multiple GetWindows calls when scan is NOT running all trigger scans
             var expectedItems = new List<WindowItem>
             {
-                new WindowItem { Title = "Test Window" }
+                new() { Title = "Test Window" }
             };
             var provider = new TestCachingWindowProvider(expectedItems);
 

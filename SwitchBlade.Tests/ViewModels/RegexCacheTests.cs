@@ -4,6 +4,7 @@ using System.Linq;
 using Moq;
 using SwitchBlade.Contracts;
 using SwitchBlade.Services;
+using SwitchBlade.Core;
 using SwitchBlade.ViewModels;
 using Xunit;
 
@@ -14,7 +15,8 @@ namespace SwitchBlade.Tests.ViewModels
         private readonly Mock<IWindowProvider> _mockWindowProvider;
         private readonly Mock<ISettingsService> _mockSettingsService;
         private readonly UserSettings _userSettings;
-        private readonly SynchronousDispatcherService _dispatcher = new SynchronousDispatcherService();
+        private readonly Mock<IWindowSearchService> _mockSearchService;
+        private readonly SynchronousDispatcherService _dispatcher = new();
 
         public RegexCacheTests()
         {
@@ -24,17 +26,45 @@ namespace SwitchBlade.Tests.ViewModels
 
             _mockSettingsService.Setup(s => s.Settings).Returns(_userSettings);
             _mockWindowProvider.Setup(p => p.PluginName).Returns("MockPlugin");
+
+            var regexCache = new LruRegexCache(_userSettings.RegexCacheSize);
+            _mockSearchService = new Mock<IWindowSearchService>(); // Keep the field but we'll use a real one in the VM
+            _realSearchService = new WindowSearchService(regexCache);
+        }
+
+        private readonly WindowSearchService _realSearchService;
+
+        private MainViewModel CreateViewModel(IEnumerable<IWindowProvider>? providers = null!)
+        {
+            var pList = (providers ?? []).ToList();
+            var mockOrch = new Mock<IWindowOrchestrationService>();
+            mockOrch.Setup(o => o.AllWindows).Returns(() => [.. pList.SelectMany(p => p.GetWindows())]);
+            
+            mockOrch.Setup(o => o.RefreshAsync(It.IsAny<ISet<string>>()))
+                .Returns(Task.CompletedTask)
+                .Raises(o => o.WindowListUpdated += null, new WindowListUpdatedEventArgs(null!, true));
+
+            var mockNav = new Mock<INavigationService>();
+            mockNav.Setup(n => n.ResolveSelection(It.IsAny<IList<WindowItem>>(), It.IsAny<IntPtr?>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<RefreshBehavior>(), It.IsAny<bool>()))
+                .Returns((IList<WindowItem> windows, IntPtr? hwnd, string title, int index, RefreshBehavior behavior, bool reset) => 
+                {
+                    if (behavior == RefreshBehavior.PreserveIdentity && hwnd.HasValue)
+                        return windows.FirstOrDefault(w => w.Hwnd == hwnd.Value);
+                    return windows.FirstOrDefault();
+                });
+
+            return new MainViewModel(mockOrch.Object, _realSearchService, mockNav.Object, _mockSettingsService.Object, _dispatcher);
         }
 
         [Fact]
         public async System.Threading.Tasks.Task UpdateSearch_UsesRegexCache_SubsequentSearchesAreFast()
         {
             // Arrange
-            var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
+            var vm = CreateViewModel([_mockWindowProvider.Object]);
             var windows = new List<WindowItem>
             {
-                new WindowItem { Title = "Apple", ProcessName = "A", Source = _mockWindowProvider.Object },
-                new WindowItem { Title = "Banana", ProcessName = "B", Source = _mockWindowProvider.Object }
+                new() { Title = "Apple", ProcessName = "A", Source = _mockWindowProvider.Object },
+                new() { Title = "Banana", ProcessName = "B", Source = _mockWindowProvider.Object }
             };
             _mockWindowProvider.Setup(p => p.GetWindows()).Returns(windows);
 
@@ -61,8 +91,8 @@ namespace SwitchBlade.Tests.ViewModels
         {
             // Arrange
             _userSettings.RegexCacheSize = 2; // Set small cache for testing
-            var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
-            _mockWindowProvider.Setup(p => p.GetWindows()).Returns(new List<WindowItem>());
+            var vm = CreateViewModel([_mockWindowProvider.Object]);
+            _mockWindowProvider.Setup(p => p.GetWindows()).Returns([]);
             await vm.RefreshWindows();
 
             // Act
@@ -70,11 +100,7 @@ namespace SwitchBlade.Tests.ViewModels
             vm.SearchText = "two";   // Cache: [two, one]
             vm.SearchText = "three"; // Cache: [three, two]. "one" should be evicted.
 
-            // To verify eviction, we'd need internal visibility, but we can verify behavior:
-            // After searching for 20 more things, "one" should be re-compiled if searched again.
-            // Since we can't easily check internal cache hits without Reflection or InternalVisibleTo,
-            // we'll rely on ensuring no crashes and correct results.
-
+            // Assert
             Assert.NotNull(vm.FilteredWindows);
         }
 
@@ -82,10 +108,10 @@ namespace SwitchBlade.Tests.ViewModels
         public async System.Threading.Tasks.Task UpdateSearch_InvalidRegex_FallsBackToIndexOf()
         {
             // Arrange
-            var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
+            var vm = CreateViewModel([_mockWindowProvider.Object]);
             var windows = new List<WindowItem>
             {
-                new WindowItem { Title = "[Bracketed]", ProcessName = "A", Source = _mockWindowProvider.Object }
+                new() { Title = "[Bracketed]", ProcessName = "A", Source = _mockWindowProvider.Object }
             };
             _mockWindowProvider.Setup(p => p.GetWindows()).Returns(windows);
             await vm.RefreshWindows();
@@ -104,10 +130,10 @@ namespace SwitchBlade.Tests.ViewModels
         public async System.Threading.Tasks.Task UpdateSearch_RegexSafety_DoesNotHangOnComplexPatterns()
         {
             // Arrange
-            var vm = new MainViewModel(new[] { _mockWindowProvider.Object }, _mockSettingsService.Object, _dispatcher);
+            var vm = CreateViewModel([_mockWindowProvider.Object]);
             var windows = new List<WindowItem>
             {
-                new WindowItem { Title = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!", ProcessName = "A", Source = _mockWindowProvider.Object }
+                new() { Title = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!", ProcessName = "A", Source = _mockWindowProvider.Object }
             };
             _mockWindowProvider.Setup(p => p.GetWindows()).Returns(windows);
             await vm.RefreshWindows();

@@ -117,7 +117,7 @@ namespace SwitchBlade.Services
                 // For minimized windows, GetClientRect returns 0x0.
                 // We must use GetWindowPlacement to find the "Restored" (Normal) position.
                 NativeInterop.WINDOWPLACEMENT placement = new NativeInterop.WINDOWPLACEMENT();
-                placement.length = Marshal.SizeOf(typeof(NativeInterop.WINDOWPLACEMENT));
+                placement.length = Marshal.SizeOf<NativeInterop.WINDOWPLACEMENT>();
 
                 NativeInterop.GetWindowPlacement(_currentSourceHwnd, ref placement);
 

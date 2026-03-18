@@ -20,7 +20,9 @@ namespace SwitchBlade.Tests.Plugins
             _mockSettings = new Mock<IPluginSettingsService>();
             _mockContext = new Mock<IPluginContext>();
             _mockLogger = new Mock<ILogger>();
+            
             _mockContext.Setup(c => c.Logger).Returns(_mockLogger.Object);
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettings.Object);
 
             _plugin = new TeamsPlugin(_mockSettings.Object);
         }
@@ -77,7 +79,7 @@ namespace SwitchBlade.Tests.Plugins
         [InlineData("chat Bob Busy", "Bob", "Individual", false)]
         public void ParseChatName_IndividualChats_ParsesCorrectly(string raw, string expectedName, string expectedType, bool expectedUnread)
         {
-            var result = _plugin.ParseChatName(raw);
+            var result = TeamsPlugin.ParseChatName(raw);
             Assert.NotNull(result);
             Assert.Equal(expectedName, result.Value.Name);
             Assert.Equal(expectedType, result.Value.Type);
@@ -90,7 +92,7 @@ namespace SwitchBlade.Tests.Plugins
         [InlineData("GROUP CHAT alpha Last message yesterday", "alpha", "Group", false)]
         public void ParseChatName_GroupChats_ParsesCorrectly(string raw, string expectedName, string expectedType, bool expectedUnread)
         {
-            var result = _plugin.ParseChatName(raw);
+            var result = TeamsPlugin.ParseChatName(raw);
             Assert.NotNull(result);
             Assert.Equal(expectedName, result.Value.Name);
             Assert.Equal(expectedType, result.Value.Type);
@@ -102,7 +104,7 @@ namespace SwitchBlade.Tests.Plugins
         [InlineData("Meeting chat Standup Last message 9:15 AM", "Standup", "Meeting", false)]
         public void ParseChatName_MeetingChats_ParsesCorrectly(string raw, string expectedName, string expectedType, bool expectedUnread)
         {
-            var result = _plugin.ParseChatName(raw);
+            var result = TeamsPlugin.ParseChatName(raw);
             Assert.NotNull(result);
             Assert.Equal(expectedName, result.Value.Name);
             Assert.Equal(expectedType, result.Value.Type);
@@ -116,7 +118,7 @@ namespace SwitchBlade.Tests.Plugins
         [InlineData("UNREAD MESSAGE Chat Secret Service Busy", "Secret Service", "Individual", true)]
         public void ParseChatName_UnreadMessages_DetectedCorrectly(string raw, string expectedName, string expectedType, bool expectedUnread)
         {
-            var result = _plugin.ParseChatName(raw);
+            var result = TeamsPlugin.ParseChatName(raw);
             Assert.NotNull(result);
             Assert.Equal(expectedName, result.Value.Name);
             Assert.Equal(expectedType, result.Value.Type);
@@ -131,13 +133,14 @@ namespace SwitchBlade.Tests.Plugins
         [InlineData("Group chat incomplete")]
         public void ParseChatName_InvalidInput_ReturnsNull(string raw)
         {
-            var result = _plugin.ParseChatName(raw);
+            var result = TeamsPlugin.ParseChatName(raw);
             Assert.Null(result);
         }
         [Fact]
         public void GetWindows_ReturnsEmpty_WhenNoTeamsRunning()
         {
             // Arrange
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettings.Object);
             _plugin.Initialize(_mockContext.Object);
 
             // Act

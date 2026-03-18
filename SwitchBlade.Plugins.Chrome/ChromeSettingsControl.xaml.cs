@@ -18,10 +18,9 @@ namespace SwitchBlade.Plugins.Chrome
         public ChromeSettingsControl(IPluginSettingsService settingsService, List<string> currentProcesses)
         {
             InitializeComponent();
-
             _settingsService = settingsService;
-            _originalProcesses = new List<string>(currentProcesses);
-            _processes = new ObservableCollection<string>(currentProcesses);
+            _originalProcesses = [.. currentProcesses];
+            _processes = [.. currentProcesses];
             ProcessList.ItemsSource = _processes;
         }
 
@@ -48,7 +47,7 @@ namespace SwitchBlade.Plugins.Chrome
         /// </summary>
         public void Save()
         {
-            _settingsService.SetStringList("BrowserProcesses", new List<string>(_processes));
+            _settingsService.SetStringList("BrowserProcesses", [.. _processes]);
         }
 
         /// <summary>
@@ -68,17 +67,11 @@ namespace SwitchBlade.Plugins.Chrome
     /// <summary>
     /// ISettingsControl implementation for Chrome plugin.
     /// </summary>
-    public class ChromeSettingsControlProvider : ISettingsControl
+    public class ChromeSettingsControlProvider(IPluginSettingsService settingsService, List<string> currentProcesses) : ISettingsControl
     {
-        private readonly IPluginSettingsService _settingsService;
-        private readonly List<string> _currentProcesses;
+        private readonly IPluginSettingsService _settingsService = settingsService;
+        private readonly List<string> _currentProcesses = currentProcesses;
         private ChromeSettingsControl? _control;
-
-        public ChromeSettingsControlProvider(IPluginSettingsService settingsService, List<string> currentProcesses)
-        {
-            _settingsService = settingsService;
-            _currentProcesses = currentProcesses;
-        }
 
         public object CreateSettingsControl()
         {

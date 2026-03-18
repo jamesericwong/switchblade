@@ -169,7 +169,7 @@ public partial class App : Application
         }
     }
 
-    private Icon GetIcon()
+    private static Icon GetIcon()
     {
         try
         {

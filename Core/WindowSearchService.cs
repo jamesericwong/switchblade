@@ -68,19 +68,20 @@ namespace SwitchBlade.Core
                 {
                     results = windowList
                         .Where(w => regex.IsMatch(w.Title))
+                        .Distinct()
                         .ToList();
                 }
                 else
                 {
                     // Fallback to substring matching if regex is invalid
                     results = windowList
-                        .Where(w => w.Title.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+                        .Where(w => w.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                        .Distinct()
                         .ToList();
                 }
 
                 // Apply stable sort: Process Name -> Title -> Hwnd
                 results = results
-                    .Distinct()
                     .OrderBy(w => w.ProcessName)
                     .ThenBy(w => w.Title)
                     .ThenBy(w => w.Hwnd.ToInt64())

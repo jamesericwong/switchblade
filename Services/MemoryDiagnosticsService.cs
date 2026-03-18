@@ -38,7 +38,7 @@ namespace SwitchBlade.Services
             _iconService = iconService ?? throw new ArgumentNullException(nameof(iconService));
             _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _processFactory = processFactory ?? new ProcessFactory();
+            _processFactory = processFactory ?? new ProcessFactory(new SystemProcessProvider());
             _memoryInfoProvider = memoryInfoProvider ?? new SystemMemoryInfoProvider();
 
             var timerInterval = interval ?? TimeSpan.FromSeconds(60);
@@ -48,6 +48,7 @@ namespace SwitchBlade.Services
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            _ = cancellationToken;
             _logger.Log("MemoryDiagnosticsService starting...");
             _executionTask = RunDiagnosticsLoop();
             return Task.CompletedTask;
@@ -55,6 +56,7 @@ namespace SwitchBlade.Services
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
+            _ = cancellationToken;
             _logger.Log("MemoryDiagnosticsService stopping...");
             _cts.Cancel();
             if (_executionTask != null)
@@ -77,7 +79,7 @@ namespace SwitchBlade.Services
                     ForceLogMemoryStats();
                 }
             }
-            catch (Exception ex) when (!(ex is OperationCanceledException))
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError("MemoryDiagnosticsService loop error", ex);
             }

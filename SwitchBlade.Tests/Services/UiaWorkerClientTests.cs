@@ -503,7 +503,7 @@ namespace SwitchBlade.Tests.Services
         {
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
             // Use reflection to call private method
-            var method = typeof(UiaWorkerClient).GetMethod("ConvertToWindowItems", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var method = typeof(UiaWorkerClient).GetMethod("ConvertToWindowItems", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
             Assert.NotNull(method);
 
             var resultsNull = (List<WindowItem>?)method.Invoke(client, new object[] { null! });
@@ -574,8 +574,8 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task ScanStreamingAsync_WithFilters_Works()
         {
-            var disabled = new HashSet<string> { "P1" };
-            var excluded = new HashSet<string> { "Proc1" };
+            IEnumerable<string> disabled = ["P1"];
+            IEnumerable<string> excluded = ["Proc1"];
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
 
             _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
@@ -1184,7 +1184,7 @@ namespace SwitchBlade.Tests.Services
         public void ConvertToWindowItems_Null_ReturnsEmpty()
         {
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
-            var method = typeof(UiaWorkerClient).GetMethod("ConvertToWindowItems", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var method = typeof(UiaWorkerClient).GetMethod("ConvertToWindowItems", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
             Assert.NotNull(method);
 
             // Test results == null branch
@@ -1196,7 +1196,7 @@ namespace SwitchBlade.Tests.Services
         public void ConvertToWindowItems_Empty_ReturnsEmpty()
         {
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
-            var method = typeof(UiaWorkerClient).GetMethod("ConvertToWindowItems", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var method = typeof(UiaWorkerClient).GetMethod("ConvertToWindowItems", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
             Assert.NotNull(method);
 
             // Test results.Count == 0 branch

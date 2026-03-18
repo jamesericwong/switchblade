@@ -18,8 +18,9 @@ namespace SwitchBlade.Tests.Plugins
             _mockContext = new Mock<IPluginContext>();
             _mockLogger = new Mock<ILogger>();
             _mockSettings = new Mock<IPluginSettingsService>();
-
+            
             _mockContext.Setup(c => c.Logger).Returns(_mockLogger.Object);
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettings.Object);
 
             // Inject mocked settings service
             _plugin = new NotepadPlusPlusPlugin(_mockSettings.Object);

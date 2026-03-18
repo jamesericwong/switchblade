@@ -50,14 +50,33 @@ namespace SwitchBlade.Services
 
                     if (match != null)
                     {
+                        // Remove from hash sets BEFORE mutating Title (which affects hash code)
+                        unusedCacheItems.Remove(match);
+                        
+                        if (match.Source != null && _providerItems.TryGetValue(match.Source, out var providerSet))
+                        {
+                            providerSet.Remove(match);
+                        }
+
                         match.Title = incoming.Title;
                         match.ProcessName = incoming.ProcessName;
                         match.Source ??= provider;
+                        
+                        // Add back to provider sets if applicable
+                        if (match.Source != null)
+                        {
+                            if (!_providerItems.TryGetValue(match.Source, out providerSet))
+                            {
+                                providerSet = new HashSet<WindowItem>();
+                                _providerItems[match.Source] = providerSet;
+                            }
+                            providerSet.Add(match);
+                        }
+
                         // Icon population is now async - do NOT call PopulateIconIfMissing here
 
                         resolvedItems.Add(match);
                         claimedItems.Add(match);
-                        unusedCacheItems.Remove(match);
                     }
                     else
                     {
@@ -108,7 +127,7 @@ namespace SwitchBlade.Services
                 }
             }
 
-            if (count > 0 && _logger != null && SwitchBlade.Core.Logger.IsDebugEnabled)
+            if (count > 0 && _logger != null && _logger.IsDebugEnabled)
             {
                 var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(start);
                 _logger.Log($"[Perf] Populated {count} icons in {elapsed.TotalMilliseconds:F2}ms");

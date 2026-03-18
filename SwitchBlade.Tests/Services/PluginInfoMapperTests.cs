@@ -80,7 +80,7 @@ namespace SwitchBlade.Tests.Services
         {
             var mockProvider = new Mock<IWindowProvider>();
             mockProvider.Setup(p => p.PluginName).Returns("TestPlugin");
-            mockProvider.Setup(p => p.HasSettings).Returns(true);
+            mockProvider.As<IConfigurablePlugin>().Setup(p => p.HasSettings).Returns(true);
 
             var info = PluginInfoMapper.MapToInfo(mockProvider.Object, "TypeA", "AssemblyA", "1.0.0", true);
 

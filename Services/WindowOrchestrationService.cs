@@ -15,18 +15,25 @@ namespace SwitchBlade.Services
     /// - In-process runners for fast, non-UIA providers
     /// - Out-of-process runners for UIA providers (prevents memory leaks)
     /// </summary>
-    public class WindowOrchestrationService : IWindowOrchestrationService, IDisposable
+    public class WindowOrchestrationService(
+        IEnumerable<IWindowProvider> providers,
+        IWindowReconciler reconciler,
+        IUiaWorkerClient uiaWorkerClient,
+        INativeInteropWrapper nativeInterop,
+        IProviderRunner fastRunner,
+        IProviderRunner uiaRunner,
+        ILogger? logger = null) : IWindowOrchestrationService, IDisposable
     {
-        private readonly List<IWindowProvider> _providers;
-        private readonly IWindowReconciler _reconciler;
-        private readonly INativeInteropWrapper _nativeInterop;
-        private readonly IProviderRunner _fastRunner;
-        private readonly IProviderRunner _uiaRunner;
-        private readonly IUiaWorkerClient _uiaWorkerClient;
-        private readonly ILogger? _logger;
-        private readonly List<WindowItem> _allWindows = new();
+        private readonly List<IWindowProvider> _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
+        private readonly IWindowReconciler _reconciler = reconciler ?? throw new ArgumentNullException(nameof(reconciler));
+        private readonly INativeInteropWrapper _nativeInterop = nativeInterop ?? throw new ArgumentNullException(nameof(nativeInterop));
+        private readonly IProviderRunner _fastRunner = fastRunner ?? throw new ArgumentNullException(nameof(fastRunner));
+        private readonly IProviderRunner _uiaRunner = uiaRunner ?? throw new ArgumentNullException(nameof(uiaRunner));
+        private readonly IUiaWorkerClient _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
+        private readonly ILogger? _logger = logger;
+        private readonly List<WindowItem> _allWindows = [];
 
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         // Re-entrancy guard for fast (Non-UIA) providers.
         private readonly SemaphoreSlim _fastRefreshLock = new(1, 1);
         private bool _disposed;
@@ -39,57 +46,12 @@ namespace SwitchBlade.Services
             {
                 lock (_lock)
                 {
-                    return _allWindows.ToList();
+                    return [.. _allWindows];
                 }
             }
         }
 
-        /// <summary>
-        /// Primary constructor with explicit runner strategies.
-        /// </summary>
-        public WindowOrchestrationService(
-            IEnumerable<IWindowProvider> providers,
-            IWindowReconciler reconciler,
-            IUiaWorkerClient uiaWorkerClient,
-            INativeInteropWrapper nativeInterop,
-            IProviderRunner fastRunner,
-            IProviderRunner uiaRunner,
-            ILogger? logger = null,
-            ISettingsService? settingsService = null)
-        {
-            _providers = providers?.ToList() ?? throw new ArgumentNullException(nameof(providers));
-            _reconciler = reconciler ?? throw new ArgumentNullException(nameof(reconciler));
-            _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
-            _nativeInterop = nativeInterop ?? throw new ArgumentNullException(nameof(nativeInterop));
-            _fastRunner = fastRunner ?? throw new ArgumentNullException(nameof(fastRunner));
-            _uiaRunner = uiaRunner ?? throw new ArgumentNullException(nameof(uiaRunner));
-            _logger = logger;
-        }
-
-        /// <summary>
-        /// Backward compatibility constructor — creates default runners internally.
-        /// </summary>
-        public WindowOrchestrationService(
-            IEnumerable<IWindowProvider> providers,
-            IWindowReconciler reconciler,
-            IUiaWorkerClient uiaWorkerClient,
-            INativeInteropWrapper nativeInterop,
-            ILogger? logger = null,
-            ISettingsService? settingsService = null)
-            : this(providers, reconciler, uiaWorkerClient, nativeInterop,
-                   new InProcessProviderRunner(logger),
-                   new UiaProviderRunner(uiaWorkerClient, logger),
-                   logger, settingsService)
-        {
-        }
-
-        // Backward compatibility constructor for tests
-        public WindowOrchestrationService(IEnumerable<IWindowProvider> providers, IIconService? iconService = null, ISettingsService? settingsService = null)
-            : this(providers, new WindowReconciler(iconService), new NullUiaWorkerClient(), new SwitchBlade.Core.NativeInteropWrapper(), null, settingsService)
-        {
-        }
-
-        public async Task RefreshAsync(ISet<string> disabledPlugins)
+        public async Task RefreshAsync(IEnumerable<string> disabledPlugins)
         {
             // Non-blocking re-entrancy guard for fast (Non-UIA) providers.
             if (!await _fastRefreshLock.WaitAsync(0))
@@ -100,54 +62,79 @@ namespace SwitchBlade.Services
 
             try
             {
-                await Task.Run(async () =>
+                disabledPlugins ??= new HashSet<string>();
+
+                // Clear process cache for fresh lookups
+                _nativeInterop.ClearProcessCache();
+
+                // 1. Reload settings and gather handled processes (for all providers)
+                var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var provider in _providers)
                 {
-                    disabledPlugins ??= new HashSet<string>();
-
-                    // Clear process cache for fresh lookups
-                    _nativeInterop.ClearProcessCache();
-
-                    // 1. Reload settings and gather handled processes (for all providers)
-                    var handledProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var provider in _providers)
+                    try
                     {
-                        try
+                        if (provider is IConfigurablePlugin configurable)
                         {
-                            provider.ReloadSettings();
-                            foreach (var p in provider.GetHandledProcesses())
+                            configurable.ReloadSettings();
+                        }
+
+                        if (provider is IProviderExclusionSettings exclusionSettings)
+                        {
+                            foreach (var p in exclusionSettings.GetHandledProcesses())
                             {
                                 handledProcesses.Add(p);
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            _logger?.LogError($"Error reloading settings for {provider.PluginName}", ex);
-                        }
                     }
-
-                    // 2. Inject exclusions (for all providers)
-                    foreach (var provider in _providers)
+                    catch (Exception ex)
                     {
-                        provider.SetExclusions(handledProcesses);
+                        _logger?.LogError($"Error reloading settings for {provider.PluginName}", ex);
                     }
+                }
 
-                    // 3. Split providers into UIA (out-of-process) and non-UIA (in-process)
-                    var nonUiaProviders = _providers.Where(p => !p.IsUiaProvider).ToList();
-                    var uiaProviders = _providers.Where(p => p.IsUiaProvider).ToList();
-
-                    // 4a. Run fast providers via the fast runner strategy
-                    await _fastRunner.RunAsync(nonUiaProviders, disabledPlugins, handledProcesses, ProcessProviderResults);
-
-                    // 4b. Run UIA providers via the UIA runner strategy (fire-and-forget)
-                    if (uiaProviders.Count > 0)
+                // 2. Inject exclusions (for all providers)
+                foreach (var provider in _providers)
+                {
+                    if (provider is IProviderExclusionSettings exclusionSettings)
                     {
-                        await _uiaRunner.RunAsync(uiaProviders, disabledPlugins, handledProcesses, ProcessProviderResults);
+                        exclusionSettings.SetExclusions(handledProcesses);
                     }
-                });
+                }
+
+                // 3. Split providers into UIA (out-of-process) and non-UIA (in-process)
+                var nonUiaProviders = _providers.Where(p => !(p is IExtrusionStrategy s && s.IsUiaProvider)).ToList();
+                var uiaProviders = _providers.Where(p => p is IExtrusionStrategy s && s.IsUiaProvider).ToList();
+
+                // 4a. Run fast providers via the fast runner strategy
+                await _fastRunner.RunAsync(nonUiaProviders, disabledPlugins, handledProcesses, ProcessProviderResults);
+
+                // 4b. Run UIA providers via the UIA runner strategy (background)
+                // UIA providers: fire-and-forget in background to avoid blocking core updates
+                if (uiaProviders.Count > 0)
+                {
+                    _ = LaunchUiaRefresh(uiaProviders, disabledPlugins, handledProcesses);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("Critical error during RefreshAsync", ex);
             }
             finally
             {
                 _fastRefreshLock.Release();
+            }
+        }
+
+        private async Task LaunchUiaRefresh(List<IWindowProvider> uiaProviders, IEnumerable<string> disabledPlugins, IEnumerable<string> handledProcesses)
+        {
+            try
+            {
+                _logger?.Log($"Launching background UIA refresh for {uiaProviders.Count} providers");
+                await _uiaRunner.RunAsync(uiaProviders, disabledPlugins, handledProcesses, ProcessProviderResults);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("Background UIA refresh failed", ex);
             }
         }
 
@@ -270,6 +257,7 @@ namespace SwitchBlade.Services
             {
                 disposableRunner.Dispose();
             }
+            GC.SuppressFinalize(this);
         }
     }
 }

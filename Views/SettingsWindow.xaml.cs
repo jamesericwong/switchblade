@@ -77,13 +77,15 @@ namespace SwitchBlade.Views
         {
             if (sender is System.Windows.Controls.Button button && button.Tag is PluginInfo pluginInfo)
             {
-                if (pluginInfo.Provider != null && pluginInfo.HasSettings)
+                if (pluginInfo.Provider is IConfigurablePlugin configurable && configurable.HasSettings)
                 {
-                    var settingsControl = pluginInfo.Provider.SettingsControl;
+                    var settingsControl = configurable.SettingsControl;
                     if (settingsControl != null)
                     {
-                        var hostWindow = new PluginSettingsHostWindow(pluginInfo.Name, settingsControl);
-                        hostWindow.Owner = this;
+                        var hostWindow = new PluginSettingsHostWindow(pluginInfo.Name, settingsControl)
+                        {
+                            Owner = this
+                        };
                         hostWindow.ShowDialog();
                     }
                 }

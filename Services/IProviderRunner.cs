@@ -20,8 +20,8 @@ namespace SwitchBlade.Services
         /// <param name="onResults">Callback invoked with each provider's results. Must be thread-safe.</param>
         Task RunAsync(
             IList<IWindowProvider> providers,
-            ISet<string> disabledPlugins,
-            HashSet<string> handledProcesses,
+            IEnumerable<string> disabledPlugins,
+            IEnumerable<string> handledProcesses,
             Action<IWindowProvider, List<WindowItem>> onResults);
     }
 }

@@ -7,5 +7,6 @@ namespace SwitchBlade.Contracts
         object? GetCurrentUserValue(string keyPath, string valueName);
         void SetCurrentUserValue(string keyPath, string valueName, object value, RegistryValueKind valueKind);
         void DeleteCurrentUserValue(string keyPath, string valueName, bool throwOnMissing);
+        bool KeyExists(string keyPath);
     }
 }

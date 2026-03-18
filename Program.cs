@@ -21,23 +21,21 @@ namespace SwitchBlade
         public static void Main()
         {
             const string appName = SingleInstanceMutexName;
-            bool createdNew;
-
-            using (var mutex = new Mutex(true, appName, out createdNew))
+            using var mutex = new Mutex(true, appName, out bool createdNew);
+            
+            // If mutex not immediately acquired, try waiting for a bit (handles restart scenarios)
+            if (!createdNew)
             {
-                // If mutex not immediately acquired, try waiting for a bit (handles restart scenarios)
-                if (!createdNew)
+                // Wait up to 2 seconds for previous instance to release mutex
+                // This handles the case where we're restarting and the old process is shutting down
+                bool acquired = mutex.WaitOne(2000);
+                if (!acquired)
                 {
-                    // Wait up to 2 seconds for previous instance to release mutex
-                    // This handles the case where we're restarting and the old process is shutting down
-                    bool acquired = mutex.WaitOne(2000);
-                    if (!acquired)
-                    {
-                        System.Windows.MessageBox.Show("SwitchBlade is already running!", "SwitchBlade", MessageBoxButton.OK, MessageBoxImage.Information);
-                        return;
-                    }
-                    // Successfully acquired mutex after waiting, continue normally
+                    System.Windows.MessageBox.Show("SwitchBlade is already running!", "SwitchBlade", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
                 }
+                // Successfully acquired mutex after waiting, continue normally
+            }
 
                 // Check for /debug flag before anything else
                 var args = Environment.GetCommandLineArgs();
@@ -138,7 +136,6 @@ namespace SwitchBlade
                     logger.LogError("STARTUP CRASH", ex);
                     System.Windows.MessageBox.Show($"Critical Startup Error: {ex.Message}\n\nLog saved to %TEMP%\\switchblade_debug.log", "SwitchBlade Fatal", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-            }
         }
 
         /// <summary>

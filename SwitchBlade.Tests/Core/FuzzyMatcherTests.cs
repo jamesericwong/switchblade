@@ -306,8 +306,8 @@ namespace SwitchBlade.Tests.Core
         public void Score_MaximizeNormalizedLengths_DoesNotCrash()
         {
             // Hits the logic where length is truncated to MaxNormalizedLength (512)
-            string superLongTitle = new string('a', 600);
-            string superLongQuery = new string('a', 600);
+            string superLongTitle = new('a', 600);
+            string superLongQuery = new('a', 600);
             int score = FuzzyMatcher.Score(superLongTitle, superLongQuery);
             Assert.True(score > 0);
         }
@@ -384,7 +384,7 @@ namespace SwitchBlade.Tests.Core
             // This is a bit tricky to hit, but if we have a title that is exactly the length 
             // of the buffer but contains delimiters, Normalize will finish i loop before writeIndex hits buffer end.
             // If it HAS NO delimiters, writeIndex hits buffer end.
-            string maxLenTitle = new string('a', 512); 
+            string maxLenTitle = new('a', 512); 
             int score = FuzzyMatcher.Score(maxLenTitle, "aaaa");
             Assert.True(score > 0);
         }
@@ -426,14 +426,14 @@ namespace SwitchBlade.Tests.Core
         {
             // "Chrome" contains "rom" at index 2
             var result = FuzzyMatcher.GetMatchedIndices("Chrome", "rom", true);
-            Assert.Equal(new[] { 2, 3, 4 }, result);
+            Assert.Equal([2, 3, 4], result);
         }
 
         [Fact]
         public void GetMatchedIndices_CaseInsensitiveSubstring_ReturnsIndices()
         {
             var result = FuzzyMatcher.GetMatchedIndices("Chrome", "CHR", true);
-            Assert.Equal(new[] { 0, 1, 2 }, result);
+            Assert.Equal([0, 1, 2], result);
         }
 
         [Fact]
@@ -445,7 +445,7 @@ namespace SwitchBlade.Tests.Core
             // Normalized map: g->0, o->1, o->2, g->3, l->4, e->5, c->7, h->8, r->9, o->10, m->11, e->12
             // So fuzzy 'g' at norm[0] -> orig 0, 'c' at norm[6] -> orig 7
             var result = FuzzyMatcher.GetMatchedIndices("Google Chrome", "gc", true);
-            Assert.Equal(new[] { 0, 7 }, result);
+            Assert.Equal([0, 7], result);
         }
 
         [Fact]
@@ -460,7 +460,7 @@ namespace SwitchBlade.Tests.Core
         {
             // With fuzzy disabled, only exact substring match works
             var result = FuzzyMatcher.GetMatchedIndices("Chrome", "rom", false);
-            Assert.Equal(new[] { 2, 3, 4 }, result);
+            Assert.Equal([2, 3, 4], result);
         }
 
         [Fact]
@@ -476,7 +476,7 @@ namespace SwitchBlade.Tests.Core
             // "hello_world" normalized -> "helloworld"
             // query "hw" -> h at norm[0] -> orig 0, w at norm[5] -> orig 6
             var result = FuzzyMatcher.GetMatchedIndices("hello_world", "hw", true);
-            Assert.Equal(new[] { 0, 6 }, result);
+            Assert.Equal([0, 6], result);
         }
 
         [Fact]
@@ -515,7 +515,7 @@ namespace SwitchBlade.Tests.Core
             var result = FuzzyMatcher.GetMatchedIndices(longTitle, query, true);
             
             // Should match "bc" at the end, using heap-allocated buffers
-            Assert.Equal(new[] { 300, 301 }, result);
+            Assert.Equal([300, 301], result);
         }
 
         [Fact]
@@ -533,7 +533,7 @@ namespace SwitchBlade.Tests.Core
 
             // Assert
             // Should match 'b' at 300 and 'c' at 311
-            Assert.Equal(new[] { 300, 311 }, result);
+            Assert.Equal([300, 311], result);
         }
 
         [Fact]
@@ -555,7 +555,7 @@ namespace SwitchBlade.Tests.Core
             
             var result = FuzzyMatcher.GetMatchedIndices(longTitle, "xyz", true);
             
-            Assert.Equal(new[] { 3, 4, 5 }, result);
+            Assert.Equal([3, 4, 5], result);
         }
 
         #endregion

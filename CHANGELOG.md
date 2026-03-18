@@ -1,3 +1,20 @@
+## [1.9.16] - 2026-03-14
+### Fixed
+- **Test Suite Stabilization**: achieved 100% pass rate (779/779) by resolving race conditions in `MainViewModel` mocks and stabilizing orchestration timing.
+- **Improved Window Identity**: Implemented `Equals` and `GetHashCode` in `WindowItem` to ensure identity preservation during refreshes, preventing badge animation resets and maintaining UI state.
+- **Search Result Deduplication**: Added consistent `.Distinct()` calls to regex and substring search paths in `WindowSearchService` to eliminate duplicate entries in the result list.
+- **Orchestration Resilience**: Refactored `WindowOrchestrationService` to separate fast and background updates, and updated tests to use real runner implementations for deterministic verification.
+- **Infrastructure**: Resolved intermittent XAML compilation errors (`CS2001`) in plugin projects and corrected `UiaWorkerClientTests` reflection flags.
+
+### Architectural / SOLID
+- **Modernization (C# 12)**: Refactored `IProviderRunner`, `IUiaWorkerClient`, and `IWindowOrchestrationService` to use `IEnumerable<string>` to enable cleaner **collection expressions** (`[]`) and improve caller flexibility.
+- **Dependency Inversion (DIP)**: Standardized `MainViewModel` and `WindowOrchestrationService` to accept interface-based runners and search services, improving testability and decoupling.
+- **Single Responsibility (SRP)**: Refined `WindowOrchestrationService` by delegating execution strategies to specialized runners, eliminating redundant backgrounding logic from the orchestrator.
+- **Interface Segregation (ISP)**: Enhanced `WindowItem` equality logic to support generic `ObservableCollectionSync` without leaking implementation details into the synchronization layer.
+- **Clean Code**: Resolved extensive IDE style diagnostics and modernized collection initializations across the core test suite (`FuzzyMatcher`, `SettingsService`, `RegexCache`).
+
+---
+
 ## [1.9.15] - 2026-03-01
 ### Fixed
 - **Chrome Error Tabs**: Stopped Chrome tab detection from mistakenly parsing ARIA tabs inside webpage DOMs (e.g. "GitLab Duo Chat").
