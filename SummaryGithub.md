@@ -3,22 +3,22 @@
 
 |||
 |:---|:---|
-| Generated on: | 3/18/2026 - 1:07:08 AM |
-| Coverage date: | 3/18/2026 - 1:07:05 AM |
+| Generated on: | 3/30/2026 - 12:32:16 AM |
+| Coverage date: | 3/30/2026 - 12:32:13 AM |
 | Parser: | Cobertura |
 | Assemblies: | 1 |
-| Classes: | 42 |
-| Files: | 40 |
-| **Line coverage:** | 100% (2540 of 2540) |
-| Covered lines: | 2540 |
+| Classes: | 41 |
+| Files: | 39 |
+| **Line coverage:** | 100% (2518 of 2518) |
+| Covered lines: | 2518 |
 | Uncovered lines: | 0 |
-| Coverable lines: | 2540 |
-| Total lines: | 4841 |
-| **Branch coverage:** | 100% (892 of 892) |
-| Covered branches: | 892 |
-| Total branches: | 892 |
+| Coverable lines: | 2518 |
+| Total lines: | 4792 |
+| **Branch coverage:** | 100% (924 of 924) |
+| Covered branches: | 924 |
+| Total branches: | 924 |
 | **Method coverage:** | [Feature is only available for sponsors](https://reportgenerator.io/pro) |
-| Tag: | 201_23224049400 |
+| Tag: | 203_23722840422 |
 
 </details>
 
@@ -54,7 +54,6 @@
 |SwitchBlade.Services.NumberShortcutService|100%|100%|
 |SwitchBlade.Services.PluginInfoMapper|100%|100%|
 |SwitchBlade.Services.PluginService|100%|100%|
-|SwitchBlade.Services.RegistryServiceWrapper|100%|100%|
 |SwitchBlade.Services.RestartLogic|100%|100%|
 |SwitchBlade.Services.ServiceConfiguration|100%|100%|
 |SwitchBlade.Services.SettingsService|100%|100%|

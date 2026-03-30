@@ -295,41 +295,40 @@ var assemblies = [
       { "name": "SwitchBlade.Core.FuzzyMatcherAdapter", "rp": "SwitchBlade_FuzzyMatcherAdapter.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 15, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.HighlightSegment", "rp": "SwitchBlade_HighlightSegment.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 171, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.InverseBooleanConverter", "rp": "SwitchBlade_InverseBooleanConverter.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 27, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Core.Logger", "rp": "SwitchBlade_Logger.html", "cl": 43, "ucl": 0, "cal": 43, "tl": 83, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Core.Logger", "rp": "SwitchBlade_Logger.html", "cl": 45, "ucl": 0, "cal": 45, "tl": 89, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.LruRegexCache", "rp": "SwitchBlade_LruRegexCache.html", "cl": 49, "ucl": 0, "cal": 49, "tl": 101, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.ObservableCollectionSync", "rp": "SwitchBlade_ObservableCollectionSync.html", "cl": 35, "ucl": 0, "cal": 35, "tl": 64, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.PluginInfo", "rp": "SwitchBlade_PluginInfo.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 20, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Core.ProcessFactory", "rp": "SwitchBlade_ProcessFactory.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 33, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Core.ProcessFactory", "rp": "SwitchBlade_ProcessFactory.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 29, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.SearchHighlightBehavior", "rp": "SwitchBlade_SearchHighlightBehavior.html", "cl": 91, "ucl": 0, "cal": 91, "tl": 171, "cb": 26, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Core.ShortcutVisibilityConverter", "rp": "SwitchBlade_ShortcutVisibilityConverter.html", "cl": 11, "ucl": 0, "cal": 11, "tl": 37, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Core.WindowFinder", "rp": "SwitchBlade_WindowFinder.html", "cl": 91, "ucl": 0, "cal": 91, "tl": 168, "cb": 28, "tb": 28, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Core.WindowSearchService", "rp": "SwitchBlade_WindowSearchService.html", "cl": 51, "ucl": 0, "cal": 51, "tl": 93, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Core.WindowFinder", "rp": "SwitchBlade_WindowFinder.html", "cl": 90, "ucl": 0, "cal": 90, "tl": 166, "cb": 30, "tb": 30, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Core.WindowSearchService", "rp": "SwitchBlade_WindowSearchService.html", "cl": 52, "ucl": 0, "cal": 52, "tl": 94, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Handlers.KeyboardInputHandler", "rp": "SwitchBlade_KeyboardInputHandler.html", "cl": 63, "ucl": 0, "cal": 63, "tl": 143, "cb": 26, "tb": 26, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.BackgroundPollingService", "rp": "SwitchBlade_BackgroundPollingService.html", "cl": 70, "ucl": 0, "cal": 70, "tl": 133, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.BadgeAnimationService", "rp": "SwitchBlade_BadgeAnimationService.html", "cl": 80, "ucl": 0, "cal": 80, "tl": 168, "cb": 36, "tb": 36, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.IconService", "rp": "SwitchBlade_IconService.html", "cl": 21, "ucl": 0, "cal": 21, "tl": 62, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.InProcessProviderRunner", "rp": "SwitchBlade_InProcessProviderRunner.html", "cl": 26, "ucl": 0, "cal": 26, "tl": 52, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.MemoryDiagnosticsService", "rp": "SwitchBlade_MemoryDiagnosticsService.html", "cl": 81, "ucl": 0, "cal": 81, "tl": 132, "cb": 22, "tb": 22, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.InProcessProviderRunner", "rp": "SwitchBlade_InProcessProviderRunner.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 47, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.MemoryDiagnosticsService", "rp": "SwitchBlade_MemoryDiagnosticsService.html", "cl": 83, "ucl": 0, "cal": 83, "tl": 134, "cb": 22, "tb": 22, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.ModifierKeyFlags", "rp": "SwitchBlade_ModifierKeyFlags.html", "cl": 19, "ucl": 0, "cal": 19, "tl": 56, "cb": 20, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.NavigationService", "rp": "SwitchBlade_NavigationService.html", "cl": 40, "ucl": 0, "cal": 40, "tl": 92, "cb": 34, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.NullUiaWorkerClient", "rp": "SwitchBlade_NullUiaWorkerClient.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 33, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.NumberShortcutService", "rp": "SwitchBlade_NumberShortcutService.html", "cl": 52, "ucl": 0, "cal": 52, "tl": 83, "cb": 40, "tb": 40, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.PluginInfoMapper", "rp": "SwitchBlade_PluginInfoMapper.html", "cl": 28, "ucl": 0, "cal": 28, "tl": 61, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.PluginService", "rp": "SwitchBlade_PluginService.html", "cl": 42, "ucl": 0, "cal": 42, "tl": 80, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.RegistryServiceWrapper", "rp": "SwitchBlade_RegistryServiceWrapper.html", "cl": 20, "ucl": 0, "cal": 20, "tl": 36, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.PluginInfoMapper", "rp": "SwitchBlade_PluginInfoMapper.html", "cl": 28, "ucl": 0, "cal": 28, "tl": 61, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.PluginService", "rp": "SwitchBlade_PluginService.html", "cl": 40, "ucl": 0, "cal": 40, "tl": 78, "cb": 14, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.RestartLogic", "rp": "SwitchBlade_RestartLogic.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 58, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.ServiceConfiguration", "rp": "SwitchBlade_ServiceConfiguration.html", "cl": 83, "ucl": 0, "cal": 83, "tl": 132, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.SettingsService", "rp": "SwitchBlade_SettingsService.html", "cl": 129, "ucl": 0, "cal": 129, "tl": 246, "cb": 34, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.ServiceConfiguration", "rp": "SwitchBlade_ServiceConfiguration.html", "cl": 101, "ucl": 0, "cal": 101, "tl": 151, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.SettingsService", "rp": "SwitchBlade_SettingsService.html", "cl": 123, "ucl": 0, "cal": 123, "tl": 231, "cb": 34, "tb": 34, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.ThemeInfo", "rp": "SwitchBlade_ThemeInfo.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 110, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.ThemeService", "rp": "SwitchBlade_ThemeService.html", "cl": 61, "ucl": 0, "cal": 61, "tl": 110, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.UiaProviderRunner", "rp": "SwitchBlade_UiaProviderRunner.html", "cl": 106, "ucl": 0, "cal": 106, "tl": 143, "cb": 14, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.UiaWorkerClient", "rp": "SwitchBlade_UiaWorkerClient.html", "cl": 243, "ucl": 0, "cal": 243, "tl": 387, "cb": 114, "tb": 114, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.UiaProviderRunner", "rp": "SwitchBlade_UiaProviderRunner.html", "cl": 108, "ucl": 0, "cal": 108, "tl": 142, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.UiaWorkerClient", "rp": "SwitchBlade_UiaWorkerClient.html", "cl": 239, "ucl": 0, "cal": 239, "tl": 386, "cb": 110, "tb": 110, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.UserSettings", "rp": "SwitchBlade_UserSettings.html", "cl": 27, "ucl": 0, "cal": 27, "tl": 166, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.WindowListUpdatedEventArgs", "rp": "SwitchBlade_WindowListUpdatedEventArgs.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 44, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.WindowOrchestrationService", "rp": "SwitchBlade_WindowOrchestrationService.html", "cl": 172, "ucl": 0, "cal": 172, "tl": 275, "cb": 70, "tb": 70, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.WindowReconciler", "rp": "SwitchBlade_WindowReconciler.html", "cl": 134, "ucl": 0, "cal": 134, "tl": 212, "cb": 52, "tb": 52, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.WindowListUpdatedEventArgs", "rp": "SwitchBlade_WindowListUpdatedEventArgs.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 38, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.WindowOrchestrationService", "rp": "SwitchBlade_WindowOrchestrationService.html", "cl": 166, "ucl": 0, "cal": 166, "tl": 263, "cb": 86, "tb": 86, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.WindowReconciler", "rp": "SwitchBlade_WindowReconciler.html", "cl": 147, "ucl": 0, "cal": 147, "tl": 231, "cb": 60, "tb": 60, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.WindowsStartupManager", "rp": "SwitchBlade_WindowsStartupManager.html", "cl": 49, "ucl": 0, "cal": 49, "tl": 97, "cb": 14, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.ViewModels.MainViewModel", "rp": "SwitchBlade_MainViewModel.html", "cl": 168, "ucl": 0, "cal": 168, "tl": 283, "cb": 86, "tb": 86, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.ViewModels.MainViewModel", "rp": "SwitchBlade_MainViewModel.html", "cl": 156, "ucl": 0, "cal": 156, "tl": 271, "cb": 90, "tb": 90, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.ViewModels.RelayCommand", "rp": "SwitchBlade_RelayCommand.html", "cl": 13, "ucl": 0, "cal": 13, "tl": 33, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.ViewModels.SettingsViewModel", "rp": "SwitchBlade_SettingsViewModel.html", "cl": 225, "ucl": 0, "cal": 225, "tl": 422, "cb": 60, "tb": 60, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
@@ -348,14 +347,26 @@ var riskHotspots = [
   {
     "assembly": "SwitchBlade", "class": "SwitchBlade.Services.UiaWorkerClient", "reportPath": "SwitchBlade_UiaWorkerClient.html", "methodName": "ScanStreamingAsync()", "methodShortName": "ScanStreamingAsync()", "fileIndex": 0, "line": 80,
     "metrics": [
-      { "value": 68, "exceeded": true },
-      { "value": 68, "exceeded": true },
+      { "value": 66, "exceeded": true },
+      { "value": 66, "exceeded": true },
     ]},
   {
     "assembly": "SwitchBlade", "class": "SwitchBlade.Services.BadgeAnimationService", "reportPath": "SwitchBlade_BadgeAnimationService.html", "methodName": "TriggerStaggeredAnimationAsync()", "methodShortName": "TriggerStaggeredAnimationAsync()", "fileIndex": 0, "line": 75,
     "metrics": [
       { "value": 28, "exceeded": false },
       { "value": 28, "exceeded": true },
+    ]},
+  {
+    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.WindowReconciler", "reportPath": "SwitchBlade_WindowReconciler.html", "methodName": "Reconcile(System.Collections.Generic.IList`1<SwitchBlade.Contracts.WindowItem>,SwitchBlade.Contracts.IWindowProvider)", "methodShortName": "Reconcile(...)", "fileIndex": 0, "line": 24,
+    "metrics": [
+      { "value": 26, "exceeded": false },
+      { "value": 26, "exceeded": true },
+    ]},
+  {
+    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.WindowOrchestrationService", "reportPath": "SwitchBlade_WindowOrchestrationService.html", "methodName": "RefreshAsync()", "methodShortName": "RefreshAsync()", "fileIndex": 0, "line": 55,
+    "metrics": [
+      { "value": 24, "exceeded": false },
+      { "value": 24, "exceeded": true },
     ]},
   {
     "assembly": "SwitchBlade", "class": "SwitchBlade.Handlers.KeyboardInputHandler", "reportPath": "SwitchBlade_KeyboardInputHandler.html", "methodName": "HandleKeyInput(System.Windows.Input.Key,System.Windows.Input.ModifierKeys)", "methodShortName": "HandleKeyInput(...)", "fileIndex": 0, "line": 74,
@@ -370,13 +381,13 @@ var riskHotspots = [
       { "value": 22, "exceeded": true },
     ]},
   {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.WindowOrchestrationService", "reportPath": "SwitchBlade_WindowOrchestrationService.html", "methodName": "ProcessProviderResults(SwitchBlade.Contracts.IWindowProvider,System.Collections.Generic.List`1<SwitchBlade.Contracts.WindowItem>)", "methodShortName": "ProcessProviderResults(...)", "fileIndex": 0, "line": 155,
+    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.WindowOrchestrationService", "reportPath": "SwitchBlade_WindowOrchestrationService.html", "methodName": "ProcessProviderResults(SwitchBlade.Contracts.IWindowProvider,System.Collections.Generic.List`1<SwitchBlade.Contracts.WindowItem>)", "methodShortName": "ProcessProviderResults(...)", "fileIndex": 0, "line": 142,
     "metrics": [
       { "value": 22, "exceeded": false },
       { "value": 22, "exceeded": true },
     ]},
   {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.ViewModels.MainViewModel", "reportPath": "SwitchBlade_MainViewModel.html", "methodName": "UpdateSearch(System.Boolean)", "methodShortName": "UpdateSearch(...)", "fileIndex": 0, "line": 194,
+    "assembly": "SwitchBlade", "class": "SwitchBlade.ViewModels.MainViewModel", "reportPath": "SwitchBlade_MainViewModel.html", "methodName": "UpdateSearch(System.Boolean)", "methodShortName": "UpdateSearch(...)", "fileIndex": 0, "line": 182,
     "metrics": [
       { "value": 22, "exceeded": false },
       { "value": 22, "exceeded": true },
@@ -388,19 +399,13 @@ var riskHotspots = [
       { "value": 20, "exceeded": true },
     ]},
   {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.Core.WindowFinder", "reportPath": "SwitchBlade_WindowFinder.html", "methodName": "EnumCallback()", "methodShortName": "EnumCallback()", "fileIndex": 0, "line": 56,
+    "assembly": "SwitchBlade", "class": "SwitchBlade.Core.WindowFinder", "reportPath": "SwitchBlade_WindowFinder.html", "methodName": "EnumCallback()", "methodShortName": "EnumCallback()", "fileIndex": 0, "line": 54,
     "metrics": [
       { "value": 20, "exceeded": false },
       { "value": 20, "exceeded": true },
     ]},
   {
     "assembly": "SwitchBlade", "class": "SwitchBlade.Services.MemoryDiagnosticsService", "reportPath": "SwitchBlade_MemoryDiagnosticsService.html", "methodName": ".ctor(SwitchBlade.Services.IWindowOrchestrationService,SwitchBlade.Services.IIconService,SwitchBlade.Core.IWindowSearchService,SwitchBlade.Contracts.ILogger,SwitchBlade.Contracts.IProcessFactory,SwitchBlade.Contracts.IMemoryInfoProvider,System.Func`2<System.TimeSpan,SwitchBlade.Contracts.IPeriodicTimer>,System.Nullable`1<System.TimeSpan>)", "methodShortName": ".ctor(...)", "fileIndex": 0, "line": 27,
-    "metrics": [
-      { "value": 18, "exceeded": false },
-      { "value": 18, "exceeded": true },
-    ]},
-  {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.WindowReconciler", "reportPath": "SwitchBlade_WindowReconciler.html", "methodName": "Reconcile(System.Collections.Generic.IList`1<SwitchBlade.Contracts.WindowItem>,SwitchBlade.Contracts.IWindowProvider)", "methodShortName": "Reconcile(...)", "fileIndex": 0, "line": 24,
     "metrics": [
       { "value": 18, "exceeded": false },
       { "value": 18, "exceeded": true },
@@ -418,19 +423,13 @@ var riskHotspots = [
       { "value": 16, "exceeded": true },
     ]},
   {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.SettingsService", "reportPath": "SwitchBlade_SettingsService.html", "methodName": "LoadSettings()", "methodShortName": "LoadSettings()", "fileIndex": 0, "line": 54,
+    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.SettingsService", "reportPath": "SwitchBlade_SettingsService.html", "methodName": "LoadSettings()", "methodShortName": "LoadSettings()", "fileIndex": 0, "line": 39,
     "metrics": [
       { "value": 16, "exceeded": false },
       { "value": 16, "exceeded": true },
     ]},
   {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.UiaWorkerClient", "reportPath": "SwitchBlade_UiaWorkerClient.html", "methodName": "ScanAsync()", "methodShortName": "ScanAsync()", "fileIndex": 0, "line": 295,
-    "metrics": [
-      { "value": 16, "exceeded": false },
-      { "value": 16, "exceeded": true },
-    ]},
-  {
-    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.WindowReconciler", "reportPath": "SwitchBlade_WindowReconciler.html", "methodName": "PopulateIcons(System.Collections.Generic.IEnumerable`1<SwitchBlade.Contracts.WindowItem>)", "methodShortName": "PopulateIcons(...)", "fileIndex": 0, "line": 87,
+    "assembly": "SwitchBlade", "class": "SwitchBlade.Services.WindowReconciler", "reportPath": "SwitchBlade_WindowReconciler.html", "methodName": "PopulateIcons(System.Collections.Generic.IEnumerable`1<SwitchBlade.Contracts.WindowItem>)", "methodShortName": "PopulateIcons(...)", "fileIndex": 0, "line": 106,
     "metrics": [
       { "value": 16, "exceeded": false },
       { "value": 16, "exceeded": true },
