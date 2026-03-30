@@ -12,8 +12,8 @@ namespace SwitchBlade.Services
     internal sealed class NullUiaWorkerClient : IUiaWorkerClient
     {
         public async IAsyncEnumerable<UiaPluginResult> ScanStreamingAsync(
-            ISet<string>? disabledPlugins = null,
-            ISet<string>? excludedProcesses = null,
+            IEnumerable<string>? disabledPlugins = null,
+            IEnumerable<string>? excludedProcesses = null,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
@@ -21,8 +21,8 @@ namespace SwitchBlade.Services
         }
 
         public Task<List<WindowItem>> ScanAsync(
-            ISet<string>? disabledPlugins = null,
-            ISet<string>? excludedProcesses = null,
+            IEnumerable<string>? disabledPlugins = null,
+            IEnumerable<string>? excludedProcesses = null,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new List<WindowItem>());

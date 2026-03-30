@@ -19,7 +19,7 @@ namespace SwitchBlade.Services
         /// Refreshes windows from all enabled providers in parallel.
         /// </summary>
         /// <param name="disabledPlugins">Set of disabled plugin names.</param>
-        Task RefreshAsync(ISet<string> disabledPlugins);
+        Task RefreshAsync(IEnumerable<string> disabledPlugins);
 
         /// <summary>
         /// Gets the current master list of all windows.
@@ -30,15 +30,9 @@ namespace SwitchBlade.Services
     /// <summary>
     /// Event args for window list updates.
     /// </summary>
-    public class WindowListUpdatedEventArgs : EventArgs
+    public class WindowListUpdatedEventArgs(IWindowProvider provider, bool isStructuralChange) : EventArgs
     {
-        public IWindowProvider Provider { get; }
-        public bool IsStructuralChange { get; }
-
-        public WindowListUpdatedEventArgs(IWindowProvider provider, bool isStructuralChange)
-        {
-            Provider = provider;
-            IsStructuralChange = isStructuralChange;
-        }
+        public IWindowProvider Provider { get; } = provider;
+        public bool IsStructuralChange { get; } = isStructuralChange;
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel;
@@ -27,13 +27,13 @@ namespace SwitchBlade
         private readonly KeyboardInputHandler _keyboardHandler;
         private readonly WindowResizeHandler _resizeHandler;
 
-        private HotKeyService? _hotKeyService;
+        private readonly HotKeyService? _hotKeyService;
         private BackgroundPollingService? _backgroundPollingService;
         private BadgeAnimationService? _badgeAnimationService;
         private ThumbnailService? _thumbnailService;
         private IntPtr _lastThumbnailHwnd = IntPtr.Zero;
 
-        public List<IWindowProvider> Providers { get; private set; } = new List<IWindowProvider>();
+        public List<IWindowProvider> Providers { get; private set; } = [];
 
         // Constructor Injection - Explicit Dependencies
         public MainWindow(
@@ -221,7 +221,7 @@ namespace SwitchBlade
             // Reset animation state once at start so all items can animate as they arrive
             if (_settingsService.Settings.EnableBadgeAnimations)
             {
-                _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
+                BadgeAnimationService.ResetAnimationState(_viewModel.FilteredWindows);
             }
 
             // Let RefreshWindows run - ResultsUpdated will trigger animations as batches arrive
@@ -265,7 +265,7 @@ namespace SwitchBlade
             if (_pendingAnimationReset && _badgeAnimationService != null && _viewModel.FilteredWindows != null)
             {
                 _logger.Log($"[OnResultsUpdated] Applying pending animation reset to {_viewModel.FilteredWindows.Count} items.");
-                _badgeAnimationService.ResetAnimationState(_viewModel.FilteredWindows);
+                BadgeAnimationService.ResetAnimationState(_viewModel.FilteredWindows);
                 _pendingAnimationReset = false;
             }
 
@@ -301,7 +301,7 @@ namespace SwitchBlade
         public void ForceOpen()
         {
             // Apply Settings
-            var app = (App)System.Windows.Application.Current;
+            _ = System.Windows.Application.Current;
             this.Opacity = 0; // Start transparent for fade in
             this.Show();
             this.WindowState = WindowState.Normal;
@@ -317,7 +317,7 @@ namespace SwitchBlade
             // Reset badge animation state BEFORE clearing search text
             // (Clearing search text triggers ResultsUpdated which would mark items as animated)
             _logger.Log($"[ForceOpen] Resetting animation state for fresh open");
-            _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
+            BadgeAnimationService.ResetAnimationState(_viewModel.FilteredWindows);
 
             // Also hide badges immediately so there's no "visible then animate" flash
             if (_viewModel.FilteredWindows != null)

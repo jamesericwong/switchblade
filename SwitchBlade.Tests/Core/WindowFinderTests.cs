@@ -12,6 +12,7 @@ namespace SwitchBlade.Tests.Core
 {
     public class WindowFinderTests
     {
+        private static readonly string[] ExcludedAppArray = ["ExcludedApp"];
         private readonly Mock<ISettingsService> _mockSettingsService;
         private readonly Mock<IWindowInterop> _mockInterop;
         private readonly Mock<IPluginContext> _mockContext;
@@ -55,11 +56,11 @@ namespace SwitchBlade.Tests.Core
         public void Constructors_ExercisesDefaultAssignment()
         {
             // Test default constructor
-            var finder1 = new WindowFinder();
+            var finder1 = new WindowFinder(new Mock<ISettingsService>().Object, new Mock<IWindowInterop>().Object);
             Assert.Equal("WindowFinder", finder1.PluginName);
 
-            // Test parameterized constructor with null interop
-            var finder2 = new WindowFinder(_mockSettingsService.Object);
+            // Test parameterized constructor
+            var finder2 = new WindowFinder(_mockSettingsService.Object, new Mock<IWindowInterop>().Object);
             Assert.Equal("WindowFinder", finder2.PluginName);
         }
 
@@ -67,7 +68,7 @@ namespace SwitchBlade.Tests.Core
         public void SetExclusions_ShouldUpdateExclusions()
         {
             var finder = CreateFinder();
-            finder.SetExclusions(new[] { "ExcludedApp" });
+            finder.SetExclusions(ExcludedAppArray);
         }
 
         [Fact]
@@ -225,7 +226,7 @@ namespace SwitchBlade.Tests.Core
 
              _mockSettingsService.Setup(s => s.Settings).Returns(new UserSettings 
              { 
-                 ExcludedProcesses = new List<string> { process } 
+                 ExcludedProcesses = [process] 
              });
 
             _mockInterop.Setup(x => x.EnumWindows(It.IsAny<NativeInterop.EnumWindowsProc>(), It.IsAny<IntPtr>()))
@@ -272,7 +273,7 @@ namespace SwitchBlade.Tests.Core
             _mockInterop.Setup(x => x.GetProcessInfo(600)).Returns((process, null));
 
             var finder = CreateFinder();
-            finder.SetExclusions(new[] { process });
+            finder.SetExclusions([process]);
             var results = finder.GetWindows();
 
             Assert.Empty(results);
@@ -381,11 +382,9 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
-        public void GetWindows_SettingsNull_ReturnsEmpty()
+        public void Constructor_SettingsNull_Throws()
         {
-            var finder = new WindowFinder(null, _mockInterop.Object);
-            var results = finder.GetWindows();
-            Assert.Empty(results);
+            Assert.Throws<ArgumentNullException>(() => new WindowFinder(null!, _mockInterop.Object));
         }
 
         [Fact]
@@ -413,9 +412,8 @@ namespace SwitchBlade.Tests.Core
             Assert.Null(path2);
         }
 
-        private class WindowFinderTestWrapper : WindowFinder
+        private class WindowFinderTestWrapper(ISettingsService settings, IWindowInterop interop) : WindowFinder(settings, interop)
         {
-            public WindowFinderTestWrapper(ISettingsService settings, IWindowInterop interop) : base(settings, interop) { }
             public int GetPidPublic(IntPtr hwnd) => base.GetPid(hwnd);
             public (string, string?) GetProcessInfoPublic(uint pid) => base.GetProcessInfo(pid);
             public bool IsWindowValidPublic(IntPtr hwnd) => base.IsWindowValid(hwnd);
@@ -456,6 +454,25 @@ namespace SwitchBlade.Tests.Core
              var (name, path) = finder.GetProcessInfoPublic(123);
              Assert.Equal("Window", name);
              Assert.Null(path);
+        }
+
+        [Fact]
+        public void Constructor_InteropNull_Throws()
+        {
+             Assert.Throws<ArgumentNullException>(() => new WindowFinder(_mockSettingsService.Object, null!));
+        }
+
+        [Fact]
+        public void GetWindows_WhenSettingsServiceIsNull_ReturnsEmpty_Reflective()
+        {
+            var finder = new WindowFinder(_mockSettingsService.Object, _mockInterop.Object);
+            
+            // Bridge the private field via reflection to test the "safety" check at line 46
+            var field = typeof(WindowFinder).GetField("_settingsService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field?.SetValue(finder, null);
+            
+            var results = finder.GetWindows();
+            Assert.Empty(results);
         }
     }
 }

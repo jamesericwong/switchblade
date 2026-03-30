@@ -10,15 +10,19 @@ namespace SwitchBlade.Tests.Plugins
     {
         private readonly Mock<IPluginContext> _mockContext;
         private readonly Mock<ILogger> _mockLogger;
+        private readonly Mock<IPluginSettingsService> _mockSettings;
         private readonly WindowsTerminalPlugin _plugin;
 
         public WindowsTerminalPluginTests()
         {
             _mockContext = new Mock<IPluginContext>();
             _mockLogger = new Mock<ILogger>();
+            _mockSettings = new Mock<IPluginSettingsService>();
+            
             _mockContext.Setup(c => c.Logger).Returns(_mockLogger.Object);
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettings.Object);
 
-            _plugin = new WindowsTerminalPlugin();
+            _plugin = new WindowsTerminalPlugin(_mockSettings.Object);
         }
 
         [Fact]
@@ -48,6 +52,7 @@ namespace SwitchBlade.Tests.Plugins
         public void GetHandledProcesses_ReturnsDefaultProcesses()
         {
             // Arrange
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettings.Object);
             _plugin.Initialize(_mockContext.Object);
 
             // Act
@@ -64,6 +69,7 @@ namespace SwitchBlade.Tests.Plugins
         public void ReloadSettings_DoesNotThrow()
         {
             // Arrange
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettings.Object);
             _plugin.Initialize(_mockContext.Object);
 
             // Act & Assert - no exception
@@ -76,6 +82,7 @@ namespace SwitchBlade.Tests.Plugins
         public void GetWindows_ReturnsEmptyWhenNoTerminalRunning()
         {
             // Arrange
+            _mockContext.Setup(c => c.Settings).Returns(_mockSettings.Object);
             _plugin.Initialize(_mockContext.Object);
 
             // Act

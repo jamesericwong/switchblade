@@ -50,7 +50,7 @@ namespace SwitchBlade.Services
         /// Resets the animation state for the provided items.
         /// Use this when you want to force re-animation (e.g. on new search or window open).
         /// </summary>
-        public void ResetAnimationState(IEnumerable<WindowItem>? items)
+        public static void ResetAnimationState(IEnumerable<WindowItem>? items)
         {
             if (items == null) return;
 

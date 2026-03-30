@@ -18,7 +18,7 @@ namespace SwitchBlade.Plugins.Teams
     /// Teams (v2) is a Chromium-based application. This plugin runs out-of-process
     /// via SwitchBlade.UiaWorker.exe to prevent memory leaks from COM RCW handling.
     /// </remarks>
-    public class TeamsPlugin : CachingWindowProviderBase
+    public partial class TeamsPlugin : CachingWindowProviderBase
     {
         private ILogger? _logger;
         private IPluginSettingsService? _settingsService;
@@ -44,7 +44,7 @@ namespace SwitchBlade.Plugins.Teams
         #region Regex Patterns
 
         // Extracted from user's PowerShell UIA scripts
-        private static readonly Regex UnreadPrefixRegex = new(@"^Unread message ", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex UnreadPrefixRegex = MyRegex();
 
         // "Chat [Name] [Status]" - Individual chats
         private static readonly Regex IndividualChatRegex = new(
@@ -77,7 +77,7 @@ namespace SwitchBlade.Plugins.Teams
             _logger = context.Logger;
 
             // Use injected settings if available (v1.9.3+), fallback to self-instantiation
-            _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
+            _settingsService = context.Settings;
 
             ReloadSettings();
         }
@@ -284,7 +284,7 @@ namespace SwitchBlade.Plugins.Teams
             }
         }
 
-        public (string Name, string Type, bool IsUnread)? ParseChatName(string rawName)
+        public static (string Name, string Type, bool IsUnread)? ParseChatName(string rawName)
         {
             bool isUnread = false;
             var cleanName = rawName;
@@ -491,5 +491,8 @@ namespace SwitchBlade.Plugins.Teams
         {
             return UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger);
         }
+
+        [GeneratedRegex(@"^Unread message ", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+        private static partial Regex MyRegex();
     }
 }

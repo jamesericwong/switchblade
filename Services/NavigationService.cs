@@ -40,19 +40,19 @@ namespace SwitchBlade.Services
             }
         }
 
-        private WindowItem ResolveByIdentity(IList<WindowItem> windows, IntPtr? hwnd, string? title)
+        private static WindowItem ResolveByIdentity(IList<WindowItem> windows, IntPtr? hwnd, string? title)
         {
             var match = windows.FirstOrDefault(w => w.Hwnd == hwnd && w.Title == title);
             return match ?? windows[0];
         }
 
-        private WindowItem ResolveByIndex(IList<WindowItem> windows, int previousIndex)
+        private static WindowItem ResolveByIndex(IList<WindowItem> windows, int previousIndex)
         {
             int idx = Math.Clamp(previousIndex, 0, windows.Count - 1);
             return windows[idx];
         }
 
-        private WindowItem ResolveByScroll(IList<WindowItem> windows, IntPtr? hwnd, string? title, int previousIndex)
+        private static WindowItem ResolveByScroll(IList<WindowItem> windows, IntPtr? hwnd, string? title, int previousIndex)
         {
             // No previous selection -> select first
             if (hwnd == null || hwnd == IntPtr.Zero)

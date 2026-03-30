@@ -20,14 +20,14 @@ namespace SwitchBlade.ViewModels
         private readonly INavigationService _navigationService;
         private readonly ISettingsService? _settingsService;
         private readonly IDispatcherService _dispatcherService;
-        private ObservableCollection<WindowItem> _filteredWindows = new();
+        private ObservableCollection<WindowItem> _filteredWindows = [];
         private WindowItem? _selectedWindow;
         private string _searchText = "";
         private bool _enablePreviews = true;
         private bool _isUpdating = false;
-        private HashSet<string> _disabledPlugins = new();
-        private readonly object _settingsLock = new();
-        private readonly object _updateLock = new();
+        private HashSet<string> _disabledPlugins = [];
+        private readonly System.Threading.Lock _settingsLock = new();
+        private readonly System.Threading.Lock _updateLock = new();
 
         /// <summary>Event fired when filtered results are updated.</summary>
         public event EventHandler? ResultsUpdated;
@@ -43,11 +43,10 @@ namespace SwitchBlade.ViewModels
 
         /// <summary>Gets the window providers from the orchestration service.</summary>
         public IReadOnlyList<IWindowProvider> WindowProviders =>
-            _orchestrationService.AllWindows
+            [.. _orchestrationService.AllWindows
                 .Where(w => w.Source != null)
                 .Select(w => w.Source!)
-                .Distinct()
-                .ToList();
+                .Distinct()];
 
         // Primary constructor with all dependencies
         public MainViewModel(
@@ -70,7 +69,7 @@ namespace SwitchBlade.ViewModels
             {
                 lock (_settingsLock)
                 {
-                    _disabledPlugins = new HashSet<string>(_settingsService.Settings.DisabledPlugins);
+                    _disabledPlugins = [.._settingsService.Settings.DisabledPlugins];
                 }
                 EnablePreviews = _settingsService.Settings.EnablePreviews;
 
@@ -78,7 +77,7 @@ namespace SwitchBlade.ViewModels
                 {
                     lock (_settingsLock)
                     {
-                        _disabledPlugins = new HashSet<string>(_settingsService.Settings.DisabledPlugins);
+                        _disabledPlugins = [.. _settingsService.Settings.DisabledPlugins];
                     }
                     EnablePreviews = _settingsService.Settings.EnablePreviews;
                     OnPropertyChanged(nameof(ShowInTaskbar));
@@ -92,17 +91,6 @@ namespace SwitchBlade.ViewModels
             }
 
             OpenSettingsCommand = new RelayCommand(_ => OpenSettingsRequested?.Invoke(this, EventArgs.Empty));
-        }
-
-        // Legacy constructor for backward compatibility
-        public MainViewModel(IEnumerable<IWindowProvider> windowProviders, ISettingsService? settingsService = null, IDispatcherService? dispatcherService = null, IIconService? iconService = null)
-            : this(
-                new WindowOrchestrationService(windowProviders, iconService, settingsService),
-                new WindowSearchService(new LruRegexCache(settingsService?.Settings.RegexCacheSize ?? 50)),
-                new NavigationService(),
-                settingsService,
-                dispatcherService)
-        {
         }
 
         private void OnWindowListUpdated(object? sender, WindowListUpdatedEventArgs e)
@@ -185,7 +173,7 @@ namespace SwitchBlade.ViewModels
             HashSet<string> disabled;
             lock (_settingsLock)
             {
-                disabled = new HashSet<string>(_disabledPlugins);
+                disabled = [.. _disabledPlugins];
             }
             await _orchestrationService.RefreshAsync(disabled);
         }

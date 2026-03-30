@@ -55,7 +55,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             _logger = context.Logger;
 
             // Use injected settings if available (v1.9.3+), fallback to self-instantiation
-            _settingsService = context.Settings ?? _settingsService ?? new PluginSettingsService(PluginName);
+            _settingsService = context.Settings;
 
             ReloadSettings();
         }
@@ -316,7 +316,7 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
         /// <summary>
         /// Surgical BFS for tab activation: Uses CacheRequest + FindAll with Document pruning.
         /// </summary>
-        private AutomationElement? FindTabByName(AutomationElement root, string targetName)
+        private static AutomationElement? FindTabByName(AutomationElement root, string targetName)
         {
             var cacheRequest = new CacheRequest();
             cacheRequest.Add(AutomationElement.NameProperty);
