@@ -3,8 +3,8 @@
 
 |||
 |:---|:---|
-| Generated on: | 4/25/2026 - 4:12:05 AM |
-| Coverage date: | 4/25/2026 - 4:12:02 AM |
+| Generated on: | 4/25/2026 - 1:33:23 PM |
+| Coverage date: | 4/25/2026 - 1:33:21 PM |
 | Parser: | Cobertura |
 | Assemblies: | 1 |
 | Classes: | 41 |
@@ -18,7 +18,7 @@
 | Covered branches: | 924 |
 | Total branches: | 924 |
 | **Method coverage:** | [Feature is only available for sponsors](https://reportgenerator.io/pro) |
-| Tag: | 220_24922247216 |
+| Tag: | 223_24932011364 |
 
 </details>
 
