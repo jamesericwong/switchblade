@@ -3,8 +3,8 @@
 
 |||
 |:---|:---|
-| Generated on: | 6/30/2026 - 12:03:32 AM |
-| Coverage date: | 6/30/2026 - 12:03:29 AM |
+| Generated on: | 6/30/2026 - 12:11:01 AM |
+| Coverage date: | 6/30/2026 - 12:10:57 AM |
 | Parser: | Cobertura |
 | Assemblies: | 1 |
 | Classes: | 41 |
@@ -14,11 +14,11 @@
 | Uncovered lines: | 0 |
 | Coverable lines: | 2518 |
 | Total lines: | 4792 |
-| **Branch coverage:** | 100% (924 of 924) |
-| Covered branches: | 924 |
-| Total branches: | 924 |
+| **Branch coverage:** | 98.5% (909 of 922) |
+| Covered branches: | 909 |
+| Total branches: | 922 |
 | **Method coverage:** | [Feature is only available for sponsors](https://reportgenerator.io/pro) |
-| Tag: | 245_28410827288 |
+| Tag: | 248_28411133439 |
 
 </details>
 
@@ -27,7 +27,7 @@
 
 |**Name**|**Line**|**Branch**|
 |:---|---:|---:|
-|**SwitchBlade**|**100%**|**100%**|
+|**SwitchBlade**|**100%**|**98.5%**|
 |SwitchBlade.Core.FileSystemWrapper|100%||
 |SwitchBlade.Core.FuzzyMatcher|100%|100%|
 |SwitchBlade.Core.FuzzyMatcherAdapter|100%||
@@ -64,10 +64,10 @@
 |SwitchBlade.Services.UserSettings|100%||
 |SwitchBlade.Services.WindowListUpdatedEventArgs|100%||
 |SwitchBlade.Services.WindowOrchestrationService|100%|100%|
-|SwitchBlade.Services.WindowReconciler|100%|100%|
+|SwitchBlade.Services.WindowReconciler|100%|96.6%|
 |SwitchBlade.Services.WindowsStartupManager|100%|100%|
-|SwitchBlade.ViewModels.MainViewModel|100%|100%|
+|SwitchBlade.ViewModels.MainViewModel|100%|97.7%|
 |SwitchBlade.ViewModels.RelayCommand|100%|100%|
-|SwitchBlade.ViewModels.SettingsViewModel|100%|100%|
+|SwitchBlade.ViewModels.SettingsViewModel|100%|85%|
 
 </details>

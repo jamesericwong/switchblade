@@ -29,7 +29,7 @@
 </tr>
 <tr>
 <th>Tag:</th>
-<td class="limit-width " title="245_28410827288">245_28410827288</td>
+<td class="limit-width " title="248_28411133439">248_28411133439</td>
 </tr>
 </table>
 </div>
@@ -70,12 +70,12 @@
 <div class="card">
 <div class="card-header">Branch coverage</div>
 <div class="card-body">
-<div class="large cardpercentagebar cardpercentagebar0">100%</div>
+<div class="large cardpercentagebar cardpercentagebar3">96%</div>
 <div class="table">
 <table>
 <tr>
 <th>Covered branches:</th>
-<td class="limit-width right" title="60">60</td>
+<td class="limit-width right" title="58">58</td>
 </tr>
 <tr>
 <th>Total branches:</th>
@@ -83,7 +83,7 @@
 </tr>
 <tr>
 <th>Branch coverage:</th>
-<td class="limit-width right" title="60 of 60">100%</td>
+<td class="limit-width right" title="58 of 60">96.6%</td>
 </tr>
 </table>
 </div>
@@ -117,7 +117,7 @@
 <tr><td title="AddToCache(SwitchBlade.Contracts.WindowItem)"><a href="#file0_line138" class="navigatetohash">AddToCache(...)</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 <tr><td title="RemoveFromCache(SwitchBlade.Contracts.WindowItem)"><a href="#file0_line146" class="navigatetohash">RemoveFromCache(...)</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 <tr><td title="AddToCacheInternal(SwitchBlade.Contracts.WindowItem)"><a href="#file0_line158" class="navigatetohash">AddToCacheInternal(...)</a></td><td>100%</td><td>8</td><td>8</td><td>100%</td></tr>
-<tr><td title="RemoveFromCacheInternal(SwitchBlade.Contracts.WindowItem)"><a href="#file0_line185" class="navigatetohash">RemoveFromCacheInternal(...)</a></td><td>100%</td><td>10</td><td>10</td><td>100%</td></tr>
+<tr><td title="RemoveFromCacheInternal(SwitchBlade.Contracts.WindowItem)"><a href="#file0_line185" class="navigatetohash">RemoveFromCacheInternal(...)</a></td><td>80%</td><td>10</td><td>10</td><td>100%</td></tr>
 <tr><td title="get_CacheCount()"><a href="#file0_line206" class="navigatetohash">get_CacheCount()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 <tr><td title="GetHwndCacheCount()"><a href="#file0_line215" class="navigatetohash">GetHwndCacheCount()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
 <tr><td title="GetProviderCacheCount()"><a href="#file0_line223" class="navigatetohash">GetProviderCacheCount()</a></td><td>100%</td><td>1</td><td>1</td><td>100%</td></tr>
@@ -316,10 +316,10 @@
 <tr class="" title="Not coverable" data-coverage="{'AllTestMethods': {'VC': '', 'LVS': 'gray'}}"><td class="gray">&nbsp;</td><td class="leftmargin rightmargin right"></td><td class="rightmargin right"><a id="file0_line184"></a><code>184</code></td><td></td><td class="lightgray"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;void&nbsp;RemoveFromCacheInternal(WindowItem&nbsp;item)</code></td></tr>
 <tr class="coverableline" title="Covered (11 visits)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line185"></a><code>185</code></td><td></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</code></td></tr>
 <tr class="" title="Not coverable" data-coverage="{'AllTestMethods': {'VC': '', 'LVS': 'gray'}}"><td class="gray">&nbsp;</td><td class="leftmargin rightmargin right"></td><td class="rightmargin right"><a id="file0_line186"></a><code>186</code></td><td></td><td class="lightgray"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;1.&nbsp;Remove&nbsp;from&nbsp;HWND&nbsp;lookup</code></td></tr>
-<tr class="coverableline" title="Covered (11 visits, 2 of 2 branches are covered)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line187"></a><code>187</code></td><td class="percentagebar percentagebar100"><i class="icon-fork"></i></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(_windowItemCache.TryGetValue(item.Hwnd,&nbsp;out&nbsp;var&nbsp;list))</code></td></tr>
+<tr class="coverableline" title="Partially covered (11 visits, 1 of 2 branches are covered)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'orange'}}"><td class="orange">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line187"></a><code>187</code></td><td class="percentagebar percentagebar50"><i class="icon-fork"></i></td><td class="lightorange"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(_windowItemCache.TryGetValue(item.Hwnd,&nbsp;out&nbsp;var&nbsp;list))</code></td></tr>
 <tr class="coverableline" title="Covered (11 visits)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line188"></a><code>188</code></td><td></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</code></td></tr>
 <tr class="coverableline" title="Covered (11 visits)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line189"></a><code>189</code></td><td></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;list.Remove(item);</code></td></tr>
-<tr class="coverableline" title="Covered (11 visits, 2 of 2 branches are covered)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line190"></a><code>190</code></td><td class="percentagebar percentagebar100"><i class="icon-fork"></i></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(list.Count&nbsp;==&nbsp;0)</code></td></tr>
+<tr class="coverableline" title="Partially covered (11 visits, 1 of 2 branches are covered)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'orange'}}"><td class="orange">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line190"></a><code>190</code></td><td class="percentagebar percentagebar50"><i class="icon-fork"></i></td><td class="lightorange"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(list.Count&nbsp;==&nbsp;0)</code></td></tr>
 <tr class="coverableline" title="Covered (11 visits)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line191"></a><code>191</code></td><td></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_windowItemCache.Remove(item.Hwnd);</code></td></tr>
 <tr class="coverableline" title="Covered (11 visits)" data-coverage="{'AllTestMethods': {'VC': '11', 'LVS': 'green'}}"><td class="green">&nbsp;</td><td class="leftmargin rightmargin right">11</td><td class="rightmargin right"><a id="file0_line192"></a><code>192</code></td><td></td><td class="lightgreen"><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</code></td></tr>
 <tr class="" title="Not coverable" data-coverage="{'AllTestMethods': {'VC': '', 'LVS': 'gray'}}"><td class="gray">&nbsp;</td><td class="leftmargin rightmargin right"></td><td class="rightmargin right"><a id="file0_line193"></a><code>193</code></td><td></td><td class="lightgray"><code></code></td></tr>
@@ -364,7 +364,7 @@
 </tbody>
 </table>
 </div>
-<div class="footer">Generated by: ReportGenerator 5.5.10.0<br />6/30/2026 - 12:03:32 AM<br /><a href="https://github.com/danielpalme/ReportGenerator">GitHub</a> | <a href="https://reportgenerator.io">reportgenerator.io</a></div></div>
+<div class="footer">Generated by: ReportGenerator 5.5.10.0<br />6/30/2026 - 12:11:01 AM<br /><a href="https://github.com/danielpalme/ReportGenerator">GitHub</a> | <a href="https://reportgenerator.io">reportgenerator.io</a></div></div>
 <div class="containerright">
 <div class="containerrightfixed">
 <h1>Methods/Properties</h1>

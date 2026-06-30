@@ -322,15 +322,15 @@ var assemblies = [
       { "name": "SwitchBlade.Services.ThemeInfo", "rp": "SwitchBlade_ThemeInfo.html", "cl": 2, "ucl": 0, "cal": 2, "tl": 110, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.ThemeService", "rp": "SwitchBlade_ThemeService.html", "cl": 61, "ucl": 0, "cal": 61, "tl": 110, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.UiaProviderRunner", "rp": "SwitchBlade_UiaProviderRunner.html", "cl": 108, "ucl": 0, "cal": 108, "tl": 142, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.UiaWorkerClient", "rp": "SwitchBlade_UiaWorkerClient.html", "cl": 239, "ucl": 0, "cal": 239, "tl": 386, "cb": 110, "tb": 110, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.UiaWorkerClient", "rp": "SwitchBlade_UiaWorkerClient.html", "cl": 239, "ucl": 0, "cal": 239, "tl": 386, "cb": 108, "tb": 108, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.UserSettings", "rp": "SwitchBlade_UserSettings.html", "cl": 27, "ucl": 0, "cal": 27, "tl": 166, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.WindowListUpdatedEventArgs", "rp": "SwitchBlade_WindowListUpdatedEventArgs.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 38, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.WindowOrchestrationService", "rp": "SwitchBlade_WindowOrchestrationService.html", "cl": 166, "ucl": 0, "cal": 166, "tl": 263, "cb": 86, "tb": 86, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.Services.WindowReconciler", "rp": "SwitchBlade_WindowReconciler.html", "cl": 147, "ucl": 0, "cal": 147, "tl": 231, "cb": 60, "tb": 60, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.Services.WindowReconciler", "rp": "SwitchBlade_WindowReconciler.html", "cl": 147, "ucl": 0, "cal": 147, "tl": 231, "cb": 58, "tb": 60, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.Services.WindowsStartupManager", "rp": "SwitchBlade_WindowsStartupManager.html", "cl": 49, "ucl": 0, "cal": 49, "tl": 97, "cb": 14, "tb": 14, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.ViewModels.MainViewModel", "rp": "SwitchBlade_MainViewModel.html", "cl": 156, "ucl": 0, "cal": 156, "tl": 271, "cb": 90, "tb": 90, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.ViewModels.MainViewModel", "rp": "SwitchBlade_MainViewModel.html", "cl": 156, "ucl": 0, "cal": 156, "tl": 271, "cb": 88, "tb": 90, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "SwitchBlade.ViewModels.RelayCommand", "rp": "SwitchBlade_RelayCommand.html", "cl": 13, "ucl": 0, "cal": 13, "tl": 33, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "SwitchBlade.ViewModels.SettingsViewModel", "rp": "SwitchBlade_SettingsViewModel.html", "cl": 225, "ucl": 0, "cal": 225, "tl": 422, "cb": 60, "tb": 60, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "SwitchBlade.ViewModels.SettingsViewModel", "rp": "SwitchBlade_SettingsViewModel.html", "cl": 225, "ucl": 0, "cal": 225, "tl": 422, "cb": 51, "tb": 60, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];
 
@@ -347,8 +347,8 @@ var riskHotspots = [
   {
     "assembly": "SwitchBlade", "class": "SwitchBlade.Services.UiaWorkerClient", "reportPath": "SwitchBlade_UiaWorkerClient.html", "methodName": "ScanStreamingAsync()", "methodShortName": "ScanStreamingAsync()", "fileIndex": 0, "line": 80,
     "metrics": [
-      { "value": 66, "exceeded": true },
-      { "value": 66, "exceeded": true },
+      { "value": 64, "exceeded": true },
+      { "value": 64, "exceeded": true },
     ]},
   {
     "assembly": "SwitchBlade", "class": "SwitchBlade.Services.BadgeAnimationService", "reportPath": "SwitchBlade_BadgeAnimationService.html", "methodName": "TriggerStaggeredAnimationAsync()", "methodShortName": "TriggerStaggeredAnimationAsync()", "fileIndex": 0, "line": 75,
