@@ -32,7 +32,7 @@ namespace SwitchBlade.Tests.Core
             Assert.Equal(Environment.ProcessPath, _factory.ProcessPath);
         }
 
-        [Fact]
+        [Fact(Timeout = 10000)]
         public async Task Start_AndWrapperProperties_ShouldWork()
         {
             var psi = new ProcessStartInfo("ping", "127.0.0.1 -n 2") // Stays alive for ~1s
@@ -59,8 +59,8 @@ namespace SwitchBlade.Tests.Core
             Assert.True(process.HasExited);
         }
 
-        [Fact]
-        public void Start_WithRedirects_ShouldExposeStandardStreams()
+        [Fact(Timeout = 10000)]
+        public async Task Start_WithRedirects_ShouldExposeStandardStreams()
         {
             var psi = new ProcessStartInfo("cmd.exe")
             {
@@ -78,10 +78,11 @@ namespace SwitchBlade.Tests.Core
             Assert.NotNull(process.StandardError);
             
             process.Kill(false);
+            await Task.CompletedTask;
         }
 
-        [Fact]
-        public void Kill_EntireProcessTree_ShouldWork()
+        [Fact(Timeout = 10000)]
+        public async Task Kill_EntireProcessTree_ShouldWork()
         {
             var psi = new ProcessStartInfo("cmd.exe")
             {
@@ -93,6 +94,7 @@ namespace SwitchBlade.Tests.Core
             Assert.NotNull(process);
             process!.Kill(true);
             Assert.True(process.HasExited);
+            await Task.CompletedTask;
         }
 
         [Fact]
@@ -102,8 +104,8 @@ namespace SwitchBlade.Tests.Core
             process.Refresh();
         }
 
-        [Fact]
-        public void BeginErrorReadLine_AndEvent_ShouldWork()
+        [Fact(Timeout = 10000)]
+        public async Task BeginErrorReadLine_AndEvent_ShouldWork()
         {
             var psi = new ProcessStartInfo("cmd.exe", "/c echo error >&2")
             {
@@ -119,13 +121,13 @@ namespace SwitchBlade.Tests.Core
             process.BeginErrorReadLine();
             
             // Give it a moment to run
-            Thread.Sleep(500); 
+            await Task.Delay(500); 
             Assert.True(errorReceived || true); // Use the variable to satisfy compiler, though we can't guarantee stderr timing
             process.Kill(false);
         }
         
-        [Fact]
-        public void StandardStreams_ShouldReturnProcessStreams()
+        [Fact(Timeout = 10000)]
+        public async Task StandardStreams_ShouldReturnProcessStreams()
         {
             var psi = new ProcessStartInfo("cmd.exe")
             {
@@ -143,6 +145,7 @@ namespace SwitchBlade.Tests.Core
             Assert.NotNull(process.StandardError);
 
             process.Kill(false);
+            await Task.CompletedTask;
         }
 
         [Fact]
