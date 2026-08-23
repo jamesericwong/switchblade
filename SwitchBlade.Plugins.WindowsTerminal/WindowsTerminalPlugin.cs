@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Windows.Automation;
 using System.Windows.Interop;
 using SwitchBlade.Contracts;
+
+[assembly: InternalsVisibleTo("SwitchBlade.Tests")]
 
 namespace SwitchBlade.Plugins.WindowsTerminal
 {
@@ -118,36 +121,35 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             }, IntPtr.Zero);
 
             // POST-PROCESS: Deduplication and Prioritization
+            return DeduplicateResults(this, pidToResults);
+        }
+
+        /// <summary>
+        /// Per-PID deduplication: if any handle yielded real tabs, only those are kept;
+        /// otherwise a single unique main-window fallback is retained.
+        /// </summary>
+        internal static List<WindowItem> DeduplicateResults(IWindowProvider source, Dictionary<int, List<WindowItem>> pidToResults)
+        {
+            var allResults = new List<WindowItem>();
+
             foreach (var kvp in pidToResults)
             {
-                var pid = kvp.Key;
                 var items = kvp.Value;
 
-                // Identify if any item is a "legitimate" tab (detected via ScanForTabs)
-                // We'll use a heuristic: if we have multiple windows for one PID,
-                // and some found 1+ tabs while others found 0 (fallback), discard the fallbacks.
-                
-                var windowsWithTabs = items.Where(i => i.Source == this && !string.IsNullOrEmpty(i.Title)).ToList();
-                
-                // If we found specific tabs at all for this PID, use only them.
-                // This prevents "Main Window" from appearing if we successfully peered into even one handle.
+                // Real tabs only: fallback (main-window) entries are excluded so a bare
+                // "Main Window" never appears alongside the tabs of the same process.
+                var windowsWithTabs = items.Where(i => i.Source == source && !string.IsNullOrEmpty(i.Title) && !i.IsFallback).ToList();
+
                 if (windowsWithTabs.Count != 0)
                 {
-                    // Filter: Only include items that are not just the 'main window' fallback.
-                    // How to detect? In ScanWindow, fallback uses 'windowTitle'. 
-                    // To be safe, we'll track if ScanForTabs returned nodes.
-                    // Actually, a simpler way: if we have items, and any found tabs, 
-                    // we remove the ones that are just the Fallback markers.
-                    // Let's add a Tag or check some unique property.
-                    
-                    // For now, if we found any tabs, use only the windows that found tabs.
                     allResults.AddRange(windowsWithTabs);
                 }
                 else if (items.Count != 0)
                 {
-                    // If no tabs found at all for any handle, just take the first unique handle's fallback
-                    // to avoid "Found 2 windows" (both being main window).
-                    var uniqueHandleFallback = items.GroupBy(i => i.Hwnd).Select(g => g.First()).FirstOrDefault();
+                    // No tabs found on any handle: keep one fallback per unique window handle
+                    // to avoid "Found 2 windows" (both being the main window).
+                    var ownFallbacks = items.Where(i => i.Source == source && i.IsFallback).ToList();
+                    var uniqueHandleFallback = ownFallbacks.GroupBy(i => i.Hwnd).Select(g => g.First()).FirstOrDefault();
                     if (uniqueHandleFallback != null)
                     {
                         allResults.Add(uniqueHandleFallback);
@@ -193,7 +195,8 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                     Title = windowTitle,
                     ProcessName = processName,
                     ExecutablePath = executablePath,
-                    Source = this
+                    Source = this,
+                    IsFallback = true
                 });
             }
         }

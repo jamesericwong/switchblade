@@ -1,5 +1,7 @@
 using Xunit;
 using Moq;
+using System;
+using System.Collections.Generic;
 using SwitchBlade.Plugins.WindowsTerminal;
 using SwitchBlade.Contracts;
 using System.Linq;
@@ -93,6 +95,88 @@ namespace SwitchBlade.Tests.Plugins
             // Assert - result depends on whether Terminal is running
             // We just verify it doesn't throw
             Assert.NotNull(windows);
+        }
+
+        private WindowItem MakeItem(IntPtr hwnd, string title, bool fallback, IWindowProvider? source = null) => new()
+        {
+            Hwnd = hwnd,
+            Title = title,
+            ProcessName = "WindowsTerminal",
+            IsFallback = fallback,
+            Source = source ?? _plugin
+        };
+
+        [Fact]
+        public void DeduplicateResults_MixedTabsAndFallbacks_OnlyRealTabsSurvive()
+        {
+            // Arrange: one handle peered successfully (2 tabs), another fell back to the main window.
+            var tabA = MakeItem(new IntPtr(0x1), "powershell", fallback: false);
+            var tabB = MakeItem(new IntPtr(0x1), "git bash", fallback: false);
+            var mainWindowFallback = MakeItem(new IntPtr(0x2), "Windows Terminal", fallback: true);
+
+            var pidToResults = new Dictionary<int, List<WindowItem>>
+            {
+                [4321] = new List<WindowItem> { tabA, tabB, mainWindowFallback }
+            };
+
+            // Act
+            var result = WindowsTerminalPlugin.DeduplicateResults(_plugin, pidToResults).ToList();
+
+            // Assert: the bare "Main Window" fallback must not appear alongside its tabs.
+            Assert.Equal(2, result.Count);
+            Assert.Contains(result, i => i.Title == "powershell");
+            Assert.Contains(result, i => i.Title == "git bash");
+            Assert.DoesNotContain(result, i => i.IsFallback);
+        }
+
+        [Fact]
+        public void DeduplicateResults_AllHandlesFallback_SingleUniqueItemSurvives()
+        {
+            // Arrange: two handles of the same PID, neither peered successfully.
+            var fallbackA = MakeItem(new IntPtr(0x1), "Windows Terminal", fallback: true);
+            var fallbackB = MakeItem(new IntPtr(0x2), "Windows Terminal", fallback: true);
+
+            var pidToResults = new Dictionary<int, List<WindowItem>>
+            {
+                [4321] = new List<WindowItem> { fallbackA, fallbackB }
+            };
+
+            // Act
+            var result = WindowsTerminalPlugin.DeduplicateResults(_plugin, pidToResults).ToList();
+
+            // Assert: exactly one entry (no "Found 2 windows"), and it stays marked as a fallback
+            // so downstream LKG logic treats it as degraded data.
+            Assert.Single(result);
+            Assert.True(result[0].IsFallback);
+        }
+
+        [Fact]
+        public void DeduplicateResults_ItemsFromOtherProvider_AreIgnored()
+        {
+            // Arrange: a foreign provider's tab must not count toward this plugin's dedup decision.
+            var otherPlugin = new WindowsTerminalPlugin();
+            var foreignTab = MakeItem(new IntPtr(0x1), "foreign tab", fallback: false, source: otherPlugin);
+            var ownFallback = MakeItem(new IntPtr(0x2), "Windows Terminal", fallback: true);
+
+            var pidToResults = new Dictionary<int, List<WindowItem>>
+            {
+                [4321] = new List<WindowItem> { foreignTab, ownFallback }
+            };
+
+            // Act
+            var result = WindowsTerminalPlugin.DeduplicateResults(_plugin, pidToResults).ToList();
+
+            // Assert: only our own fallback survives.
+            Assert.Single(result);
+            Assert.Same(ownFallback, result[0]);
+        }
+
+        [Fact]
+        public void DeduplicateResults_EmptyInput_ReturnsEmpty()
+        {
+            var result = WindowsTerminalPlugin.DeduplicateResults(_plugin, new Dictionary<int, List<WindowItem>>()).ToList();
+
+            Assert.Empty(result);
         }
     }
 }
