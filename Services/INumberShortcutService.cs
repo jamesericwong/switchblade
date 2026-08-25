@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using System.Windows.Input;
-using SwitchBlade.ViewModels;
 using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Services
@@ -17,9 +17,9 @@ namespace SwitchBlade.Services
         /// </summary>
         /// <param name="key">The key pressed.</param>
         /// <param name="modifiers">Current modifier keys.</param>
-        /// <param name="viewModel">The view model containing the filtered window list.</param>
+        /// <param name="windows">The filtered window list to index into.</param>
         /// <param name="activateWindow">Action to perform when a shortcut is triggered.</param>
         /// <returns>True if a shortcut was triggered and handled.</returns>
-        bool HandleShortcut(Key key, ModifierKeys modifiers, IWindowListViewModel viewModel, Action<WindowItem?> activateWindow);
+        bool HandleShortcut(Key key, ModifierKeys modifiers, IReadOnlyList<WindowItem> windows, Action<WindowItem?> activateWindow);
     }
 }

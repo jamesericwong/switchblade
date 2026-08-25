@@ -1,6 +1,7 @@
 using Xunit;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.Windows.Input;
 using System.Collections.ObjectModel;
 using SwitchBlade.Handlers;
@@ -147,8 +148,11 @@ namespace SwitchBlade.Tests.Handlers
         public void HandleKeyInput_DelegatesToNumberShortcutService()
         {
             // Arrange
+            var windows = new ObservableCollection<WindowItem> { new WindowItem { Title = "W1" } };
+            _mockViewModel.Setup(vm => vm.FilteredWindows).Returns(windows);
+
             _mockNumberShortcutService
-                .Setup(s => s.HandleShortcut(It.IsAny<Key>(), It.IsAny<ModifierKeys>(), It.IsAny<IWindowListViewModel>(), It.IsAny<Action<WindowItem?>>()))
+                .Setup(s => s.HandleShortcut(It.IsAny<Key>(), It.IsAny<ModifierKeys>(), It.IsAny<IReadOnlyList<WindowItem>>(), It.IsAny<Action<WindowItem?>>()))
                 .Returns(true);
 
             // Act
@@ -159,7 +163,7 @@ namespace SwitchBlade.Tests.Handlers
             _mockNumberShortcutService.Verify(s => s.HandleShortcut(
                 Key.D1, 
                 ModifierKeys.Alt, 
-                _mockViewModel.Object, 
+                windows, 
                 _mockActivateWindow.Object), Times.Once);
         }
 

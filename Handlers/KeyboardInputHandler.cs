@@ -121,7 +121,7 @@ namespace SwitchBlade.Handlers
             }
             
             // Delegate Number Shortcuts to the dedicated service
-            if (_numberShortcutService.HandleShortcut(key, modifiers, _viewModel, _activateWindow))
+            if (_numberShortcutService.HandleShortcut(key, modifiers, _viewModel.FilteredWindows, _activateWindow))
             {
                 return true;
             }

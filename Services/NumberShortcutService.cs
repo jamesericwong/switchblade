@@ -1,7 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Windows.Input;
 using SwitchBlade.Contracts;
-using SwitchBlade.ViewModels;
 
 namespace SwitchBlade.Services
 {
@@ -20,19 +20,21 @@ namespace SwitchBlade.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public bool HandleShortcut(Key key, ModifierKeys modifiers, IWindowListViewModel viewModel, Action<WindowItem?> activateWindow)
+        public bool HandleShortcut(Key key, ModifierKeys modifiers, IReadOnlyList<WindowItem> windows, Action<WindowItem?> activateWindow)
         {
+            if (windows is null) throw new ArgumentNullException(nameof(windows));
+
             if (!_settingsService.Settings.EnableNumberShortcuts) return false;
 
             var settings = _settingsService.Settings;
-            
+             
             // Check if the required modifier key is pressed
             if (IsModifierKeyPressed(settings.NumberShortcutModifier, modifiers))
             {
                 int? index = GetNumberKeyIndex(key);
                 if (index.HasValue)
                 {
-                    ActivateWindowByIndex(index.Value, viewModel, activateWindow);
+                    ActivateWindowByIndex(index.Value, windows, activateWindow);
                     return true;
                 }
             }
@@ -70,11 +72,11 @@ namespace SwitchBlade.Services
             };
         }
 
-        private void ActivateWindowByIndex(int index, IWindowListViewModel viewModel, Action<WindowItem?> activateWindow)
+        private void ActivateWindowByIndex(int index, IReadOnlyList<WindowItem> windows, Action<WindowItem?> activateWindow)
         {
-            if (index < viewModel.FilteredWindows.Count)
+            if (index < windows.Count)
             {
-                var windowItem = viewModel.FilteredWindows[index];
+                var windowItem = windows[index];
                 _logger.Log($"Number shortcut activated: index {index} -> '{windowItem.Title}'");
                 activateWindow(windowItem);
             }

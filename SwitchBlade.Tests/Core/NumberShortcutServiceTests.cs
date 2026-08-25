@@ -1,10 +1,9 @@
 using Xunit;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.Windows.Input;
-using System.Collections.ObjectModel;
 using SwitchBlade.Services;
-using SwitchBlade.ViewModels;
 using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Tests.Services
@@ -13,7 +12,6 @@ namespace SwitchBlade.Tests.Services
     {
         private readonly Mock<ISettingsService> _mockSettingsService;
         private readonly Mock<ILogger> _mockLogger;
-        private readonly Mock<IWindowListViewModel> _mockViewModel;
         private readonly Mock<Action<WindowItem?>> _mockActivateWindow;
         private readonly UserSettings _settings;
         private readonly NumberShortcutService _service;
@@ -22,7 +20,6 @@ namespace SwitchBlade.Tests.Services
         {
             _mockSettingsService = new Mock<ISettingsService>();
             _mockLogger = new Mock<ILogger>();
-            _mockViewModel = new Mock<IWindowListViewModel>();
             _mockActivateWindow = new Mock<Action<WindowItem?>>();
 
             _settings = new UserSettings();
@@ -39,11 +36,18 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public void HandleShortcut_NullWindows_ThrowsArgumentNullException()
+        {
+            var ex = Assert.Throws<ArgumentNullException>(() => _service.HandleShortcut(Key.D1, ModifierKeys.None, null!, _mockActivateWindow.Object));
+            Assert.Equal("windows", ex.ParamName);
+        }
+
+        [Fact]
         public void HandleShortcut_ReturnsFalse_WhenDisabled()
         {
             _settings.EnableNumberShortcuts = false;
             
-            bool handled = _service.HandleShortcut(Key.D1, ModifierKeys.None, _mockViewModel.Object, _mockActivateWindow.Object);
+            bool handled = _service.HandleShortcut(Key.D1, ModifierKeys.None, [], _mockActivateWindow.Object);
             
             Assert.False(handled);
             _mockActivateWindow.Verify(a => a(It.IsAny<WindowItem>()), Times.Never);
@@ -55,7 +59,7 @@ namespace SwitchBlade.Tests.Services
             _settings.EnableNumberShortcuts = true;
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.Alt;
 
-            bool handled = _service.HandleShortcut(Key.D1, ModifierKeys.None, _mockViewModel.Object, _mockActivateWindow.Object);
+            bool handled = _service.HandleShortcut(Key.D1, ModifierKeys.None, [], _mockActivateWindow.Object);
 
             Assert.False(handled);
             _mockActivateWindow.Verify(a => a(It.IsAny<WindowItem>()), Times.Never);
@@ -67,7 +71,7 @@ namespace SwitchBlade.Tests.Services
             _settings.EnableNumberShortcuts = true;
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.None;
 
-            bool handled = _service.HandleShortcut(Key.A, ModifierKeys.None, _mockViewModel.Object, _mockActivateWindow.Object);
+            bool handled = _service.HandleShortcut(Key.A, ModifierKeys.None, [], _mockActivateWindow.Object);
 
             Assert.False(handled);
             _mockActivateWindow.Verify(a => a(It.IsAny<WindowItem>()), Times.Never);
@@ -90,11 +94,10 @@ namespace SwitchBlade.Tests.Services
             _settings.EnableNumberShortcuts = true;
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.None;
 
-            var items = new ObservableCollection<WindowItem>();
+            var items = new List<WindowItem>();
             for (int i = 0; i < 10; i++) items.Add(new WindowItem { Title = $"Item {i}" });
-            _mockViewModel.Setup(vm => vm.FilteredWindows).Returns(items);
 
-            bool handled = _service.HandleShortcut(key, ModifierKeys.None, _mockViewModel.Object, _mockActivateWindow.Object);
+            bool handled = _service.HandleShortcut(key, ModifierKeys.None, items, _mockActivateWindow.Object);
 
             Assert.True(handled);
             _mockActivateWindow.Verify(a => a(items[expectedIndex]), Times.Once);
@@ -107,11 +110,10 @@ namespace SwitchBlade.Tests.Services
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.None;
 
             // Only 1 item
-            var items = new ObservableCollection<WindowItem> { new WindowItem() };
-            _mockViewModel.Setup(vm => vm.FilteredWindows).Returns(items);
+            var items = new List<WindowItem> { new WindowItem() };
 
             // Key D2 -> Index 1 (out of range)
-            bool handled = _service.HandleShortcut(Key.D2, ModifierKeys.None, _mockViewModel.Object, _mockActivateWindow.Object);
+            bool handled = _service.HandleShortcut(Key.D2, ModifierKeys.None, items, _mockActivateWindow.Object);
 
             Assert.True(handled);
             _mockActivateWindow.Verify(a => a(It.IsAny<WindowItem>()), Times.Never);
@@ -121,28 +123,27 @@ namespace SwitchBlade.Tests.Services
         public void HandleShortcut_WorksWithAllSupportedModifiers()
         {
             _settings.EnableNumberShortcuts = true;
-            var items = new ObservableCollection<WindowItem> { new WindowItem() };
-            _mockViewModel.Setup(vm => vm.FilteredWindows).Returns(items);
+            var items = new List<WindowItem> { new WindowItem() };
 
             // Alt
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.Alt;
-            Assert.True(_service.HandleShortcut(Key.D1, ModifierKeys.Alt, _mockViewModel.Object, _mockActivateWindow.Object));
+            Assert.True(_service.HandleShortcut(Key.D1, ModifierKeys.Alt, items, _mockActivateWindow.Object));
             
             // Ctrl
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.Ctrl;
-            Assert.True(_service.HandleShortcut(Key.D1, ModifierKeys.Control, _mockViewModel.Object, _mockActivateWindow.Object));
+            Assert.True(_service.HandleShortcut(Key.D1, ModifierKeys.Control, items, _mockActivateWindow.Object));
 
             // Shift
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.Shift;
-            Assert.True(_service.HandleShortcut(Key.D1, ModifierKeys.Shift, _mockViewModel.Object, _mockActivateWindow.Object));
+            Assert.True(_service.HandleShortcut(Key.D1, ModifierKeys.Shift, items, _mockActivateWindow.Object));
 
             // None
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.None;
-            Assert.True(_service.HandleShortcut(Key.D1, ModifierKeys.None, _mockViewModel.Object, _mockActivateWindow.Object));
+            Assert.True(_service.HandleShortcut(Key.D1, ModifierKeys.None, items, _mockActivateWindow.Object));
 
             // Invalid modifier value
             _settings.NumberShortcutModifier = 99;
-            Assert.False(_service.HandleShortcut(Key.D1, ModifierKeys.None, _mockViewModel.Object, _mockActivateWindow.Object));
+            Assert.False(_service.HandleShortcut(Key.D1, ModifierKeys.None, items, _mockActivateWindow.Object));
         }
     }
 }
