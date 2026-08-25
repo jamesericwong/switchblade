@@ -17,6 +17,7 @@ namespace SwitchBlade.Services
         private readonly ILogger _logger;
         private HwndSource? _source;
         private Action _onHotKeyPressed;
+        private bool _disposed;
 
         public HotKeyService(Window window, ISettingsService settingsService, ILogger logger, Action onHotKeyPressed)
         {
@@ -73,6 +74,13 @@ namespace SwitchBlade.Services
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Guard: If already disposed, the subscription is being torn down - never initialize on a dead service.
+            if (_disposed)
+            {
+                _logger.Log("HotKeyService: Window_Loaded called after dispose, skipping");
+                return;
+            }
+
             // Guard: If already initialized (e.g., from EnsureHandle()), skip
             if (_source != null)
             {
@@ -121,11 +129,20 @@ namespace SwitchBlade.Services
             return result;
         }
 
-        private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        internal IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
             {
-                _onHotKeyPressed?.Invoke();
+                // Exceptions here would propagate into the WPF message loop and crash the app.
+                try
+                {
+                    _onHotKeyPressed?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("Unhandled exception in hotkey handler", ex);
+                }
+
                 handled = true;
             }
             return IntPtr.Zero;
@@ -133,7 +150,16 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // Unsubscribe before releasing the hotkey so a late Loaded event can never re-initialize.
+            _window.Loaded -= Window_Loaded;
+            _window.Closing -= Window_Closing;
             _settingsService.SettingsChanged -= OnSettingsChanged;
+
             if (_source != null)
             {
                 UnregisterHotKey(_source.Handle);

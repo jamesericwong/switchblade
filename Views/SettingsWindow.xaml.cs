@@ -8,9 +8,12 @@ namespace SwitchBlade.Views
 {
     public partial class SettingsWindow : Window
     {
-        public SettingsWindow()
+        private readonly ILogger? _logger;
+
+        public SettingsWindow(ILogger? logger = null)
         {
             InitializeComponent();
+            _logger = logger;
             this.Loaded += SettingsWindow_Loaded;
         }
 
@@ -23,10 +26,10 @@ namespace SwitchBlade.Views
 
         private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            Logger.Log($"SettingsWindow KeyDown: {e.Key}");
+            _logger?.Log($"SettingsWindow KeyDown: {e.Key}");
             if (e.Key == Key.Escape)
             {
-                Logger.Log("SettingsWindow: Closing on ESC");
+                _logger?.Log("SettingsWindow: Closing on ESC");
                 this.Close();
                 e.Handled = true;
             }
@@ -34,7 +37,7 @@ namespace SwitchBlade.Views
 
         private void HotKeyBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            Logger.Log($"HotKeyBox KeyDown: {e.Key}");
+            _logger?.Log($"HotKeyBox KeyDown: {e.Key}");
             // Ignore Escape key if it wasn't handled by Window (double check)
             if (e.Key == Key.Escape) return;
 

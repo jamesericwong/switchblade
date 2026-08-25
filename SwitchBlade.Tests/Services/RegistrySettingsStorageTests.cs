@@ -1,3 +1,4 @@
+using System;
 using Xunit;
 using Moq;
 using SwitchBlade.Services;
@@ -95,6 +96,69 @@ namespace SwitchBlade.Tests.Services
             _storage.SetStringList("MyList", list);
 
             _mockRegistry.Verify(r => r.SetCurrentUserValue(TestKeyPath, "MyList", It.Is<string>(s => s.Contains("A") && s.Contains("B")), RegistryValueKind.String), Times.Once);
+        }
+
+        [Fact]
+        public void GetValue_RegistryReadThrows_LogsErrorAndReturnsDefault()
+        {
+            var ex = new UnauthorizedAccessException("Access denied");
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(TestKeyPath, "MyInt")).Throws(ex);
+            var mockLogger = new Mock<ILogger>();
+            var storage = new RegistrySettingsStorage(TestKeyPath, _mockRegistry.Object, mockLogger.Object);
+
+            Assert.Equal(0, storage.GetValue("MyInt", 0));
+
+            mockLogger.Verify(l => l.LogError(It.Is<string>(m => m.Contains("MyInt")), ex), Times.Once);
+        }
+
+        [Fact]
+        public void GetValue_ValueMissing_ReturnsDefaultWithoutLogging()
+        {
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(TestKeyPath, "MyInt")).Returns((object?)null);
+            var mockLogger = new Mock<ILogger>();
+            var storage = new RegistrySettingsStorage(TestKeyPath, _mockRegistry.Object, mockLogger.Object);
+
+            Assert.Equal(0, storage.GetValue("MyInt", 0));
+
+            mockLogger.Verify(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()), Times.Never);
+        }
+
+        [Fact]
+        public void GetValue_StoredValueUnconvertible_LogsErrorAndReturnsDefault()
+        {
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(TestKeyPath, "MyInt")).Returns("not-a-number");
+            var mockLogger = new Mock<ILogger>();
+            var storage = new RegistrySettingsStorage(TestKeyPath, _mockRegistry.Object, mockLogger.Object);
+
+            Assert.Equal(-1, storage.GetValue("MyInt", -1));
+
+            mockLogger.Verify(l => l.LogError(It.Is<string>(m => m.Contains("MyInt")), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
+        public void GetStringList_RegistryReadThrows_LogsErrorAndReturnsEmpty()
+        {
+            var ex = new UnauthorizedAccessException("Access denied");
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(TestKeyPath, "MyList")).Throws(ex);
+            var mockLogger = new Mock<ILogger>();
+            var storage = new RegistrySettingsStorage(TestKeyPath, _mockRegistry.Object, mockLogger.Object);
+
+            Assert.Empty(storage.GetStringList("MyList"));
+
+            mockLogger.Verify(l => l.LogError(It.Is<string>(m => m.Contains("MyList")), ex), Times.Once);
+        }
+
+        [Fact]
+        public void HasKey_RegistryReadThrows_LogsErrorAndReturnsFalse()
+        {
+            var ex = new UnauthorizedAccessException("Access denied");
+            _mockRegistry.Setup(r => r.GetCurrentUserValue(TestKeyPath, "MyKey")).Throws(ex);
+            var mockLogger = new Mock<ILogger>();
+            var storage = new RegistrySettingsStorage(TestKeyPath, _mockRegistry.Object, mockLogger.Object);
+
+            Assert.False(storage.HasKey("MyKey"));
+
+            mockLogger.Verify(l => l.LogError(It.Is<string>(m => m.Contains("MyKey")), ex), Times.Once);
         }
     }
 }

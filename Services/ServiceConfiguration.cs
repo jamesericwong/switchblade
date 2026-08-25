@@ -42,14 +42,14 @@ namespace SwitchBlade.Services
                 var registryService = sp.GetRequiredService<IRegistryService>();
                 var logger = sp.GetRequiredService<ILogger>();
                 return new SettingsService(
-                    new RegistrySettingsStorage(@"Software\SwitchBlade", registryService),
+                    new RegistrySettingsStorage(@"Software\SwitchBlade", registryService, logger),
                     new WindowsStartupManager(registryService),
                     logger);
             });
             services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<SettingsService>());
             services.AddSingleton<ThemeService>();
             services.AddSingleton<IDispatcherService, WpfDispatcherService>();
-            services.AddSingleton<IIconService>(sp => new IconService(sp.GetRequiredService<ISettingsService>(), sp.GetRequiredService<IIconExtractor>()));
+            services.AddSingleton<IIconService>(sp => new IconService(sp.GetRequiredService<ISettingsService>(), sp.GetRequiredService<IIconExtractor>(), sp.GetRequiredService<ILogger>()));
             services.AddSingleton<IIconExtractor, IconExtractor>();
 
             // Logger & Plugin Context
@@ -141,7 +141,8 @@ namespace SwitchBlade.Services
                 sp.GetRequiredService<ISettingsService>(),
                 sp.GetRequiredService<ThemeService>(),
                 sp.GetRequiredService<IPluginService>(),
-                sp.GetRequiredService<IUIService>()
+                sp.GetRequiredService<IUIService>(),
+                sp.GetRequiredService<ILogger>()
             ));
 
             // Diagnostics (Investigation)

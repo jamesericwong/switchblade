@@ -5,7 +5,6 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using SwitchBlade.Contracts;
-using SwitchBlade.Views.Components;
 
 namespace SwitchBlade.Services
 {
@@ -19,9 +18,14 @@ namespace SwitchBlade.Services
     {
         private readonly IDispatcherService _dispatcherService;
 
-        public StoryboardBadgeAnimator(IDispatcherService dispatcherService)
+        // View-owned mapping from item to its realized ListBoxItem container.
+        // Injected by the composition root so this service never reaches into view internals.
+        private readonly Func<WindowItem, ListBoxItem?> _containerResolver;
+
+        public StoryboardBadgeAnimator(IDispatcherService dispatcherService, Func<WindowItem, ListBoxItem?> containerResolver)
         {
             _dispatcherService = dispatcherService ?? throw new ArgumentNullException(nameof(dispatcherService));
+            _containerResolver = containerResolver ?? throw new ArgumentNullException(nameof(containerResolver));
         }
 
         public void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX)
@@ -39,7 +43,7 @@ namespace SwitchBlade.Services
                 int attempts = 0;
                 while (attempts < 20) // Max 20 attempts (approx 500ms total)
                 {
-                    container = FindContainer(item);
+                    container = _containerResolver(item);
                     if (container != null) break;
 
                     attempts++;
@@ -114,18 +118,6 @@ namespace SwitchBlade.Services
                 badgeBorder.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
                 transform.BeginAnimation(TranslateTransform.XProperty, translateAnim);
             });
-        }
-
-        private static ListBoxItem? FindContainer(WindowItem item)
-        {
-            var mainWindow = System.Windows.Application.Current.MainWindow as MainWindow;
-            if (mainWindow == null) return null;
-
-            var resultListControl = mainWindow.FindName("ResultsConfig") as ResultList;
-            if (resultListControl == null) return null;
-
-            var listBox = resultListControl.InnerListBox;
-            return listBox?.ItemContainerGenerator.ContainerFromItem(item) as ListBoxItem;
         }
 
         private static T? FindChild<T>(DependencyObject parent, string childName) where T : DependencyObject

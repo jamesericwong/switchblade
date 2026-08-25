@@ -11,6 +11,13 @@ namespace SwitchBlade.Services
     [ExcludeFromCodeCoverage]
     public class IconExtractor : IIconExtractor
     {
+        private readonly ILogger? _logger;
+
+        public IconExtractor(ILogger? logger = null)
+        {
+            _logger = logger;
+        }
+
         public ImageSource? ExtractIcon(string executablePath)
         {
             IntPtr[]? smallIcons = null;
@@ -47,7 +54,7 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                Core.Logger.LogError($"Failed to extract icon from '{executablePath}'", ex);
+                _logger?.LogError($"Failed to extract icon from '{executablePath}'", ex);
                 return null;
             }
             finally

@@ -205,5 +205,59 @@ namespace SwitchBlade.Tests.Services
             
             _mockTimer.Verify(t => t.Dispose(), Times.Once());
         }
+
+        [Fact]
+        public async Task Dispose_WhileLoopRunning_StopsInFlightWaitWithoutErrorLog()
+        {
+            // Production path: App starts the loop, then DI-container disposal calls Dispose()
+            // directly (no StopAsync). The pending timer wait is registered on _cts.Token, so
+            // Dispose must cancel that token — otherwise the wait outlives the service and a
+            // disposed-timer fault surfaces as a spurious "loop error" at shutdown.
+            var started = new ManualResetEventSlim(false);
+            var heldRegistrations = new List<CancellationTokenRegistration>();
+            Task<bool>? pendingWait = null;
+
+            _mockTimer.Setup(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken ct) =>
+                {
+                    var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    if (ct.CanBeCanceled && !ct.IsCancellationRequested)
+                    {
+                        // Faithful to PeriodicTimer: a cancelled pending wait faults with OperationCanceledException.
+                        heldRegistrations.Add(ct.Register(() => tcs.TrySetException(new OperationCanceledException())));
+                    }
+                    pendingWait = tcs.Task;
+                    started.Set();
+                    return new ValueTask<bool>(tcs.Task);
+                });
+
+            var service = CreateService();
+            await service.StartAsync(CancellationToken.None);
+
+            if (!started.Wait(5000)) throw new Exception("Timed out waiting for the diagnostics loop to enter its timer wait");
+
+            // Dispose directly — exactly what App.OnExit's container disposal does.
+            service.Dispose();
+
+            var completedInTime = await Task.WhenAny(pendingWait!, Task.Delay(3000)) == pendingWait;
+            Assert.True(completedInTime, "Dispose did not cancel the token driving the in-flight timer wait");
+
+            var waitTask = pendingWait!;
+            if (waitTask.IsFaulted)
+                Assert.IsAssignableFrom<OperationCanceledException>(waitTask.Exception!.InnerExceptions.First());
+
+            // The loop's quiet-OCE contract: cancellation must not be logged as a shutdown error.
+            _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("loop error")), It.IsAny<Exception>()), Times.Never());
+            _mockTimer.Verify(t => t.Dispose(), Times.Once());
+        }
+
+        [Fact]
+        public void Dispose_Twice_DoesNotThrow()
+        {
+            var service = CreateService();
+
+            service.Dispose();
+            Assert.Null(Record.Exception(() => service.Dispose()));
+        }
     }
 }

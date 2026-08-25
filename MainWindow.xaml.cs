@@ -24,6 +24,7 @@ namespace SwitchBlade
         private readonly ISettingsService _settingsService;
         private readonly IDispatcherService _dispatcherService;
         private readonly ILogger _logger;
+        private readonly IUIService _uiService;
         private readonly KeyboardInputHandler _keyboardHandler;
         private readonly WindowResizeHandler _resizeHandler;
 
@@ -41,7 +42,8 @@ namespace SwitchBlade
             ISettingsService settingsService,
             IDispatcherService dispatcherService,
             ILogger logger,
-            INumberShortcutService numberShortcutService)
+            INumberShortcutService numberShortcutService,
+            IUIService uiService)
         {
             InitializeComponent();
 
@@ -49,6 +51,7 @@ namespace SwitchBlade
             _settingsService = settingsService;
             _dispatcherService = dispatcherService;
             _logger = logger;
+            _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
 
             // Sync Providers list with what's in the ViewModel (ViewModel is the source of truth for providers)
             Providers.Clear();
@@ -67,7 +70,8 @@ namespace SwitchBlade
                 numberShortcutService,
                 () => this.Hide(),
                 ActivateWindow,
-                () => ResultsConfig.ListActualHeight);
+                () => ResultsConfig.ListActualHeight,
+                _logger);
 
             _resizeHandler = new WindowResizeHandler(this, _logger);
 
@@ -126,8 +130,10 @@ namespace SwitchBlade
             _thumbnailService = new ThumbnailService(this, _logger);
             _thumbnailService.SetPreviewContainer(PreviewPanel.PreviewCanvas);
 
-            // Initialize Badge Animation Service
-            _badgeAnimationService = new BadgeAnimationService(new StoryboardBadgeAnimator(_dispatcherService));
+            // Initialize Badge Animation Service (view owns the item-to-container mapping)
+            _badgeAnimationService = new BadgeAnimationService(
+                new StoryboardBadgeAnimator(_dispatcherService, ResolveBadgeContainer),
+                logger: _logger);
             _viewModel.ResultsUpdated += OnResultsUpdated;
             _viewModel.SearchTextChanged += OnSearchTextChanged;
 
@@ -139,7 +145,8 @@ namespace SwitchBlade
             _backgroundPollingService = new BackgroundPollingService(
                 _settingsService,
                 _dispatcherService,
-                () => _viewModel.RefreshWindows());
+                () => _viewModel.RefreshWindows(),
+                logger: _logger);
 
             // Initial load - apply saved size
             this.Width = _settingsService.Settings.WindowWidth;
@@ -221,7 +228,7 @@ namespace SwitchBlade
             // Reset animation state once at start so all items can animate as they arrive
             if (_settingsService.Settings.EnableBadgeAnimations)
             {
-                BadgeAnimationService.ResetAnimationState(_viewModel.FilteredWindows);
+                _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
             }
 
             // Let RefreshWindows run - ResultsUpdated will trigger animations as batches arrive
@@ -265,7 +272,7 @@ namespace SwitchBlade
             if (_pendingAnimationReset && _badgeAnimationService != null && _viewModel.FilteredWindows != null)
             {
                 _logger.Log($"[OnResultsUpdated] Applying pending animation reset to {_viewModel.FilteredWindows.Count} items.");
-                BadgeAnimationService.ResetAnimationState(_viewModel.FilteredWindows);
+                _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
                 _pendingAnimationReset = false;
             }
 
@@ -317,7 +324,7 @@ namespace SwitchBlade
             // Reset badge animation state BEFORE clearing search text
             // (Clearing search text triggers ResultsUpdated which would mark items as animated)
             _logger.Log($"[ForceOpen] Resetting animation state for fresh open");
-            BadgeAnimationService.ResetAnimationState(_viewModel.FilteredWindows);
+            _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
 
             // Also hide badges immediately so there's no "visible then animate" flash
             if (_viewModel.FilteredWindows != null)
@@ -372,7 +379,7 @@ namespace SwitchBlade
             _logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
 
             // Suppress hotkey when a modal dialog (e.g., Settings) is open
-            if (App.IsModalDialogOpen)
+            if (_uiService.IsModalDialogOpen)
             {
                 _logger.Log("Hotkey suppressed: Modal dialog is open.");
                 return;
@@ -470,13 +477,23 @@ namespace SwitchBlade
             => _resizeHandler.HandleBottomLeftGripMouseDown(sender, e);
 
 
+        /// <summary>
+        /// Maps a window item to its realized ListBoxItem badge container, or null while unrealized.
+        /// </summary>
+        private ListBoxItem? ResolveBadgeContainer(WindowItem item) =>
+            ResultsConfig.InnerListBox?.ItemContainerGenerator.ContainerFromItem(item) as ListBoxItem;
+
         private void ActivateWindow(WindowItem? windowItem)
         {
-            if (windowItem != null)
+            if (windowItem == null)
+                return;
+
+            // Fail-safe: activation failures must never reach the WPF message loop and crash the app.
+            try
             {
                 if (windowItem.Source != null)
                 {
-                    windowItem.Source.ActivateWindow(windowItem);
+                    ProviderActivator.TryActivate(windowItem, _logger);
                 }
                 else
                 {
@@ -490,9 +507,13 @@ namespace SwitchBlade
                     }
                     SwitchBlade.Contracts.NativeInterop.SetForegroundWindow(windowItem.Hwnd);
                 }
-
-                FadeOut(() => this.Hide());
             }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to activate window '{windowItem.Title}'", ex);
+            }
+
+            FadeOut(() => this.Hide());
         }
 
         protected override void OnClosed(EventArgs e)

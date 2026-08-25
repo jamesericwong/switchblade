@@ -115,19 +115,18 @@ namespace SwitchBlade
                         arg.Equals("--enablestartup", StringComparison.OrdinalIgnoreCase) ||
                         arg.Equals("-enablestartup", StringComparison.OrdinalIgnoreCase));
 
-                    App.StartMinimized = startMinimized;
-                    App.EnableStartupOnFirstRun = enableStartup;
+                    var startupOptions = new StartupOptions(startMinimized, enableStartup);
 
-                    if (startMinimized)
+                    if (startupOptions.StartMinimized)
                     {
                         logger.Log("Starting in minimized mode");
                     }
-                    if (enableStartup)
+                    if (startupOptions.EnableStartupOnFirstRun)
                     {
                         logger.Log("Enable startup on first run requested");
                     }
 
-                    var app = new App(serviceProvider);
+                    var app = new App(serviceProvider, startupOptions);
                     app.InitializeComponent();
                     app.Run();
                 }

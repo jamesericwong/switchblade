@@ -23,30 +23,22 @@ public partial class App : Application
     private IServiceProvider _serviceProvider = null!;
     private MainWindow? _mainWindow;
     private ILogger? _logger;
+    private readonly IUIService _uiService;
 
     /// <summary>
-    /// When true, the app starts without showing the main window (background mode).
+    /// Startup options parsed from command-line arguments (injected by the composition root).
     /// </summary>
-    public static bool StartMinimized { get; set; } = false;
-
-    /// <summary>
-    /// When true (set via /enablestartup command-line from MSI), enables Windows startup registry.
-    /// </summary>
-    public static bool EnableStartupOnFirstRun { get; set; } = false;
-
-    /// <summary>
-    /// Tracks whether a modal dialog (e.g., Settings) is currently open.
-    /// When true, the global hotkey will not toggle the main window.
-    /// </summary>
-    public static bool IsModalDialogOpen { get; set; } = false;
+    public StartupOptions StartupOptions { get; }
 
     /// <summary>
     /// Primary constructor that accepts the DI container from Program.cs.
     /// </summary>
-    public App(IServiceProvider serviceProvider)
+    public App(IServiceProvider serviceProvider, StartupOptions startupOptions)
     {
         // Use the DI container created by Program.cs
-        _serviceProvider = serviceProvider;
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        StartupOptions = startupOptions ?? throw new ArgumentNullException(nameof(startupOptions));
+        _uiService = _serviceProvider.GetRequiredService<IUIService>();
         _logger = _serviceProvider.GetRequiredService<ILogger>();
     }
 
@@ -58,6 +50,8 @@ public partial class App : Application
     {
         // Fallback: Initialize DI container here for WPF designer compatibility
         _serviceProvider = ServiceConfiguration.ConfigureServices();
+        StartupOptions = new StartupOptions();
+        _uiService = _serviceProvider.GetRequiredService<IUIService>();
         _logger = _serviceProvider.GetRequiredService<ILogger>();
     }
 
@@ -94,7 +88,7 @@ public partial class App : Application
         themeService.LoadCurrentTheme();
 
         // Handle MSI installer startup flag - if /enablestartup was passed, enable Windows startup
-        if (EnableStartupOnFirstRun)
+        if (StartupOptions.EnableStartupOnFirstRun)
         {
             _logger?.Log("EnableStartupOnFirstRun flag detected - enabling Windows startup");
             settingsService.Settings.LaunchOnStartup = true;
@@ -131,7 +125,7 @@ public partial class App : Application
         }
 
         // Only show the main window if not starting minimized
-        if (!StartMinimized)
+        if (!StartupOptions.StartMinimized)
         {
             _mainWindow.Show();
         }
@@ -146,7 +140,7 @@ public partial class App : Application
         if (_mainWindow == null) return;
 
         // Suppress hotkey when a modal dialog (e.g., Settings) is open
-        if (IsModalDialogOpen) return;
+        if (_uiService.IsModalDialogOpen) return;
 
         // If window is visible, hide it
         if (_mainWindow.IsVisible)
@@ -204,13 +198,13 @@ public partial class App : Application
     internal void OpenSettings()
     {
         var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
-        var settingsWindow = new SettingsWindow
+        var settingsWindow = new SettingsWindow(_logger)
         {
             DataContext = settingsVm
         };
 
         // Block global hotkey while settings is open (proper modal behavior)
-        IsModalDialogOpen = true;
+        _uiService.IsModalDialogOpen = true;
         try
         {
             // Use ShowDialog to make the settings window modal
@@ -218,7 +212,7 @@ public partial class App : Application
         }
         finally
         {
-            IsModalDialogOpen = false;
+            _uiService.IsModalDialogOpen = false;
         }
     }
 

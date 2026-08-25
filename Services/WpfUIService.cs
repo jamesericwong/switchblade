@@ -9,6 +9,15 @@ namespace SwitchBlade.Services
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class WpfUIService : IUIService
     {
+        private bool _isModalDialogOpen;
+
+        /// <inheritdoc />
+        public bool IsModalDialogOpen
+        {
+            get => _isModalDialogOpen;
+            set => _isModalDialogOpen = value;
+        }
+
         public System.Windows.MessageBoxResult ShowMessageBox(string message, string title, System.Windows.MessageBoxButton button, System.Windows.MessageBoxImage icon)
         {
             return System.Windows.MessageBox.Show(message, title, button, icon);

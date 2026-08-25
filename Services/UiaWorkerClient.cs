@@ -99,7 +99,7 @@ namespace SwitchBlade.Services
             // Pass Parent PID for watchdog
             var currentProcess = _processFactory.GetCurrentProcess();
             int currentPid = currentProcess.Id;
-            var args = SwitchBlade.Core.Logger.IsDebugEnabled
+            var args = _logger?.IsDebugEnabled == true
                 ? $"/debug --parent {currentPid}"
                 : $"--parent {currentPid}";
 
@@ -319,6 +319,11 @@ namespace SwitchBlade.Services
             {
                 _logger?.Log("[UiaWorkerClient] Scan cancelled.");
                 return allWindows;
+            }
+            catch (ObjectDisposedException)
+            {
+                // Post-dispose misuse must surface to the caller, not masquerade as an empty result.
+                throw;
             }
             catch (Exception ex)
             {

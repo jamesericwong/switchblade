@@ -16,6 +16,7 @@ namespace SwitchBlade.Services
         private readonly IPeriodicTimer _timer;
         private readonly CancellationTokenSource _cts;
         private Task? _executionTask;
+        private bool _disposed;
 
         private readonly IWindowOrchestrationService _orchestrationService;
         private readonly IIconService _iconService;
@@ -126,6 +127,12 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
+
+            // Cancel before disposing: the running loop's pending wait is registered on this token.
+            // Without cancel, it outlives disposal (or faults from the disposed timer and surfaces as a spurious shutdown error).
+            _cts.Cancel();
             _cts.Dispose();
             _timer.Dispose();
             GC.SuppressFinalize(this);

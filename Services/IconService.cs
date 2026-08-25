@@ -17,16 +17,18 @@ namespace SwitchBlade.Services
         private readonly ConcurrentDictionary<string, ImageSource?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
         private readonly ISettingsService _settingsService;
         private readonly IIconExtractor _iconExtractor;
+        private readonly ILogger? _logger;
 
         public int CacheCount => _iconCache.Count;
 
         // Default to a safe limit if settings unavailable (though they should be)
         private const int FallbackMaxCacheSize = 200;
 
-        public IconService(ISettingsService settingsService, IIconExtractor? iconExtractor = null)
+        public IconService(ISettingsService settingsService, IIconExtractor? iconExtractor = null, ILogger? logger = null)
         {
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _iconExtractor = iconExtractor ?? new IconExtractor();
+            _logger = logger;
         }
 
         /// <summary>
@@ -45,7 +47,7 @@ namespace SwitchBlade.Services
             if (_iconCache.Count >= limit && !_iconCache.ContainsKey(executablePath))
             {
                 _iconCache.Clear();
-                Core.Logger.Log($"Icon cache limit ({limit}) reached. Cleared cache.");
+                _logger?.Log($"Icon cache limit ({limit}) reached. Cleared cache.");
             }
 
             return _iconCache.GetOrAdd(executablePath, path => _iconExtractor.ExtractIcon(path));

@@ -125,6 +125,33 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public void SaveSettings_GetCurrentProcessThrows_DoesNotThrow()
+        {
+            var mockLogger = new Mock<ILogger>();
+            _mockProcessFactory.Setup(f => f.GetCurrentProcess()).Throws(new InvalidOperationException("simulated process lookup failure"));
+
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, mockLogger.Object, _mockProcessFactory.Object);
+            service.Settings.LaunchOnStartup = true;
+
+            Assert.Null(Record.Exception(() => service.SaveSettings()));
+            mockLogger.Verify(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
+        public void SaveSettings_MainModuleFileNameThrows_DoesNotThrow()
+        {
+            var mockLogger = new Mock<ILogger>();
+            _mockProcessFactory.Setup(f => f.GetCurrentProcess()).Returns(_mockProcess.Object);
+            _mockProcess.SetupGet(p => p.MainModuleFileName).Throws(new System.IO.IOException("simulated access denied"));
+
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, mockLogger.Object, _mockProcessFactory.Object);
+            service.Settings.LaunchOnStartup = true;
+
+            Assert.Null(Record.Exception(() => service.SaveSettings()));
+            mockLogger.Verify(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
         public void LoadSettings_SyncsStartupWithActualState()
         {
             _mockStorage.Setup(s => s.GetValue("LaunchOnStartup", It.IsAny<bool>())).Returns(true);

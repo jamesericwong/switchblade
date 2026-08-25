@@ -20,6 +20,7 @@ namespace SwitchBlade.Handlers
         private readonly Action _hideWindow;
         private readonly Action<WindowItem?> _activateWindow;
         private readonly Func<double> _getListBoxHeight;
+        private readonly ILogger? _logger;
 
         /// <summary>
         /// Creates a new keyboard input handler.
@@ -30,13 +31,15 @@ namespace SwitchBlade.Handlers
         /// <param name="hideWindow">Action to hide the window.</param>
         /// <param name="activateWindow">Action to activate a selected window.</param>
         /// <param name="getListBoxHeight">Function to get the current list box height for page calculations.</param>
+        /// <param name="logger">Optional logger for key event diagnostics.</param>
         public KeyboardInputHandler(
             IWindowListViewModel viewModel,
             ISettingsService settingsService,
             INumberShortcutService numberShortcutService,
             Action hideWindow,
             Action<WindowItem?> activateWindow,
-            Func<double> getListBoxHeight)
+            Func<double> getListBoxHeight,
+            ILogger? logger = null)
         {
             _viewModel = viewModel;
             _settingsService = settingsService;
@@ -44,6 +47,7 @@ namespace SwitchBlade.Handlers
             _hideWindow = hideWindow;
             _activateWindow = activateWindow;
             _getListBoxHeight = getListBoxHeight;
+            _logger = logger;
         }
 
         /// <summary>
@@ -55,7 +59,7 @@ namespace SwitchBlade.Handlers
             // Only log non-character keys to avoid spam
             if (e.Key == Key.Escape || e.Key == Key.Enter || e.Key == Key.Down || e.Key == Key.Up)
             {
-                Logger.Log($"KeyboardInputHandler KeyDown: {e.Key}");
+                _logger?.Log($"KeyboardInputHandler KeyDown: {e.Key}");
             }
 
             // Extract modifiers relative to this event if possible, but Keyboard.Modifiers is static.

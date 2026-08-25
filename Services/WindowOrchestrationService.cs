@@ -140,50 +140,47 @@ namespace SwitchBlade.Services
 
         private void ProcessProviderResults(IWindowProvider provider, List<WindowItem> results)
         {
-            WindowListUpdatedEventArgs args = null!;
+            WindowListUpdatedEventArgs args;
             List<WindowItem>? reconciled = null;
+
             lock (_lock)
             {
-                // Check LKG condition
-                if (results.Count > 0 && results.All(r => r.IsFallback))
+                bool isLkgHit = results.Count > 0 && results.All(r => r.IsFallback) && HasExistingRealItems(provider);
+
+                if (isLkgHit)
                 {
-                    bool hasExistingRealItems = HasExistingRealItems(provider);
-                    if (hasExistingRealItems)
+                    // Transient failure: keep the last known good items, don't replace them.
+                    _logger?.Log($"[LKG] {provider.PluginName}: Transient failure (only fallback items received). Preserving {_allWindows.Count(w => w.Source == provider)} existing items.");
+                    args = new WindowListUpdatedEventArgs(provider, false);
+                }
+                else
+                {
+                    long start = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                    // Normal path: Replace existing items with new results
+                    for (int i = _allWindows.Count - 1; i >= 0; i--)
                     {
-                        _logger?.Log($"[LKG] {provider.PluginName}: Transient failure (only fallback items received). Preserving {_allWindows.Count(w => w.Source == provider)} existing items.");
-
-                        // DEFER Event Emission to outside the lock
-                        args = new WindowListUpdatedEventArgs(provider, false);
-                        goto EmitAndReturn;
+                        if (_allWindows[i].Source == provider)
+                            _allWindows.RemoveAt(i);
                     }
-                }
 
-                long start = System.Diagnostics.Stopwatch.GetTimestamp();
+                    reconciled = _reconciler.Reconcile(results, provider);
+                    _allWindows.AddRange(reconciled);
 
-                // Normal path: Replace existing items with new results
-                for (int i = _allWindows.Count - 1; i >= 0; i--)
-                {
-                    if (_allWindows[i].Source == provider)
-                        _allWindows.RemoveAt(i);
-                }
+                    args = new WindowListUpdatedEventArgs(provider, true);
 
-                reconciled = _reconciler.Reconcile(results, provider);
-                _allWindows.AddRange(reconciled);
-
-                args = new WindowListUpdatedEventArgs(provider, true);
-
-                if (_logger != null && SwitchBlade.Core.Logger.IsDebugEnabled)
-                {
-                    var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(start);
-                    _logger.Log($"[Perf] Reconciled {reconciled.Count} items for {provider.PluginName} in {elapsed.TotalMilliseconds:F2}ms");
+                    if (_logger != null && _logger.IsDebugEnabled)
+                    {
+                        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(start);
+                        _logger.Log($"[Perf] Reconciled {reconciled.Count} items for {provider.PluginName} in {elapsed.TotalMilliseconds:F2}ms");
+                    }
                 }
             }
 
-        EmitAndReturn:
-            // Emit event IMMEDIATELY so UI shows text - icons will pop in later
+            // Emit event IMMEDIATELY (outside the lock) so UI shows text - icons will pop in later
             EmitEvent(args);
 
-            // If we jumped here from LKG, reconciled is null/empty, so we shouldn't populate icons.
+            // On an LKG hit reconciled is null, so we must not populate icons.
             if (reconciled != null && reconciled.Count > 0)
             {
                 Task.Run(() =>
@@ -198,7 +195,6 @@ namespace SwitchBlade.Services
                     }
                 });
             }
-            return;
         }
 
         private void EmitEvent(WindowListUpdatedEventArgs args)

@@ -366,6 +366,18 @@ namespace SwitchBlade.Tests.ViewModels
         }
 
         [Fact]
+        public void PerformDebouncedSave_SaveSettingsThrows_DoesNotThrow()
+        {
+            var mockLogger = new Mock<ILogger>();
+            _settingsServiceMock.Setup(s => s.SaveSettings()).Throws(new System.InvalidOperationException("simulated save failure"));
+
+            var vm = new SettingsViewModel(_settingsServiceMock.Object, _themeServiceMock.Object, _pluginServiceMock.Object, _uiServiceMock.Object, mockLogger.Object);
+
+            Assert.Null(Record.Exception(() => vm.PerformDebouncedSave()));
+            mockLogger.Verify(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
         public void SelectedShortcutModifier_Set_UpdatesSettings()
         {
             _viewModel.SelectedShortcutModifier = "Ctrl";

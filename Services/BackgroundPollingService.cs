@@ -18,6 +18,7 @@ namespace SwitchBlade.Services
         private readonly Func<Task> _refreshAction;
         // Factory for creating timers, essential for unit testing to avoid real-time delays
         private readonly Func<TimeSpan, IPeriodicTimer> _periodicTimerFactory;
+        private readonly ILogger? _logger;
 
         private CancellationTokenSource? _cts;
         private Task? _pollingTask;
@@ -28,13 +29,15 @@ namespace SwitchBlade.Services
             IDispatcherService dispatcherService, 
             Func<Task> refreshAction,
             IWorkstationService? workstationService = null,
-            Func<TimeSpan, IPeriodicTimer>? periodicTimerFactory = null)
+            Func<TimeSpan, IPeriodicTimer>? periodicTimerFactory = null,
+            ILogger? logger = null)
         {
             _settingsService = settingsService;
             _dispatcherService = dispatcherService;
             _refreshAction = refreshAction;
             _workstationService = workstationService ?? new WorkstationService();
             _periodicTimerFactory = periodicTimerFactory ?? (interval => new SystemPeriodicTimer(interval));
+            _logger = logger;
 
             // Subscribe to settings changes to dynamically update timer
             _settingsService.SettingsChanged += OnSettingsChanged;
@@ -50,7 +53,7 @@ namespace SwitchBlade.Services
 
             if (!_settingsService.Settings.EnableBackgroundPolling)
             {
-                Logger.Log("BackgroundPollingService: Polling disabled.");
+                _logger?.Log("BackgroundPollingService: Polling disabled.");
                 return;
             }
 
@@ -60,7 +63,7 @@ namespace SwitchBlade.Services
             _cts = new CancellationTokenSource();
             _pollingTask = PollingLoop(TimeSpan.FromMilliseconds(intervalMs), _cts.Token);
 
-            Logger.Log($"BackgroundPollingService: Polling enabled with interval {intervalMs}ms.");
+            _logger?.Log($"BackgroundPollingService: Polling enabled with interval {intervalMs}ms.");
         }
 
         private void StopPolling()
@@ -96,11 +99,11 @@ namespace SwitchBlade.Services
                         // blocking the UI thread and making the app unresponsive on wake.
                         if (_workstationService.IsWorkstationLocked())
                         {
-                            Logger.Log("BackgroundPollingService: Workstation locked, skipping refresh.");
+                            _logger?.Log("BackgroundPollingService: Workstation locked, skipping refresh.");
                             continue;
                         }
 
-                        Logger.Log("BackgroundPollingService: Running background refresh.");
+                        _logger?.Log("BackgroundPollingService: Running background refresh.");
 
                         // Dispatch to UI thread since RefreshWindows updates ObservableCollection
                         await _dispatcherService.InvokeAsync(async () =>
@@ -111,7 +114,7 @@ namespace SwitchBlade.Services
                     catch (Exception ex)
                     {
                         // Log but don't crash loop
-                        Logger.LogError("BackgroundPollingService: Error during refresh", ex);
+                        _logger?.LogError("BackgroundPollingService: Error during refresh", ex);
                     }
                 }
             }

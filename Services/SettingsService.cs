@@ -207,18 +207,25 @@ namespace SwitchBlade.Services
 
         private void UpdateStartupRegistryEntry()
         {
-            if (Settings.LaunchOnStartup)
+            try
             {
-                using var currentProcess = _processFactory.GetCurrentProcess();
-                string? exePath = currentProcess.MainModuleFileName;
-                if (!string.IsNullOrEmpty(exePath))
+                if (Settings.LaunchOnStartup)
                 {
-                    _startupManager.EnableStartup(exePath);
+                    using var currentProcess = _processFactory.GetCurrentProcess();
+                    string? exePath = currentProcess.MainModuleFileName;
+                    if (!string.IsNullOrEmpty(exePath))
+                    {
+                        _startupManager.EnableStartup(exePath);
+                    }
+                }
+                else
+                {
+                    _startupManager.DisableStartup();
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _startupManager.DisableStartup();
+                _logger?.LogError("Failed to sync startup registry entry", ex);
             }
         }
 

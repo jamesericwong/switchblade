@@ -626,27 +626,17 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task ProcessProviderResults_LogsPerf_WhenDebugEnabled()
         {
-            // Set static flag
-            var originalDebug = SwitchBlade.Core.Logger.IsDebugEnabled;
-            SwitchBlade.Core.Logger.IsDebugEnabled = true;
+            var provider = CreateMockProvider("PerfProvider", [
+                new() { Title = "W1", Hwnd = (IntPtr)1, ProcessName = "app" }
+            ]);
+            var mockLogger = new Mock<ILogger>();
+            mockLogger.SetupGet(l => l.IsDebugEnabled).Returns(true);
 
-            try
-            {
-                var provider = CreateMockProvider("PerfProvider", [
-                    new() { Title = "W1", Hwnd = (IntPtr)1, ProcessName = "app" }
-                ]);
-                var mockLogger = new Mock<ILogger>();
+            var service = CreateService([provider.Object], logger: mockLogger.Object);
 
-                var service = CreateService([provider.Object], logger: mockLogger.Object);
+            await service.RefreshAsync([]);
 
-                await service.RefreshAsync([]);
-
-                mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("[Perf]"))), Times.Once);
-            }
-            finally
-            {
-                SwitchBlade.Core.Logger.IsDebugEnabled = originalDebug;
-            }
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("[Perf]"))), Times.Once);
         }
         [Fact]
         public void Constructor_ThrowsOnNullProviders()

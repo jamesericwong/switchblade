@@ -220,6 +220,40 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public async Task ScanAsync_DisposedAfterEntryCheck_ThrowsObjectDisposedException()
+        {
+            // Dispose fires after ScanAsync's own entry check but before the streaming iterator
+            // runs its disposed-check. The post-dispose contract must survive this interleave:
+            // ObjectDisposedException propagates instead of being swallowed into an empty result,
+            // and no worker process is ever launched.
+            var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+            _mockFs.Setup(f => f.FileExists(It.IsAny<string>()))
+                .Returns(true)
+                .Callback(() => client.Dispose());
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => client.ScanAsync());
+
+            _mockProcFactory.Verify(f => f.Start(It.IsAny<ProcessStartInfo>()), Times.Never());
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_DisposedBeforeLinkedCts_ThrowsObjectDisposedException()
+        {
+            // Dispose completes before the iterator links its CTS to _disposeCts (line 96 reads a
+            // token of an already-disposed source). Whatever path this takes, the scan must fail
+            // with ObjectDisposedException rather than running or silently returning empty.
+            var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+            _mockFs.Setup(f => f.FileExists(It.IsAny<string>()))
+                .Returns(true)
+                .Callback(() => client.Dispose());
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            {
+                await foreach (var _ in client.ScanStreamingAsync()) { }
+            });
+        }
+
+        [Fact]
         public async Task ScanStreamingAsync_HandlesStdinFailure()
         {
             // Mock Stdin to throw
@@ -703,25 +737,19 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void Constructor_ToggleDebug_Works()
+        public void Scan_DebugFlagDriven_ByInjectedLogger()
         {
-            // Toggle static property to hit both branches of line 103 (in a future Scan call)
-            var original = SwitchBlade.Core.Logger.IsDebugEnabled;
-            try
-            {
-                SwitchBlade.Core.Logger.IsDebugEnabled = true;
-                var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
-                // Call Scan to hit line 103
-                var _ = client.ScanStreamingAsync().GetAsyncEnumerator().MoveNextAsync();
+            // Both branches of the worker-args construction must be reachable via the injected logger.
+            var debugOnLogger = new Mock<ILogger>();
+            debugOnLogger.SetupGet(l => l.IsDebugEnabled).Returns(true);
+            var client = new UiaWorkerClient(debugOnLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+            // Call Scan to hit the args-construction branch (no crash)
+            var _ = client.ScanStreamingAsync().GetAsyncEnumerator().MoveNextAsync();
 
-                SwitchBlade.Core.Logger.IsDebugEnabled = false;
-                var client2 = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
-                var __ = client2.ScanStreamingAsync().GetAsyncEnumerator().MoveNextAsync();
-            }
-            finally
-            {
-                SwitchBlade.Core.Logger.IsDebugEnabled = original;
-            }
+            var debugOffLogger = new Mock<ILogger>();
+            debugOffLogger.SetupGet(l => l.IsDebugEnabled).Returns(false);
+            var client2 = new UiaWorkerClient(debugOffLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+            var __ = client2.ScanStreamingAsync().GetAsyncEnumerator().MoveNextAsync();
         }
 
         private static DataReceivedEventArgs CreateDataReceivedEventArgs(string data)

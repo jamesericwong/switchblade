@@ -16,22 +16,33 @@ namespace SwitchBlade.Services
     {
         private readonly string _registryKeyPath;
         private readonly IRegistryService _registryService;
+        private readonly ILogger? _logger;
 
         /// <summary>
         /// Creates a new RegistrySettingsStorage with the specified registry path.
         /// </summary>
         /// <param name="registryKeyPath">The path under HKEY_CURRENT_USER, e.g., "Software\SwitchBlade".</param>
         /// <param name="registryService">The registry service abstraction.</param>
-        public RegistrySettingsStorage(string registryKeyPath, IRegistryService registryService)
+        /// <param name="logger">Optional logger for registry read/write failure diagnostics.</param>
+        public RegistrySettingsStorage(string registryKeyPath, IRegistryService registryService, ILogger? logger = null)
         {
             _registryKeyPath = registryKeyPath ?? throw new ArgumentNullException(nameof(registryKeyPath));
             _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
+            _logger = logger;
         }
 
         /// <inheritdoc/>
         public bool HasKey(string key)
         {
-            return _registryService.GetCurrentUserValue(_registryKeyPath, key) != null;
+            try
+            {
+                return _registryService.GetCurrentUserValue(_registryKeyPath, key) != null;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"Failed to check registry key '{key}'", ex);
+                return false;
+            }
         }
 
         /// <inheritdoc/>
@@ -74,8 +85,9 @@ namespace SwitchBlade.Services
                 // Direct conversion for int, uint, string
                 return (T)Convert.ChangeType(rawValue, targetType);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogError($"Failed to read registry value '{key}'", ex);
                 return defaultValue;
             }
         }
@@ -115,7 +127,7 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                SwitchBlade.Core.Logger.LogError($"Failed to set registry value '{key}'", ex);
+                _logger?.LogError($"Failed to set registry value '{key}'", ex);
             }
         }
 
@@ -129,8 +141,9 @@ namespace SwitchBlade.Services
 
                 return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogError($"Failed to read registry list '{key}'", ex);
                 return new List<string>();
             }
         }
@@ -145,7 +158,7 @@ namespace SwitchBlade.Services
             }
             catch (Exception ex)
             {
-                SwitchBlade.Core.Logger.LogError($"Failed to set registry list '{key}'", ex);
+                _logger?.LogError($"Failed to set registry list '{key}'", ex);
             }
         }
 

@@ -16,6 +16,7 @@ namespace SwitchBlade.Services
     {
         private readonly IBadgeAnimator _animator;
         private readonly IDelayProvider _delayProvider;
+        private readonly ILogger? _logger;
         private CancellationTokenSource? _animationCts;
 
         /// <summary>
@@ -40,17 +41,18 @@ namespace SwitchBlade.Services
         /// </summary>
         public int DebounceMs { get; set; } = 75;
 
-        public BadgeAnimationService(IBadgeAnimator animator, IDelayProvider? delayProvider = null)
+        public BadgeAnimationService(IBadgeAnimator animator, IDelayProvider? delayProvider = null, ILogger? logger = null)
         {
             _animator = animator ?? throw new ArgumentNullException(nameof(animator));
             _delayProvider = delayProvider ?? new SystemDelayProvider();
+            _logger = logger;
         }
 
         /// <summary>
         /// Resets the animation state for the provided items.
         /// Use this when you want to force re-animation (e.g. on new search or window open).
         /// </summary>
-        public static void ResetAnimationState(IEnumerable<WindowItem>? items)
+        public void ResetAnimationState(IEnumerable<WindowItem>? items)
         {
             if (items == null) return;
 
@@ -60,7 +62,7 @@ namespace SwitchBlade.Services
             {
                 item.HasBeenAnimated = false;
             }
-            SwitchBlade.Core.Logger.Log($"[BadgeAnimation] ResetAnimationState: Reset HasBeenAnimated flag for items");
+            _logger?.Log($"[BadgeAnimation] ResetAnimationState: Reset HasBeenAnimated flag for items");
         }
 
         /// <summary>
@@ -73,7 +75,7 @@ namespace SwitchBlade.Services
         /// <param name="skipDebounce">When true, skips the debounce delay (e.g., for hotkey/initial load).</param>
         public async Task TriggerStaggeredAnimationAsync(IEnumerable<WindowItem>? items, bool skipDebounce = false)
         {
-            SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Starting");
+            _logger?.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Starting");
             if (items == null) return;
 
             // Cancel any pending animation cycle from a previous call
@@ -148,7 +150,7 @@ namespace SwitchBlade.Services
                 }
             }
 
-            SwitchBlade.Core.Logger.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Animated={animatedCount}, Skipped={skippedCount}");
+            _logger?.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Animated={animatedCount}, Skipped={skippedCount}");
 
             // Wait for all animations to complete (approximate based on max duration)
             if (maxShortcutIndex >= 0)

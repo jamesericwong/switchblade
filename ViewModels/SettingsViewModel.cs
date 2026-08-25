@@ -16,6 +16,7 @@ namespace SwitchBlade.ViewModels
         private readonly ISettingsService _settingsService;
         private readonly ThemeService _themeService;
         private readonly IUIService _uiService;
+        private readonly ILogger? _logger;
         private string _selectedTheme;
         private System.Threading.Timer? _saveTimer;
         private const int SaveDebounceMs = 300;
@@ -268,11 +269,12 @@ namespace SwitchBlade.ViewModels
 
 
 
-        public SettingsViewModel(ISettingsService settingsService, ThemeService themeService, IPluginService pluginService, IUIService uiService)
+        public SettingsViewModel(ISettingsService settingsService, ThemeService themeService, IPluginService pluginService, IUIService uiService, ILogger? logger = null)
         {
             _settingsService = settingsService;
             _themeService = themeService;
             _uiService = uiService;
+            _logger = logger;
 
             var plugins = pluginService.GetPluginInfos().ToList();
 
@@ -399,7 +401,20 @@ namespace SwitchBlade.ViewModels
         private void ScheduleSave()
         {
             _saveTimer?.Dispose();
-            _saveTimer = new System.Threading.Timer(_ => _settingsService.SaveSettings(), null, SaveDebounceMs, Timeout.Infinite);
+            _saveTimer = new System.Threading.Timer(_ => PerformDebouncedSave(), null, SaveDebounceMs, Timeout.Infinite);
+        }
+
+        internal void PerformDebouncedSave()
+        {
+            try
+            {
+                _settingsService.SaveSettings();
+            }
+            catch (Exception ex)
+            {
+                // Unhandled exceptions in Timer callbacks terminate the process; log and continue.
+                _logger?.LogError("Failed to save settings from debounce timer", ex);
+            }
         }
 
         /// <summary>
