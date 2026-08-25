@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using SwitchBlade.Contracts;
 using SwitchBlade.Core;
+using SwitchBlade.Handlers;
 using SwitchBlade.ViewModels;
 
 namespace SwitchBlade.Services
@@ -35,6 +36,7 @@ namespace SwitchBlade.Services
             services.AddSingleton<IRegistryService, RegistryServiceWrapper>();
             services.AddSingleton<INativeInteropWrapper, NativeInteropWrapper>();
             services.AddSingleton<IWindowInterop, WindowInterop>();
+            services.AddSingleton<IWindowStyleInterop, WindowStyleInterop>();
 
             // Core Services
             services.AddSingleton<SettingsService>(sp =>

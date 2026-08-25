@@ -26,5 +26,14 @@ namespace SwitchBlade.Contracts
 
         /// <see cref="NativeInterop.ForceForegroundWindow(IntPtr)"/>
         void ForceForegroundWindow(IntPtr hWnd);
+
+        /// <see cref="NativeInterop.IsIconic(IntPtr)"/>
+        bool IsIconic(IntPtr hWnd);
+
+        /// <see cref="NativeInterop.ShowWindow(IntPtr, int)"/>
+        bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        /// <see cref="NativeInterop.SetForegroundWindow(IntPtr)"/>
+        bool SetForegroundWindow(IntPtr hWnd);
     }
 }

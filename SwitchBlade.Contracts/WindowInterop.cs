@@ -36,5 +36,20 @@ namespace SwitchBlade.Contracts
         {
             NativeInterop.ForceForegroundWindow(hWnd);
         }
+
+        public bool IsIconic(IntPtr hWnd)
+        {
+            return NativeInterop.IsIconic(hWnd);
+        }
+
+        public bool ShowWindow(IntPtr hWnd, int nCmdShow)
+        {
+            return NativeInterop.ShowWindow(hWnd, nCmdShow);
+        }
+
+        public bool SetForegroundWindow(IntPtr hWnd)
+        {
+            return NativeInterop.SetForegroundWindow(hWnd);
+        }
     }
 }

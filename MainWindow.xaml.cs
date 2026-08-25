@@ -6,25 +6,23 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using Microsoft.Extensions.DependencyInjection;
 using SwitchBlade.Core;
 using SwitchBlade.Services;
 using SwitchBlade.ViewModels;
 using SwitchBlade.Contracts;
 using SwitchBlade.Handlers;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks; // Added for Task
 
 namespace SwitchBlade
 {
     [ExcludeFromCodeCoverage]
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, IWindowSurface
     {
         private readonly MainViewModel _viewModel;
         private readonly ISettingsService _settingsService;
         private readonly IDispatcherService _dispatcherService;
         private readonly ILogger _logger;
         private readonly IUIService _uiService;
+        private readonly WindowControllerService _controller;
         private readonly KeyboardInputHandler _keyboardHandler;
         private readonly WindowResizeHandler _resizeHandler;
 
@@ -43,7 +41,9 @@ namespace SwitchBlade
             IDispatcherService dispatcherService,
             ILogger logger,
             INumberShortcutService numberShortcutService,
-            IUIService uiService)
+            IUIService uiService,
+            IWindowStyleInterop styleInterop,
+            IWindowInterop windowInterop)
         {
             InitializeComponent();
 
@@ -63,15 +63,26 @@ namespace SwitchBlade
             DataContext = _viewModel;
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
 
+            // Presentation coordinator: native appearance, fade/force-open orchestration and activation.
+            _controller = new WindowControllerService(
+                this,
+                settingsService,
+                dispatcherService,
+                logger,
+                viewModel,
+                () => _uiService.IsModalDialogOpen,
+                styleInterop,
+                windowInterop);
+
             // Initialize handlers (extracted for SRP)
             _keyboardHandler = new KeyboardInputHandler(
                 _viewModel,
-                _settingsService,
+                settingsService,
                 numberShortcutService,
                 () => this.Hide(),
-                ActivateWindow,
+                _controller.ActivateWindow,
                 () => ResultsConfig.ListActualHeight,
-                _logger);
+                logger);
 
             _resizeHandler = new WindowResizeHandler(this, _logger);
 
@@ -83,43 +94,28 @@ namespace SwitchBlade
 
             // Initialize HotKeyService early so the global hotkey works even when starting minimized.
             // This must happen after EnsureHandle() because HotKeyService needs a valid HWND.
-            _hotKeyService = new HotKeyService(this, _settingsService, _logger, OnHotKeyPressed);
+            _hotKeyService = new HotKeyService(this, settingsService, logger, OnHotKeyPressed);
 
             this.Loaded += MainWindow_Loaded;
             this.PreviewKeyDown += _keyboardHandler.HandleKeyDown;
         }
 
-        public static T? GetChildOfType<T>(DependencyObject depObj) where T : DependencyObject
+        // IWindowSurface implementation — WPF glue only (Show/Hide/IsVisible/Opacity come from Window).
+        public IntPtr Handle => new WindowInteropHelper(this).Handle;
+
+        // Window.Activate() returns bool, so the void interface member is implemented explicitly.
+        void IWindowSurface.Activate() => this.Activate();
+
+        public void NormalizeState() => WindowState = WindowState.Normal;
+
+        public void FocusSearchInput() => SearchBox.FocusInput();
+
+        public void AnimateOpacity(double from, double to, int durationMs, Action? onCompleted)
         {
-            if (depObj == null) return null;
-
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(depObj); i++)
-            {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(depObj, i);
-                var result = (child as T) ?? GetChildOfType<T>(child);
-                if (result != null) return result;
-            }
-            return null;
-        }
-
-        private void ApplyBackdrop()
-        {
-            var helper = new WindowInteropHelper(this);
-            var hwnd = helper.Handle;
-
-            string theme = _settingsService.Settings.CurrentTheme;
-            int darkMode = (theme.Contains("Dark", StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
-
-            SwitchBlade.Contracts.NativeInterop.DwmSetWindowAttribute(hwnd,
-                SwitchBlade.Contracts.NativeInterop.DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
-
-            int backdropType = SwitchBlade.Contracts.NativeInterop.DWM_BACKDROP_MICA;
-            SwitchBlade.Contracts.NativeInterop.DwmSetWindowAttribute(hwnd,
-                SwitchBlade.Contracts.NativeInterop.DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, sizeof(int));
-
-            int cornerPreference = SwitchBlade.Contracts.NativeInterop.DWMWCP_ROUND;
-            SwitchBlade.Contracts.NativeInterop.DwmSetWindowAttribute(hwnd,
-                SwitchBlade.Contracts.NativeInterop.DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
+            var anim = new System.Windows.Media.Animation.DoubleAnimation(from, to, TimeSpan.FromMilliseconds(durationMs));
+            if (onCompleted != null)
+                anim.Completed += (_, _) => onCompleted();
+            BeginAnimation(Window.OpacityProperty, anim);
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -134,8 +130,9 @@ namespace SwitchBlade
             _badgeAnimationService = new BadgeAnimationService(
                 new StoryboardBadgeAnimator(_dispatcherService, ResolveBadgeContainer),
                 logger: _logger);
-            _viewModel.ResultsUpdated += OnResultsUpdated;
-            _viewModel.SearchTextChanged += OnSearchTextChanged;
+            _controller.SetBadgeAnimationService(_badgeAnimationService);
+            _viewModel.ResultsUpdated += _controller.OnResultsUpdated;
+            _viewModel.SearchTextChanged += _controller.OnSearchTextChanged;
 
             // Interaction handlers from UserControl
             ResultsConfig.PreviewItemRequested += ResultList_PreviewItemRequested;
@@ -162,271 +159,15 @@ namespace SwitchBlade
             _logger.Log($"Applied Settings Size: {this.Width}x{this.Height}, Centered at: ({this.Left}, {this.Top})");
 
             SearchBox.FocusInput();
-            ApplyBackdrop();
-            ConfigureWindowStyles();
-            _ = InitialLoadAsync();
-        }
-
-        /// <summary>
-        /// Fixes Alt+Tab behavior by configuring window styles.
-        /// 1. Hides the WPF-generated owner window from Alt+Tab (WS_EX_TOOLWINDOW).
-        /// 2. Forces the main window to remain in Alt+Tab (WS_EX_APPWINDOW) despite having a ToolWindow owner.
-        /// </summary>
-        private void ConfigureWindowStyles()
-        {
             var hwnd = new WindowInteropHelper(this).Handle;
-            
-            // 1. Force main window to appear in Alt+Tab (required because owner will be a ToolWindow)
-            var mainExStyle = (int)NativeInterop.GetWindowLongPtr(hwnd, NativeInterop.GWL_EXSTYLE);
-            if ((mainExStyle & NativeInterop.WS_EX_APPWINDOW) == 0)
-            {
-                mainExStyle |= NativeInterop.WS_EX_APPWINDOW;
-                NativeInterop.SetWindowLongPtr(hwnd, NativeInterop.GWL_EXSTYLE, (IntPtr)mainExStyle);
-                _logger.Log($"ConfigureWindowStyles: Added WS_EX_APPWINDOW to Main Window {hwnd}");
-            }
-
-            // 2. Remove standard window chrome styles that cause the "Header" to appear in Alt+Tab
-            // We keep WS_THICKFRAME (if present) for resizing, but remove Caption/SystemMenu
-            var mainStyle = (int)NativeInterop.GetWindowLongPtr(hwnd, NativeInterop.GWL_STYLE);
-            bool stylesChanged = false;
-
-            if ((mainStyle & NativeInterop.WS_CAPTION) != 0)
-            {
-                mainStyle &= ~NativeInterop.WS_CAPTION;
-                stylesChanged = true;
-            }
-
-            if ((mainStyle & NativeInterop.WS_SYSMENU) != 0)
-            {
-                mainStyle &= ~NativeInterop.WS_SYSMENU;
-                stylesChanged = true;
-            }
-
-            if (stylesChanged)
-            {
-                NativeInterop.SetWindowLongPtr(hwnd, NativeInterop.GWL_STYLE, (IntPtr)mainStyle);
-                _logger.Log($"ConfigureWindowStyles: Removed WS_CAPTION/WS_SYSMENU from Main Window {hwnd}");
-            }
-
-            // 3. Hide the WPF owner window
-            var owner = NativeInterop.GetWindow(hwnd, NativeInterop.GW_OWNER);
-            if (owner != IntPtr.Zero)
-            {
-                var ownerExStyle = (int)NativeInterop.GetWindowLongPtr(owner, NativeInterop.GWL_EXSTYLE);
-                if ((ownerExStyle & NativeInterop.WS_EX_TOOLWINDOW) == 0)
-                {
-                    ownerExStyle |= NativeInterop.WS_EX_TOOLWINDOW;
-                    ownerExStyle &= ~NativeInterop.WS_EX_APPWINDOW;
-                    NativeInterop.SetWindowLongPtr(owner, NativeInterop.GWL_EXSTYLE, (IntPtr)ownerExStyle);
-                    _logger.Log($"ConfigureWindowStyles: Set WS_EX_TOOLWINDOW on owner HWND {owner}");
-                }
-            }
+            _controller.ApplyBackdrop(hwnd);
+            _controller.ConfigureWindowStyles(hwnd);
+            _ = _controller.InitialLoadAsync();
         }
 
-        private async Task InitialLoadAsync()
-        {
-            // Reset animation state once at start so all items can animate as they arrive
-            if (_settingsService.Settings.EnableBadgeAnimations)
-            {
-                _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
-            }
+        public void ForceOpen() => _controller.ForceOpen();
 
-            // Let RefreshWindows run - ResultsUpdated will trigger animations as batches arrive
-            await _viewModel.RefreshWindows();
-
-            // If animation is disabled, ensure all badges are visible
-            if (!_settingsService.Settings.EnableBadgeAnimations)
-            {
-                foreach (var item in _viewModel.FilteredWindows)
-                {
-                    item.BadgeOpacity = 1.0;
-                    item.BadgeTranslateX = 0;
-                }
-            }
-
-            // FORCE SCROLL TO TOP: After initial batches are loaded, ensure we are at the top.
-            // WPF's ListBox might have scrolled down if items were inserted at the top.
-            await _dispatcherService.InvokeAsync(async () =>
-            {
-                // Wait briefly for layout to settle
-                await Task.Delay(50);
-                if (_viewModel.FilteredWindows.Count > 0)
-                {
-                    _viewModel.MoveSelectionToFirst();
-                }
-            });
-        }
-
-        private bool _pendingAnimationReset = false;
-        private bool _isForceOpenPending = false;
-
-        private void OnResultsUpdated(object? sender, EventArgs e)
-        {
-            _logger.Log($"[OnResultsUpdated] Called. IsVisible={this.IsVisible}, AnimationsEnabled={_settingsService.Settings.EnableBadgeAnimations}");
-
-            // Capture intent BEFORE consuming the flag
-            bool wasTextChange = _pendingAnimationReset;
-
-            // Handle pending animation reset (e.g., from search text change or ForceOpen)
-            // We do this HERE, on the new list, to ensure all currently visible items get reset.
-            if (_pendingAnimationReset && _badgeAnimationService != null && _viewModel.FilteredWindows != null)
-            {
-                _logger.Log($"[OnResultsUpdated] Applying pending animation reset to {_viewModel.FilteredWindows.Count} items.");
-                _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
-                _pendingAnimationReset = false;
-            }
-
-            // When search results update, trigger staggered animation for new items (if enabled)
-            if (_badgeAnimationService != null && this.IsVisible && _settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
-            {
-                // Debounce only for text-change triggers (typing), not hotkey opens or streaming updates.
-                // _isForceOpenPending overrides: hotkey open always skips debounce.
-                bool shouldDebounce = wasTextChange && !_isForceOpenPending;
-                _isForceOpenPending = false;
-
-                _ = _badgeAnimationService.TriggerStaggeredAnimationAsync(_viewModel.FilteredWindows, skipDebounce: !shouldDebounce);
-            }
-            else if (this.IsVisible && !_settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
-            {
-                // Ensure badges are visible immediately when animation is disabled
-                foreach (var item in _viewModel.FilteredWindows)
-                {
-                    item.BadgeOpacity = 1.0;
-                    item.BadgeTranslateX = 0;
-                }
-            }
-        }
-
-        private void OnSearchTextChanged(object? sender, EventArgs e)
-        {
-            // Reset animation state on ANY text change (typing or clearing).
-            // User requested that re-animation happens on all modifications.
-            // Defer the reset to OnResultsUpdated so it applies to the NEW list (post-filter).
-            _pendingAnimationReset = true;
-        }
-
-        public void ForceOpen()
-        {
-            // Apply Settings
-            _ = System.Windows.Application.Current;
-            this.Opacity = 0; // Start transparent for fade in
-            this.Show();
-            this.WindowState = WindowState.Normal;
-            this.Activate();
-            SwitchBlade.Contracts.NativeInterop.ForceForegroundWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
-
-            SearchBox.FocusInput();
-
-            // Mark that this is a hotkey-triggered open, NOT a typing-triggered change.
-            // This ensures the first animation batch skips the debounce for immediate responsiveness.
-            _isForceOpenPending = true;
-
-            // Reset badge animation state BEFORE clearing search text
-            // (Clearing search text triggers ResultsUpdated which would mark items as animated)
-            _logger.Log($"[ForceOpen] Resetting animation state for fresh open");
-            _badgeAnimationService?.ResetAnimationState(_viewModel.FilteredWindows);
-
-            // Also hide badges immediately so there's no "visible then animate" flash
-            if (_viewModel.FilteredWindows != null)
-            {
-                foreach (var item in _viewModel.FilteredWindows)
-                {
-                    if (item.IsShortcutVisible)
-                    {
-                        item.ResetBadgeAnimation();
-                    }
-                }
-            }
-
-            _viewModel.SearchText = "";
-            _logger.Log($"[ForceOpen] Cleared SearchText");
-
-            FadeIn();
-            _ = ForceOpenAsync();
-            _logger.Log("Forced Open (Tray/Menu).");
-        }
-
-        private async Task ForceOpenAsync()
-        {
-            // Let RefreshWindows run - ResultsUpdated will trigger animations as batches arrive
-            // (Reset already done in ForceOpen before calling this)
-            await _viewModel.RefreshWindows();
-
-            // If animation is disabled, ensure all badges are visible
-            if (!_settingsService.Settings.EnableBadgeAnimations)
-            {
-                foreach (var item in _viewModel.FilteredWindows)
-                {
-                    item.BadgeOpacity = 1.0;
-                    item.BadgeTranslateX = 0;
-                }
-            }
-
-            // FORCE SCROLL TO TOP: Ensure we start at the top on every fresh open.
-            await _dispatcherService.InvokeAsync(async () =>
-            {
-                // Wait briefly for layout to settle
-                await Task.Delay(50);
-                if (_viewModel.FilteredWindows.Count > 0)
-                {
-                    _viewModel.MoveSelectionToFirst();
-                }
-            });
-        }
-
-        private void OnHotKeyPressed()
-        {
-            _logger.Log($"Global Hotkey Pressed. Current Visibility: {this.Visibility}");
-
-            // Suppress hotkey when a modal dialog (e.g., Settings) is open
-            if (_uiService.IsModalDialogOpen)
-            {
-                _logger.Log("Hotkey suppressed: Modal dialog is open.");
-                return;
-            }
-
-            if (this.Visibility == Visibility.Visible)
-            {
-                _logger.Log("Hiding Window.");
-                FadeOut(() => this.Hide());
-            }
-            else
-            {
-                ForceOpen();
-            }
-        }
-
-        private void FadeIn()
-        {
-            var duration = _settingsService.Settings.FadeDurationMs;
-            var targetOpacity = _settingsService.Settings.WindowOpacity;
-
-            if (duration > 0)
-            {
-                var anim = new System.Windows.Media.Animation.DoubleAnimation(0, targetOpacity, TimeSpan.FromMilliseconds(duration));
-                this.BeginAnimation(Window.OpacityProperty, anim);
-            }
-            else
-            {
-                this.Opacity = targetOpacity;
-            }
-        }
-
-        private void FadeOut(Action onCompleted)
-        {
-            var duration = _settingsService.Settings.FadeDurationMs;
-
-            if (duration > 0 && this.Opacity > 0)
-            {
-                var anim = new System.Windows.Media.Animation.DoubleAnimation(this.Opacity, 0, TimeSpan.FromMilliseconds(duration));
-                anim.Completed += (s, e) => onCompleted();
-                this.BeginAnimation(Window.OpacityProperty, anim);
-            }
-            else
-            {
-                onCompleted();
-            }
-        }
+        private void OnHotKeyPressed() => _controller.ToggleVisibility();
 
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
@@ -467,7 +208,7 @@ namespace SwitchBlade
 
         private void ResultList_ActivateItemRequested(object? sender, WindowItem windowItem)
         {
-            ActivateWindow(windowItem);
+            _controller.ActivateWindow(windowItem);
         }
 
         private void ResizeGripBottomRight_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -482,39 +223,6 @@ namespace SwitchBlade
         /// </summary>
         private ListBoxItem? ResolveBadgeContainer(WindowItem item) =>
             ResultsConfig.InnerListBox?.ItemContainerGenerator.ContainerFromItem(item) as ListBoxItem;
-
-        private void ActivateWindow(WindowItem? windowItem)
-        {
-            if (windowItem == null)
-                return;
-
-            // Fail-safe: activation failures must never reach the WPF message loop and crash the app.
-            try
-            {
-                if (windowItem.Source != null)
-                {
-                    ProviderActivator.TryActivate(windowItem, _logger);
-                }
-                else
-                {
-                    // Fallback for items without source
-                    _logger.Log($"Warning: WindowItem '{windowItem.Title}' has no Source provider.");
-
-                    // Basic fallback attempt
-                    if (SwitchBlade.Contracts.NativeInterop.IsIconic(windowItem.Hwnd))
-                    {
-                        SwitchBlade.Contracts.NativeInterop.ShowWindow(windowItem.Hwnd, SwitchBlade.Contracts.NativeInterop.SW_RESTORE);
-                    }
-                    SwitchBlade.Contracts.NativeInterop.SetForegroundWindow(windowItem.Hwnd);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to activate window '{windowItem.Title}'", ex);
-            }
-
-            FadeOut(() => this.Hide());
-        }
 
         protected override void OnClosed(EventArgs e)
         {
