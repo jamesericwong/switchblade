@@ -62,8 +62,8 @@ namespace SwitchBlade.Tests.Services
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
-            // Give the background task a moment to await the timer
-            await Task.Delay(50); // Small delay to let async loop start
+            // Wait until the background loop has run its first tick.
+            await WaitForAsync(() => refreshCalled);
 
             // Assert
             _mockTimerFactory.Verify(f => f(TimeSpan.FromSeconds(10)), Times.Once);
@@ -96,7 +96,8 @@ namespace SwitchBlade.Tests.Services
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
-            await Task.Delay(50);
+            // Wait until the loop has performed its locked-workstation check.
+            await WaitForAsync(() => _mockWorkstationService.Invocations.Count > 0);
 
             // Assert
             Assert.False(refreshCalled);
@@ -128,7 +129,8 @@ namespace SwitchBlade.Tests.Services
                 _mockWorkstationService.Object,
                 _mockTimerFactory.Object);
 
-            await Task.Delay(100);
+            // Wait until both ticks have been processed (first threw, second succeeded).
+            await WaitForAsync(() => callCount >= 2);
 
             // Assert
             Assert.Equal(2, callCount);
@@ -195,7 +197,7 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public async Task StartPolling_CancelsPreviousTimer_BeforeStartingNew()
+        public void StartPolling_CancelsPreviousTimer_BeforeStartingNew()
         {
             // Arrange
             var mockTimer1 = new Mock<IPeriodicTimer>();
@@ -233,11 +235,8 @@ namespace SwitchBlade.Tests.Services
             // For now, let's verify factory was called twice.
             _mockTimerFactory.Verify(f => f(It.IsAny<TimeSpan>()), Times.Exactly(2));
 
-            await Task.Delay(50);
-            // Assert timer 1 disposed? It's inside a using block in an async method.
-            // The async method exits on cancellation.
-            // Hard to strict-verify internal disposal without complex signaling, 
-            // but we verified the restart mechanism logic.
+            // Timer 1 disposal happens inside the cancelled loop's using block and is not strictly
+            // verifiable here, so we assert on the observable restart mechanism instead.
         }
 
         [Fact]

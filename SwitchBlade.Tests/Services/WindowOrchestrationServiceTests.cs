@@ -582,7 +582,8 @@ namespace SwitchBlade.Tests.Services
 
             await service.RefreshAsync([]);
 
-            await Task.Delay(200);
+            // UIA refresh is fire-and-forget; wait until the result has been processed and emitted.
+            await WaitForAsync(() => updatedCount > 0);
 
             Assert.True(updatedCount > 0);
             Assert.Contains(service.AllWindows, w => w.Title == "W1" && w.Source == uiaProvider.Object);
@@ -591,21 +592,30 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task LaunchUiaRefresh_LogsWarning_WhenProviderNotFound()
         {
+            // A UIA provider must be registered so LaunchUiaRefresh actually runs; the worker's
+            // result names a plugin no provider matches (and its process is unresolvable).
             var mockWorker = new Mock<IUiaWorkerClient>();
+            var uiaProvider = CreateMockProvider("UiaPlugin", []);
+            uiaProvider.As<IExtrusionStrategy>().Setup(p => p.IsUiaProvider).Returns(true);
+
             var pluginResult = new UiaPluginResult
             {
                 PluginName = "UnknownPlugin",
                 Windows = [new() { Title = "W1", Hwnd = 123, ProcessName = "unknown-proc" }]
             };
 
+            // No provider can match this result, so nothing observable changes on completion —
+            // signal enumeration completion explicitly to wait deterministically.
+            var scanCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             mockWorker.Setup(w => w.ScanStreamingAsync(It.IsAny<IEnumerable<string>?>(), It.IsAny<IEnumerable<string>?>(), It.IsAny<CancellationToken>()))
-                      .Returns(new[] { pluginResult }.ToAsyncEnumerable());
+                      .Returns((IEnumerable<string>? disabled, IEnumerable<string>? handled, CancellationToken t) =>
+                          SignalAfterEnumeration(new[] { pluginResult }.ToAsyncEnumerable(), scanCompleted));
 
-            var service = CreateService([], worker: mockWorker.Object);
+            var service = CreateService([uiaProvider.Object], worker: mockWorker.Object);
 
             await service.RefreshAsync([]);
 
-            await Task.Delay(200);
+            await WaitForAsync(() => scanCompleted.Task.IsCompleted);
 
             Assert.Empty(service.AllWindows);
         }
@@ -722,8 +732,8 @@ namespace SwitchBlade.Tests.Services
             await service.RefreshAsync([]);
 
             scanContinue.Set();
-            // Wait for background task to complete
-            await Task.Delay(200);
+            // Wait for the first (background) UIA scan to finish processing.
+            await WaitForAsync(() => Logged(mockLogger, "Streaming scan complete"));
 
             Assert.Equal(1, scanCount);
             mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("UIA refresh skipped"))), Times.Once);
@@ -754,7 +764,8 @@ namespace SwitchBlade.Tests.Services
                 logger: mockLogger.Object);
 
             await service.RefreshAsync([]);
-            await Task.Delay(300);
+            // Wait for the background scan to finish; the per-result error log precedes completion.
+            await WaitForAsync(() => Logged(mockLogger, "Streaming scan complete"));
 
             mockLogger.Verify(l => l.Log(It.Is<string>(s =>
                 s.Contains("[UIA] Plugin UiaPlugin error:") && s.Contains("Something went wrong"))), Times.Once);
@@ -787,7 +798,8 @@ namespace SwitchBlade.Tests.Services
                 logger: mockLogger.Object);
 
             await service.RefreshAsync([]);
-            await Task.Delay(300);
+            // Wait for the background scan to finish; the skip log precedes completion.
+            await WaitForAsync(() => Logged(mockLogger, "Streaming scan complete"));
 
             mockLogger.Verify(l => l.Log(It.Is<string>(s =>
                 s.Contains("No provider found for plugin UnknownPlugin"))), Times.Once);
@@ -847,8 +859,8 @@ namespace SwitchBlade.Tests.Services
 
             await service.RefreshAsync([]);
 
-            // Give time for background icon population Task.Run to execute
-            await Task.Delay(300);
+            // Icon population runs in a fire-and-forget Task.Run; wait for its error path to complete.
+            await WaitForAsync(() => Logged(mockLogger, "Error populating icons"));
 
             mockLogger.Verify(l => l.LogError(
                 It.Is<string>(s => s.Contains("Error populating icons")),
@@ -1005,8 +1017,8 @@ namespace SwitchBlade.Tests.Services
                 reconciler: mockReconciler.Object);
 
             await service.RefreshAsync([]);
-            // Give time for background icon population Task.Run to execute
-            await Task.Delay(300);
+            // Icon population runs in a fire-and-forget Task.Run; wait until it has been invoked.
+            await WaitForAsync(() => mockReconciler.Invocations.Any(i => i.Method.Name == nameof(IWindowReconciler.PopulateIcons)));
 
             // No assertion on logger — we just verify no unhandled exception
             Assert.Single(service.AllWindows);
@@ -1242,7 +1254,8 @@ namespace SwitchBlade.Tests.Services
             var service = new WindowOrchestrationService([uiaProvider.Object], new Mock<IWindowReconciler>().Object, new Mock<IUiaWorkerClient>().Object, new Mock<INativeInteropWrapper>().Object, new Mock<IProviderRunner>().Object, mockUiaRunner.Object, mockLogger.Object);
             
             await service.RefreshAsync([]);
-            await Task.Delay(200); // Wait for background task
+            // The runner throws inside the fire-and-forget LaunchUiaRefresh; wait for its catch path.
+            await WaitForAsync(() => Logged(mockLogger, "Background UIA refresh failed"));
 
             mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Background UIA refresh failed")), It.IsAny<Exception>()), Times.Once);
         }
@@ -1328,8 +1341,9 @@ namespace SwitchBlade.Tests.Services
             var service = new WindowOrchestrationService([uiaProvider.Object], new Mock<IWindowReconciler>().Object, new Mock<IUiaWorkerClient>().Object, new Mock<INativeInteropWrapper>().Object, new Mock<IProviderRunner>().Object, mockUiaRunner.Object, null);
             
             await service.RefreshAsync([]);
-            await Task.Delay(200); // Wait for background task
-            
+            // Runner throws inside the fire-and-forget LaunchUiaRefresh; wait until it has been invoked.
+            await WaitForAsync(() => mockUiaRunner.Invocations.Count > 0);
+
             // Should not throw
         }
 
@@ -1343,6 +1357,26 @@ namespace SwitchBlade.Tests.Services
             var service = new WindowOrchestrationService([], new Mock<IWindowReconciler>().Object, new Mock<IUiaWorkerClient>().Object, new Mock<INativeInteropWrapper>().Object, mockRunner.Object, new Mock<IProviderRunner>().Object, null);
             await service.RefreshAsync([]);
             // Should not throw
+        }
+
+        private static bool Logged(Mock<ILogger> logger, string fragment)
+            => logger.Invocations.Any(i => i.Arguments.Count > 0 && i.Arguments[0] is string s && s.Contains(fragment));
+
+        private static async IAsyncEnumerable<UiaPluginResult> SignalAfterEnumeration(IAsyncEnumerable<UiaPluginResult> source, TaskCompletionSource<bool> completed)
+        {
+            await foreach (var item in source)
+                yield return item;
+            completed.TrySetResult(true);
+        }
+
+        private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+        {
+            var deadline = Environment.TickCount64 + timeoutMs;
+            while (!condition())
+            {
+                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                await Task.Delay(10);
+            }
         }
     }
 

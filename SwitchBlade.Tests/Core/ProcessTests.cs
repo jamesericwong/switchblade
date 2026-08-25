@@ -119,10 +119,9 @@ namespace SwitchBlade.Tests.Core
             bool errorReceived = false;
             process!.ErrorDataReceived += (s, e) => { if (e.Data != null) errorReceived = true; };
             process.BeginErrorReadLine();
-            
-            // Give it a moment to run
-            await Task.Delay(500); 
-            Assert.True(errorReceived || true); // Use the variable to satisfy compiler, though we can't guarantee stderr timing
+
+            await WaitForAsync(() => errorReceived);
+            Assert.True(errorReceived);
             process.Kill(false);
         }
         
@@ -190,6 +189,16 @@ namespace SwitchBlade.Tests.Core
              Assert.True(process.ThreadCount >= 0);
              Assert.False(process.HasExited);
              Assert.True(process.Id > 0);
+        }
+
+        private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+        {
+            var deadline = Environment.TickCount64 + timeoutMs;
+            while (!condition())
+            {
+                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                await Task.Delay(10);
+            }
         }
     }
 }

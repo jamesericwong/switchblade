@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -177,9 +178,10 @@ namespace SwitchBlade.Tests.Services
             var enumerator = _client.ScanStreamingAsync().GetAsyncEnumerator();
             
             var moveNextTask = enumerator.MoveNextAsync();
-            
-            await Task.Delay(50);
-            
+
+            // Ensure the read has started (blocked in the cancellable wait) before cancelling via Dispose.
+            await WaitForAsync(() => _stdoutMock.Invocations.Any(i => i.Method.Name == nameof(System.IO.TextReader.ReadLineAsync)));
+
             _client.Dispose(); // Kills process and cancels token
             
             try { await moveNextTask; } catch { }
@@ -248,6 +250,16 @@ namespace SwitchBlade.Tests.Services
             // Assert
             Assert.Single(windows);
             Assert.Equal("W2", windows[0].Title);
+        }
+
+        private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+        {
+            var deadline = Environment.TickCount64 + timeoutMs;
+            while (!condition())
+            {
+                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                await Task.Delay(10);
+            }
         }
     }
 }

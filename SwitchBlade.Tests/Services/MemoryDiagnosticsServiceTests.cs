@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SwitchBlade.Services;
@@ -120,13 +121,8 @@ namespace SwitchBlade.Tests.Services
             
             await service.StartAsync(CancellationToken.None);
             
-            // Wait a bit for the background task to spin (impl detail: StartAsync returns immediately)
-            // But since we mocked Timer to return immediately, the loop should run fast.
-            // We need to wait for the loop task to finish if we want to check side effects *after* loop.
-            // But we don't expose the task.
-            // We can verify calls happening eventually.
-
-            await Task.Delay(50); // Yield to background task
+            // StartAsync returns immediately; wait until the loop has executed its first tick.
+            await WaitForAsync(() => _mockProcess.Invocations.Count >= 1);
 
             _mockLogger.Verify(l => l.Log("MemoryDiagnosticsService starting..."), Times.Once());
             _mockProcess.Verify(p => p.Refresh(), Times.Once()); // Called once inside loop
@@ -146,7 +142,7 @@ namespace SwitchBlade.Tests.Services
             using var service = CreateService();
 
             await service.StartAsync(CancellationToken.None);
-            await Task.Delay(50); // Let loop run
+            await WaitForAsync(() => _mockLogger.Invocations.Any(i => i.Arguments.Count > 0 && i.Arguments[0] is string s && s.Contains("loop error")));
 
             _mockLogger.Verify(l => l.LogError("MemoryDiagnosticsService loop error", It.IsAny<Exception>()), Times.Once());
             await service.StopAsync(CancellationToken.None);
@@ -258,6 +254,16 @@ namespace SwitchBlade.Tests.Services
 
             service.Dispose();
             Assert.Null(Record.Exception(() => service.Dispose()));
+        }
+
+        private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+        {
+            var deadline = Environment.TickCount64 + timeoutMs;
+            while (!condition())
+            {
+                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                await Task.Delay(10);
+            }
         }
     }
 }
