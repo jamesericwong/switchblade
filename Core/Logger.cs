@@ -1,89 +1,46 @@
 using System;
 using System.IO;
+using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Core
 {
-    public class Logger : SwitchBlade.Contracts.ILogger
+    /// <summary>
+    /// File logger with per-instance configuration (log path + debug gate). App-wide state lives on
+    /// <see cref="Instance"/>. Tests use their own instance, so global state never has to be mutated.
+    /// </summary>
+    public class Logger : ILogger
     {
-        public static bool IsDebugEnabled { get; set; } = false;
-        private static readonly object _lock = new object();
+        private readonly object _lock = new();
 
-        // Singleton instance for static bridge
-        public static Logger Instance { get; } = new Logger();
+        public bool IsDebugEnabled { get; set; }
 
-        // Allow tests to override the log path
-        public static string LogFilePath { get; set; } = Path.Combine(Path.GetTempPath(), "switchblade_debug.log");
+        // Default preserved from the previous static design (temp folder debug log).
+        public string LogFilePath { get; set; } = Path.Combine(Path.GetTempPath(), "switchblade_debug.log");
 
-        private static string LogPath => LogFilePath;
-
-        // Instance methods implementing ILogger
-        bool SwitchBlade.Contracts.ILogger.IsDebugEnabled
-        {
-            get => IsDebugEnabled;
-            set => IsDebugEnabled = value;
-        }
-
-        void SwitchBlade.Contracts.ILogger.Log(string message) => LogStatic(message);
-        void SwitchBlade.Contracts.ILogger.LogError(string context, Exception ex) => LogErrorStatic(context, ex);
-
-        // Static methods for backward compatibility
-        public static void LogStatic(string message)
+        public void Log(string message)
         {
             if (!IsDebugEnabled) return;
+            WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}");
+        }
 
+        public void LogError(string context, Exception ex)
+        {
+            // Errors are always written, regardless of the debug gate (preserved behavior).
+            WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] ERROR [{context}]: {ex.Message}\nStack: {ex.StackTrace}{Environment.NewLine}");
+        }
+
+        private void WriteLine(string line)
+        {
             try
             {
-                var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}{Environment.NewLine}";
-                lock (_lock)
-                {
-                    File.AppendAllText(LogPath, line);
-                }
+                lock (_lock) File.AppendAllText(LogFilePath, line + Environment.NewLine);
             }
             catch (Exception)
             {
-                // Silently fail to avoid recursive crashes
+                // A logging failure must never crash the caller.
             }
         }
 
-        // Bridge for old static calls
-        public static void Log(string message) => LogStatic(message);
-
-
-        public static void LogErrorStatic(string message)
-        {
-            try
-            {
-                var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] ERROR: {message}{Environment.NewLine}";
-                lock (_lock)
-                {
-                    File.AppendAllText(LogPath, line);
-                }
-            }
-            catch { }
-        }
-
-        // Bridge for old static calls
-        public static void LogError(string message) => LogErrorStatic(message);
-
-
-        public static void LogErrorStatic(string context, Exception ex)
-        {
-            // We force logging for errors even if debug is disabled, 
-            // but we might want to reconsider if strict silence is required.
-            // For now, let's allow errors to be logged to the new temp location for diagnostics.
-            try
-            {
-                var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] ERROR [{context}]: {ex.Message}\nStack: {ex.StackTrace}{Environment.NewLine}";
-                lock (_lock)
-                {
-                    File.AppendAllText(LogPath, line);
-                }
-            }
-            catch { }
-        }
-
-        // Bridge for old static calls
-        public static void LogError(string context, Exception ex) => LogErrorStatic(context, ex);
+        public static Logger Instance { get; } = new Logger();
     }
-
 }

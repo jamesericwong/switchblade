@@ -44,7 +44,7 @@ namespace SwitchBlade
                     arg.Equals("--debug", StringComparison.OrdinalIgnoreCase) ||
                     arg.Equals("-debug", StringComparison.OrdinalIgnoreCase));
 
-                SwitchBlade.Core.Logger.IsDebugEnabled = debugEnabled;
+                SwitchBlade.Core.Logger.Instance.IsDebugEnabled = debugEnabled;
 
                 // Initialize DI container early so we can use ILogger
                 var serviceProvider = ServiceConfiguration.ConfigureServices();

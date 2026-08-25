@@ -288,5 +288,20 @@ namespace SwitchBlade.Tests.Services
             // Should not throw because catch block handles it and logger is null
             service.SaveSettings();
         }
+
+        [Fact]
+        public void SaveSettings_LaunchOnStartupTrue_EmptyExePath_SkipsEnableWithoutError()
+        {
+            _mockProcess.Setup(p => p.MainModuleFileName).Returns(string.Empty);
+
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
+            service.Settings.LaunchOnStartup = true;
+
+            service.SaveSettings();
+
+            // Empty exe path: neither Enable nor Disable may be attempted.
+            _mockStartupManager.Verify(m => m.EnableStartup(It.IsAny<string>()), Times.Never());
+            _mockStartupManager.Verify(m => m.DisableStartup(), Times.Never());
+        }
     }
 }

@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SwitchBlade.Contracts
 {
+    [ExcludeFromCodeCoverage]
     public class RegistryServiceWrapper : IRegistryService
     {
         public object? GetCurrentUserValue(string keyPath, string valueName)

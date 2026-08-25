@@ -107,10 +107,10 @@ namespace SwitchBlade.Tests.Services
         public void ResetAnimationState_ResetsFlag()
         {
             var items = new List<WindowItem> { new WindowItem { HasBeenAnimated = true } };
-            BadgeAnimationService.ResetAnimationState(items);
+            _service.ResetAnimationState(items);
             Assert.False(items[0].HasBeenAnimated);
-            
-            BadgeAnimationService.ResetAnimationState(null); // Should not throw
+
+            _service.ResetAnimationState(null); // Should not throw
         }
 
         [Fact]
@@ -313,6 +313,46 @@ namespace SwitchBlade.Tests.Services
             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
 
             // This should hit line 117 after item1 but before item2
+        }
+
+        [Fact]
+        public async Task ResetAnimationState_WithLogger_LogsReset()
+        {
+            var mockDelay = new Mock<IDelayProvider>();
+            mockDelay.Setup(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            var mockLogger = new Mock<ILogger>();
+            var service = new BadgeAnimationService(_mockAnimator.Object, mockDelay.Object, mockLogger.Object);
+            service.DebounceMs = 10;
+            service.StaggerDelayMs = 10;
+
+            var item = new WindowItem { Title = "T1", ShortcutIndex = 1 };
+            await service.TriggerStaggeredAnimationAsync(new List<WindowItem> { item }, skipDebounce: true); // leaves the item animated
+
+            Assert.Null(Record.Exception(() => service.ResetAnimationState(new List<WindowItem> { item })));
+
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("HasBeenAnimated"))), Times.Once());
+        }
+
+        [Fact]
+        public async Task TriggerStaggeredAnimationAsync_WithLogger_LogsStartAndSummary()
+        {
+            var mockDelay = new Mock<IDelayProvider>();
+            mockDelay.Setup(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            var mockLogger = new Mock<ILogger>();
+            var service = new BadgeAnimationService(_mockAnimator.Object, mockDelay.Object, mockLogger.Object);
+            service.DebounceMs = 10;
+            service.StaggerDelayMs = 10;
+
+            var items = new List<WindowItem>
+            {
+                new WindowItem { Title = "A", ShortcutIndex = 1 },
+                new WindowItem { Title = "B", ShortcutIndex = 2 }
+            };
+
+            await service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("Starting"))), Times.Once());
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("Animated="))), Times.Once());
         }
     }
 }

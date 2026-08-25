@@ -281,5 +281,122 @@ namespace SwitchBlade.Tests.Services
             // Assert
             Assert.NotNull(service); // Simply ensuring no exceptions are thrown
         }
+
+        private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+        {
+            var deadline = Environment.TickCount64 + timeoutMs;
+            while (!condition())
+            {
+                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                await Task.Delay(10);
+            }
+        }
+
+        [Fact]
+        public void Polling_Disabled_WithLogger_LogsDisabled()
+        {
+            _settings.EnableBackgroundPolling = false;
+            var mockLogger = new Mock<ILogger>();
+
+            using var service = new BackgroundPollingService(
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
+                _mockWorkstationService.Object,
+                _mockTimerFactory.Object,
+                mockLogger.Object);
+
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("Polling disabled"))), Times.Once());
+            _mockTimer.Verify(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()), Times.Never());
+        }
+
+        [Fact]
+        public void Polling_IntervalBelowOneSecond_ClampsToMinimum()
+        {
+            _settings.EnableBackgroundPolling = true;
+            _settings.BackgroundPollingIntervalSeconds = 0; // below the 1s floor
+            var mockLogger = new Mock<ILogger>();
+
+            using var service = new BackgroundPollingService(
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
+                _mockWorkstationService.Object,
+                _mockTimerFactory.Object,
+                mockLogger.Object);
+
+            // Clamp: the interval is forced to exactly 1000ms (logged by StartPolling).
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("interval 1000ms"))), Times.Once());
+        }
+
+        [Fact]
+        public async Task Polling_Running_WithLogger_LogsRunning()
+        {
+            _settings.EnableBackgroundPolling = true;
+            _mockTimer.SetupSequence(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+            var mockLogger = new Mock<ILogger>();
+            bool refreshCalled = false;
+
+            using var service = new BackgroundPollingService(
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => { refreshCalled = true; return Task.CompletedTask; },
+                _mockWorkstationService.Object,
+                _mockTimerFactory.Object,
+                mockLogger.Object);
+
+            await WaitForAsync(() => refreshCalled);
+
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("Running background refresh"))), Times.Once());
+        }
+
+        [Fact]
+        public async Task Polling_Locked_WithLogger_LogsSkip()
+        {
+            _settings.EnableBackgroundPolling = true;
+            _mockWorkstationService.Setup(w => w.IsWorkstationLocked()).Returns(true);
+            _mockTimer.SetupSequence(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+            var mockLogger = new Mock<ILogger>();
+            bool refreshCalled = false;
+
+            using var service = new BackgroundPollingService(
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => { refreshCalled = true; return Task.CompletedTask; },
+                _mockWorkstationService.Object,
+                _mockTimerFactory.Object,
+                mockLogger.Object);
+
+            await WaitForAsync(() => _mockWorkstationService.Invocations.Count > 0);
+
+            Assert.False(refreshCalled);
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("skipping refresh"))), Times.Once());
+        }
+
+        [Fact]
+        public async Task Polling_RefreshThrows_WithLogger_LogsError()
+        {
+            _settings.EnableBackgroundPolling = true;
+            _mockTimer.SetupSequence(t => t.WaitForNextTickAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true)
+                .ReturnsAsync(false);
+            var mockLogger = new Mock<ILogger>();
+
+            using var service = new BackgroundPollingService(
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => throw new Exception("boom"),
+                _mockWorkstationService.Object,
+                _mockTimerFactory.Object,
+                mockLogger.Object);
+
+            await WaitForAsync(() => mockLogger.Invocations.Count > 0);
+
+            mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Error during refresh")), It.IsAny<Exception>()), Times.Once());
+        }
     }
 }

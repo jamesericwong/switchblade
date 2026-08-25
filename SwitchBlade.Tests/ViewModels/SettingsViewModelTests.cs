@@ -438,5 +438,86 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.Null(exception);
             _settingsServiceMock.Verify(s => s.SaveSettings(), Times.AtLeastOnce());
         }
+
+        [Fact]
+        public void LaunchOnStartup_SameValue_DoesNotNotifyOrSave()
+        {
+            bool notified = false;
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.LaunchOnStartup)) notified = true; };
+
+            _settingsServiceMock.Object.Settings.LaunchOnStartup = false;
+            _viewModel.LaunchOnStartup = false; // same value → no event, no save
+
+            Assert.False(notified);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Never());
+        }
+
+        [Fact]
+        public void SearchHighlightColor_SameValue_DoesNotNotifyOrSave()
+        {
+            bool notified = false;
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.SearchHighlightColor)) notified = true; };
+
+            var color = _settingsServiceMock.Object.Settings.SearchHighlightColor;
+            _viewModel.SearchHighlightColor = color; // same value → no-op
+
+            Assert.False(notified);
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Never());
+        }
+
+        [Fact]
+        public void PreserveSelectorProperties_SetFalse_AreNoOps()
+        {
+            _viewModel.IsPreserveIndexSelected = true; // known state: Index selected
+            Assert.Equal(RefreshBehavior.PreserveIndex, _settingsServiceMock.Object.Settings.RefreshBehavior);
+
+            // Radio-style selectors: setting false is a deliberate no-op.
+            _viewModel.IsPreserveScrollSelected = false;
+            _viewModel.IsPreserveIdentitySelected = false;
+            _viewModel.IsPreserveIndexSelected = false;
+
+            Assert.Equal(RefreshBehavior.PreserveIndex, _settingsServiceMock.Object.Settings.RefreshBehavior);
+            Assert.True(_viewModel.IsPreserveIndexSelected);
+        }
+
+        [Fact]
+        public void HotKeyString_NoModifiers_ReturnsOnlyKeyName()
+        {
+            _settingsServiceMock.Object.Settings.HotKeyModifiers = 0;
+            _settingsServiceMock.Object.Settings.HotKeyKey = (uint)System.Windows.Forms.Keys.F;
+
+            var result = _viewModel.HotKeyString;
+
+            Assert.Contains("F", result);
+            Assert.DoesNotContain("Ctrl", result);
+            Assert.DoesNotContain("Alt", result);
+        }
+
+        [Fact]
+        public void TogglePluginCommand_NonPluginArgument_Ignored()
+        {
+            var before = _settingsServiceMock.Object.Settings.DisabledPlugins.Count;
+
+            Assert.Null(Record.Exception(() => _viewModel.TogglePluginCommand.Execute("not a plugin")));
+
+            Assert.Equal(before, _settingsServiceMock.Object.Settings.DisabledPlugins.Count);
+        }
+
+        [Fact]
+        public void SetHighlightColorCommand_NonStringArgument_Ignored()
+        {
+            Assert.Null(Record.Exception(() => _viewModel.SetHighlightColorCommand.Execute(123)));
+
+            Assert.Equal("#FF0078D4", _viewModel.SearchHighlightColor);
+        }
+
+        [Fact]
+        public void PerformDebouncedSave_SaveThrows_NullLogger_DoesNotThrow()
+        {
+            _settingsServiceMock.Setup(s => s.SaveSettings()).Throws(new System.InvalidOperationException("simulated save failure"));
+            var vm = new SettingsViewModel(_settingsServiceMock.Object, _themeServiceMock.Object, _pluginServiceMock.Object, _uiServiceMock.Object);
+
+            Assert.Null(Record.Exception(() => vm.PerformDebouncedSave()));
+        }
     }
 }

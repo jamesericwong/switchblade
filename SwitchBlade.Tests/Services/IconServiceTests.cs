@@ -130,5 +130,20 @@ namespace SwitchBlade.Tests.Services
             // Wait, if it cleared, it would be empty then add item1 -> count 1.
             // So Equal(2) proves it didn't clear.
         }
+
+        [Fact]
+        public void GetIcon_CacheLimitReached_WithLogger_LogsClear()
+        {
+            _settings.IconCacheSize = 2;
+            var mockLogger = new Mock<ILogger>();
+            var service = new IconService(_mockSettingsService.Object, _mockExtractor.Object, mockLogger.Object);
+
+            service.GetIcon("a.exe");
+            service.GetIcon("b.exe");
+            service.GetIcon("c.exe"); // cache full + new key → clear and log
+
+            Assert.Equal(1, service.CacheCount);
+            mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("cache limit"))), Times.Once());
+        }
     }
 }
