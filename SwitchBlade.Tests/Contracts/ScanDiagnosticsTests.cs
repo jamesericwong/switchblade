@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using SwitchBlade.Contracts;
 using Xunit;
 
@@ -61,6 +62,58 @@ namespace SwitchBlade.Tests.Contracts
             Assert.Contains("40 probed elements", summary);
             Assert.Contains("3 invalidated", summary);
         }
+
+        [Fact]
+        public void FormatSummary_NoObservations_OmitsSignatureSuffix()
+        {
+            var diagnostics = new ScanDiagnostics();
+            diagnostics.RecordProbe();
+
+            var summary = diagnostics.FormatSummary("TestPlugin", 1);
+
+            Assert.DoesNotContain("[", summary);
+        }
+
+        [Fact]
+        public void RecordObservation_ComException_SignatureAppearsInSummary()
+        {
+            var diagnostics = new ScanDiagnostics();
+            diagnostics.RecordProbe();
+            diagnostics.RecordInvalidation();
+            diagnostics.RecordObservation(new COMException("transient", unchecked((int)0x80040201)));
+
+            var summary = diagnostics.FormatSummary("TestPlugin", 1);
+
+            Assert.Contains("COMException(0x80040201)×1", summary);
+        }
+
+        [Fact]
+        public void RecordObservation_SameSignatureTwice_CountsAggregate()
+        {
+            var diagnostics = new ScanDiagnostics();
+            diagnostics.RecordObservation(new COMException("a", unchecked((int)0x80040201)));
+            diagnostics.RecordObservation(new COMException("b", unchecked((int)0x80040201)));
+
+            Assert.Contains("COMException(0x80040201)×2", diagnostics.FormatSummary("TestPlugin", 0));
+        }
+
+        [Fact]
+        public void RecordObservation_NestedChain_RecordsEachLink()
+        {
+            // Framework wrappers nest the raw COMException — both links must stay visible.
+            var wrapped = new InvalidOperationException("wrapper", new COMException("inner", unchecked((int)0x80010007)));
+
+            var diagnostics = new ScanDiagnostics();
+            diagnostics.RecordObservation(wrapped);
+
+            var summary = diagnostics.FormatSummary("TestPlugin", 0);
+            Assert.Contains("InvalidOperationException×1", summary);
+            Assert.Contains("COMException(0x80010007)×1", summary);
+        }
+
+        [Fact]
+        public void RecordObservation_Null_ThrowsArgumentNullException() =>
+            Assert.Throws<ArgumentNullException>(() => new ScanDiagnostics().RecordObservation(null!));
 
         [Fact]
         public void Report_LowInvalidationRate_LogsInfo()

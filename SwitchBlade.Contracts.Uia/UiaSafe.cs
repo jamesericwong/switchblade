@@ -77,6 +77,7 @@ namespace SwitchBlade.Contracts
                 if (diagnostics != null)
                 {
                     diagnostics.RecordInvalidation();
+                    diagnostics.RecordObservation(ex);
                 }
 
                 value = default!;
@@ -108,6 +109,7 @@ namespace SwitchBlade.Contracts
                 if (diagnostics != null)
                 {
                     diagnostics.RecordInvalidation();
+                    diagnostics.RecordObservation(ex);
                 }
 
                 return false;

@@ -127,6 +127,16 @@ namespace SwitchBlade.Tests.Contracts
         }
 
         [Fact]
+        public void TryGet_WithDiagnostics_TransientFailure_RecordsObservationSignature()
+        {
+            var diagnostics = new ScanDiagnostics();
+
+            UiaSafe.TryGet<object>(() => throw new COMException("died", unchecked((int)0x80010007)), diagnostics, out _);
+
+            Assert.Contains("COMException(0x80010007)×1", diagnostics.FormatSummary("TestPlugin", 0));
+        }
+
+        [Fact]
         public void TryGet_NullAccess_ThrowsArgumentNullException() =>
             Assert.Throws<ArgumentNullException>(() => UiaSafe.TryGet<string>(null!, out _));
 
@@ -165,6 +175,7 @@ namespace SwitchBlade.Tests.Contracts
 
             Assert.Equal(1, diagnostics.ElementsProbed);
             Assert.Equal(1, diagnostics.InvalidatedElements);
+            Assert.Contains("COMException(0x80010007)×1", diagnostics.FormatSummary("TestPlugin", 0));
         }
 
         [Fact]
