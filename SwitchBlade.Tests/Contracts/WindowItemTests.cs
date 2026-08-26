@@ -330,5 +330,61 @@ namespace SwitchBlade.Tests.Contracts
             var item = new WindowItem { ShortcutIndex = index };
             Assert.Equal(expected, item.IsShortcutVisible);
         }
+
+        // --- Stable identity (hash-safe in collections even after Title updates) ---
+
+        [Fact]
+        public void GetHashCode_TitleMutation_DoesNotChange()
+        {
+            var item = new WindowItem { Hwnd = new IntPtr(1), Title = "Tab A" };
+            int before = item.GetHashCode();
+
+            item.Title = "Renamed Tab";
+
+            Assert.Equal(before, item.GetHashCode());
+        }
+
+        [Fact]
+        public void HashSet_Remove_AfterTitleMutation_Succeeds()
+        {
+            var item = new WindowItem { Hwnd = new IntPtr(1), Title = "Tab A" };
+            var set = new HashSet<WindowItem> { item };
+
+            item.Title = "Renamed Tab"; // must not move the item to a different hash bucket
+
+            Assert.True(set.Remove(item));
+            Assert.Empty(set);
+        }
+
+        [Fact]
+        public void Equals_SameOrigin_RenamedOne_StillEqual()
+        {
+            var a = new WindowItem { Hwnd = new IntPtr(1), Title = "Tab A" };
+            var b = new WindowItem { Hwnd = new IntPtr(1), Title = "Tab A" };
+
+            a.Title = "Renamed"; // identity (first-assigned title) is unchanged
+
+            Assert.True(a.Equals(b));
+        }
+
+        [Fact]
+        public void Equals_SameHwnd_DifferentOrigin_NotEqual()
+        {
+            // Two distinct tabs that happen to share an HWND but were created with different titles
+            // are different items, even if their display titles later converge.
+            var a = new WindowItem { Hwnd = new IntPtr(1), Title = "Tab A" };
+            var b = new WindowItem { Hwnd = new IntPtr(1), Title = "Tab B" };
+
+            Assert.False(a.Equals(b));
+        }
+
+        [Fact]
+        public void Equals_DifferentHwnd_SameTitle_NotEqual()
+        {
+            var a = new WindowItem { Hwnd = new IntPtr(1), Title = "Untitled" };
+            var b = new WindowItem { Hwnd = new IntPtr(2), Title = "Untitled" };
+
+            Assert.False(a.Equals(b));
+        }
     }
 }

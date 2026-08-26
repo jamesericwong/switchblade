@@ -21,16 +21,33 @@ namespace SwitchBlade.Contracts
             public static readonly PropertyChangedEventArgs Icon = new(nameof(Icon));
         }
 
-        public IntPtr Hwnd { get; set; }
+        /// <summary>
+        /// Window handle. Part of the item's stable identity (see <see cref="Equals(object?)"/>),
+        /// so it is immutable after construction — a window's HWND never changes for its lifetime.
+        /// </summary>
+        public IntPtr Hwnd { get; init; }
+
+        private string _identityTitle = string.Empty;
+        private bool _titleIdentityCaptured;
 
         public string Title
         {
             get => _title;
             set
             {
-                if (_title != value)
+                var newValue = value ?? string.Empty;
+
+                // Identity is captured on first assignment and never changes afterwards, so items can be
+                // safely held in hash-based collections even while their display title keeps updating.
+                if (!_titleIdentityCaptured)
                 {
-                    _title = value;
+                    _identityTitle = newValue;
+                    _titleIdentityCaptured = true;
+                }
+
+                if (_title != newValue)
+                {
+                    _title = newValue;
                     _normalizedTitle = null; // Invalidate cached normalized title
                     PropertyChanged?.Invoke(this, PropertyChangedCache.Title);
                 }
@@ -184,6 +201,11 @@ namespace SwitchBlade.Contracts
         }
 
 
+        /// <summary>
+        /// Equality is based on the item's STABLE identity: HWND plus the title as first assigned.
+        /// The display <see cref="Title"/> may change afterwards (tab renames) without changing identity,
+        /// so items remain valid members of hash-based collections for their whole lifetime.
+        /// </summary>
         public override bool Equals(object? obj)
         {
             if (obj is not WindowItem other)
@@ -191,12 +213,12 @@ namespace SwitchBlade.Contracts
                 return false;
             }
 
-            return Hwnd == other.Hwnd && Title == other.Title;
+            return Hwnd == other.Hwnd && _identityTitle == other._identityTitle;
         }
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Hwnd, Title);
+            return HashCode.Combine(Hwnd, _identityTitle);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

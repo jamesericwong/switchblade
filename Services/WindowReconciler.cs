@@ -50,7 +50,8 @@ namespace SwitchBlade.Services
 
                     if (match != null)
                     {
-                        // Remove from hash sets BEFORE mutating Title (which affects hash code)
+                        // Detach before potential Source re-attribution below. The Title mutation is safe
+                        // either way — WindowItem identity/hash is stable by design, so sets can't orphan entries.
                         unusedCacheItems.Remove(match);
                         
                         if (match.Source != null && _providerItems.TryGetValue(match.Source, out var providerSet))
