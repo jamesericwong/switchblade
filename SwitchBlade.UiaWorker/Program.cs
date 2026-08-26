@@ -408,5 +408,6 @@ internal sealed class BridgedLogger : ILogger
 
     public bool IsDebugEnabled { get; set; } = true;
     public void Log(string message) => Program.DebugLog(message);
+    public void LogWarning(string message) => Program.DebugLog($"WARNING {message}");
     public void LogError(string context, Exception ex) => Program.DebugLog($"ERROR [{context}]: {ex}");
 }

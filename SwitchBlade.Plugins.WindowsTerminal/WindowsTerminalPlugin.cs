@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Automation;
 using System.Windows.Interop;
@@ -18,7 +19,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
     {
         private ILogger? _logger;
         private IPluginSettingsService? _settingsService;
-        private List<string> _terminalProcesses = new();
+        private HashSet<string> _terminalProcesses = new(StringComparer.OrdinalIgnoreCase);
 
         // Default terminal processes if no settings exist
         private static readonly List<string> DefaultTerminalProcesses = new()
@@ -26,17 +27,13 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             "WindowsTerminal"
         };
 
-        // Optimization: Server-side filter to prevent creation of RCWs for heavy Document nodes
-        private static readonly Condition NotDocumentCondition = new NotCondition(
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document));
-
         public override string PluginName => "WindowsTerminalPlugin";
         public override bool HasSettings => true;
         public override bool IsUiaProvider => true;
 
         public override ISettingsControl? SettingsControl =>
             _settingsService != null
-                ? new TerminalSettingsControlProvider(_settingsService, _terminalProcesses)
+                ? new TerminalSettingsControlProvider(_settingsService, _terminalProcesses.ToList())
                 : null;
 
         public WindowsTerminalPlugin()
@@ -72,13 +69,14 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             // Check if TerminalProcesses key exists in plugin Registry
             if (_settingsService.KeyExists("TerminalProcesses"))
             {
-                _terminalProcesses = _settingsService.GetStringList("TerminalProcesses", DefaultTerminalProcesses);
+                var loaded = _settingsService.GetStringList("TerminalProcesses", DefaultTerminalProcesses);
+                _terminalProcesses = new HashSet<string>(loaded, StringComparer.OrdinalIgnoreCase);
             }
             else
             {
                 // First run or missing key - use defaults and save them
-                _terminalProcesses = new List<string>(DefaultTerminalProcesses);
-                _settingsService.SetStringList("TerminalProcesses", _terminalProcesses);
+                _terminalProcesses = new HashSet<string>(DefaultTerminalProcesses, StringComparer.OrdinalIgnoreCase);
+                _settingsService.SetStringList("TerminalProcesses", _terminalProcesses.ToList());
             }
 
             _logger?.Log($"{PluginName}: Loaded {_terminalProcesses.Count} terminal processes");
@@ -92,16 +90,14 @@ namespace SwitchBlade.Plugins.WindowsTerminal
 
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
-            var allResults = new List<WindowItem>();
-
-            var targetProcessNames = new HashSet<string>(_terminalProcesses, StringComparer.OrdinalIgnoreCase);
-            if (targetProcessNames.Count == 0)
+            if (_terminalProcesses.Count == 0)
             {
-                return allResults;
+                return new List<WindowItem>();
             }
 
             // Map PID to list of window items found for that process
             var pidToResults = new Dictionary<int, List<WindowItem>>();
+            var diagnostics = new ScanDiagnostics();
 
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
@@ -113,11 +109,12 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
 
-                if (targetProcessNames.Contains(procName))
+                // O(1) HashSet lookup (comparer set at construction)
+                if (_terminalProcesses.Contains(procName))
                 {
                     var resultsForThisHandle = new List<WindowItem>();
-                    ScanWindow(hwnd, (int)pid, procName, execPath, resultsForThisHandle);
-                    
+                    ScanWindow(hwnd, (int)pid, procName, execPath, diagnostics, resultsForThisHandle);
+
                     if (!pidToResults.TryGetValue((int)pid, out var list))
                     {
                         list = new List<WindowItem>();
@@ -130,7 +127,9 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             }, IntPtr.Zero);
 
             // POST-PROCESS: Deduplication and Prioritization
-            return DeduplicateResults(this, pidToResults);
+            var results = DeduplicateResults(this, pidToResults);
+            diagnostics.Report(_logger, PluginName, results.Count(r => !r.IsFallback));
+            return results;
         }
 
         /// <summary>
@@ -169,7 +168,7 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             return allResults;
         }
 
-        private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, List<WindowItem> results)
+        private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, ScanDiagnostics diagnostics, List<WindowItem> results)
         {
             // Get window title via native API
             Span<char> buffer = stackalloc char[512];
@@ -180,12 +179,31 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                 return;
             }
 
-            var tabs = ScanForTabs(hwnd, pid);
-
-            if (tabs.Count > 0)
+            var tabNames = new List<string>();
+            try
             {
-                _logger?.Log($"{PluginName}: Found {tabs.Count} tabs in PID {pid}");
-                foreach (var tabName in tabs)
+                var root = TryGetAutomationElement(hwnd, pid);
+                if (root != null)
+                {
+                    foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
+                    {
+                        var name = UiaTabScanner.GetTabName(tab, diagnostics);
+                        if (!string.IsNullOrWhiteSpace(name))
+                        {
+                            tabNames.Add(name);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"{PluginName}: Error scanning UIA tree", ex);
+            }
+
+            if (tabNames.Count > 0)
+            {
+                _logger?.Log($"{PluginName}: Found {tabNames.Count} tabs in PID {pid}");
+                foreach (var tabName in tabNames)
                 {
                     results.Add(new WindowItem
                     {
@@ -213,115 +231,6 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             }
         }
 
-        /// <summary>
-        /// Surgical BFS: Uses CacheRequest + FindAll to minimize COM RCW creation.
-        /// Prunes Document branches to avoid deep web/text content traversal.
-        /// </summary>
-        private List<string> ScanForTabs(IntPtr hwnd, int pid)
-        {
-            var tabs = new List<string>();
-
-            try
-            {
-                var root = TryGetAutomationElement(hwnd, pid);
-                if (root == null)
-                {
-                    return tabs;
-                }
-
-                var cacheRequest = new CacheRequest();
-                cacheRequest.Add(AutomationElement.NameProperty);
-                cacheRequest.Add(AutomationElement.ControlTypeProperty);
-                cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
-                cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
-
-                using (cacheRequest.Activate())
-                {
-                    // PRIMARY: Manual BFS traversal (user preferred)
-                    try
-                    {
-                        var queue = new Queue<AutomationElement>();
-                        queue.Enqueue(root);
-
-                        int containersChecked = 0;
-                        const int MaxContainersToCheck = 200;
-
-                        while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
-                        {
-                            var current = queue.Dequeue();
-                            containersChecked++;
-
-                            AutomationElementCollection? children = null;
-                            try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
-                            catch { continue; }
-
-                            if (children == null)
-                            {
-                                continue;
-                            }
-
-                            foreach (AutomationElement child in children)
-                            {
-                                try
-                                {
-                                    var controlType = child.Cached.ControlType;
-
-                                    if (controlType == ControlType.TabItem || 
-                                        child.Cached.LocalizedControlType?.Equals("tab item", StringComparison.OrdinalIgnoreCase) == true)
-                                    {
-                                        var name = child.Cached.Name;
-                                        if (!string.IsNullOrWhiteSpace(name))
-                                        {
-                                            tabs.Add(name);
-                                        }
-                                    }
-                                    else if (controlType != ControlType.Document)
-                                    {
-                                        queue.Enqueue(child);
-                                    }
-                                }
-                                catch { }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.Log($"{PluginName}: BFS scan failed, falling back to Descendants search. Error: {ex.Message}");
-                    }
-
-                    // FALLBACK: Native Descendants search if BFS found nothing or failed
-                    if (tabs.Count == 0)
-                    {
-                        var condition = new OrCondition(
-                            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem),
-                            new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab item")
-                        );
-
-                        var elements = root.FindAll(TreeScope.Descendants, condition);
-                        foreach (AutomationElement element in elements)
-                        {
-                            var name = element.Cached.Name;
-                            if (!string.IsNullOrWhiteSpace(name))
-                            {
-                                tabs.Add(name);
-                            }
-                        }
-                        
-                        if (tabs.Count > 0)
-                        {
-                            _logger?.Log($"{PluginName}: BFS found 0 tabs, but Descendants fallback found {tabs.Count}.");
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError($"{PluginName}: Error scanning UIA tree", ex);
-            }
-
-            return tabs;
-        }
-
         public override void ActivateWindow(WindowItem item)
         {
             // First, bring the main window to foreground
@@ -341,21 +250,12 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                         return;
                     }
 
-                    var tabElement = FindTabByName(root, item.Title);
+                    var tabElement = UiaTabScanner.FindTabs(root).FirstOrDefault(tab =>
+                        string.Equals(UiaTabScanner.GetTabName(tab), item.Title, StringComparison.Ordinal));
+
                     if (tabElement != null)
                     {
-                        if (tabElement.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var pattern))
-                        {
-                            ((SelectionItemPattern)pattern).Select();
-                        }
-                        else if (tabElement.TryGetCurrentPattern(InvokePattern.Pattern, out var invokePattern))
-                        {
-                            ((InvokePattern)invokePattern).Invoke();
-                        }
-                        else
-                        {
-                            tabElement.SetFocus();
-                        }
+                        ElementActivator.TryActivate(tabElement, UiaActivationStrategy.SelectionItem, UiaActivationStrategy.Invoke);
                     }
                 }
                 catch (Exception ex)
@@ -363,85 +263,6 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                     _logger?.LogError($"{PluginName}: Error activating tab '{item.Title}'", ex);
                 }
             }
-        }
-
-        /// <summary>
-        /// Surgical BFS for tab activation: Uses CacheRequest + FindAll with Document pruning.
-        /// </summary>
-        private static AutomationElement? FindTabByName(AutomationElement root, string targetName)
-        {
-            var cacheRequest = new CacheRequest();
-            cacheRequest.Add(AutomationElement.NameProperty);
-            cacheRequest.Add(AutomationElement.ControlTypeProperty);
-            cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
-            cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
-
-            using (cacheRequest.Activate())
-            {
-                // PRIMARY: Manual BFS
-                try
-                {
-                    var queue = new Queue<AutomationElement>();
-                    queue.Enqueue(root);
-
-                    int containersChecked = 0;
-                    const int MaxContainersToCheck = 200;
-
-                    while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
-                    {
-                        var current = queue.Dequeue();
-                        containersChecked++;
-
-                        AutomationElementCollection? children = null;
-                        try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
-                        catch { continue; }
-
-                        if (children == null)
-                        {
-                            continue;
-                        }
-
-                        foreach (AutomationElement child in children)
-                        {
-                            try
-                            {
-                                var controlType = child.Cached.ControlType;
-                                bool isTab = controlType == ControlType.TabItem || 
-                                             child.Cached.LocalizedControlType?.Equals("tab item", StringComparison.OrdinalIgnoreCase) == true;
-
-                                if (isTab && child.Cached.Name == targetName)
-                                {
-                                    return child;
-                                }
-
-                                if (!isTab && controlType != ControlType.Document)
-                                {
-                                    queue.Enqueue(child);
-                                }
-                            }
-                            catch { }
-                        }
-                    }
-                }
-                catch { }
-
-                // FALLBACK: Native Descendants search
-                var condition = new OrCondition(
-                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem),
-                    new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab item")
-                );
-
-                var elements = root.FindAll(TreeScope.Descendants, condition);
-                foreach (AutomationElement element in elements)
-                {
-                    if (element.Cached.Name == targetName)
-                    {
-                        return element;
-                    }
-                }
-            }
-
-            return null;
         }
 
         private static readonly UiaResolverOptions _resolverOptions = new()

@@ -1,0 +1,196 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Windows.Automation;
+
+namespace SwitchBlade.Contracts
+{
+    /// <summary>
+    /// Shared tab discovery for UIA-based plugins (Chrome, Windows Terminal, Notepad++):
+    /// breadth-first traversal with Document pruning plus a native Descendants fallback.
+    /// Unifies the tab-detection literals that previously drifted across plugins — Chrome matched
+    /// LocalizedControlType "tab" while Terminal/Notepad++ matched "tab item", so at least one variant
+    /// silently yielded zero tabs in some environments. Both variants are accepted here, case-insensitively.
+    /// </summary>
+    public static class UiaTabScanner
+    {
+        /// <summary>Unified BFS safety cap (the maximum of the historical per-plugin caps: 50 / 100 / 200).</summary>
+        public const int DefaultMaxContainers = 200;
+
+        private const string TabLiteral_Tab = "tab";
+        private const string TabLiteral_TabItem = "tab item";
+
+        private static readonly HashSet<string> TabLocalizedControlTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            TabLiteral_Tab,     // Chrome-family browsers report LocalizedControlType "tab"
+            TabLiteral_TabItem  // Windows Terminal / Notepad++ report "tab item"
+        };
+
+        // Server-side filter: prevents creation of RCWs for heavy Document nodes.
+        private static readonly Condition NotDocumentCondition = new NotCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document));
+
+        /// <summary>
+        /// Determines whether an element is a tab by control type or localized control type literal.
+        /// Pure function of the two property values so it can be unit-tested without a live UIA tree.
+        /// </summary>
+        public static bool IsTabElement(ControlType? controlType, string? localizedControlType) =>
+            controlType == ControlType.TabItem ||
+            (localizedControlType != null && TabLocalizedControlTypes.Contains(localizedControlType));
+
+        /// <summary>
+        /// Finds tab elements under <paramref name="root"/> using BFS with Document pruning; falls back to a
+        /// native Descendants search when the traversal finds nothing. Returns matched elements in discovery order.
+        /// </summary>
+        [ExcludeFromCodeCoverage] // Requires a live UIA tree; decision logic is covered via IsTabElement and UiaSafe tests.
+        public static List<AutomationElement> FindTabs(AutomationElement root, ScanDiagnostics? diagnostics = null) =>
+            FindTabs(root, diagnostics, DefaultMaxContainers);
+
+        /// <summary>
+        /// Finds tab elements under <paramref name="root"/> bounded by <paramref name="maxContainers"/> BFS containers.
+        /// </summary>
+        [ExcludeFromCodeCoverage] // Requires a live UIA tree; decision logic is covered via IsTabElement and UiaSafe tests.
+        public static List<AutomationElement> FindTabs(AutomationElement root, ScanDiagnostics? diagnostics, int maxContainers)
+        {
+            var tabs = new List<AutomationElement>();
+
+            var cacheRequest = new CacheRequest();
+            cacheRequest.Add(AutomationElement.NameProperty);
+            cacheRequest.Add(AutomationElement.ControlTypeProperty);
+            cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
+            cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
+
+            using (cacheRequest.Activate())
+            {
+                var queue = new Queue<AutomationElement>();
+                queue.Enqueue(root);
+
+                int containersChecked = 0;
+                while (queue.Count > 0 && containersChecked < maxContainers)
+                {
+                    var container = queue.Dequeue();
+                    containersChecked++;
+
+                    foreach (var child in GetChildren(container, diagnostics))
+                    {
+                        var controlType = ReadControlType(child, diagnostics);
+                        if (controlType == ControlType.Document)
+                        {
+                            continue; // Prune heavy branches on the walker path (server-side filter does not apply there).
+                        }
+
+                        if (IsTabElement(controlType, ReadLocalizedControlType(child, diagnostics)))
+                        {
+                            tabs.Add(child); // Tabs are leaves of interest: collect, do not descend.
+                        }
+                        else if (controlType != null)
+                        {
+                            queue.Enqueue(child); // Unreadable children are skipped (historical per-plugin behavior).
+                        }
+                    }
+                }
+            }
+
+            if (tabs.Count == 0)
+            {
+                // Native Descendants search with the unified literal set (robust when BFS is blocked).
+                var condition = new OrCondition(
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem),
+                    new OrCondition(
+                        new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, TabLiteral_Tab),
+                        new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, TabLiteral_TabItem)));
+
+                UiaSafe.TryRun(() =>
+                {
+                    foreach (AutomationElement element in root.FindAll(TreeScope.Descendants, condition))
+                    {
+                        tabs.Add(element);
+                    }
+                }, diagnostics);
+            }
+
+            return tabs;
+        }
+
+        /// <summary>
+        /// Reads a tab's display name tolerating transient failures and cache misses. Returns null when unavailable.
+        /// </summary>
+        [ExcludeFromCodeCoverage] // Requires a live UIA element.
+        public static string? GetTabName(AutomationElement element, ScanDiagnostics? diagnostics = null)
+        {
+            if (UiaSafe.TryGet(() => element.Cached.Name, diagnostics, out var cached))
+            {
+                return cached;
+            }
+
+            if (UiaSafe.TryGet(() => element.Current.Name, diagnostics, out var live))
+            {
+                return live;
+            }
+
+            return null;
+        }
+
+        private static List<AutomationElement> GetChildren(AutomationElement container, ScanDiagnostics? diagnostics)
+        {
+            if (UiaSafe.TryGet(() => container.FindAll(TreeScope.Children, NotDocumentCondition), diagnostics, out var collection))
+            {
+                var children = new List<AutomationElement>();
+                foreach (AutomationElement child in collection)
+                {
+                    children.Add(child);
+                }
+
+                return children;
+            }
+
+            // Transient FindAll failure: manual RawView walk (historical fallback for suspended tabs / RPC faults).
+            var walker = TreeWalker.RawViewWalker;
+            var walked = new List<AutomationElement>();
+            AutomationElement? current = UiaSafe.TryGet(() => walker.GetFirstChild(container), diagnostics, out var first) ? first : null;
+
+            while (current != null)
+            {
+                walked.Add(current);
+                if (!UiaSafe.TryGet(() => walker.GetNextSibling(current), diagnostics, out var next))
+                {
+                    break; // Transient failure mid-walk: the partial result is still usable.
+                }
+
+                current = next;
+            }
+
+            return walked;
+        }
+
+        private static ControlType? ReadControlType(AutomationElement element, ScanDiagnostics? diagnostics)
+        {
+            if (UiaSafe.TryGet(() => element.Cached.ControlType, diagnostics, out var cached))
+            {
+                return cached;
+            }
+
+            if (UiaSafe.TryGet(() => element.Current.ControlType, diagnostics, out var live))
+            {
+                return live;
+            }
+
+            return null;
+        }
+
+        private static string? ReadLocalizedControlType(AutomationElement element, ScanDiagnostics? diagnostics)
+        {
+            if (UiaSafe.TryGet(() => element.Cached.LocalizedControlType, diagnostics, out var cached))
+            {
+                return cached;
+            }
+
+            if (UiaSafe.TryGet(() => element.Current.LocalizedControlType, diagnostics, out var live))
+            {
+                return live;
+            }
+
+            return null;
+        }
+    }
+}

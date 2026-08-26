@@ -93,6 +93,26 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
+        public void LogWarning_WhenDebugDisabled_WritesToFile()
+        {
+            // Warnings are diagnostic signals and, like errors, bypass the debug gate.
+            _logger.LogWarning("High invalidation rate");
+
+            var content = File.ReadAllText(_tempFile);
+            Assert.Contains("WARNING High invalidation rate", content);
+        }
+
+        [Fact]
+        public void ILogger_LogWarning_WritesToFile()
+        {
+            ILogger logger = _logger;
+            logger.LogWarning("Interface warning");
+
+            var content = File.ReadAllText(_tempFile);
+            Assert.Contains("WARNING Interface warning", content);
+        }
+
+        [Fact]
         public void Log_WhenPathIsInvalid_SilentlyFails()
         {
             // Invalid path is scoped to this instance only — no global state touched.

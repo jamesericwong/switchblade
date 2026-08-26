@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Windows.Automation;
@@ -22,7 +23,7 @@ namespace SwitchBlade.Plugins.Teams
     {
         private ILogger? _logger;
         private IPluginSettingsService? _settingsService;
-        private List<string> _teamsProcesses = new();
+        private HashSet<string> _teamsProcesses = new(StringComparer.OrdinalIgnoreCase);
 
         private static readonly List<string> DefaultTeamsProcesses = new()
         {
@@ -36,7 +37,7 @@ namespace SwitchBlade.Plugins.Teams
 
         public override ISettingsControl? SettingsControl =>
             _settingsService != null
-                ? new TeamsSettingsControlProvider(_settingsService, _teamsProcesses)
+                ? new TeamsSettingsControlProvider(_settingsService, _teamsProcesses.ToList())
                 : null;
 
 
@@ -91,12 +92,14 @@ namespace SwitchBlade.Plugins.Teams
 
             if (_settingsService.KeyExists("TeamsProcesses"))
             {
-                _teamsProcesses = _settingsService.GetStringList("TeamsProcesses", DefaultTeamsProcesses);
+                var loaded = _settingsService.GetStringList("TeamsProcesses", DefaultTeamsProcesses);
+                _teamsProcesses = new HashSet<string>(loaded, StringComparer.OrdinalIgnoreCase);
             }
             else
             {
-                _teamsProcesses = new List<string>(DefaultTeamsProcesses);
-                _settingsService.SetStringList("TeamsProcesses", _teamsProcesses);
+                // First run or missing key - use defaults and save them
+                _teamsProcesses = new HashSet<string>(DefaultTeamsProcesses, StringComparer.OrdinalIgnoreCase);
+                _settingsService.SetStringList("TeamsProcesses", _teamsProcesses.ToList());
             }
         }
 
@@ -108,9 +111,8 @@ namespace SwitchBlade.Plugins.Teams
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
-            var targetProcessNames = new HashSet<string>(_teamsProcesses, StringComparer.OrdinalIgnoreCase);
 
-            if (targetProcessNames.Count == 0)
+            if (_teamsProcesses.Count == 0)
             {
                 return results;
             }
@@ -125,7 +127,8 @@ namespace SwitchBlade.Plugins.Teams
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
 
-                if (targetProcessNames.Contains(procName))
+                // O(1) HashSet lookup (comparer set at construction)
+                if (_teamsProcesses.Contains(procName))
                 {
                     ScanTeamsWindow(hwnd, (int)pid, procName, execPath, results);
                 }
@@ -341,18 +344,11 @@ namespace SwitchBlade.Plugins.Teams
             // 1. Bring Teams window to foreground
             NativeInterop.ForceForegroundWindow(item.Hwnd);
 
-            // Special case for fallback window (Source is this, but not a parsed chat)
-            // We identify parsed chats by the specific "Teams (...)" ProcessName format
-            // If it's just the raw process name, we stop here (main window already focused)
-            if (item.ProcessName == "ms-teams" || !_teamsProcesses.Contains(item.ProcessName.Split(' ')[0], StringComparer.OrdinalIgnoreCase))
+            // Fallback items carry the raw process name and are already foregrounded above;
+            // only parsed chat items ("Teams ({type})") need element activation.
+            if (!item.ProcessName.StartsWith("Teams ("))
             {
-                // This check is a bit simplistic, but fallback items just have the raw process name usually or whatever we passed.
-                // Actually in ScanWindow fallback we use 'processName' which is e.g. "ms-teams"
-                // And in chat items we use $"Teams ({type})"
-                if (!item.ProcessName.StartsWith("Teams ("))
-                {
-                    return;
-                }
+                return;
             }
 
             // 2. Re-discover the specific chat element and activate it
@@ -369,54 +365,15 @@ namespace SwitchBlade.Plugins.Teams
 
                 if (targetElement != null)
                 {
-                    bool success = false;
+                    // Shared cascade in Teams' verified order; transient failures fall through to the next
+                    // strategy and SetFocus is the final fallback. Non-transient errors propagate to the caller's log.
+                    var activated = ElementActivator.TryActivate(
+                        targetElement,
+                        UiaActivationStrategy.Invoke,
+                        UiaActivationStrategy.SelectionItem,
+                        UiaActivationStrategy.ExpandCollapse);
 
-                    // Method 1: InvokePattern (for clickable items)
-                    if (!success && targetElement.TryGetCurrentPattern(InvokePattern.Pattern, out var invokeObj))
-                    {
-                        try
-                        {
-                            ((InvokePattern)invokeObj).Invoke();
-                            success = true;
-                            _logger?.Log($"TeamsPlugin: Invoked chat '{item.Title}'");
-                        }
-                        catch { }
-                    }
-
-                    // Method 2: SelectionItemPattern (verified working on Teams)
-                    if (!success && targetElement.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var selectObj))
-                    {
-                        try
-                        {
-                            ((SelectionItemPattern)selectObj).Select();
-                            success = true;
-                            _logger?.Log($"TeamsPlugin: Selected chat '{item.Title}'");
-                        }
-                        catch { }
-                    }
-
-                    // Method 3: ExpandCollapsePattern (for expandable tree items)
-                    if (!success && targetElement.TryGetCurrentPattern(ExpandCollapsePattern.Pattern, out var expandObj))
-                    {
-                        try
-                        {
-                            ((ExpandCollapsePattern)expandObj).Expand();
-                            success = true;
-                            _logger?.Log($"TeamsPlugin: Expanded chat '{item.Title}'");
-                        }
-                        catch { }
-                    }
-
-                    // Method 4: SetFocus fallback
-                    if (!success)
-                    {
-                        try
-                        {
-                            targetElement.SetFocus();
-                            _logger?.Log($"TeamsPlugin: Focused chat '{item.Title}' (Fallback)");
-                        }
-                        catch { }
-                    }
+                    _logger?.Log($"TeamsPlugin: Activation of chat '{item.Title}' completed (success={activated})");
                 }
                 else
                 {

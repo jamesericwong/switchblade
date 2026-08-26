@@ -146,10 +146,12 @@ namespace SwitchBlade.Tests.Contracts
         private sealed class CapturingLogger : ILogger
         {
             public readonly List<string> Messages = new();
+            public readonly List<string> Warnings = new();
             public readonly List<string> Errors = new();
 
             public bool IsDebugEnabled { get; set; }
             public void Log(string message) => Messages.Add(message);
+            public void LogWarning(string message) => Warnings.Add(message);
             public void LogError(string context, Exception ex) => Errors.Add(context);
         }
     }

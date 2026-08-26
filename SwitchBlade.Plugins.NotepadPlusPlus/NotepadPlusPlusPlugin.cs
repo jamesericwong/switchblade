@@ -24,10 +24,6 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             "notepad++"
         };
 
-        // Optimization: Server-side filter to prevent creation of RCWs for heavy Document nodes
-        private static readonly Condition NotDocumentCondition = new NotCondition(
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document));
-
         public override string PluginName => "NotepadPlusPlusPlugin";
         public override bool HasSettings => true;
         public override bool IsUiaProvider => true;
@@ -99,6 +95,8 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
 
             _logger?.Log($"{PluginName}: --- Scan started at {DateTime.Now} ---");
 
+            var diagnostics = new ScanDiagnostics();
+
             // Use native EnumWindows + cached GetProcessInfo for efficiency
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
@@ -114,23 +112,45 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                 // O(1) HashSet lookup instead of O(n) list search
                 if (_nppProcesses.Contains(procName))
                 {
-                    ScanWindow(hwnd, (int)pid, procName, execPath, results);
+                    ScanWindow(hwnd, (int)pid, procName, execPath, diagnostics, results);
                 }
 
                 return true; // Continue enumeration
             }, IntPtr.Zero);
 
+            diagnostics.Report(_logger, PluginName, results.Count(r => !r.IsFallback));
+
             return results;
         }
 
-        private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, List<WindowItem> results)
+        private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, ScanDiagnostics diagnostics, List<WindowItem> results)
         {
-            var tabs = ScanForTabs(hwnd, pid);
-
-            if (tabs.Count > 0)
+            var tabNames = new List<string>();
+            try
             {
-                _logger?.Log($"{PluginName}: Found {tabs.Count} tabs in PID {pid}");
-                foreach (var tabName in tabs)
+                // Safe UIA access to handle E_FAIL
+                var root = TryGetAutomationElement(hwnd, pid);
+                if (root != null)
+                {
+                    foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
+                    {
+                        var name = UiaTabScanner.GetTabName(tab, diagnostics);
+                        if (!string.IsNullOrWhiteSpace(name))
+                        {
+                            tabNames.Add(name);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"{PluginName}: Error scanning UIA tree", ex);
+            }
+
+            if (tabNames.Count > 0)
+            {
+                _logger?.Log($"{PluginName}: Found {tabNames.Count} tabs in PID {pid}");
+                foreach (var tabName in tabNames)
                 {
                     results.Add(new WindowItem
                     {
@@ -166,134 +186,6 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             }
         }
 
-        /// <summary>
-        /// Surgical BFS: Uses CacheRequest + FindAll to minimize COM RCW creation.
-        /// Prunes Document branches to avoid deep text content traversal.
-        /// </summary>
-        private List<string> ScanForTabs(IntPtr hwnd, int pid)
-        {
-            var tabs = new List<string>();
-
-            try
-            {
-                // Safe UIA access to handle E_FAIL
-                var root = TryGetAutomationElement(hwnd, pid);
-                if (root == null)
-                {
-                    return tabs; // Caller handles empty list by adding main window fallback
-                }
-
-                var cacheRequest = new CacheRequest();
-                cacheRequest.Add(AutomationElement.NameProperty);
-                cacheRequest.Add(AutomationElement.ControlTypeProperty);
-                cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
-                cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
-
-                using (cacheRequest.Activate())
-                {
-                    // PRIMARY: Manual BFS traversal
-                    try
-                    {
-                        var queue = new Queue<AutomationElement>();
-                        queue.Enqueue(root);
-
-                        int containersChecked = 0;
-                        const int MaxContainersToCheck = 50; // Safety limit
-
-                        while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
-                        {
-                            var current = queue.Dequeue();
-                            containersChecked++;
-
-                            AutomationElementCollection? children = null;
-                            try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
-                            catch { continue; }
-
-                            if (children == null || children.Count == 0)
-                            {
-                                continue;
-                            }
-
-                            foreach (AutomationElement child in children)
-                            {
-                                try
-                                {
-                                    var controlType = child.Cached.ControlType;
-
-                                    // PRUNE: Skip Document branches (text areas, edit controls)
-                                    if (controlType == ControlType.Document)
-                                    {
-                                        continue;
-                                    }
-
-                                    // Check for TabItem
-                                    bool isTab = controlType == ControlType.TabItem;
-                                    if (!isTab)
-                                    {
-                                        var localizedType = child.Cached.LocalizedControlType;
-                                        if (!string.IsNullOrEmpty(localizedType) &&
-                                            localizedType.Equals("tab item", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            isTab = true;
-                                        }
-                                    }
-
-                                    if (isTab)
-                                    {
-                                        var name = child.Cached.Name;
-                                        if (!string.IsNullOrWhiteSpace(name))
-                                        {
-                                            tabs.Add(name);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // Enqueue non-Document containers for further traversal
-                                        queue.Enqueue(child);
-                                    }
-                                }
-                                catch { /* Element invalidated */ }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.Log($"{PluginName}: BFS scan failed, falling back to Descendants search. Error: {ex.Message}");
-                    }
-
-                    // FALLBACK: Native Descendants search if BFS found nothing or failed
-                    if (tabs.Count == 0)
-                    {
-                        var condition = new OrCondition(
-                            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem),
-                            new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab item")
-                        );
-
-                        var elements = root.FindAll(TreeScope.Descendants, condition);
-                        foreach (AutomationElement element in elements)
-                        {
-                            var name = element.Cached.Name;
-                            if (!string.IsNullOrWhiteSpace(name))
-                            {
-                                tabs.Add(name);
-                            }
-                        }
-
-                        if (tabs.Count > 0)
-                        {
-                            _logger?.Log($"{PluginName}: BFS found 0 tabs, but Descendants fallback found {tabs.Count}.");
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError($"{PluginName}: Error scanning UIA tree", ex);
-            }
-
-            return tabs;
-        }
-
         public override void ActivateWindow(WindowItem item)
         {
             // First, bring the main window to foreground
@@ -313,21 +205,12 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                         return;
                     }
 
-                    var tabElement = FindTabByName(root, item.Title);
+                    var tabElement = UiaTabScanner.FindTabs(root).FirstOrDefault(tab =>
+                        string.Equals(UiaTabScanner.GetTabName(tab), item.Title, StringComparison.Ordinal));
+
                     if (tabElement != null)
                     {
-                        if (tabElement.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var pattern))
-                        {
-                            ((SelectionItemPattern)pattern).Select();
-                        }
-                        else if (tabElement.TryGetCurrentPattern(InvokePattern.Pattern, out var invokePattern))
-                        {
-                            ((InvokePattern)invokePattern).Invoke();
-                        }
-                        else
-                        {
-                            tabElement.SetFocus();
-                        }
+                        ElementActivator.TryActivate(tabElement, UiaActivationStrategy.SelectionItem, UiaActivationStrategy.Invoke);
                     }
                 }
                 catch (Exception ex)
@@ -335,101 +218,6 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                     _logger?.LogError($"{PluginName}: Error activating tab '{item.Title}'", ex);
                 }
             }
-        }
-
-        /// <summary>
-        /// Surgical BFS for tab activation: Uses CacheRequest + FindAll with Document pruning.
-        /// </summary>
-        private static AutomationElement? FindTabByName(AutomationElement root, string targetName)
-        {
-            var cacheRequest = new CacheRequest();
-            cacheRequest.Add(AutomationElement.NameProperty);
-            cacheRequest.Add(AutomationElement.ControlTypeProperty);
-            cacheRequest.Add(AutomationElement.LocalizedControlTypeProperty);
-            cacheRequest.TreeScope = TreeScope.Element | TreeScope.Children;
-
-            using (cacheRequest.Activate())
-            {
-                // PRIMARY: Manual BFS
-                try
-                {
-                    var queue = new Queue<AutomationElement>();
-                    queue.Enqueue(root);
-
-                    int containersChecked = 0;
-                    const int MaxContainersToCheck = 50;
-
-                    while (queue.Count > 0 && containersChecked < MaxContainersToCheck)
-                    {
-                        var current = queue.Dequeue();
-                        containersChecked++;
-
-                        AutomationElementCollection? children = null;
-                        try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
-                        catch { continue; }
-
-                        if (children == null || children.Count == 0)
-                        {
-                            continue;
-                        }
-
-                        foreach (AutomationElement child in children)
-                        {
-                            try
-                            {
-                                var controlType = child.Cached.ControlType;
-
-                                // PRUNE: Skip Document branches
-                                if (controlType == ControlType.Document)
-                                {
-                                    continue;
-                                }
-
-                                bool isTab = controlType == ControlType.TabItem;
-                                if (!isTab)
-                                {
-                                    var localizedType = child.Cached.LocalizedControlType;
-                                    if (!string.IsNullOrEmpty(localizedType) &&
-                                        localizedType.Equals("tab item", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        isTab = true;
-                                    }
-                                }
-
-                                if (isTab && child.Cached.Name == targetName)
-                                {
-                                    return child;
-                                }
-
-                                // Enqueue non-Document containers
-                                if (!isTab)
-                                {
-                                    queue.Enqueue(child);
-                                }
-                            }
-                            catch { }
-                        }
-                    }
-                }
-                catch { }
-
-                // FALLBACK: Native Descendants search
-                var condition = new OrCondition(
-                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem),
-                    new PropertyCondition(AutomationElement.LocalizedControlTypeProperty, "tab item")
-                );
-
-                var elements = root.FindAll(TreeScope.Descendants, condition);
-                foreach (AutomationElement element in elements)
-                {
-                    if (element.Cached.Name == targetName)
-                    {
-                        return element;
-                    }
-                }
-            }
-
-            return null;
         }
 
         private AutomationElement? TryGetAutomationElement(IntPtr hwnd, int pid)

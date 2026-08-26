@@ -27,6 +27,12 @@ namespace SwitchBlade.Core
             WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}");
         }
 
+        public void LogWarning(string message)
+        {
+            // Warnings are diagnostic signals and, like errors, bypass the debug gate.
+            WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] WARNING {message}");
+        }
+
         public void LogError(string context, Exception ex)
         {
             // Errors are always written, regardless of the debug gate (preserved behavior).
