@@ -45,6 +45,26 @@ namespace SwitchBlade.Tests.Contracts
         }
 
         [Fact]
+        public void Run_ReturnsDefensiveCopy_MutationsDoNotCorruptCache()
+        {
+            // Arrange
+            var (coordinator, _) = CreateCoordinator();
+
+            // Act — the success path returns a List; mutate it as a caller could
+            var result = coordinator.Run(() => new List<WindowItem>
+            {
+                new() { Title = "A" },
+                new() { Title = "B" }
+            }) as List<WindowItem>;
+
+            Assert.NotNull(result);
+            result!.Clear();
+
+            // Assert — the cache is untouched (previously the returned list WAS the cached list)
+            Assert.Equal(2, coordinator.CachedResults.Count);
+        }
+
+        [Fact]
         public void Run_SecondCallAfterFirstCompletes_ExecutesScanAgain()
         {
             // Arrange

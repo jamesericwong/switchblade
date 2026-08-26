@@ -122,7 +122,10 @@ namespace SwitchBlade.Contracts
                 }
 
                 Log($"Scan complete, found {results.Count} windows");
-                return results;
+
+                // Defensive copy: the cached list must not be aliased to callers —
+                // mutating the returned collection would corrupt the cache.
+                return new List<WindowItem>(results);
             }
             catch (Exception ex)
             {
