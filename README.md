@@ -1,6 +1,6 @@
 # SwitchBlade Technical Documentation
 
-**Current Version: 1.9.16**
+**Current Version: 1.9.17**
 
 [![Coverage Status](https://jamesericwong.github.io/switchblade/badge_linecoverage.svg)](https://jamesericwong.github.io/switchblade/)
 
@@ -54,8 +54,11 @@ SwitchBlade supports the following keyboard shortcuts for navigation:
 - **Service Layer**: 
   - `SettingsService`: Manages persistence of user preferences (Registry-based).
   - `HotKeyService`: Handles global low-level keyboard hooks for the toggle hotkey.
-  - `WindowOrchestrationService`: Coordinates window discovery, reconciliation, and provider result aggregation.
-  - `UiaElementResolver` (Contracts.Uia): Shared 3-stage HWND→FindFirst→TreeWalker fallback for UIA plugins.
+  - `WindowOrchestrationService`: Coordinates window discovery, reconciliation, and provider result aggregation via two execution strategies — `InProcessProviderRunner` (fast providers as parallel in-process tasks) and `UiaProviderRunner` (UIA plugins out-of-process via `UiaWorkerClient`).
+  - `WindowControllerService`: Controls window show/hide, backdrop, fade animations, and the force-open state machine (extracted from `MainWindow` code-behind for testability).
+  - `BadgeAnimationService`: Drives the staggered Alt+Number badge animations.
+- **Shared Kernel** (`SwitchBlade.Contracts`, WPF-free): Contracts + non-UI helpers shared with plugins, including `CachingScanCoordinator` (single-flight scan dedup + cache) and `LastKnownGoodStrategy` (per-PID LKG retention during transient failures), composed by `CachingWindowProviderBase`.
+- **Shared UIA Helper** (`SwitchBlade.Contracts.Uia`): `UiaElementResolver` — shared 3-stage HWND→FindFirst→TreeWalker fallback for UIA plugins.
 - **Window Providers**: Independent modules responsible for scanning and returning `WindowItem` objects.
 
 ```mermaid
@@ -63,22 +66,29 @@ graph TD
     User((User)) -->|Hotkey| HotKeyService
     User -->|Types| SearchText[Search Input]
     SearchText -->|Triggers| MainViewModel
-    HotKeyService -->|Toggle| MainViewModel
-    
+    HotKeyService -->|Toggle| WindowControllerService
+
     subgraph Core Application
         MainViewModel -->|Manages| SearchState
-        MainViewModel -->|Hits| RegexCache[LRU Regex Cache]
+        MainViewModel -->|Searches via| SearchSvc[WindowSearchService]
+        SearchSvc -->|Hits| RegexCache[LRU Regex Cache + FuzzyMatcher]
         MainViewModel -->|Reads/Writes| SettingsService
-        MainViewModel -->|Executes| PluginLoader
+        MainViewModel -->|Delegates scans to| Orchestration[WindowOrchestrationService]
+        WindowControllerService -->|Show/Hide, Animations| MainWindow[MainWindow UI]
+    end
+
+    subgraph Provider Execution
+        Orchestration -->|Fast providers - parallel tasks| InProcRunner[InProcessProviderRunner]
+        Orchestration -->|UIA plugins| UiaRunner[UiaProviderRunner]
+        UiaRunner -->|NDJSON stream| Worker[UiaWorker.exe]
     end
 
     subgraph Data Sources
-        PluginLoader -->| loads | IWindowProvider
-        IWindowProvider -.-> WindowFinder
-        IWindowProvider -.-> ChromeTabFinder
-        IWindowProvider -.-> TerminalPlugin
-        IWindowProvider -.-> NotepadPlusPlusPlugin
-        IWindowProvider -.-> TeamsPlugin
+        InProcRunner -.-> WindowFinder
+        Worker -.-> ChromeTabFinder
+        Worker -.-> TerminalPlugin
+        Worker -.-> NotepadPlusPlusPlugin
+        Worker -.-> TeamsPlugin
     end
 
     MainViewModel -->|Aggregates| WindowList[Filtered Window List]
@@ -235,7 +245,7 @@ dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj
 SwitchBlade uses a contract-based plugin architecture.
 - **Interface**: `SwitchBlade.Contracts.IWindowProvider`
 - **Mechanism**: On startup, `PluginLoader` scans the `Plugins` directory for DLLs implementing `IWindowProvider`.
-- **Isolation**: Each plugin runs within the main application process but is logically isolated by the `WindowItem` source property.
+- **Isolation**: Non-UIA plugins run in-process; UIA plugins (`IsUiaProvider = true`) execute inside the transient `SwitchBlade.UiaWorker.exe`. All results are logically isolated by the `WindowItem.Source` property (see [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for the full contract, including the composable scan services).
 
 ## Command-Line Arguments
 
@@ -327,7 +337,7 @@ This is the built-in provider for standard desktop applications.
   - Checks `IsWindowVisible`.
   - Filters out known system noise (e.g., "Program Manager").
   - **Zero-Allocation Process Lookup**: Uses specialized native APIs (`QueryFullProcessImageName`) instead of the heavy .NET `Process` class to identify window owners without allocating managed memory.
-  - **Smart De-Duplication**: It automatically inspects the `IBrowserSettingsProvider` list. If a window belongs to a process that is handled by a specialized plugin (e.g., "chrome", "comet"), `WindowFinder` **excludes** it. This prevents double-entries where both the generic window title and the specific tabs would appear.
+  - **Smart De-Duplication**: The orchestrator collects each plugin's declared handled processes (`IProviderExclusionSettings.GetHandledProcesses`) and pushes them to `WindowFinder` via `SetExclusions`. If a window belongs to one of those processes (or is user-configured as excluded), `WindowFinder` **excludes** it. This prevents double-entries where both the generic window title and the specific tabs would appear.
 
 ### 2. Chrome Tab Finder (`ChromeTabFinder.cs`)
 A specialized plugin for Chromium-based browsers (Chrome, Edge, Brave, Comet, etc.).
@@ -346,8 +356,8 @@ A specialized plugin for Microsoft's Windows Terminal.
 - **Execution Mode**: Runs **Out-of-Process** via `SwitchBlade.UiaWorker.exe`.
 - **Discovery Strategy**:
   1.  **Process Identification**: Identifies target processes by name (default: "WindowsTerminal", configurable via settings).
-  2.  **UI Automation**: Attaches to the main window handle (`MainWindowHandle`) of each identified process.
-  3.  **Tree Traversal (`ScanForTabs`)**: Performs a Breadth-First Search (BFS) of the automation tree up to a depth of 12 to find `ControlType.TabItem` elements.
+  2.  **UI Automation**: Attaches to each identified window via the shared `UiaElementResolver` (HWND → FindFirst → TreeWalker fallback).
+  3.  **Tree Traversal (`ScanForTabs`)**: Performs a Breadth-First Search (BFS) of the automation tree — capped at 200 containers checked, pruning `Document` branches — to find `ControlType.TabItem` elements, with a native `Descendants` search as fallback if BFS finds nothing.
 - **Fallback Mechanism**: If no tabs are discovered (often due to elevation/UIPI restrictions when SwitchBlade is not elevated), the plugin returns the main terminal window as a single searchable item.
 - **Activation**:
   1.  Brings the main window to the foreground.
@@ -378,11 +388,11 @@ A specialized plugin for Microsoft Teams (v2/New Teams).
 
 ### Parallel Execution
 SwitchBlade does NOT block the UI thread while searching.
-- When `RefreshWindows()` is called, the application spawns a separate `Task` for each loaded `IWindowProvider`.
-- These tasks run in parallel on the ThreadPool. The fast `WindowFinder` typically finishes in <10ms, while `ChromeTabFinder` may take 100-300ms depending on open tabs.
+- When `RefreshWindows()` is called, `WindowOrchestrationService` runs fast (non-UIA) providers as separate parallel `Task`s on the ThreadPool — one per provider. The fast `WindowFinder` typically finishes in <10ms.
+- UIA plugins run out-of-process inside `SwitchBlade.UiaWorker.exe`, also in parallel, and stream results back as each completes (see above).
 
 ### UI Marshalling
-- As each background task completes, it marshals its results back to the UI thread using `Application.Current.Dispatcher.Invoke`.
+- As each background task completes, it marshals its results back to the UI thread via the WPF Dispatcher (`IDispatcherService`).
 - This creates a "Pop-in" effect where core windows appear instantly, followed shortly by browser tabs.
 
 ## Smart Refresh & List Merge Strategy
@@ -488,10 +498,10 @@ SwitchBlade supports optional background polling to keep the window list up-to-d
 
 ### Configuration
 - **Enable Background Polling**: Toggle in Settings (default: enabled).
-- **Polling Interval**: Configurable in Settings (default: 30 seconds, range: 5-120 seconds).
+- **Polling Interval**: Configurable in Settings (default: 30 seconds; a minimum of 1 second is enforced at runtime).
 
-### Concurrency Protection
-The `BackgroundPollingService` uses a `SemaphoreSlim(1, 1)` to ensure only one refresh operation runs at a time. If a refresh is already in progress when the timer ticks, that tick is skipped. This prevents thread contention and race conditions on the window list.
+### Concurrency Protection & Lock Detection
+The `BackgroundPollingService` runs a single sequential polling loop built on .NET's async `PeriodicTimer`: each tick awaits the previous refresh before the next one starts, so refreshes can never overlap. It also detects when the workstation is locked and skips that tick — UIA/COM calls against a locked desktop can hang for 10-15s and would otherwise make the app unresponsive on wake.
 
 ## Number Shortcuts
 
@@ -522,13 +532,15 @@ The Alt+Number badges feature a staggered animation that provides visual polish 
 ```mermaid
 sequenceDiagram
     participant UI as UI Thread
+    participant WC as WindowControllerService
     participant BAS as BadgeAnimationService
     participant B1 as Badge Alt+1
     participant B2 as Badge Alt+2
     participant B0 as Badge Alt+0
 
-    UI->>BAS: TriggerStaggeredAnimationAsync()
-    BAS->>BAS: ResetAnimationState()
+    UI->>WC: Results updated / window shown
+    WC->>BAS: TriggerStaggeredAnimationAsync(FilteredWindows)
+    BAS->>BAS: ResetAnimationState(items)
     
     Note over BAS: Stagger delay = 75ms per badge
     

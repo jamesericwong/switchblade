@@ -22,9 +22,14 @@ Before building SwitchBlade, ensure you have the following installed on your sys
 
 - `SwitchBlade.sln`: The main solution file.
 - `SwitchBlade.csproj`: The main WPF application project.
-- `SwitchBlade.Contracts/`: Interface definitions for plugins.
+- `SwitchBlade.Contracts/`: Shared plugin contracts + non-UI helpers (WPF-free).
+- `SwitchBlade.Contracts.Uia/`: Shared UIA helper assembly (`UiaElementResolver`) — the only plugin-facing assembly that requires WPF.
 - `SwitchBlade.Plugins.Chrome/`: The Chrome tab finder plugin.
+- `SwitchBlade.Plugins.Teams/`: The Microsoft Teams chat list plugin.
+- `SwitchBlade.Plugins.WindowsTerminal/`: The Windows Terminal tab plugin.
+- `SwitchBlade.Plugins.NotepadPlusPlus/`: The Notepad++ tab plugin.
 - `SwitchBlade.UiaWorker/`: The out-of-process worker for UIA scans.
+- `SwitchBlade.Tests/`: The xUnit test suite (904 tests, 100% line coverage).
 - `Installer/SwitchBlade.Installer.wixproj`: The WiX installer project.
 
 ## Building with Visual Studio
@@ -106,7 +111,7 @@ dotnet build -c Release -p:PublishR2R=true
 ## Plugin Development
 
 If you are developing a new plugin:
-1. Reference `SwitchBlade.Contracts.csproj`.
+1. Reference `SwitchBlade.Contracts.csproj` — and also `SwitchBlade.Contracts.Uia.csproj` if your plugin uses UI Automation (`IsUiaProvider = true`).
 2. Ensure your build output (usually a `.dll`) is copied to a folder named `Plugins` in the same directory as `SwitchBlade.exe`.
 3. The main application uses `Directory.GetFiles` to look for `*.dll` files in the `Plugins` subfolder at runtime.
 
@@ -138,18 +143,20 @@ dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj
 # Run tests with detailed output
 dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj --verbosity normal
 
-# Run tests with code coverage (requires coverlet)
-dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj --collect:"XPlat Code Coverage"
+# Run tests with code coverage (same invocation as CI; the runsettings file scopes the report to the main app and emits Cobertura XML)
+dotnet test SwitchBlade.sln -c Release --collect:"XPlat Code Coverage" --settings CodeCoverage.runsettings --results-directory ./coverage
 ```
 
 ### Test Structure
 
 | Directory | Description |
 |-----------|-------------|
-| `Core/` | Tests for `PluginInfo`, `PluginLoader`, `WindowFinder`, `Logger`, `LoggerBridge` |
-| `Services/` | Tests for `UserSettings`, `ThemeInfo`, `ThemeService` |
+| `Core/` | Tests for `PluginLoader`, `WindowFinder`, `FuzzyMatcher`, `LruRegexCache`, `NumberShortcutService`, `Logger`, ... |
+| `Services/` | Tests for `SettingsService`, `HotKeyService`, `BackgroundPollingService`, `BadgeAnimationService`, `UiaWorkerClient`, `WindowOrchestrationService`, ... |
 | `ViewModels/` | Tests for `RelayCommand`, `MainViewModel`, `SettingsViewModel` |
-| `Contracts/` | Tests for `WindowItem` |
+| `Contracts/` | Tests for `WindowItem`, `CachingScanCoordinator`, `LastKnownGoodStrategy`, `CachingWindowProviderBase` |
+| `Handlers/` | Tests for `WindowControllerService`, `KeyboardInputHandler` |
+| `Plugins/` | Tests for the bundled plugins (Chrome, Teams, Windows Terminal, Notepad++) |
 
 ### Writing New Tests
 

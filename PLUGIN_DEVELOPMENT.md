@@ -7,6 +7,7 @@ This guide explains how to extend **SwitchBlade** by creating custom plugins. Sw
 - **Visual Studio 2022** or **VS Code**
 - **.NET 9.0 SDK** (Core application target)
 - Access to **SwitchBlade.Contracts.dll** (found in the SwitchBlade build directory)
+- UIA plugins additionally need **SwitchBlade.Contracts.Uia.dll** (hosts the shared `UiaElementResolver`; required since v1.9.17)
 
 ---
 
@@ -41,17 +42,51 @@ The contract is defined in `SwitchBlade.Contracts.dll`:
 ```csharp
 namespace SwitchBlade.Contracts
 {
+    // 1. Core - every plugin implements this
     public interface IWindowProvider
     {
-        // 0. Metadata
-        string PluginName { get; }
+        string PluginName { get; }                    // Unique name (used for registry storage path)
+        void Initialize(IPluginContext context);      // Called after instantiation to pass dependencies
+        IEnumerable<WindowItem> GetWindows();         // Scan: return items to display in search
+        void ActivateWindow(WindowItem item);         // Activation: user pressed Enter on your item
+    }
+
+    // 2. Optional - plugins with a settings UI (required since 1.6.6 for HasSettings=true)
+    public interface IConfigurablePlugin
+    {
         bool HasSettings { get; }
-        
-        // 0b. Capability Flags (New in 1.8.0)
-        // Set to true if your plugin uses System.Windows.Automation.
-        // UIA plugins run in a separate process to prevent memory leaks.
-        // Default: false
-        bool IsUiaProvider { get; } 
+        ISettingsControl? SettingsControl { get; }    // Return null if no settings UI
+        void ReloadSettings();
+    }
+
+    // 3. Optional - plugins that handle specific processes exclusively
+    public interface IProviderExclusionSettings
+    {
+        IEnumerable<string> GetHandledProcesses();    // Process names (no extension) this plugin owns
+        void SetExclusions(IEnumerable<string> exclusions); // Pushed by the orchestrator to prevent duplicates
+    }
+
+    // 4. Optional - execution strategy capability flag (New in 1.8.0)
+    public interface IExtrusionStrategy
+    {
+        bool IsUiaProvider { get; }                   // true = runs out-of-process in SwitchBlade.UiaWorker.exe
+    }
+
+    // Settings UI contract (WPF FrameworkElement host)
+    public interface ISettingsControl
+    {
+        object CreateSettingsControl();               // Returns a WPF FrameworkElement
+        void SaveSettings();
+        void CancelSettings();
+    }
+
+    // Context object passed to Initialize()
+    public interface IPluginContext
+    {
+        ILogger Logger { get; }
+        IPluginSettingsService? Settings { get; }     // Pre-configured settings service (New in 1.8.14)
+        IWindowInterop Interop { get; }               // Win32 interop helpers (process info, window ops)
+        IRegistryService Registry { get; }            // Typed registry access for plugin settings
     }
 }
 ```
@@ -88,17 +123,20 @@ flowchart TB
         P1[ChromeTabFinder]
         P2[WindowsTerminalPlugin]
         P3[NotepadPlusPlusPlugin]
+        P4[TeamsPlugin]
     end
     
     Orch -->|1. Spawn Process| Client
     Client -->|2. JSON Request via stdin| Worker
-    Loader -->|3. Load plugins from /Plugins| P1
+    Loader -->|3. Load plugins from Plugins/ folder| P1
     Loader --> P2
     Loader --> P3
+    Loader --> P4
     
     P1 -->|4a. Stream results| Client
     P2 -->|4b. Stream results| Client
     P3 -->|4c. Stream results| Client
+    P4 -->|4d. Stream results| Client
     
     Client -->|5. Update UI immediately| UI
     Worker -->|6. Exit - COM memory freed| Main
@@ -187,49 +225,6 @@ graph TD
 
 ---
 
-        // Return a settings control provider or null if no settings UI.
-        ISettingsControl? SettingsControl => null;
-
-        // 2. Initialization: Receive context with logger and other dependencies
-        void Initialize(IPluginContext context);
-
-        // 3. Settings Management
-        void ReloadSettings();
-
-        // 4. Dynamic Exclusions
-        // Return processes (names without extension) that this plugin handles exclusively.
-        // The core WindowFinder will ignore these processes to prevent duplicates.
-        IEnumerable<string> GetHandledProcesses();
-        
-        // Set exclusions (called by MainViewModel for all providers)
-        void SetExclusions(IEnumerable<string> exclusions) { } // Default no-op
-
-        // 5. Refresh: Return a list of items to display in the user's search
-        IEnumerable<WindowItem> GetWindows();
-
-        // 6. Activation: Handle what happens when the user presses Enter on your item
-        void ActivateWindow(WindowItem item);
-    }
-    
-    // Settings UI interface (Required in 1.6.6+ for plugins with HasSettings=true)
-    public interface ISettingsControl
-    {
-        object CreateSettingsControl();  // Returns a WPF FrameworkElement
-        void SaveSettings();
-        void CancelSettings();
-    }
-    
-    // Context object passed to Initialize()
-    public interface IPluginContext
-    {
-        ILogger Logger { get; }
-
-        // Pre-configured settings service (New in 1.8.14)
-        IPluginSettingsService? Settings { get; }
-    }
-}
-```
-
 ### The Data Object
 
 Your provider returns `WindowItem` objects:
@@ -265,7 +260,7 @@ dotnet new classlib -n MyCustomPlugin -f net9.0-windows
 ```
 
 ### 2. Add References
-Reference the `SwitchBlade.Contracts.dll`. You can copy this DLL from the SwitchBlade main output directory.
+Reference the `SwitchBlade.Contracts.dll`. You can copy this DLL from the SwitchBlade main output directory. If your plugin uses UI Automation (`IsUiaProvider = true`), also reference **`SwitchBlade.Contracts.Uia.dll`** — it hosts the shared `UiaElementResolver` (required since v1.9.17).
 
 ### 3. Implement the Provider
 Here is a complete, minimal example:
@@ -282,7 +277,6 @@ namespace MyCustomPlugin
         private ILogger? _logger;
         
         public string PluginName => "SimpleDemo";
-        public bool HasSettings => false;
 
         public void Initialize(IPluginContext context)
         {
@@ -293,8 +287,6 @@ namespace MyCustomPlugin
             // Access injected settings (New in 1.8.14)
             var mySetting = context.Settings?.GetValue("MyKey", "Default");
         }
-
-        public void ReloadSettings() { /* Nothing to reload */ }
 
         public IEnumerable<WindowItem> GetWindows()
         {
@@ -456,7 +448,7 @@ Plugins no longer need to implement this logic — call `UiaElementResolver.TryR
 ## Best Practices
 
 - **Performance**: `GetWindows()` is called every time the search refreshes (or periodically). Keep it fast. If you are querying slow APIs, cache your results and return the cached list immediately.
-- **Memory Usage**: Avoid using `System.Diagnostics.Process` if possible, as it allocates significant memory. Use `NativeInterop.GetProcessName(pid)` for lightweight process name lookups.
+- **Memory Usage**: Avoid using `System.Diagnostics.Process` if possible, as it allocates significant memory. Use `NativeInterop.GetProcessInfo(pid)` instead — a single call returns both the process name and executable path.
 - **HashSet for Process Lists**: If your plugin tracks multiple target process names, use `HashSet<string>` with `StringComparer.OrdinalIgnoreCase` for O(1) lookups instead of O(n) list searches.
 - **Error Handling**: Wrap your `GetWindows` logic in try/catch blocks. If your plugin throws an exception, it might be logged but won't crash the main app.
 - **Dependencies**: If your plugin relies on other DLLs, ensure they are also copied to the `Plugins` folder or available in the global path.
@@ -532,6 +524,9 @@ public class MySlowPlugin : CachingWindowProviderBase
 - **Automatic locking**: If `GetWindows()` is called while a scan is running, the base class returns cached results immediately.
 - **`IsScanRunning` property**: Check if a scan is in progress.
 - **`CachedWindows` property**: Access the cached results directly.
+
+> [!NOTE]
+> **v1.9.17 — Composable Services**: The underlying logic is also exposed as standalone services in `SwitchBlade.Contracts`: `CachingScanCoordinator` (single-flight scan dedup + result cache) and `LastKnownGoodStrategy` (per-PID LKG policy). If you implement `IWindowProvider` directly, you can compose only the pieces you need instead of inheriting all capability defaults from the base class.
 
 ### Alternative: Manual Implementation
 
@@ -851,6 +846,7 @@ public MyPlugin(IPluginSettingsService settings) { _settings = settings; }
 
 | Version | Key Changes |
 |---------|-------------|
+| 1.9.17  | **Contracts Split & Composable Scan Services** - `CachingWindowProviderBase` decomposed into composable `CachingScanCoordinator` + `LastKnownGoodStrategy`; `UiaElementResolver` moved to new `SwitchBlade.Contracts.Uia` assembly (UIA plugins must now reference it); Contracts is WPF-free |
 | 1.9.8   | **Chrome LKG & Fallback** - Implemented robust `UiaElementResolver` + `IsFallback` strategy for Chrome to prevent zero-window results |
 | 1.9.3   | **SOLID Refactoring** - DIP for ILogger, `UiaElementResolver` shared UIA fallback, `IDiagnosticsProvider`, `IUiaWorkerClient`, Alt+Tab fix, badge animation fix |
 | 1.8.2   | **Streaming UIA Results** - Plugins run in parallel, results streamed via NDJSON for faster UI updates |

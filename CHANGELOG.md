@@ -1,3 +1,23 @@
+## [1.9.17] - 2026-08-25
+### Added
+- **Composable Scan Infrastructure (Plugin API)**: `CachingScanCoordinator` (single-flight scan dedup + result cache) and `LastKnownGoodStrategy` (per-PID LKG policy), plus the focused `IWindowIntrospection` abstraction. Plugins can now implement `IWindowProvider` directly and compose only what they need instead of inheriting all capability defaults; `CachingWindowProviderBase` remains available with an identical surface for existing plugins.
+- **New `SwitchBlade.Contracts.Uia` Assembly**: Hosts the shared `UiaElementResolver` (3-stage HWND→FindFirst→TreeWalker fallback). UIA plugins must now reference this project in addition to Contracts.
+
+### Improved
+- **Crash-Path Hardening**: Settings-save crash guard, provider activation/hotkey lifecycle fixes, badge-animator layering, registry read logging, `UiaWorkerClient` ObjectDisposedException rethrow, and `MemoryDiagnosticsService` dispose ordering (cancel-before-dispose).
+- **Test Suite Hygiene**: Eliminated shared test state and live-registry integration tests (faked `IRegistryService` instead), replaced unbounded test sleeps with bounded condition polling, and fixed a vacuous provider-not-found test.
+
+### Architectural / SOLID
+- **Window Controller Extraction**: Moved `MainWindow` code-behind into a dedicated `WindowControllerService` (show/hide, backdrop, fade animations, force-open state machine) behind narrow seams `IWindowSurface` + `IWindowStyleInterop`. The window class is now thin XAML glue; the controller is fully unit-testable (+39 tests).
+- **Contracts Kernel Slimming**: Removed app-only types (`IUIService`, `IIconExtractor`, `PluginContext`) from the shared kernel, and moved `UiaElementResolver` to its own assembly. `SwitchBlade.Contracts` is now WPF-free, and `SwitchBlade.UiaWorker` no longer declares an unused WPF dependency (SRP/ISP at the assembly level).
+- **CachingWindowProviderBase Split**: Decomposed the 332-line god base class into focused services (`CachingScanCoordinator`, `LastKnownGoodStrategy`) with behavior, log output and public surface preserved exactly; +26 tests pinning every LKG branch.
+- **Layer Inversion Fix (DIP/SRP)**: `NumberShortcutService` no longer depends on the view-model abstraction — it accepts `IReadOnlyList<WindowItem>` directly, keeping the service layer free of presentation dependencies.
+
+### Quality Gates
+- Test suite grew to 904 passing tests; line coverage 100%, branch coverage ~99.3% (above main's baseline). Release builds verified at 0 warnings / 0 errors (`--no-incremental`).
+
+---
+
 ## [1.9.16] - 2026-03-14
 ### Fixed
 - **Test Suite Stabilization**: achieved 100% pass rate (779/779) by resolving race conditions in `MainViewModel` mocks and stabilizing orchestration timing.
