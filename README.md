@@ -57,7 +57,7 @@ SwitchBlade supports the following keyboard shortcuts for navigation:
   - `WindowOrchestrationService`: Coordinates window discovery, reconciliation, and provider result aggregation via two execution strategies — `InProcessProviderRunner` (fast providers as parallel in-process tasks) and `UiaProviderRunner` (UIA plugins out-of-process via `UiaWorkerClient`).
   - `WindowControllerService`: Controls window show/hide, backdrop, fade animations, and the force-open state machine (extracted from `MainWindow` code-behind for testability).
   - `BadgeAnimationService`: Drives the staggered Alt+Number badge animations.
-- **Shared Kernel** (`SwitchBlade.Contracts`, WPF-free): Contracts + non-UI helpers shared with plugins, including `CachingScanCoordinator` (single-flight scan dedup + cache) and `LastKnownGoodStrategy` (per-PID LKG retention during transient failures), composed by `CachingWindowProviderBase`.
+- **Shared Kernel** (`SwitchBlade.Contracts`, WPF-free): Contracts + non-UI helpers shared with plugins, including `CachingScanCoordinator` (single-flight scan dedup + cache) and `LastKnownGoodStrategy` (per-PID LKG retention during transient failures), composed by `CachingWindowProviderBase`. The full three-layer failure-handling/LKG design is documented in [Failure Handling & Last-Known-Good (LKG) Stabilization](#failure-handling--last-known-good-lkg-stabilization).
 - **Shared UIA Helper** (`SwitchBlade.Contracts.Uia`): `UiaElementResolver` — shared 3-stage HWND→FindFirst→TreeWalker fallback for UIA plugins.
 - **Window Providers**: Independent modules responsible for scanning and returning `WindowItem` objects.
 
@@ -474,6 +474,86 @@ The merge operation runs on background threads via `Task.Run()`, but all mutatio
 - No race conditions on the ObservableCollection
 - WPF bindings receive proper change notifications
 - The UI remains responsive during long scans
+
+### Failure Handling & Last-Known-Good (LKG) Stabilization
+
+UI Automation reads against live third-party processes fail transiently and often — element invalidation, provider-process hiccups, elevated windows. Rather than surfacing those failures as "all your tabs disappeared", SwitchBlade stabilizes results through **three cooperating layers**, each answering the same question: *is this a failed read, or did the windows really go away?*
+
+> **Design rule:** *"the plugin failed to read" is always more likely than "all tabs actually disappeared"* — so when in doubt, keep the last known good state.
+
+| Layer | Where it runs | What it does |
+| :--- | :--- | :--- |
+| **1 · Plugin level** (per-PID LKG) | Inside the UIA worker process: `CachingWindowProviderBase.GetWindows()` → `LastKnownGoodStrategy.Apply()`, wrapped by `CachingScanCoordinator` | Good results (`IsFallback = false`) update the per-PID LKG cache. A fallback-only scan for a PID whose process is still alive **restores** the cached good items. PIDs missing from a scan keep their data while any of their windows remain valid, otherwise it is discarded. If the scan throws, the coordinator returns the last successful cache. |
+| **2 · Host level** (provider LKG hit) | `WindowOrchestrationService.ProcessProviderResults` | If everything received is fallback items *and* the host already has real items for that provider → the existing list is preserved, not replaced. This covers e.g. a freshly restarted worker whose in-memory LKG cache is empty. |
+| **3 · Never-reported gate** (liveness) | `UiaProviderRunner` finally-block — runs when a provider produced *no* results at all (worker death mid-stream, per-plugin timeout, worker-side load error) | Checks the OS process table for the provider's target processes: app still running → keep last-known-good items; app gone → emit an empty result so stale entries are cleared. |
+
+The `IsFallback` flag is propagated across the host↔worker IPC boundary — it is what lets layers 1 and 2 tell "failed read" apart from "genuinely no tabs".
+
+#### Decision Flow
+
+```mermaid
+flowchart TD
+    A["UIA scan cycle<br/>(fresh worker process)"] --> B{"Provider reported<br/>results this cycle?"}
+
+    B -- "No — worker died / timeout / skipped" --> C{"Liveness gate (layer 3):<br/>any target process still running?"}
+    C -- "Yes — app alive" --> D["Keep last-known-good items"]
+    C -- "No — app gone" --> E["Emit empty result<br/>stale entries cleared"]
+
+    B -- Yes --> F{"Per-PID policy (layer 1):<br/>good items for this PID?"}
+    F -- "Yes (IsFallback = false)" --> G["Update LKG cache<br/>surface fresh results"]
+    F -- No --> H{"LKG data exists<br/>for this PID?"}
+    H -- "Yes + process alive" --> I["Restore cached good items<br/>(transient failure absorbed)"]
+    H -- "Yes + process dead" --> J["Accept fallback / empty<br/>discard LKG entry"]
+    H -- No --> K["Accept fallback (main window)"]
+
+    B -- Yes --> R{"PID missing from scan entirely:<br/>any of its windows still valid?"}
+    R -- Yes --> I2["Preserve LKG items"]
+    R -- No --> J2["Discard stale LKG entry"]
+
+    G & I & J & K & I2 --> L{"Host check (layer 2):<br/>all received items are fallbacks AND<br/>host already has real items?"}
+    L -- "Yes — LKG hit" --> M["Preserve existing list"]
+    L -- No --> N["Replace provider's slice<br/>(incremental merge)"]
+
+    style D fill:#cfc,stroke:#396,stroke-width:2px,color:black
+    style E fill:#fcc,stroke:#933,stroke-width:2px,color:black
+    style I fill:#cfc,stroke:#396,stroke-width:2px,color:black
+    style I2 fill:#cfc,stroke:#396,stroke-width:2px,color:black
+    style M fill:#cfc,stroke:#396,stroke-width:2px,color:black
+```
+
+Green = last-known-good state preserved · Red = stale entries cleared.
+
+#### Worker Death Mid-Stream (Layer 3 in Action)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Window list (host)
+    participant R as UiaProviderRunner
+    participant W as UIA worker process
+    participant OS as Windows process table
+
+    R->>W: launch + start streaming scan
+    W-->>R: Chrome tabs reported ✓ (processed immediately)
+    Note over W: Teams scan in progress…<br/>worker crashes / times out
+    W--xR: stream ends without Teams results
+
+    R->>R: finally-block: Teams never reported
+    R->>OS: is any of Teams' target processes running?
+
+    alt ms-teams still alive
+        OS-->>R: yes
+        Note over UI,R: keep last-known-good Teams chats<br/>(a failed read is more likely than all tabs disappearing)
+    else ms-teams gone
+        OS-->>R: no
+        R->>UI: emit empty result for Teams → stale entries cleared
+    end
+```
+
+#### Edge Cases
+- **Unresolvable PIDs** (sentinel `0`): surfaced as-is, without LKG tracking — they can't be grouped by process, so stabilization would mix unrelated windows together.
+- **App alive but all its windows closed**: layer 3 keeps the stale entries until the next *successful* scan reports empty and clears them through the normal path (self-healing).
+- **Layer 1's cache is per worker-process lifetime** — a restarted worker starts with an empty LKG cache, which is exactly when layer 2 takes over.
 
 ## Run as Administrator
 
