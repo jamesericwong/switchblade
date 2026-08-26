@@ -114,7 +114,7 @@ internal static class Program
             if (string.IsNullOrWhiteSpace(requestLine))
             {
                 DebugLog("Error: No request received on stdin.");
-                response = new UiaResponse { Success = false, Error = "No request received on stdin" };
+                response = ErrorResponse("No request received on stdin");
                 WriteResponse(response);
                 return;
             }
@@ -125,7 +125,18 @@ internal static class Program
             if (request == null)
             {
                 DebugLog("Error: Failed to parse request JSON.");
-                response = new UiaResponse { Success = false, Error = "Failed to parse request JSON" };
+                response = ErrorResponse("Failed to parse request JSON");
+                WriteResponse(response);
+                return;
+            }
+
+            // Fail fast if the host speaks a protocol revision this worker cannot handle.
+            if (!UiaProtocol.IsCompatibleVersion(request.ProtocolVersion))
+            {
+                DebugLog($"Unsupported protocol version {request.ProtocolVersion}.");
+                response = ErrorResponse(
+                    $"Unsupported protocol version {request.ProtocolVersion}; " +
+                    $"worker supports v{UiaProtocol.LegacyVersion}-v{UiaProtocol.CurrentVersion}");
                 WriteResponse(response);
                 return;
             }
@@ -139,13 +150,13 @@ internal static class Program
             else
             {
                 DebugLog($"Unknown command: {request.Command}");
-                response = new UiaResponse { Success = false, Error = $"Unknown command: {request.Command}" };
+                response = ErrorResponse($"Unknown command: {request.Command}");
             }
         }
         catch (Exception ex)
         {
             DebugLog($"Unhandled exception: {ex}");
-            response = new UiaResponse { Success = false, Error = $"Unhandled exception: {ex.Message}" };
+            response = ErrorResponse($"Unhandled exception: {ex.Message}");
         }
 
         WriteResponse(response);
@@ -291,6 +302,7 @@ internal static class Program
         // Return legacy response for compatibility (not used in streaming mode)
         return new UiaResponse
         {
+            ProtocolVersion = UiaProtocol.CurrentVersion,
             Success = errors.Count == 0,
             Error = errors.Count > 0 ? string.Join("; ", errors) : null,
             Windows = [] // Results already streamed
@@ -316,6 +328,7 @@ internal static class Program
 
         var result = new UiaPluginResult
         {
+            ProtocolVersion = UiaProtocol.CurrentVersion,
             PluginName = pluginName,
             Windows = windows,
             Error = error,
@@ -336,7 +349,7 @@ internal static class Program
     /// </summary>
     private static void WriteFinalResult()
     {
-        var result = new UiaPluginResult { IsFinal = true };
+        var result = new UiaPluginResult { ProtocolVersion = UiaProtocol.CurrentVersion, IsFinal = true };
         lock (WriteLock)
         {
             _jsonWriter.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
@@ -375,6 +388,17 @@ internal static class Program
             .Where(provider => provider is IExtrusionStrategy { IsUiaProvider: true })
             .ToList();
     }
+
+    /// <summary>
+    /// Builds a failure response that also declares this worker's protocol revision,
+    /// so the host can always tell which build it is talking to.
+    /// </summary>
+    private static UiaResponse ErrorResponse(string message) => new()
+    {
+        Success = false,
+        Error = message,
+        ProtocolVersion = UiaProtocol.CurrentVersion
+    };
 
     private static void WriteResponse(UiaResponse response)
     {

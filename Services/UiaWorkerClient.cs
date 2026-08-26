@@ -89,6 +89,7 @@ namespace SwitchBlade.Services
             var request = new UiaRequest
             {
                 Command = "scan",
+                ProtocolVersion = UiaProtocol.CurrentVersion,
                 DisabledPlugins = disabledPlugins != null ? [.. disabledPlugins] : null,
                 ExcludedProcesses = excludedProcesses != null ? [.. excludedProcesses] : null
             };
@@ -173,6 +174,7 @@ namespace SwitchBlade.Services
             process.BeginErrorReadLine();
 
             // Read streaming responses line by line (STDOUT)
+            bool versionValidated = false;
             try
             {
                 while (!combinedCts.Token.IsCancellationRequested)
@@ -218,6 +220,20 @@ namespace SwitchBlade.Services
                     if (result == null)
                     {
                         continue;
+                    }
+
+                    // Handshake check on the first line: a worker that speaks an unsupported protocol
+                    // revision means host and worker builds are out of sync — stop instead of consuming garbled data.
+                    if (!versionValidated)
+                    {
+                        versionValidated = true;
+                        if (!UiaProtocol.IsCompatibleVersion(result.ProtocolVersion))
+                        {
+                            _logger?.Log($"[UiaWorkerClient] PROTOCOL MISMATCH: worker speaks v{result.ProtocolVersion}, " +
+                                $"this build supports v{UiaProtocol.LegacyVersion}-v{UiaProtocol.CurrentVersion}. " +
+                                "Update or reinstall SwitchBlade so host and worker match.");
+                            yield break;
+                        }
                     }
 
                     if (result.IsFinal)

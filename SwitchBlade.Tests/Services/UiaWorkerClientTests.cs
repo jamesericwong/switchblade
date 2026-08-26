@@ -643,6 +643,69 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public async Task ScanStreamingAsync_RequestIncludesProtocolVersion()
+        {
+            var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync("{\"protocolVersion\":1,\"isFinal\":true}");
+
+            await foreach (var _ in client.ScanStreamingAsync()) { }
+
+            // Verify the handshake version is stamped on the request sent via stdin
+            _mockProcess.Verify(p => p.StandardInput.WriteLineAsync(It.Is<string>(s =>
+                s.Contains($"\"protocolVersion\":{UiaProtocol.CurrentVersion}"))), Times.Once());
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_WorkerSpeaksUnsupportedVersion_LogsMismatchAndYieldsNothing()
+        {
+            var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+
+            // Worker claims a protocol revision this host does not know — data must not be consumed
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync("{\"protocolVersion\":99,\"pluginName\":\"P1\",\"windows\":[],\"isFinal\":false}");
+
+            var results = new List<UiaPluginResult>();
+            await foreach (var r in client.ScanStreamingAsync()) { results.Add(r); }
+
+            Assert.Empty(results);
+            _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("PROTOCOL MISMATCH"))), Times.Once());
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_WorkerSpeaksUnsupportedVersion_NullLogger_StillYieldsNothing()
+        {
+            // Same mismatch with a null logger — the guard clause must not throw and still blocks all data
+            var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
+
+            _mockProcess.Setup(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync("{\"protocolVersion\":99,\"pluginName\":\"P1\",\"windows\":[],\"isFinal\":false}");
+
+            var results = new List<UiaPluginResult>();
+            await foreach (var r in client.ScanStreamingAsync()) { results.Add(r); }
+
+            Assert.Empty(results);
+        }
+
+        [Fact]
+        public async Task ScanStreamingAsync_LegacyWorkerWithoutVersion_StillAccepted()
+        {
+            var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
+
+            // Pre-versioning worker: no protocolVersion field anywhere (deserializes as 0)
+            _mockProcess.SetupSequence(p => p.StandardOutput.ReadLineAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync("{\"pluginName\":\"P1\",\"windows\":[],\"isFinal\":false}")
+                .ReturnsAsync("{\"isFinal\":true}");
+
+            var results = new List<UiaPluginResult>();
+            await foreach (var r in client.ScanStreamingAsync()) { results.Add(r); }
+
+            Assert.Single(results);
+            Assert.Equal("P1", results[0].PluginName);
+        }
+
+        [Fact]
         public async Task ScanStreamingAsync_HandlesOperationCanceledException_InFinally()
         {
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
