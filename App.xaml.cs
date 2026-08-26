@@ -78,7 +78,7 @@ public partial class App : Application
 
         // Get services from DI container
         var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
-        var themeService = _serviceProvider.GetRequiredService<ThemeService>();
+        var themeService = _serviceProvider.GetRequiredService<IThemeService>();
 
         // Start Diagnostics Service (Investigation)
         var diagService = _serviceProvider.GetRequiredService<MemoryDiagnosticsService>();

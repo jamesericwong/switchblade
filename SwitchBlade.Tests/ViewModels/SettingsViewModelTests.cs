@@ -13,10 +13,9 @@ namespace SwitchBlade.Tests.ViewModels
     public class SettingsViewModelTests
     {
         private readonly Mock<ISettingsService> _settingsServiceMock;
-        private readonly Mock<ThemeService> _themeServiceMock;
+        private readonly Mock<IThemeService> _themeServiceMock;
         private readonly Mock<IPluginService> _pluginServiceMock;
         private readonly Mock<IUIService> _uiServiceMock;
-        private readonly Mock<IApplicationResourceHandler> _resourceHandlerMock;
         private readonly SettingsViewModel _viewModel;
 
         public SettingsViewModelTests()
@@ -25,8 +24,10 @@ namespace SwitchBlade.Tests.ViewModels
             var userSettings = new UserSettings();
             _settingsServiceMock.Setup(s => s.Settings).Returns(userSettings);
 
-            _resourceHandlerMock = new Mock<IApplicationResourceHandler>();
-            _themeServiceMock = new Mock<ThemeService>(_settingsServiceMock.Object, _resourceHandlerMock.Object);
+            // Interface mock: AvailableThemes must be set up explicitly (a loose mock would return null)
+            _themeServiceMock = new Mock<IThemeService>();
+            _themeServiceMock.Setup(t => t.AvailableThemes)
+                .Returns(new List<ThemeInfo> { new ThemeInfo { Name = "Dark" } });
 
             _pluginServiceMock = new Mock<IPluginService>();
             _pluginServiceMock.Setup(p => p.GetPluginInfos()).Returns(new List<PluginInfo>());

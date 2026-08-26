@@ -49,7 +49,7 @@ namespace SwitchBlade.Services
                     logger);
             });
             services.AddSingleton<ISettingsService>(sp => sp.GetRequiredService<SettingsService>());
-            services.AddSingleton<ThemeService>();
+            services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<IDispatcherService, WpfDispatcherService>();
             services.AddSingleton<IIconService>(sp => new IconService(sp.GetRequiredService<ISettingsService>(), sp.GetRequiredService<IIconExtractor>(), sp.GetRequiredService<ILogger>()));
             services.AddSingleton<IIconExtractor, IconExtractor>();
@@ -143,7 +143,7 @@ namespace SwitchBlade.Services
             services.AddSingleton<MainWindow>();
             services.AddTransient<SettingsViewModel>(sp => new SettingsViewModel(
                 sp.GetRequiredService<ISettingsService>(),
-                sp.GetRequiredService<ThemeService>(),
+                sp.GetRequiredService<IThemeService>(),
                 sp.GetRequiredService<IPluginService>(),
                 sp.GetRequiredService<IUIService>(),
                 sp.GetRequiredService<ILogger>()

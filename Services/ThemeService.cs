@@ -14,12 +14,12 @@ namespace SwitchBlade.Services
         public ResourceDictionary Resources { get; set; } = new ResourceDictionary();
     }
 
-    public class ThemeService
+    public class ThemeService : IThemeService
     {
         private readonly ISettingsService _settingsService;
         private readonly IApplicationResourceHandler _resourceHandler;
         private ResourceDictionary? _currentThemeDictionary;
-        public List<ThemeInfo> AvailableThemes { get; private set; } = new List<ThemeInfo>();
+        public IReadOnlyList<ThemeInfo> AvailableThemes { get; private set; } = new List<ThemeInfo>();
 
         public ThemeService(ISettingsService settingsService, IApplicationResourceHandler? resourceHandler = null)
         {

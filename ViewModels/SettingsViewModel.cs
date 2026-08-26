@@ -14,7 +14,7 @@ namespace SwitchBlade.ViewModels
     public class SettingsViewModel : INotifyPropertyChanged
     {
         private readonly ISettingsService _settingsService;
-        private readonly ThemeService _themeService;
+        private readonly IThemeService _themeService;
         private readonly IUIService _uiService;
         private readonly ILogger? _logger;
         private string _selectedTheme;
@@ -269,7 +269,7 @@ namespace SwitchBlade.ViewModels
 
 
 
-        public SettingsViewModel(ISettingsService settingsService, ThemeService themeService, IPluginService pluginService, IUIService uiService, ILogger? logger = null)
+        public SettingsViewModel(ISettingsService settingsService, IThemeService themeService, IPluginService pluginService, IUIService uiService, ILogger? logger = null)
         {
             _settingsService = settingsService;
             _themeService = themeService;
