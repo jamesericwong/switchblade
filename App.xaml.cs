@@ -137,10 +137,16 @@ public partial class App : Application
 
     private void ToggleMainWindow()
     {
-        if (_mainWindow == null) return;
+        if (_mainWindow == null)
+        {
+            return;
+        }
 
         // Suppress hotkey when a modal dialog (e.g., Settings) is open
-        if (_uiService.IsModalDialogOpen) return;
+        if (_uiService.IsModalDialogOpen)
+        {
+            return;
+        }
 
         // If window is visible, hide it
         if (_mainWindow.IsVisible)

@@ -81,7 +81,10 @@ namespace SwitchBlade.Core
         // --- Core logic ---
         private static void OnPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is not TextBlock textBlock) return;
+            if (d is not TextBlock textBlock)
+            {
+                return;
+            }
 
             string title = GetTitle(textBlock);
             string searchText = GetSearchText(textBlock);
@@ -110,7 +113,9 @@ namespace SwitchBlade.Core
                 {
                     run.FontWeight = FontWeights.Bold;
                     if (highlightBrush != null)
+                    {
                         run.Foreground = highlightBrush;
+                    }
                 }
                 textBlock.Inlines.Add(run);
             }

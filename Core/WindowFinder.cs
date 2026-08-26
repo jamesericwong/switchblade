@@ -43,7 +43,10 @@ namespace SwitchBlade.Core
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
-            if (_settingsService == null) return results; // Add safety
+            if (_settingsService == null)
+            {
+                return results; // Add safety
+            }
 
             var excluded = new HashSet<string>(_settingsService.Settings.ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
 
@@ -53,7 +56,9 @@ namespace SwitchBlade.Core
             unsafe bool EnumCallback(IntPtr hwnd, IntPtr lParam)
             {
                 if (!_interop.IsWindowVisible(hwnd))
+                {
                     return true;
+                }
 
                 // Bleeding edge optimization: Use stackalloc for zero-allocation title retrieval
                 // Max window title length is technically 256, but can be larger. 512 is safe.
@@ -62,7 +67,9 @@ namespace SwitchBlade.Core
 
                 int length = _interop.GetWindowTextUnsafe(hwnd, (IntPtr)buffer, simplifyTitleBuffer);
                 if (length == 0)
+                {
                     return true;
+                }
 
                 // Perform "Program Manager" check without allocating string
                 // Check if starts with "Program Manager" (length 15)
@@ -76,7 +83,10 @@ namespace SwitchBlade.Core
                     {
                         if (buffer[i] != pm[i]) { match = false; break; }
                     }
-                    if (match) return true;
+                    if (match)
+                    {
+                        return true;
+                    }
                 }
 
                 // Get Process Name and Path (Optimized Interop handles caching and minimal allocations internally)
@@ -146,9 +156,12 @@ namespace SwitchBlade.Core
 
         protected override (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
         {
-             if ((int)pid == -1) return ("Window", null);
-             
-             try
+             if ((int)pid == -1)
+            {
+                return ("Window", null);
+            }
+
+            try
              {
                 return _interop.GetProcessInfo(pid);
              }

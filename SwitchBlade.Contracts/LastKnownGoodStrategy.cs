@@ -43,7 +43,10 @@ namespace SwitchBlade.Contracts
         /// </summary>
         public List<WindowItem> Apply(IEnumerable<WindowItem> rawResults)
         {
-            if (rawResults is null) throw new ArgumentNullException(nameof(rawResults));
+            if (rawResults is null)
+            {
+                throw new ArgumentNullException(nameof(rawResults));
+            }
 
             lock (_gate)
             {
@@ -60,7 +63,10 @@ namespace SwitchBlade.Contracts
                 foreach (var group in currentPidGroups)
                 {
                     int pid = group.Key;
-                    if (pid == 0) continue; // Skip invalid PIDs
+                    if (pid == 0)
+                    {
+                        continue; // Skip invalid PIDs
+                    }
 
                     pidsSeenInThisScan.Add(pid);
                     var items = group.ToList();

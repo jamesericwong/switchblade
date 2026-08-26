@@ -36,7 +36,11 @@ internal static class Program
 
     internal static void DebugLog(string message)
     {
-        if (!_loggingEnabled) return;
+        if (!_loggingEnabled)
+        {
+            return;
+        }
+
         try
         {
             File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
@@ -79,7 +83,10 @@ internal static class Program
             { 
                 File.AppendAllText(LogFile, $"{Environment.NewLine}------------------------------------------------------------{Environment.NewLine}");
                 File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] UIA Worker Started. PID: {Environment.ProcessId}. BaseDir: {AppContext.BaseDirectory}{Environment.NewLine}");
-                if (parentPid > 0) File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] Monitoring Parent PID: {parentPid}{Environment.NewLine}");
+                if (parentPid > 0)
+                {
+                    File.AppendAllText(LogFile, $"[{DateTime.Now:HH:mm:ss.fff}] Monitoring Parent PID: {parentPid}{Environment.NewLine}");
+                }
             } 
             catch { }
         }
@@ -211,8 +218,15 @@ internal static class Program
             try
             {
                 DebugLog($"Running plugin: {plugin.PluginName}");
-                if (plugin is IConfigurablePlugin configurable) configurable.ReloadSettings();
-                if (plugin is IProviderExclusionSettings exclusionSettings) exclusionSettings.SetExclusions(excludedProcesses);
+                if (plugin is IConfigurablePlugin configurable)
+                {
+                    configurable.ReloadSettings();
+                }
+
+                if (plugin is IProviderExclusionSettings exclusionSettings)
+                {
+                    exclusionSettings.SetExclusions(excludedProcesses);
+                }
 
                 var pluginWindows = plugin.GetWindows().ToList();
                 DebugLog($"Plugin {plugin.PluginName} found {pluginWindows.Count} windows.");

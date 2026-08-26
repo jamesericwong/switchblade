@@ -19,7 +19,11 @@ namespace SwitchBlade.Core
 
         public void Log(string message)
         {
-            if (!IsDebugEnabled) return;
+            if (!IsDebugEnabled)
+            {
+                return;
+            }
+
             WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}");
         }
 
@@ -33,7 +37,10 @@ namespace SwitchBlade.Core
         {
             try
             {
-                lock (_lock) File.AppendAllText(LogFilePath, line + Environment.NewLine);
+                lock (_lock)
+                {
+                    File.AppendAllText(LogFilePath, line + Environment.NewLine);
+                }
             }
             catch (Exception)
             {

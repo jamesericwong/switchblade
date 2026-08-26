@@ -297,7 +297,7 @@ namespace SwitchBlade.ViewModels
             TogglePluginCommand = new RelayCommand(param => TogglePlugin(param));
             AddExcludedProcessCommand = new RelayCommand(_ => AddExcludedProcess(), _ => !string.IsNullOrWhiteSpace(NewExcludedProcessName));
             RemoveExcludedProcessCommand = new RelayCommand(_ => RemoveExcludedProcess(), _ => !string.IsNullOrEmpty(SelectedExcludedProcess));
-            SetHighlightColorCommand = new RelayCommand(param => { if (param is string color) SearchHighlightColor = color; });
+            SetHighlightColorCommand = new RelayCommand(param => { if (param is string color) { SearchHighlightColor = color; } });
         }
 
 
@@ -310,10 +310,25 @@ namespace SwitchBlade.ViewModels
                 var key = (uint)_settingsService.Settings.HotKeyKey;
 
                 var parts = new System.Collections.Generic.List<string>();
-                if ((mods & 1) != 0) parts.Add("Alt");
-                if ((mods & 2) != 0) parts.Add("Ctrl");
-                if ((mods & 4) != 0) parts.Add("Shift");
-                if ((mods & 8) != 0) parts.Add("Win");
+                if ((mods & 1) != 0)
+                {
+                    parts.Add("Alt");
+                }
+
+                if ((mods & 2) != 0)
+                {
+                    parts.Add("Ctrl");
+                }
+
+                if ((mods & 4) != 0)
+                {
+                    parts.Add("Shift");
+                }
+
+                if ((mods & 8) != 0)
+                {
+                    parts.Add("Win");
+                }
 
                 parts.Add(((System.Windows.Forms.Keys)key).ToString());
                 return string.Join(" + ", parts);

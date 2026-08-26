@@ -57,7 +57,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Empty(results);
             _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Failed to start")), It.IsAny<Exception>()), Times.Once());
@@ -100,7 +103,10 @@ namespace SwitchBlade.Tests.Services
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
             var moveNextTask = enumerator.MoveNextAsync().AsTask();
 
-            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
+            if (!inputWritten.Wait(5000))
+            {
+                throw new Exception("Timed out waiting for process to become active");
+            }
 
             client.Dispose();
 
@@ -264,7 +270,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("Failed to send request")), It.IsAny<Exception>()), Times.Once());
         }
@@ -326,7 +335,9 @@ namespace SwitchBlade.Tests.Services
             if (!inputWritten.Wait(5000))
             {
                 if (moveNextTask.IsFaulted)
+                {
                     throw new Exception("MoveNextAsync failed immediately", moveNextTask.Exception);
+                }
 
                 throw new Exception("Timed out waiting for process to become active (input was never written)");
             }
@@ -410,7 +421,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Empty(results);
         }
@@ -422,7 +436,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(_mockLogger.Object, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Empty(results);
             _mockLogger.Verify(l => l.Log(It.Is<string>(s => s.Contains("failed to start (null return)"))), Times.Once());
@@ -581,7 +598,10 @@ namespace SwitchBlade.Tests.Services
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
             var moveNextTask = enumerator.MoveNextAsync().AsTask();
 
-            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
+            if (!inputWritten.Wait(5000))
+            {
+                throw new Exception("Timed out waiting for process to become active");
+            }
 
             // Now set HasExited to true so Dispose avoids Kill
             _mockProcess.Setup(p => p.HasExited).Returns(true);
@@ -699,7 +719,10 @@ namespace SwitchBlade.Tests.Services
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
             var moveNextTask = enumerator.MoveNextAsync().AsTask();
 
-            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
+            if (!inputWritten.Wait(5000))
+            {
+                throw new Exception("Timed out waiting for process to become active");
+            }
 
             client.Dispose();
 
@@ -730,7 +753,10 @@ namespace SwitchBlade.Tests.Services
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
             var moveNextTask = enumerator.MoveNextAsync().AsTask();
 
-            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
+            if (!inputWritten.Wait(5000))
+            {
+                throw new Exception("Timed out waiting for process to become active");
+            }
 
             client.Dispose();
             // No crash
@@ -811,7 +837,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Empty(results);
         }
@@ -824,7 +853,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Empty(results);
         }
@@ -837,7 +869,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Empty(results);
         }
@@ -857,7 +892,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(null, shortTimeout, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Empty(results);
         }
@@ -893,7 +931,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Single(results);
         }
@@ -997,7 +1038,10 @@ namespace SwitchBlade.Tests.Services
             var enumerator = client.ScanStreamingAsync().GetAsyncEnumerator();
             var moveNextTask = enumerator.MoveNextAsync().AsTask();
 
-            if (!inputWritten.Wait(5000)) throw new Exception("Timed out waiting for process to become active");
+            if (!inputWritten.Wait(5000))
+            {
+                throw new Exception("Timed out waiting for process to become active");
+            }
 
             client.Dispose();
 
@@ -1066,7 +1110,10 @@ namespace SwitchBlade.Tests.Services
             var client = new UiaWorkerClient(null, null, _mockProcFactory.Object, _mockFs.Object);
 
             var results = new List<UiaPluginResult>();
-            await foreach (var r in client.ScanStreamingAsync()) results.Add(r);
+            await foreach (var r in client.ScanStreamingAsync())
+            {
+                results.Add(r);
+            }
 
             Assert.Empty(results);
         }

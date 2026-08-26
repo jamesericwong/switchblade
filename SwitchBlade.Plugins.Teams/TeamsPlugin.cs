@@ -84,7 +84,10 @@ namespace SwitchBlade.Plugins.Teams
 
         public override void ReloadSettings()
         {
-            if (_settingsService == null) return;
+            if (_settingsService == null)
+            {
+                return;
+            }
 
             if (_settingsService.KeyExists("TeamsProcesses"))
             {
@@ -107,11 +110,17 @@ namespace SwitchBlade.Plugins.Teams
             var results = new List<WindowItem>();
             var targetProcessNames = new HashSet<string>(_teamsProcesses, StringComparer.OrdinalIgnoreCase);
 
-            if (targetProcessNames.Count == 0) return results;
+            if (targetProcessNames.Count == 0)
+            {
+                return results;
+            }
 
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
-                if (!NativeInterop.IsWindowVisible(hwnd)) return true;
+                if (!NativeInterop.IsWindowVisible(hwnd))
+                {
+                    return true;
+                }
 
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
@@ -135,7 +144,10 @@ namespace SwitchBlade.Plugins.Teams
                 Span<char> buffer = stackalloc char[512];
                 int length = NativeInterop.GetWindowText(hwnd, buffer, buffer.Length);
                 string windowTitle = length > 0 ? new string(buffer[..length]) : "";
-                if (string.IsNullOrEmpty(windowTitle)) return;
+                if (string.IsNullOrEmpty(windowTitle))
+                {
+                    return;
+                }
 
                 var initialCount = results.Count;
                 bool scanFailed = false;
@@ -175,7 +187,10 @@ namespace SwitchBlade.Plugins.Teams
                                     try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
                                     catch { continue; }
 
-                                    if (children == null) continue;
+                                    if (children == null)
+                                    {
+                                        continue;
+                                    }
 
                                     foreach (AutomationElement child in children)
                                     {
@@ -345,7 +360,10 @@ namespace SwitchBlade.Plugins.Teams
             {
                 NativeInterop.GetWindowThreadProcessId(item.Hwnd, out uint pid);
                 var root = TryGetAutomationElement(item.Hwnd, (int)pid);
-                if (root == null) return;
+                if (root == null)
+                {
+                    return;
+                }
 
                 var targetElement = FindChatElement(root, item.Title);
 
@@ -438,7 +456,10 @@ namespace SwitchBlade.Plugins.Teams
                         try { children = current.FindAll(TreeScope.Children, Condition.TrueCondition); }
                         catch { continue; }
 
-                        if (children == null) continue;
+                        if (children == null)
+                        {
+                            continue;
+                        }
 
                         foreach (AutomationElement child in children)
                         {

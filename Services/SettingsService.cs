@@ -42,14 +42,21 @@ namespace SwitchBlade.Services
             // String Lists
             var excludedProcesses = _storage.GetStringList(nameof(Settings.ExcludedProcesses));
             if (!_storage.HasKey(nameof(Settings.ExcludedProcesses)))
+            {
                 settingsDirty = true;
+            }
 
             if (excludedProcesses.Count > 0)
+            {
                 Settings.ExcludedProcesses = excludedProcesses;
+            }
 
             var disabledPlugins = _storage.GetStringList(nameof(Settings.DisabledPlugins));
             if (!_storage.HasKey(nameof(Settings.DisabledPlugins)))
+            {
                 settingsDirty = true;
+            }
+
             Settings.DisabledPlugins = disabledPlugins;
 
             // Theme

@@ -46,8 +46,14 @@ namespace SwitchBlade.Core
 
         public void Kill(bool entireProcessTree)
         {
-            if (entireProcessTree) _process.Kill(true);
-            else _process.Kill();
+            if (entireProcessTree)
+            {
+                _process.Kill(true);
+            }
+            else
+            {
+                _process.Kill();
+            }
         }
 
         public Task WaitForExitAsync(CancellationToken cancellationToken = default)

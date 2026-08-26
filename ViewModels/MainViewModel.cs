@@ -148,7 +148,9 @@ namespace SwitchBlade.ViewModels
                 {
                     _selectedWindow = value;
                     if (!_isUpdating)
+                    {
                         OnPropertyChanged();
+                    }
                 }
             }
         }
@@ -201,7 +203,9 @@ namespace SwitchBlade.ViewModels
 
                     // Update shortcut indices
                     for (int i = 0; i < FilteredWindows.Count; i++)
+                    {
                         FilteredWindows[i].ShortcutIndex = (i < 10) ? i : -1;
+                    }
 
                     // Delegate selection resolution to navigation service
                     var behavior = _settingsService?.Settings.RefreshBehavior ?? RefreshBehavior.PreserveScroll;
@@ -234,32 +238,48 @@ namespace SwitchBlade.ViewModels
 
         public void MoveSelection(int direction)
         {
-            if (FilteredWindows.Count == 0) return;
+            if (FilteredWindows.Count == 0)
+            {
+                return;
+            }
+
             int currentIndex = SelectedWindow != null ? FilteredWindows.IndexOf(SelectedWindow) : -1;
             int newIndex = _navigationService.CalculateMoveIndex(currentIndex, direction, FilteredWindows.Count);
             if (newIndex >= 0 && newIndex < FilteredWindows.Count)
+            {
                 SelectedWindow = FilteredWindows[newIndex];
+            }
         }
 
         public void MoveSelectionToFirst()
         {
             if (FilteredWindows.Count > 0)
+            {
                 SelectedWindow = FilteredWindows[0];
+            }
         }
 
         public void MoveSelectionToLast()
         {
             if (FilteredWindows.Count > 0)
+            {
                 SelectedWindow = FilteredWindows[^1];
+            }
         }
 
         public void MoveSelectionByPage(int direction, int pageSize)
         {
-            if (FilteredWindows.Count == 0 || pageSize <= 0) return;
+            if (FilteredWindows.Count == 0 || pageSize <= 0)
+            {
+                return;
+            }
+
             int currentIndex = SelectedWindow != null ? FilteredWindows.IndexOf(SelectedWindow) : 0;
             int newIndex = _navigationService.CalculatePageMoveIndex(currentIndex, direction, pageSize, FilteredWindows.Count);
             if (newIndex >= 0)
+            {
                 SelectedWindow = FilteredWindows[newIndex];
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

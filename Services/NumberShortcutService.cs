@@ -22,9 +22,15 @@ namespace SwitchBlade.Services
 
         public bool HandleShortcut(Key key, ModifierKeys modifiers, IReadOnlyList<WindowItem> windows, Action<WindowItem?> activateWindow)
         {
-            if (windows is null) throw new ArgumentNullException(nameof(windows));
+            if (windows is null)
+            {
+                throw new ArgumentNullException(nameof(windows));
+            }
 
-            if (!_settingsService.Settings.EnableNumberShortcuts) return false;
+            if (!_settingsService.Settings.EnableNumberShortcuts)
+            {
+                return false;
+            }
 
             var settings = _settingsService.Settings;
              

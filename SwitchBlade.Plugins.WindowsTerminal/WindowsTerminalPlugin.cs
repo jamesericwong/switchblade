@@ -64,7 +64,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
 
         public override void ReloadSettings()
         {
-            if (_settingsService == null) return;
+            if (_settingsService == null)
+            {
+                return;
+            }
 
             // Check if TerminalProcesses key exists in plugin Registry
             if (_settingsService.KeyExists("TerminalProcesses"))
@@ -92,14 +95,20 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             var allResults = new List<WindowItem>();
 
             var targetProcessNames = new HashSet<string>(_terminalProcesses, StringComparer.OrdinalIgnoreCase);
-            if (targetProcessNames.Count == 0) return allResults;
+            if (targetProcessNames.Count == 0)
+            {
+                return allResults;
+            }
 
             // Map PID to list of window items found for that process
             var pidToResults = new Dictionary<int, List<WindowItem>>();
 
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
-                if (!NativeInterop.IsWindowVisible(hwnd)) return true;
+                if (!NativeInterop.IsWindowVisible(hwnd))
+                {
+                    return true;
+                }
 
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
@@ -166,7 +175,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             Span<char> buffer = stackalloc char[512];
             int length = NativeInterop.GetWindowText(hwnd, buffer, buffer.Length);
             string windowTitle = length > 0 ? new string(buffer[..length]) : "";
-            if (string.IsNullOrEmpty(windowTitle)) return;
+            if (string.IsNullOrEmpty(windowTitle))
+            {
+                return;
+            }
 
             var tabs = ScanForTabs(hwnd, pid);
 
@@ -212,7 +224,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             try
             {
                 var root = TryGetAutomationElement(hwnd, pid);
-                if (root == null) return tabs;
+                if (root == null)
+                {
+                    return tabs;
+                }
 
                 var cacheRequest = new CacheRequest();
                 cacheRequest.Add(AutomationElement.NameProperty);
@@ -240,7 +255,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                             try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
                             catch { continue; }
 
-                            if (children == null) continue;
+                            if (children == null)
+                            {
+                                continue;
+                            }
 
                             foreach (AutomationElement child in children)
                             {
@@ -252,7 +270,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                                         child.Cached.LocalizedControlType?.Equals("tab item", StringComparison.OrdinalIgnoreCase) == true)
                                     {
                                         var name = child.Cached.Name;
-                                        if (!string.IsNullOrWhiteSpace(name)) tabs.Add(name);
+                                        if (!string.IsNullOrWhiteSpace(name))
+                                        {
+                                            tabs.Add(name);
+                                        }
                                     }
                                     else if (controlType != ControlType.Document)
                                     {
@@ -280,7 +301,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                         foreach (AutomationElement element in elements)
                         {
                             var name = element.Cached.Name;
-                            if (!string.IsNullOrWhiteSpace(name)) tabs.Add(name);
+                            if (!string.IsNullOrWhiteSpace(name))
+                            {
+                                tabs.Add(name);
+                            }
                         }
                         
                         if (tabs.Count > 0)
@@ -312,7 +336,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                 {
                     NativeInterop.GetWindowThreadProcessId(item.Hwnd, out uint pid);
                     var root = TryGetAutomationElement(item.Hwnd, (int)pid);
-                    if (root == null) return;
+                    if (root == null)
+                    {
+                        return;
+                    }
 
                     var tabElement = FindTabByName(root, item.Title);
                     if (tabElement != null)
@@ -369,7 +396,10 @@ namespace SwitchBlade.Plugins.WindowsTerminal
                         try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
                         catch { continue; }
 
-                        if (children == null) continue;
+                        if (children == null)
+                        {
+                            continue;
+                        }
 
                         foreach (AutomationElement child in children)
                         {

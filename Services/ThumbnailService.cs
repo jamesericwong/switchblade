@@ -41,7 +41,10 @@ namespace SwitchBlade.Services
             }
 
             _currentSourceHwnd = sourceHwnd;
-            if (sourceHwnd == IntPtr.Zero) return;
+            if (sourceHwnd == IntPtr.Zero)
+            {
+                return;
+            }
 
             var helper = new WindowInteropHelper(_targetWindow);
             int result = NativeInterop.DwmRegisterThumbnail(helper.Handle, sourceHwnd, out _currentThumbnail);
@@ -92,7 +95,10 @@ namespace SwitchBlade.Services
 
         private void UpdateThumbnailProperties()
         {
-            if (_currentThumbnail == IntPtr.Zero || _previewContainer == null) return;
+            if (_currentThumbnail == IntPtr.Zero || _previewContainer == null)
+            {
+                return;
+            }
 
             // Get position of the container relative to the window
             var transform = _previewContainer.TransformToAncestor(_targetWindow);
@@ -147,8 +153,15 @@ namespace SwitchBlade.Services
                 }
             }
 
-            if (sourceW <= 0) sourceW = 800;
-            if (sourceH <= 0) sourceH = 600;
+            if (sourceW <= 0)
+            {
+                sourceW = 800;
+            }
+
+            if (sourceH <= 0)
+            {
+                sourceH = 600;
+            }
 
             // 2. Get Container Dimensions (Logical)
             double containerW = _previewContainer.ActualWidth;
@@ -161,8 +174,15 @@ namespace SwitchBlade.Services
             double availableW = containerW - (padding * 2);
             double availableH = containerH - (padding * 2);
 
-            if (availableW <= 0) availableW = 1;
-            if (availableH <= 0) availableH = 1;
+            if (availableW <= 0)
+            {
+                availableW = 1;
+            }
+
+            if (availableH <= 0)
+            {
+                availableH = 1;
+            }
 
             // 4. Calculate Scale to Fit (Uniform)
             double scaleX = availableW / sourceW;

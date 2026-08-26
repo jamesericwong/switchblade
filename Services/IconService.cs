@@ -38,7 +38,9 @@ namespace SwitchBlade.Services
         public ImageSource? GetIcon(string? executablePath)
         {
             if (string.IsNullOrEmpty(executablePath))
+            {
                 return null;
+            }
 
             // Check cache size limit before adding new items
             int limit = _settingsService.Settings?.IconCacheSize ?? FallbackMaxCacheSize;

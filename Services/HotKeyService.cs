@@ -151,7 +151,9 @@ namespace SwitchBlade.Services
         public void Dispose()
         {
             if (_disposed)
+            {
                 return;
+            }
 
             _disposed = true;
 

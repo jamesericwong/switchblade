@@ -14,7 +14,10 @@ namespace SwitchBlade.Contracts
         /// <returns>A sanitized process name.</returns>
         public static string SanitizeProcessName(string? input)
         {
-            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return string.Empty;
+            }
 
             string sanitized = input.Trim();
 

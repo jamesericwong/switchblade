@@ -39,8 +39,11 @@ namespace SwitchBlade.Tests.Services
 
             // Remove existing registration
             var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ISettingsService));
-            if (descriptor != null) services.Remove(descriptor);
-            
+            if (descriptor != null)
+            {
+                services.Remove(descriptor);
+            }
+
             services.AddSingleton(mockSettings.Object);
 
             // Build
@@ -71,7 +74,11 @@ namespace SwitchBlade.Tests.Services
             mockSettings.Setup(s => s.Settings).Returns(userSettings);
 
             var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ISettingsService));
-            if (descriptor != null) services.Remove(descriptor);
+            if (descriptor != null)
+            {
+                services.Remove(descriptor);
+            }
+
             services.AddSingleton(mockSettings.Object);
 
             var sp = services.BuildServiceProvider();

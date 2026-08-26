@@ -104,7 +104,10 @@ namespace SwitchBlade.Services
 
         public void PopulateIcons(IEnumerable<WindowItem> items)
         {
-            if (_iconService == null) return;
+            if (_iconService == null)
+            {
+                return;
+            }
 
             // No lock needed here - items are already reconciled and local to this list
             // Icon extraction is thread-safe and cached
@@ -163,7 +166,9 @@ namespace SwitchBlade.Services
                 _windowItemCache[item.Hwnd] = list;
             }
             if (!list.Contains(item))
+            {
                 list.Add(item);
+            }
 
             // 2. Update Provider lookup
             if (item.Source != null)
@@ -188,7 +193,9 @@ namespace SwitchBlade.Services
             {
                 list.Remove(item);
                 if (list.Count == 0)
+                {
                     _windowItemCache.Remove(item.Hwnd);
+                }
             }
 
             // 2. Remove from Provider lookup
@@ -196,7 +203,9 @@ namespace SwitchBlade.Services
             {
                 set.Remove(item);
                 if (set.Count == 0)
+                {
                     _providerItems.Remove(item.Source);
+                }
             }
         }
 

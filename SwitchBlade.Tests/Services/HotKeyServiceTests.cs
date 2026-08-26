@@ -36,7 +36,10 @@ namespace SwitchBlade.Tests.Services
             thread.Start();
             thread.Join();
 
-            if (error != null) ExceptionDispatchInfo.Capture(error).Throw();
+            if (error != null)
+            {
+                ExceptionDispatchInfo.Capture(error).Throw();
+            }
         }
 
         [Fact]

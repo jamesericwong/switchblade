@@ -22,7 +22,9 @@ namespace SwitchBlade.Contracts
         public PluginSettingsService(string pluginName, IRegistryService registryService, ILogger? logger = null)
         {
             if (string.IsNullOrWhiteSpace(pluginName))
+            {
                 throw new ArgumentException("Plugin name cannot be empty", nameof(pluginName));
+            }
 
             PluginName = pluginName;
             _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
@@ -37,17 +39,31 @@ namespace SwitchBlade.Contracts
             try
             {
                 var value = _registryService.GetCurrentUserValue(RegistryPath, key);
-                if (value == null) return defaultValue;
+                if (value == null)
+                {
+                    return defaultValue;
+                }
 
                 // Handle type conversions
                 if (typeof(T) == typeof(bool))
+                {
                     return (T)(object)Convert.ToBoolean(value);
+                }
+
                 if (typeof(T) == typeof(int))
+                {
                     return (T)(object)Convert.ToInt32(value);
+                }
+
                 if (typeof(T) == typeof(string))
+                {
                     return (T)(object)value.ToString()!;
+                }
+
                 if (typeof(T) == typeof(uint))
+                {
                     return (T)(object)Convert.ToUInt32(value);
+                }
 
                 return defaultValue;
             }
@@ -93,7 +109,10 @@ namespace SwitchBlade.Contracts
             try
             {
                 var json = _registryService.GetCurrentUserValue(RegistryPath, key) as string;
-                if (string.IsNullOrEmpty(json)) return defaultValue ?? [];
+                if (string.IsNullOrEmpty(json))
+                {
+                    return defaultValue ?? [];
+                }
 
                 return JsonSerializer.Deserialize<List<string>>(json) ?? defaultValue ?? [];
             }

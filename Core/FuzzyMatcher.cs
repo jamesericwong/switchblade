@@ -38,7 +38,9 @@ namespace SwitchBlade.Core
         public static int Score(string title, string query)
         {
             if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(title))
+            {
                 return 0;
+            }
 
             // Fast path: exact contains check (common case)
             if (title.Contains(query, StringComparison.OrdinalIgnoreCase))
@@ -46,7 +48,10 @@ namespace SwitchBlade.Core
                 int exactScore = query.Length * (BaseMatchScore + ContiguityBonus);
                 // Bonus if title starts with query
                 if (title.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                {
                     exactScore += StartsWithBonus;
+                }
+
                 return exactScore;
             }
 
@@ -70,7 +75,9 @@ namespace SwitchBlade.Core
             int actualQueryLen = Normalize(query.Slice(0, queryLen), normalizedQuery);
 
             if (actualQueryLen == 0)
+            {
                 return 0;
+            }
 
             // Trim the spans to actual normalized lengths
             normalizedTitle = normalizedTitle.Slice(0, actualTitleLen);
@@ -78,7 +85,9 @@ namespace SwitchBlade.Core
 
             // Quick rejection: if query is longer than title, no match possible
             if (actualQueryLen > actualTitleLen)
+            {
                 return 0;
+            }
 
             return CalculateSubsequenceScore(normalizedTitle, normalizedQuery);
         }
@@ -99,7 +108,9 @@ namespace SwitchBlade.Core
 
                 // Skip delimiters entirely (space, underscore, dash)
                 if (c == ' ' || c == '_' || c == '-')
+                {
                     continue;
+                }
 
                 // Convert to lowercase inline
                 output[writeIndex++] = char.ToLowerInvariant(c);
@@ -146,7 +157,9 @@ namespace SwitchBlade.Core
 
             // Did we match all query characters?
             if (queryIndex < query.Length)
+            {
                 return 0; // Incomplete match
+            }
 
             // Starts-with bonus: if matching started at the beginning
             if (matchedAtStart)
@@ -180,14 +193,20 @@ namespace SwitchBlade.Core
         public static int[] GetMatchedIndices(string title, string query, bool useFuzzy)
         {
             if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(title))
+            {
                 return Array.Empty<int>();
+            }
 
             if (!useFuzzy)
+            {
                 return GetSubstringMatchIndices(title, query);
+            }
 
             // Fast path: exact contains check (use substring indices)
             if (title.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
                 return GetSubstringMatchIndices(title, query);
+            }
 
             // Fuzzy path: normalize both, match subsequence, then map back to original indices
             return GetFuzzyMatchIndices(title, query);
@@ -200,11 +219,16 @@ namespace SwitchBlade.Core
         {
             int start = title.IndexOf(query, StringComparison.OrdinalIgnoreCase);
             if (start < 0)
+            {
                 return Array.Empty<int>();
+            }
 
             var indices = new int[query.Length];
             for (int i = 0; i < query.Length; i++)
+            {
                 indices[i] = start + i;
+            }
+
             return indices;
         }
 
@@ -225,7 +249,9 @@ namespace SwitchBlade.Core
             int actualQueryLen = Normalize(query.AsSpan(0, queryLen), normalizedQuery);
 
             if (actualQueryLen == 0 || actualQueryLen > actualTitleLen)
+            {
                 return Array.Empty<int>();
+            }
 
             // Perform subsequence matching on normalized strings
             var matchedNormalized = new System.Collections.Generic.List<int>(actualQueryLen);
@@ -240,12 +266,17 @@ namespace SwitchBlade.Core
             }
 
             if (qi < actualQueryLen)
+            {
                 return Array.Empty<int>(); // Incomplete match
+            }
 
             // Map normalized indices back to original title indices
             var result = new int[matchedNormalized.Count];
             for (int i = 0; i < matchedNormalized.Count; i++)
+            {
                 result[i] = indexMap[matchedNormalized[i]];
+            }
+
             return result;
         }
 
@@ -260,7 +291,10 @@ namespace SwitchBlade.Core
             {
                 char c = input[i];
                 if (c == ' ' || c == '_' || c == '-')
+                {
                     continue;
+                }
+
                 output[writeIndex] = char.ToLowerInvariant(c);
                 indexMap[writeIndex] = i;
                 writeIndex++;

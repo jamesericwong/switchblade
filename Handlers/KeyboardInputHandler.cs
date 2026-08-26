@@ -135,10 +135,16 @@ namespace SwitchBlade.Handlers
         private int CalculatePageSize()
         {
             double itemHeight = _settingsService.Settings.ItemHeight;
-            if (itemHeight <= 0) itemHeight = 64; // Fallback default
+            if (itemHeight <= 0)
+            {
+                itemHeight = 64; // Fallback default
+            }
 
             double listBoxHeight = _getListBoxHeight();
-            if (listBoxHeight <= 0) listBoxHeight = 400; // Fallback default
+            if (listBoxHeight <= 0)
+            {
+                listBoxHeight = 400; // Fallback default
+            }
 
             int pageSize = (int)(listBoxHeight / itemHeight);
             return Math.Max(1, pageSize); // At least 1

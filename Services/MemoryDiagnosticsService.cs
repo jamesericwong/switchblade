@@ -127,7 +127,11 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
 
             // Cancel before disposing: the running loop's pending wait is registered on this token.

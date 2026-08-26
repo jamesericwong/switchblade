@@ -95,7 +95,10 @@ namespace SwitchBlade.Tests.Services
             _settings.NumberShortcutModifier = (uint)ModifierKeyFlags.None;
 
             var items = new List<WindowItem>();
-            for (int i = 0; i < 10; i++) items.Add(new WindowItem { Title = $"Item {i}" });
+            for (int i = 0; i < 10; i++)
+            {
+                items.Add(new WindowItem { Title = $"Item {i}" });
+            }
 
             bool handled = _service.HandleShortcut(key, ModifierKeys.None, items, _mockActivateWindow.Object);
 

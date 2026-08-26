@@ -186,7 +186,7 @@ namespace SwitchBlade.Services
                     {
                         // Explicitly caught - this is the expected path for timeouts
                         _logger?.Log("[UiaWorkerClient] Streaming read cancelled/timed out.");
-                        try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                        try { if (!process.HasExited) { process.Kill(entireProcessTree: true); } } catch { }
                         yield break;
                     }
 
@@ -200,7 +200,7 @@ namespace SwitchBlade.Services
                     if (combinedCts.Token.IsCancellationRequested)
                     {
                         _logger?.Log("[UiaWorkerClient] Streaming read cancelled/timed out.");
-                        try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                        try { if (!process.HasExited) { process.Kill(entireProcessTree: true); } } catch { }
                         yield break;
                     }
 
@@ -216,7 +216,9 @@ namespace SwitchBlade.Services
                     }
 
                     if (result == null)
+                    {
                         continue;
+                    }
 
                     if (result.IsFinal)
                     {
@@ -261,14 +263,17 @@ namespace SwitchBlade.Services
                         }
                         catch
                         {
-                            if (!process.HasExited) process.Kill(entireProcessTree: true);
+                            if (!process.HasExited)
+                            {
+                                process.Kill(entireProcessTree: true);
+                            }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger?.Log($"[UiaWorkerClient] Error during process cleanup: {ex.Message}");
-                    try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                    try { if (!process.HasExited) { process.Kill(entireProcessTree: true); } } catch { }
                 }
 
                 process.Dispose();
@@ -335,7 +340,9 @@ namespace SwitchBlade.Services
         private static List<WindowItem> ConvertToWindowItems(List<UiaWindowResult>? results)
         {
             if (results == null || results.Count == 0)
+            {
                 return [];
+            }
 
             var items = new List<WindowItem>(results.Count);
             foreach (var r in results)
@@ -357,7 +364,11 @@ namespace SwitchBlade.Services
         {
             lock (_processLock)
             {
-                if (_disposed) return;
+                if (_disposed)
+                {
+                    return;
+                }
+
                 _disposed = true;
 
                 _disposeCts.Cancel();

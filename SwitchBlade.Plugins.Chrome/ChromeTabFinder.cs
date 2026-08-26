@@ -79,7 +79,10 @@ namespace SwitchBlade.Plugins.Chrome
 
         public override void ReloadSettings()
         {
-            if (_settingsService == null) return;
+            if (_settingsService == null)
+            {
+                return;
+            }
 
             // Check if BrowserProcesses key exists in plugin Registry
             if (_settingsService.KeyExists("BrowserProcesses"))
@@ -106,7 +109,10 @@ namespace SwitchBlade.Plugins.Chrome
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
-            if (_settingsService == null || _browserProcesses.Count == 0) return results;
+            if (_settingsService == null || _browserProcesses.Count == 0)
+            {
+                return results;
+            }
 
             // Optimization: Don't pre-fetch PIDs using Process.GetProcessesByName (expensive).
             // Instead, we will check process names dynamically inside the EnumWindows loop using our cached native helper.
@@ -118,7 +124,10 @@ namespace SwitchBlade.Plugins.Chrome
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
                 // Check visibility first for speed
-                if (!NativeInterop.IsWindowVisible(hwnd)) return true;
+                if (!NativeInterop.IsWindowVisible(hwnd))
+                {
+                    return true;
+                }
 
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
@@ -142,7 +151,10 @@ namespace SwitchBlade.Plugins.Chrome
             Span<char> buffer = stackalloc char[512];
             int length = NativeInterop.GetWindowText(hwnd, buffer, buffer.Length);
             string windowTitle = length > 0 ? new string(buffer[..length]) : "";
-            if (string.IsNullOrEmpty(windowTitle)) return;
+            if (string.IsNullOrEmpty(windowTitle))
+            {
+                return;
+            }
 
             var initialCount = results.Count;
 
@@ -236,7 +248,10 @@ namespace SwitchBlade.Plugins.Chrome
                         try
                         {
                             var collection = container.FindAll(TreeScope.Children, Condition.TrueCondition);
-                            foreach (AutomationElement child in collection) children.Add(child);
+                            foreach (AutomationElement child in collection)
+                            {
+                                children.Add(child);
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -259,7 +274,10 @@ namespace SwitchBlade.Plugins.Chrome
                             }
                         }
 
-                        if (children.Count == 0) continue;
+                        if (children.Count == 0)
+                        {
+                            continue;
+                        }
 
                         // Phase 1: Check if THIS container is a Tab Strip
                         bool isTabStrip = false;
@@ -345,7 +363,10 @@ namespace SwitchBlade.Plugins.Chrome
                                 ControlType type;
                                 try { type = child.Cached.ControlType; } catch { type = child.Current.ControlType; }
 
-                                if (type == ControlType.Document) continue;
+                                if (type == ControlType.Document)
+                                {
+                                    continue;
+                                }
 
                                 if (type != ControlType.TabItem)
                                 {
@@ -395,21 +416,30 @@ namespace SwitchBlade.Plugins.Chrome
 
                 AutomationElement? cachedRoot = null;
                 try { cachedRoot = root.GetUpdatedCache(cacheRequest); } catch { }
-                if (cachedRoot == null) return results;
+                if (cachedRoot == null)
+                {
+                    return results;
+                }
 
                 queue.Enqueue((cachedRoot, 0));
 
                 while (queue.Count > 0)
                 {
                     var (current, depth) = queue.Dequeue();
-                    if (depth > maxDepth) continue;
+                    if (depth > maxDepth)
+                    {
+                        continue;
+                    }
 
                     itemsScanned++;
 
                     try
                     {
                         var controlType = current.Cached.ControlType;
-                        if (controlType == ControlType.Document) continue;
+                        if (controlType == ControlType.Document)
+                        {
+                            continue;
+                        }
 
                         bool isTab = controlType == ControlType.TabItem;
                         string name = current.Cached.Name;
@@ -462,12 +492,18 @@ namespace SwitchBlade.Plugins.Chrome
             // This is crucial because AutomationElement tree might not update instantly
             System.Threading.Thread.Sleep(50);
 
-            if (string.IsNullOrEmpty(item.Title)) return;
+            if (string.IsNullOrEmpty(item.Title))
+            {
+                return;
+            }
 
             try
             {
                 AutomationElement? root = AutomationElement.FromHandle(item.Hwnd);
-                if (root == null) return;
+                if (root == null)
+                {
+                    return;
+                }
 
                 var walker = TreeWalker.ControlViewWalker;
                 var tabElement = FindTabByNameBFS(root, walker, 12, item.Title);
@@ -504,17 +540,30 @@ namespace SwitchBlade.Plugins.Chrome
             while (queue.Count > 0)
             {
                 var (current, depth) = queue.Dequeue();
-                if (depth > maxDepth) continue;
+                if (depth > maxDepth)
+                {
+                    continue;
+                }
 
                 try
                 {
-                    if (current.Current.ControlType == ControlType.Document) continue;
+                    if (current.Current.ControlType == ControlType.Document)
+                    {
+                        continue;
+                    }
 
                     bool isTab = false;
-                    if (current.Current.ControlType == ControlType.TabItem) isTab = true;
+                    if (current.Current.ControlType == ControlType.TabItem)
+                    {
+                        isTab = true;
+                    }
+
                     if (!isTab && !string.IsNullOrEmpty(current.Current.LocalizedControlType))
                     {
-                        if (current.Current.LocalizedControlType.Equals("tab", StringComparison.OrdinalIgnoreCase)) isTab = true;
+                        if (current.Current.LocalizedControlType.Equals("tab", StringComparison.OrdinalIgnoreCase))
+                        {
+                            isTab = true;
+                        }
                     }
 
                     if (isTab && current.Current.Name == targetName)

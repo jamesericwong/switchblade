@@ -538,7 +538,10 @@ namespace SwitchBlade.Tests.Handlers
             var b = TestContext.Item("B", shortcutIndex: 1);
             var c = TestContext.Item("C"); // no shortcut
             foreach (var item in new[] { a, b, c })
+            {
                 item.HasBeenAnimated = true;
+            }
+
             ctx.ViewModel.FilteredWindows.Add(a);
             ctx.ViewModel.FilteredWindows.Add(b);
             ctx.ViewModel.FilteredWindows.Add(c);

@@ -1,0 +1,10 @@
+<Project>
+  <!-- Lint pipeline (ARCHITECTURE_ANALYSIS §5 rec #5): built-in Roslyn analyzers +
+       .editorconfig house style, enforced as build errors. Applies to all C# projects;
+       the WiX installer project is excluded. -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+</Project>

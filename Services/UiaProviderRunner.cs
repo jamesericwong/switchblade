@@ -133,7 +133,11 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
             _uiaRefreshLock.Dispose();
             GC.SuppressFinalize(this);

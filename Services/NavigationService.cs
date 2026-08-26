@@ -20,11 +20,15 @@ namespace SwitchBlade.Services
             bool resetSelection)
         {
             if (filteredWindows == null || filteredWindows.Count == 0)
+            {
                 return null;
+            }
 
             // Force first item if reset requested (user typing)
             if (resetSelection)
+            {
                 return filteredWindows[0];
+            }
 
             switch (behavior)
             {
@@ -56,12 +60,16 @@ namespace SwitchBlade.Services
         {
             // No previous selection -> select first
             if (hwnd == null || hwnd == IntPtr.Zero)
+            {
                 return windows[0];
+            }
 
             // Try to find same item
             var sameItem = windows.FirstOrDefault(w => w.Hwnd == hwnd && w.Title == title);
             if (sameItem != null)
+            {
                 return sameItem;
+            }
 
             // Fallback to index
             int idx = Math.Clamp(previousIndex, 0, windows.Count - 1);
@@ -70,11 +78,16 @@ namespace SwitchBlade.Services
 
         public int CalculateMoveIndex(int currentIndex, int direction, int itemCount)
         {
-            if (itemCount == 0) return -1;
+            if (itemCount == 0)
+            {
+                return -1;
+            }
 
             // Nothing selected
             if (currentIndex < 0)
+            {
                 return direction > 0 ? 0 : itemCount - 1;
+            }
 
             int newIndex = currentIndex + direction;
             return Math.Clamp(newIndex, 0, itemCount - 1);
@@ -82,7 +95,10 @@ namespace SwitchBlade.Services
 
         public int CalculatePageMoveIndex(int currentIndex, int direction, int pageSize, int itemCount)
         {
-            if (itemCount == 0 || pageSize <= 0) return -1;
+            if (itemCount == 0 || pageSize <= 0)
+            {
+                return -1;
+            }
 
             int idx = currentIndex < 0 ? 0 : currentIndex;
             int newIndex = idx + (direction * pageSize);

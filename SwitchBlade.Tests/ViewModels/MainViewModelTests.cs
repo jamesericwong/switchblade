@@ -40,7 +40,11 @@ namespace SwitchBlade.Tests.ViewModels
             mockNav.Setup(n => n.CalculateMoveIndex(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
                 .Returns((int current, int direction, int count) => 
                 {
-                    if (count == 0) return -1;
+                    if (count == 0)
+                    {
+                        return -1;
+                    }
+
                     int next = current + direction;
                     return Math.Clamp(next, 0, count - 1);
                 });
@@ -103,7 +107,9 @@ namespace SwitchBlade.Tests.ViewModels
             vm.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(MainViewModel.SearchText))
+                {
                     propertyChangedRaised = true;
+                }
             }; // Closing the event handler here
 
             vm.SearchText = "test";
@@ -129,7 +135,9 @@ namespace SwitchBlade.Tests.ViewModels
             vm.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(MainViewModel.EnablePreviews))
+                {
                     propertyChangedRaised = true;
+                }
             };
 
             vm.EnablePreviews = false;

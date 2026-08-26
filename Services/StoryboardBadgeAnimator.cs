@@ -44,7 +44,10 @@ namespace SwitchBlade.Services
                 while (attempts < 20) // Max 20 attempts (approx 500ms total)
                 {
                     container = _containerResolver(item);
-                    if (container != null) break;
+                    if (container != null)
+                    {
+                        break;
+                    }
 
                     attempts++;
                     await System.Threading.Tasks.Task.Delay(25);
@@ -122,7 +125,10 @@ namespace SwitchBlade.Services
 
         private static T? FindChild<T>(DependencyObject parent, string childName) where T : DependencyObject
         {
-            if (parent == null) return null;
+            if (parent == null)
+            {
+                return null;
+            }
 
             int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
             for (int i = 0; i < childrenCount; i++)
@@ -135,7 +141,10 @@ namespace SwitchBlade.Services
                 }
 
                 var result = FindChild<T>(child, childName);
-                if (result != null) return result;
+                if (result != null)
+                {
+                    return result;
+                }
             }
             return null;
         }

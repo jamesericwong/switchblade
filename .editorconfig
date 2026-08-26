@@ -1,0 +1,83 @@
+root = true
+
+# ============================================================
+# SwitchBlade — lint pipeline (ARCHITECTURE_ANALYSIS §5 rec #5)
+# House style per AGENTS.md + observed codebase conventions.
+# Rules promoted to `warning` are build-enforced via
+# TreatWarningsAsErrors in Directory.Build.props.
+# ============================================================
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = off
+
+[*.cs]
+# ---------- Naming conventions (enforced) ----------
+dotnet_naming_rule.types_and_namespaces_should_be_pascal_case.severity = warning
+dotnet_naming_rule.types_and_namespaces_should_be_pascal_case.symbol_kind = namespace, class, struct, interface, enum
+dotnet_naming_rule.types_and_namespaces_should_be_pascal_case.style = pascal_case_style
+
+dotnet_naming_rule.methods_should_be_pascal_case.severity = warning
+dotnet_naming_rule.methods_should_be_pascal_case.symbol_kind = method
+dotnet_naming_rule.methods_should_be_pascal_case.style = pascal_case_style
+
+dotnet_naming_rule.locals_and_parameters_should_be_camel_case.severity = warning
+dotnet_naming_rule.locals_and_parameters_should_be_camel_case.symbol_kind = local_variable, parameter
+dotnet_naming_rule.locals_and_parameters_should_be_camel_case.style = camel_case_style
+
+# Field naming is a suggestion: the codebase mixes _camelCase instance fields
+# with PascalCase private const/static fields (e.g. FuzzyMatcher.BaseMatchScore).
+# Enforce per-field once that convention is codified in one place.
+dotnet_naming_rule.private_instance_fields_should_be_underscored.severity = suggestion
+dotnet_naming_rule.private_instance_fields_should_be_underscored.symbol_kind = field
+dotnet_naming_rule.private_instance_fields_should_be_underscored.style = underscored_camel_case_style
+dotnet_naming_rule.private_instance_fields_should_be_underscored.symbols = underscored_fields
+dotnet_naming_symbols.underscored_fields.applicable_kinds = field
+dotnet_naming_symbols.underscored_fields.modifier = private
+
+dotnet_naming_style.pascal_case_style.required_prefix = 
+dotnet_naming_style.pascal_case_style.required_suffix = 
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+dotnet_naming_style.camel_case_style.required_prefix = 
+dotnet_naming_style.camel_case_style.required_suffix = 
+dotnet_naming_style.camel_case_style.capitalization = camel_case
+dotnet_naming_style.underscored_camel_case_style.required_prefix = _
+dotnet_naming_style.underscored_camel_case_style.required_suffix = 
+dotnet_naming_style.underscored_camel_case_style.capitalization = camel_case
+
+# ---------- Enforced code quality (build errors via TreatWarningsAsErrors) ----------
+# ArgumentNullException must be constructed with nameof().
+dotnet_diagnostic.CA2208.severity = warning
+# NOTE: CA1805 (unnecessary initializers) is left at suggestion level — the
+# public plugin-facing DTOs use explicit defaults deliberately (e.g.
+# WindowItem.IsFallback = false documents the contract for plugin authors).
+# NOTE: IDE0005 (unused usings) is left at suggestion level — build-time
+# enforcement requires GenerateDocumentationFile=true, which would enable
+# CS1591 missing-XML-doc warnings across the codebase. Enforce in the IDE.
+
+# ---------- House style (IDE suggestions, not build-enforced) ----------
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+csharp_style_expression_bodied_methods = false:none
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_constructors = false:none
+csharp_prefer_braces = true:warning
+csharp_prefer_simple_using_statement = true:suggestion
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_explicit_tuple_names = true:warning
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+# NOTE: require_accessibility_modifiers left off — the codebase convention is
+# implicit-public on interface members (standard C# idiom).
+
+# ---------- Test project relaxations (Moq/xUnit idioms) ----------
+[SwitchBlade.Tests/**.cs]
+csharp_style_var_when_type_is_apparent = true:none
+dotnet_diagnostic.IDE0058.severity = none

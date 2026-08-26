@@ -23,7 +23,10 @@ namespace SwitchBlade.Contracts
         /// </summary>
         public static (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
         {
-            if (pid == 0) return ("System", null);
+            if (pid == 0)
+            {
+                return ("System", null);
+            }
 
             // Check cache first
             if (_processInfoCache.TryGetValue(pid, out var cached))
@@ -76,7 +79,10 @@ namespace SwitchBlade.Contracts
         /// <param name="hwnd">Handle to the window to activate.</param>
         public static void ForceForegroundWindow(IntPtr hwnd)
         {
-            if (hwnd == IntPtr.Zero) return;
+            if (hwnd == IntPtr.Zero)
+            {
+                return;
+            }
 
             // 1. Restore if minimized
             if (IsIconic(hwnd))

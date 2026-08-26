@@ -51,7 +51,10 @@ namespace SwitchBlade.Contracts
         /// </summary>
         private static string NormalizeForSearch(string input)
         {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
 
             // Use Span for zero-allocation normalization
             Span<char> buffer = input.Length <= 256 ? stackalloc char[input.Length] : new char[input.Length];
@@ -60,7 +63,11 @@ namespace SwitchBlade.Contracts
             for (int i = 0; i < input.Length && writeIndex < buffer.Length; i++)
             {
                 char c = input[i];
-                if (c == ' ' || c == '_' || c == '-') continue;
+                if (c == ' ' || c == '_' || c == '-')
+                {
+                    continue;
+                }
+
                 buffer[writeIndex++] = char.ToLowerInvariant(c);
             }
 
@@ -133,9 +140,15 @@ namespace SwitchBlade.Contracts
             get
             {
                 if (_shortcutIndex >= 0 && _shortcutIndex < 9)
+                {
                     return (_shortcutIndex + 1).ToString();
+                }
+
                 if (_shortcutIndex == 9)
+                {
                     return "0";
+                }
+
                 return string.Empty;
             }
         }
@@ -200,7 +213,11 @@ namespace SwitchBlade.Contracts
 
         public override bool Equals(object? obj)
         {
-            if (obj is not WindowItem other) return false;
+            if (obj is not WindowItem other)
+            {
+                return false;
+            }
+
             return Hwnd == other.Hwnd && Title == other.Title;
         }
 

@@ -70,7 +70,9 @@ namespace SwitchBlade.Services
         private static BitmapSource? CreateBitmapSourceFromHIcon(IntPtr hIcon)
         {
             if (hIcon == IntPtr.Zero)
+            {
                 return null;
+            }
 
             try
             {

@@ -117,7 +117,11 @@ namespace SwitchBlade.Tests.Services
             Func<Task> refreshAction = () =>
             {
                 callCount++;
-                if (callCount == 1) throw new Exception("Boom");
+                if (callCount == 1)
+                {
+                    throw new Exception("Boom");
+                }
+
                 return Task.CompletedTask;
             };
 
@@ -286,7 +290,11 @@ namespace SwitchBlade.Tests.Services
             var deadline = Environment.TickCount64 + timeoutMs;
             while (!condition())
             {
-                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                if (Environment.TickCount64 >= deadline)
+                {
+                    throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                }
+
                 await Task.Delay(10);
             }
         }

@@ -24,7 +24,9 @@ namespace SwitchBlade.Core
             for (int i = collection.Count - 1; i >= 0; i--)
             {
                 if (!sourceSet.Contains(collection[i]))
+                {
                     collection.RemoveAt(i);
+                }
             }
 
             // Phase 2: Two-pointer sync for ordering and insertion

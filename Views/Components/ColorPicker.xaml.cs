@@ -97,7 +97,10 @@ namespace SwitchBlade.Views.Components
         private static void OnColorComponentChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var pc = (ColorPicker)d;
-            if (pc._isInternalUpdate) return;
+            if (pc._isInternalUpdate)
+            {
+                return;
+            }
 
             pc._isInternalUpdate = true;
             try
@@ -117,7 +120,10 @@ namespace SwitchBlade.Views.Components
         private static void OnHexColorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var pc = (ColorPicker)d;
-            if (pc._isInternalUpdate) return;
+            if (pc._isInternalUpdate)
+            {
+                return;
+            }
 
             pc._isInternalUpdate = true;
             try
@@ -142,7 +148,10 @@ namespace SwitchBlade.Views.Components
         private static void OnSelectedColorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var pc = (ColorPicker)d;
-            if (pc._isInternalUpdate) return;
+            if (pc._isInternalUpdate)
+            {
+                return;
+            }
 
             pc._isInternalUpdate = true;
             try

@@ -29,7 +29,9 @@ namespace SwitchBlade.Core
         public IList<WindowItem> Search(IEnumerable<WindowItem> windows, string query, bool useFuzzy)
         {
             if (windows == null)
+            {
                 return new List<WindowItem>();
+            }
 
             var windowList = windows.ToList();
 

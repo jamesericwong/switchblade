@@ -39,16 +39,34 @@ namespace SwitchBlade.Views
         {
             _logger?.Log($"HotKeyBox KeyDown: {e.Key}");
             // Ignore Escape key if it wasn't handled by Window (double check)
-            if (e.Key == Key.Escape) return;
+            if (e.Key == Key.Escape)
+            {
+                return;
+            }
 
             e.Handled = true;
 
             // Get modifiers
             uint mods = 0;
-            if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt) mods |= NativeInterop.MOD_ALT;
-            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) mods |= NativeInterop.MOD_CONTROL;
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift) mods |= NativeInterop.MOD_SHIFT;
-            if ((Keyboard.Modifiers & ModifierKeys.Windows) == ModifierKeys.Windows) mods |= NativeInterop.MOD_WIN;
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt)
+            {
+                mods |= NativeInterop.MOD_ALT;
+            }
+
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                mods |= NativeInterop.MOD_CONTROL;
+            }
+
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+            {
+                mods |= NativeInterop.MOD_SHIFT;
+            }
+
+            if ((Keyboard.Modifiers & ModifierKeys.Windows) == ModifierKeys.Windows)
+            {
+                mods |= NativeInterop.MOD_WIN;
+            }
 
             // Get the key
             Key key = (e.Key == Key.System ? e.SystemKey : e.Key);

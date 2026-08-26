@@ -42,7 +42,9 @@ namespace SwitchBlade.Tests.Views.Components
             thread.Start();
             thread.Join();
             if (threadException != null)
+            {
                 throw threadException;
+            }
         }
     }
 
@@ -115,7 +117,9 @@ namespace SwitchBlade.Tests.Views.Components
             thread.Start();
             thread.Join();
             if (threadException != null)
+            {
                 throw threadException;
+            }
         }
     }
 
@@ -163,7 +167,9 @@ namespace SwitchBlade.Tests.Views.Components
             thread.Start();
             thread.Join();
             if (threadException != null)
+            {
                 throw threadException;
+            }
         }
     }
 }

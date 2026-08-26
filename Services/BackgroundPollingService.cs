@@ -58,7 +58,10 @@ namespace SwitchBlade.Services
             }
 
             int intervalMs = _settingsService.Settings.BackgroundPollingIntervalSeconds * 1000;
-            if (intervalMs < 1000) intervalMs = 1000; // Minimum 1 second
+            if (intervalMs < 1000)
+            {
+                intervalMs = 1000; // Minimum 1 second
+            }
 
             _cts = new CancellationTokenSource();
             _pollingTask = PollingLoop(TimeSpan.FromMilliseconds(intervalMs), _cts.Token);
@@ -126,7 +129,11 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
 
             _settingsService.SettingsChanged -= OnSettingsChanged;

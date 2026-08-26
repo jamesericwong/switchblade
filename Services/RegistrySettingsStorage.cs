@@ -51,7 +51,10 @@ namespace SwitchBlade.Services
             try
             {
                 var rawValue = _registryService.GetCurrentUserValue(_registryKeyPath, key);
-                if (rawValue == null) return defaultValue;
+                if (rawValue == null)
+                {
+                    return defaultValue;
+                }
 
                 // Handle common type conversions
                 var targetType = typeof(T);
@@ -60,9 +63,15 @@ namespace SwitchBlade.Services
                 if (targetType == typeof(bool))
                 {
                     if (rawValue is int intVal)
+                    {
                         return (T)(object)(intVal != 0);
+                    }
+
                     if (int.TryParse(rawValue.ToString(), out var parsed))
+                    {
                         return (T)(object)(parsed != 0);
+                    }
+
                     return defaultValue;
                 }
 
@@ -70,7 +79,10 @@ namespace SwitchBlade.Services
                 if (targetType == typeof(double))
                 {
                     if (double.TryParse(rawValue.ToString(), out var doubleVal))
+                    {
                         return (T)(object)doubleVal;
+                    }
+
                     return defaultValue;
                 }
 
@@ -78,7 +90,10 @@ namespace SwitchBlade.Services
                 if (targetType.IsEnum)
                 {
                     if (rawValue is int enumInt)
+                    {
                         return (T)Enum.ToObject(targetType, enumInt);
+                    }
+
                     return defaultValue;
                 }
 
@@ -137,7 +152,10 @@ namespace SwitchBlade.Services
             try
             {
                 var json = _registryService.GetCurrentUserValue(_registryKeyPath, key) as string;
-                if (string.IsNullOrEmpty(json)) return new List<string>();
+                if (string.IsNullOrEmpty(json))
+                {
+                    return new List<string>();
+                }
 
                 return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
             }

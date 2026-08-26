@@ -230,7 +230,10 @@ namespace SwitchBlade.Tests.Services
             var service = CreateService();
             await service.StartAsync(CancellationToken.None);
 
-            if (!started.Wait(5000)) throw new Exception("Timed out waiting for the diagnostics loop to enter its timer wait");
+            if (!started.Wait(5000))
+            {
+                throw new Exception("Timed out waiting for the diagnostics loop to enter its timer wait");
+            }
 
             // Dispose directly — exactly what App.OnExit's container disposal does.
             service.Dispose();
@@ -240,7 +243,9 @@ namespace SwitchBlade.Tests.Services
 
             var waitTask = pendingWait!;
             if (waitTask.IsFaulted)
+            {
                 Assert.IsAssignableFrom<OperationCanceledException>(waitTask.Exception!.InnerExceptions.First());
+            }
 
             // The loop's quiet-OCE contract: cancellation must not be logged as a shutdown error.
             _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("loop error")), It.IsAny<Exception>()), Times.Never());
@@ -261,7 +266,11 @@ namespace SwitchBlade.Tests.Services
             var deadline = Environment.TickCount64 + timeoutMs;
             while (!condition())
             {
-                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                if (Environment.TickCount64 >= deadline)
+                {
+                    throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                }
+
                 await Task.Delay(10);
             }
         }

@@ -54,7 +54,10 @@ namespace SwitchBlade.Services
         /// </summary>
         public void ResetAnimationState(IEnumerable<WindowItem>? items)
         {
-            if (items == null) return;
+            if (items == null)
+            {
+                return;
+            }
 
             // We just reset the flag. We do NOT reset the visual Opacity/TranslateX here.
             // Pushing visual state to hidden happens just-in-time in TriggerStaggeredAnimationAsync.
@@ -76,7 +79,10 @@ namespace SwitchBlade.Services
         public async Task TriggerStaggeredAnimationAsync(IEnumerable<WindowItem>? items, bool skipDebounce = false)
         {
             _logger?.Log($"[BadgeAnimation] TriggerStaggeredAnimationAsync: Starting");
-            if (items == null) return;
+            if (items == null)
+            {
+                return;
+            }
 
             // Cancel any pending animation cycle from a previous call
             _animationCts?.Cancel();
@@ -108,7 +114,10 @@ namespace SwitchBlade.Services
                 }
             }
 
-            if (ct.IsCancellationRequested) return;
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
 
             int maxShortcutIndex = -1;
             int animatedCount = 0;
@@ -116,7 +125,10 @@ namespace SwitchBlade.Services
 
             foreach (var item in items)
             {
-                if (ct.IsCancellationRequested) return;
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
 
                 if (!item.IsShortcutVisible)
                 {

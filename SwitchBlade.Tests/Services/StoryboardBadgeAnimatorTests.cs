@@ -36,7 +36,9 @@ namespace SwitchBlade.Tests.Services
             // The polling retry loop (up to ~500ms) must give up and snap the badge fully visible.
             var deadline = DateTime.UtcNow.AddSeconds(10);
             while (item.BadgeOpacity != 1.0 && DateTime.UtcNow < deadline)
+            {
                 await System.Threading.Tasks.Task.Delay(10);
+            }
 
             Assert.Equal(1.0, item.BadgeOpacity);
             Assert.Equal(0.0, item.BadgeTranslateX);

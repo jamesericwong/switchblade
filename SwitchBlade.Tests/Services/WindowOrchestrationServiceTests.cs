@@ -103,7 +103,10 @@ namespace SwitchBlade.Tests.Services
                         }
                         finally
                         {
-                            if (isUia) lockObj.Release();
+                            if (isUia)
+                            {
+                                lockObj.Release();
+                            }
                         }
                     }
 
@@ -844,7 +847,11 @@ namespace SwitchBlade.Tests.Services
             mockReconciler.Setup(r => r.Reconcile(It.IsAny<IList<WindowItem>>(), It.IsAny<IWindowProvider>()))
                 .Returns((IList<WindowItem> items, IWindowProvider p) =>
                 {
-                    foreach (var item in items) item.Source = p;
+                    foreach (var item in items)
+                    {
+                        item.Source = p;
+                    }
+
                     return [.. items];
                 });
 
@@ -1003,7 +1010,11 @@ namespace SwitchBlade.Tests.Services
             mockReconciler.Setup(r => r.Reconcile(It.IsAny<IList<WindowItem>>(), It.IsAny<IWindowProvider>()))
                 .Returns((IList<WindowItem> items, IWindowProvider p) =>
                 {
-                    foreach (var item in items) item.Source = p;
+                    foreach (var item in items)
+                    {
+                        item.Source = p;
+                    }
+
                     return [.. items];
                 });
 
@@ -1365,7 +1376,10 @@ namespace SwitchBlade.Tests.Services
         private static async IAsyncEnumerable<UiaPluginResult> SignalAfterEnumeration(IAsyncEnumerable<UiaPluginResult> source, TaskCompletionSource<bool> completed)
         {
             await foreach (var item in source)
+            {
                 yield return item;
+            }
+
             completed.TrySetResult(true);
         }
 
@@ -1374,7 +1388,11 @@ namespace SwitchBlade.Tests.Services
             var deadline = Environment.TickCount64 + timeoutMs;
             while (!condition())
             {
-                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                if (Environment.TickCount64 >= deadline)
+                {
+                    throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                }
+
                 await Task.Delay(10);
             }
         }

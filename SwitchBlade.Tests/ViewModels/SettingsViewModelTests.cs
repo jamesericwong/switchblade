@@ -52,7 +52,7 @@ namespace SwitchBlade.Tests.ViewModels
         {
             // Arrange
             bool eventFired = false;
-            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == propertyName) eventFired = true; };
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == propertyName) { eventFired = true; } };
 
             // Act
             var prop = _viewModel.GetType().GetProperty(propertyName);
@@ -81,7 +81,7 @@ namespace SwitchBlade.Tests.ViewModels
         {
             // Arrange
             bool eventFired = false;
-            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == propertyName) eventFired = true; };
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == propertyName) { eventFired = true; } };
 
             // Act
             var prop = _viewModel.GetType().GetProperty(propertyName);
@@ -265,7 +265,7 @@ namespace SwitchBlade.Tests.ViewModels
         public void UpdateHotKey_UpdatesSettingsAndNotifies()
         {
             bool notified = false;
-            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.HotKeyString)) notified = true; };
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.HotKeyString)) { notified = true; } };
 
             _viewModel.UpdateHotKey(2, (uint)System.Windows.Forms.Keys.B);
 
@@ -413,7 +413,7 @@ namespace SwitchBlade.Tests.ViewModels
             _settingsServiceMock.Invocations.Clear();
 
             bool notified = false;
-            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.SearchHighlightColor)) notified = true; };
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.SearchHighlightColor)) { notified = true; } };
 
             _viewModel.SearchHighlightColor = "#00FF00";
 
@@ -443,7 +443,7 @@ namespace SwitchBlade.Tests.ViewModels
         public void LaunchOnStartup_SameValue_DoesNotNotifyOrSave()
         {
             bool notified = false;
-            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.LaunchOnStartup)) notified = true; };
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.LaunchOnStartup)) { notified = true; } };
 
             _settingsServiceMock.Object.Settings.LaunchOnStartup = false;
             _viewModel.LaunchOnStartup = false; // same value → no event, no save
@@ -456,7 +456,7 @@ namespace SwitchBlade.Tests.ViewModels
         public void SearchHighlightColor_SameValue_DoesNotNotifyOrSave()
         {
             bool notified = false;
-            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.SearchHighlightColor)) notified = true; };
+            _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(SettingsViewModel.SearchHighlightColor)) { notified = true; } };
 
             var color = _settingsServiceMock.Object.Settings.SearchHighlightColor;
             _viewModel.SearchHighlightColor = color; // same value → no-op

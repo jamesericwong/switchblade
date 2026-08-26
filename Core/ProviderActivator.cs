@@ -11,7 +11,9 @@ namespace SwitchBlade.Core
         public static bool TryActivate(WindowItem item, ILogger? logger)
         {
             if (item.Source == null)
+            {
                 return false;
+            }
 
             try
             {

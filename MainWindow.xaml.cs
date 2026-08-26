@@ -114,7 +114,10 @@ namespace SwitchBlade
         {
             var anim = new System.Windows.Media.Animation.DoubleAnimation(from, to, TimeSpan.FromMilliseconds(durationMs));
             if (onCompleted != null)
+            {
                 anim.Completed += (_, _) => onCompleted();
+            }
+
             BeginAnimation(Window.OpacityProperty, anim);
         }
 

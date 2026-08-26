@@ -55,8 +55,10 @@ namespace SwitchBlade.Tests.ViewModels
                              for (int i = allWindows.Count - 1; i >= 0; i--)
                              {
                                  if (allWindows[i].Source == p)
-                                     allWindows.RemoveAt(i);
-                             }
+                                {
+                                    allWindows.RemoveAt(i);
+                                }
+                            }
                              allWindows.AddRange(reconciled);
                          }
                      }
@@ -75,7 +77,10 @@ namespace SwitchBlade.Tests.ViewModels
                 .Returns((IList<WindowItem> windows, IntPtr? hwnd, string title, int index, RefreshBehavior behavior, bool reset) => 
                 {
                     if (behavior == RefreshBehavior.PreserveIdentity && hwnd.HasValue)
+                    {
                         return windows.FirstOrDefault(w => w.Hwnd == hwnd.Value && w.Title == title) ?? windows.FirstOrDefault(w => w.Hwnd == hwnd.Value);
+                    }
+
                     return windows.FirstOrDefault();
                 });
 

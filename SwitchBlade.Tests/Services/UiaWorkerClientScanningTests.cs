@@ -257,7 +257,11 @@ namespace SwitchBlade.Tests.Services
             var deadline = Environment.TickCount64 + timeoutMs;
             while (!condition())
             {
-                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                if (Environment.TickCount64 >= deadline)
+                {
+                    throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                }
+
                 await Task.Delay(10);
             }
         }

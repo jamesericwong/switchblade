@@ -147,7 +147,9 @@ namespace SwitchBlade.Tests.Services
             var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
 
             if (capturedEx != null)
+            {
                 throw new Exception("Caught exception during LoadProviders: " + capturedEx.ToString());
+            }
 
             // Act
             var infos = service.GetPluginInfos().ToList();

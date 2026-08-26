@@ -22,7 +22,9 @@ namespace SwitchBlade.Core
         public LruRegexCache(int maxSize = 50)
         {
             if (maxSize <= 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(maxSize), "Max size must be positive.");
+            }
 
             _maxSize = maxSize;
         }
@@ -31,7 +33,9 @@ namespace SwitchBlade.Core
         public Regex? GetOrCreate(string pattern)
         {
             if (string.IsNullOrEmpty(pattern))
+            {
                 return null;
+            }
 
             lock (_lock)
             {

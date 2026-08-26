@@ -329,7 +329,9 @@ namespace SwitchBlade.Handlers
         public void ActivateWindow(WindowItem? windowItem)
         {
             if (windowItem == null)
+            {
                 return;
+            }
 
             // Fail-safe: activation failures must never reach the WPF message loop and crash the app.
             try

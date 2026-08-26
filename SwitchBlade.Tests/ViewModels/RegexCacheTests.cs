@@ -49,7 +49,10 @@ namespace SwitchBlade.Tests.ViewModels
                 .Returns((IList<WindowItem> windows, IntPtr? hwnd, string title, int index, RefreshBehavior behavior, bool reset) => 
                 {
                     if (behavior == RefreshBehavior.PreserveIdentity && hwnd.HasValue)
+                    {
                         return windows.FirstOrDefault(w => w.Hwnd == hwnd.Value);
+                    }
+
                     return windows.FirstOrDefault();
                 });
 

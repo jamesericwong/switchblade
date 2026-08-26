@@ -62,7 +62,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
 
         public override void ReloadSettings()
         {
-            if (_settingsService == null) return;
+            if (_settingsService == null)
+            {
+                return;
+            }
 
             // Check if NppProcesses key exists in plugin Registry
             if (_settingsService.KeyExists("NppProcesses"))
@@ -89,7 +92,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
         protected override IEnumerable<WindowItem> ScanWindowsCore()
         {
             var results = new List<WindowItem>();
-            if (_nppProcesses.Count == 0) return results;
+            if (_nppProcesses.Count == 0)
+            {
+                return results;
+            }
 
             _logger?.Log($"{PluginName}: --- Scan started at {DateTime.Now} ---");
 
@@ -97,7 +103,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             NativeInterop.EnumWindows((hwnd, lParam) =>
             {
                 // Check visibility first for speed
-                if (!NativeInterop.IsWindowVisible(hwnd)) return true;
+                if (!NativeInterop.IsWindowVisible(hwnd))
+                {
+                    return true;
+                }
 
                 NativeInterop.GetWindowThreadProcessId(hwnd, out uint pid);
                 var (procName, execPath) = NativeInterop.GetProcessInfo(pid);
@@ -169,7 +178,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             {
                 // Safe UIA access to handle E_FAIL
                 var root = TryGetAutomationElement(hwnd, pid);
-                if (root == null) return tabs; // Caller handles empty list by adding main window fallback
+                if (root == null)
+                {
+                    return tabs; // Caller handles empty list by adding main window fallback
+                }
 
                 var cacheRequest = new CacheRequest();
                 cacheRequest.Add(AutomationElement.NameProperty);
@@ -197,7 +209,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                             try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
                             catch { continue; }
 
-                            if (children == null || children.Count == 0) continue;
+                            if (children == null || children.Count == 0)
+                            {
+                                continue;
+                            }
 
                             foreach (AutomationElement child in children)
                             {
@@ -206,7 +221,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                                     var controlType = child.Cached.ControlType;
 
                                     // PRUNE: Skip Document branches (text areas, edit controls)
-                                    if (controlType == ControlType.Document) continue;
+                                    if (controlType == ControlType.Document)
+                                    {
+                                        continue;
+                                    }
 
                                     // Check for TabItem
                                     bool isTab = controlType == ControlType.TabItem;
@@ -255,7 +273,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                         foreach (AutomationElement element in elements)
                         {
                             var name = element.Cached.Name;
-                            if (!string.IsNullOrWhiteSpace(name)) tabs.Add(name);
+                            if (!string.IsNullOrWhiteSpace(name))
+                            {
+                                tabs.Add(name);
+                            }
                         }
 
                         if (tabs.Count > 0)
@@ -287,7 +308,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                 {
                     NativeInterop.GetWindowThreadProcessId(item.Hwnd, out uint pid);
                     var root = TryGetAutomationElement(item.Hwnd, (int)pid);
-                    if (root == null) return;
+                    if (root == null)
+                    {
+                        return;
+                    }
 
                     var tabElement = FindTabByName(root, item.Title);
                     if (tabElement != null)
@@ -344,7 +368,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                         try { children = current.FindAll(TreeScope.Children, NotDocumentCondition); }
                         catch { continue; }
 
-                        if (children == null || children.Count == 0) continue;
+                        if (children == null || children.Count == 0)
+                        {
+                            continue;
+                        }
 
                         foreach (AutomationElement child in children)
                         {
@@ -353,7 +380,10 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
                                 var controlType = child.Cached.ControlType;
 
                                 // PRUNE: Skip Document branches
-                                if (controlType == ControlType.Document) continue;
+                                if (controlType == ControlType.Document)
+                                {
+                                    continue;
+                                }
 
                                 bool isTab = controlType == ControlType.TabItem;
                                 if (!isTab)

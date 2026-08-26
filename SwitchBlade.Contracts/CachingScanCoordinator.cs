@@ -66,7 +66,11 @@ namespace SwitchBlade.Contracts
         /// </summary>
         public IEnumerable<WindowItem> Run(Func<IEnumerable<WindowItem>> scan)
         {
-            if (scan is null) throw new ArgumentNullException(nameof(scan));
+            if (scan is null)
+            {
+                throw new ArgumentNullException(nameof(scan));
+            }
+
             ThrowIfDisposed();
 
             // Fast path: if a scan is already running, return cached results (read lock only).
@@ -168,7 +172,11 @@ namespace SwitchBlade.Contracts
         /// <inheritdoc />
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
             _cacheLock.Dispose();
         }
@@ -179,7 +187,10 @@ namespace SwitchBlade.Contracts
 
         private void ThrowIfDisposed()
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(CachingScanCoordinator));
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(CachingScanCoordinator));
+            }
         }
     }
 }

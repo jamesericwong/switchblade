@@ -117,7 +117,7 @@ namespace SwitchBlade.Tests.Core
             using var process = _factory.Start(psi);
             Assert.NotNull(process);
             bool errorReceived = false;
-            process!.ErrorDataReceived += (s, e) => { if (e.Data != null) errorReceived = true; };
+            process!.ErrorDataReceived += (s, e) => { if (e.Data != null) { errorReceived = true; } };
             process.BeginErrorReadLine();
 
             await WaitForAsync(() => errorReceived);
@@ -196,7 +196,11 @@ namespace SwitchBlade.Tests.Core
             var deadline = Environment.TickCount64 + timeoutMs;
             while (!condition())
             {
-                if (Environment.TickCount64 >= deadline) throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                if (Environment.TickCount64 >= deadline)
+                {
+                    throw new TimeoutException($"Condition not met within {timeoutMs}ms");
+                }
+
                 await Task.Delay(10);
             }
         }

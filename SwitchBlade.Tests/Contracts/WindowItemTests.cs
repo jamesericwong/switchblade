@@ -256,7 +256,9 @@ namespace SwitchBlade.Tests.Contracts
             item.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(WindowItem.Icon))
+                {
                     eventRaised = true;
+                }
             };
 
             item.Icon = icon;

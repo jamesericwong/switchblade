@@ -161,7 +161,9 @@ namespace SwitchBlade.Services
                     for (int i = _allWindows.Count - 1; i >= 0; i--)
                     {
                         if (_allWindows[i].Source == provider)
+                        {
                             _allWindows.RemoveAt(i);
+                        }
                     }
 
                     reconciled = _reconciler.Reconcile(results, provider);
@@ -211,7 +213,9 @@ namespace SwitchBlade.Services
             foreach (var w in _allWindows)
             {
                 if (w.Source == provider && !w.IsFallback)
+                {
                     return true;
+                }
             }
             return false;
         }
@@ -228,7 +232,11 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
 
             foreach (var provider in _providers)
