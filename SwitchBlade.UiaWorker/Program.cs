@@ -31,6 +31,15 @@ internal static class Program
         WriteIndented = false
     };
 
+    // Per-plugin budget. Must stay well under the client's whole-process timeout
+    // (UiaWorkerTimeoutSeconds, default 60s) so a hung plugin reports a clean error result
+    // instead of the worker being killed mid-stream by the client.
+    private static readonly TimeSpan PluginScanTimeout = TimeSpan.FromSeconds(30);
+
+    // Set once when the scan finishes; the worker is one-shot per process. Late writes from
+    // abandoned (timed-out) plugins are discarded so they can't corrupt the stream after the final marker.
+    private static volatile bool _scanFinished;
+
     private static readonly string LogFile = Path.Combine(Path.GetTempPath(), "switchblade_uia_debug.log");
     private static bool _loggingEnabled = false;
 
@@ -255,10 +264,27 @@ internal static class Program
             }
         })).ToArray();
 
-        // Wait for all plugins to complete
-        Task.WaitAll(tasks);
+        // Wait for each plugin with an individual timeout so one hung plugin cannot block the worker forever.
+        // A timed-out plugin is reported as an error; its thread dies when this process exits.
+        for (int i = 0; i < tasks.Length; i++)
+        {
+            var finished = Task.WhenAny(tasks[i], Task.Delay(PluginScanTimeout)).GetAwaiter().GetResult();
+            if (finished != tasks[i])
+            {
+                string name = enabledPlugins[i].PluginName;
+                DebugLog($"Plugin {name} timed out after {PluginScanTimeout.TotalSeconds:0}s");
+                WritePluginResult(name, null, $"Timed out after {PluginScanTimeout.TotalSeconds:0}s");
+                lock (errors)
+                {
+                    errors.Add($"Plugin {name} timed out after {PluginScanTimeout.TotalSeconds:0}s");
+                }
+            }
+        }
 
-        // Write final marker
+        // Ensure every completed plugin has finished writing its results before the final marker.
+        Task.WaitAll(tasks.Where(t => t.IsCompleted).ToArray());
+
+        _scanFinished = true;
         WriteFinalResult();
 
         DebugLog($"All plugins completed. Errors: {errors.Count}");
@@ -283,6 +309,12 @@ internal static class Program
     /// </summary>
     private static void WritePluginResult(string pluginName, List<UiaWindowResult>? windows, string? error = null)
     {
+        if (_scanFinished)
+        {
+            DebugLog($"Discarding late result from {pluginName} (scan already finished).");
+            return;
+        }
+
         var result = new UiaPluginResult
         {
             PluginName = pluginName,

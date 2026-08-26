@@ -26,6 +26,18 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public void ConfigureServices_MainViewModel_IsSingleton()
+        {
+            var serviceProvider = ServiceConfiguration.ConfigureServices();
+
+            // MainWindow (singleton) owns exactly one view model for the app's lifetime;
+            // repeated resolution must return the same instance.
+            Assert.Same(
+                serviceProvider.GetRequiredService<MainViewModel>(),
+                serviceProvider.GetRequiredService<MainViewModel>());
+        }
+
+        [Fact]
         public void ConfigureServices_WithInvalidTimeout_FallsBackToDefault()
         {
             // Arrange

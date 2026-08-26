@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Principal;
 using System.Windows;
@@ -67,7 +68,7 @@ namespace SwitchBlade
                             FileName = processPath ?? "SwitchBlade.exe",
                             UseShellExecute = true,
                             Verb = "runas",
-                            Arguments = string.Join(" ", args, 1, args.Length - 1), // Skip first arg (exe path)
+                            Arguments = SwitchBlade.Core.CommandLineArgs.BuildArguments(args.Skip(1)), // Skip first arg (exe path); quote each for safe re-parsing
                             WorkingDirectory = Path.GetDirectoryName(processPath) ?? ""
                         };
 

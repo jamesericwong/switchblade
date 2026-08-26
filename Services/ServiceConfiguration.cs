@@ -129,7 +129,9 @@ namespace SwitchBlade.Services
             });
 
             // ViewModels
-            services.AddTransient<MainViewModel>(sp => new MainViewModel(
+            // MainViewModel is a singleton: MainWindow (singleton) owns exactly one view model for the
+            // app's lifetime, and as IDisposable it unsubscribes from long-lived services on shutdown.
+            services.AddSingleton<MainViewModel>(sp => new MainViewModel(
                 sp.GetRequiredService<IWindowOrchestrationService>(),
                 sp.GetRequiredService<IWindowSearchService>(),
                 sp.GetRequiredService<INavigationService>(),

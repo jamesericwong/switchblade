@@ -54,6 +54,59 @@ namespace SwitchBlade.Tests.Services
             Assert.Contains(service.Providers, p => p == mockPlugin.Object);
             // Verify Initialize was called on the plugin
             mockPlugin.Verify(p => p.Initialize(It.IsAny<IPluginContext>()), Times.Once);
+            Assert.Empty(service.LoadErrors);
+        }
+
+        [Fact]
+        public void Constructor_OnePluginFails_OthersStillLoad()
+        {
+            var goodBefore = new Mock<IWindowProvider>();
+            goodBefore.Setup(p => p.PluginName).Returns("GoodBefore");
+
+            var bad = new Mock<IWindowProvider>();
+            bad.Setup(p => p.PluginName).Returns("BadPlugin");
+            bad.Setup(p => p.Initialize(It.IsAny<IPluginContext>())).Throws(new InvalidOperationException("boom"));
+
+            var goodAfter = new Mock<IWindowProvider>();
+            goodAfter.Setup(p => p.PluginName).Returns("GoodAfter");
+
+            _mockLoader.Setup(l => l.LoadPlugins()).Returns([goodBefore.Object, bad.Object, goodAfter.Object]);
+
+            // Act
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, _mockLogger.Object, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
+
+            // Assert: both healthy plugins loaded despite the failing one between them
+            Assert.Contains(service.Providers, p => p == goodBefore.Object);
+            Assert.Contains(service.Providers, p => p == goodAfter.Object);
+            Assert.DoesNotContain(service.Providers, p => p == bad.Object);
+
+            // The failure is surfaced for UI reporting
+            var error = Assert.Single(service.LoadErrors);
+            Assert.Equal("BadPlugin", error.PluginName);
+            Assert.Equal("boom", error.Message);
+
+            _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("BadPlugin")), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
+        public void Constructor_OnePluginFails_NullLogger_StillSalvages()
+        {
+            var bad = new Mock<IWindowProvider>();
+            bad.Setup(p => p.PluginName).Returns("BadPlugin");
+            bad.Setup(p => p.Initialize(It.IsAny<IPluginContext>())).Throws(new InvalidOperationException("boom"));
+
+            var goodAfter = new Mock<IWindowProvider>();
+            goodAfter.Setup(p => p.PluginName).Returns("GoodAfter");
+
+            _mockLoader.Setup(l => l.LoadPlugins()).Returns([bad.Object, goodAfter.Object]);
+
+            // Act: null logger — the failure path must not crash and must still salvage + record
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, null, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
+
+            // Assert
+            Assert.Contains(service.Providers, p => p == goodAfter.Object);
+            var error = Assert.Single(service.LoadErrors);
+            Assert.Equal("BadPlugin", error.PluginName);
         }
 
         [Fact]
@@ -84,6 +137,15 @@ namespace SwitchBlade.Tests.Services
             // Assert
             Assert.Contains(service.Providers, p => p is WindowFinder);
             // No crash means success
+        }
+
+        [Fact]
+        public void Constructor_NullPluginList_NullLogger_DoesNotThrow()
+        {
+            // Loose mock: LoadPlugins() returns null by default. Null logger exercises the no-log path.
+            var service = new PluginService(_mockContext.Object, _mockSettings.Object, new Mock<IRegistryService>().Object, null, _mockLoader.Object, new WindowFinder(_mockSettings.Object, new Mock<IWindowInterop>().Object));
+
+            Assert.Contains(service.Providers, p => p is WindowFinder);
         }
 
         [Fact]

@@ -80,6 +80,24 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
+        public void Search_FuzzyMatch_TiedScores_OrderedByHwnd()
+        {
+            var service = CreateService();
+
+            // Two windows with identical process + title (e.g. duplicate tab titles) tie on score,
+            // process name, and title. Input order is descending Hwnd so a stable sort without the
+            // Hwnd tiebreaker would preserve that wrong order.
+            var highHwnd = new WindowItem { Hwnd = new IntPtr(0x200), Title = "Untitled", ProcessName = "app.exe" };
+            var lowHwnd = new WindowItem { Hwnd = new IntPtr(0x100), Title = "Untitled", ProcessName = "app.exe" };
+
+            var results = service.Search([highHwnd, lowHwnd], "untitled", useFuzzy: true);
+
+            Assert.Equal(2, results.Count);
+            Assert.Equal(new IntPtr(0x100), results[0].Hwnd);
+            Assert.Equal(new IntPtr(0x200), results[1].Hwnd);
+        }
+
+        [Fact]
         public void Search_RegexMatch_FiltersCorrectly()
         {
             var service = CreateService();

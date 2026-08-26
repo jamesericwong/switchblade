@@ -19,8 +19,12 @@ namespace SwitchBlade.Services
         private readonly IPluginLoader _pluginLoader;
         private readonly WindowFinder _windowFinder;
         private readonly List<IWindowProvider> _providers = new();
+        private readonly List<PluginLoadError> _loadErrors = new();
 
         public IReadOnlyList<IWindowProvider> Providers => _providers;
+
+        /// <inheritdoc />
+        public IReadOnlyList<PluginLoadError> LoadErrors => _loadErrors;
 
         public PluginService(IPluginContext context, ISettingsService settingsService, IRegistryService registryService, ILogger? logger, IPluginLoader pluginLoader, WindowFinder windowFinder)
         {
@@ -37,17 +41,43 @@ namespace SwitchBlade.Services
         private void LoadProviders()
         {
             _providers.Clear();
+            _loadErrors.Clear();
 
             // 1. Internal provider: WindowFinder
             _windowFinder.Initialize(_context);
             _providers.Add(_windowFinder);
 
-            // 2. External plugins — discover and then initialize each exactly once
+            // 2. External plugins — discover, then initialize each exactly once.
+            //    Each plugin is isolated: one failing plugin must not prevent the others from loading.
+            List<IWindowProvider>? plugins = null;
             try
             {
-                var plugins = _pluginLoader.LoadPlugins();
-                
-                foreach (var plugin in plugins)
+                plugins = _pluginLoader.LoadPlugins();
+            }
+            catch (Exception ex)
+            {
+                if (_logger != null)
+                {
+                    _logger.LogError("Error loading plugins", ex);
+                }
+
+                return;
+            }
+
+            // The interface allows a null list; treat it as "no external plugins" rather than crashing startup.
+            if (plugins == null)
+            {
+                if (_logger != null)
+                {
+                    _logger.LogError("Plugin loader returned no plugin list", new InvalidOperationException("IPluginLoader.LoadPlugins() returned null"));
+                }
+
+                return;
+            }
+
+            foreach (var plugin in plugins)
+            {
+                try
                 {
                     // Create per-plugin context with settings and initialize once
                     var pluginSettings = new PluginSettingsService(plugin.PluginName, _registryService, _context.Logger);
@@ -55,12 +85,14 @@ namespace SwitchBlade.Services
                     plugin.Initialize(pluginContext);
                     _providers.Add(plugin);
                 }
-            }
-            catch (Exception ex)
-            {
-                if (_logger != null)
+                catch (Exception ex)
                 {
-                    _logger.LogError("Error loading plugins", ex);
+                    if (_logger != null)
+                    {
+                        _logger.LogError($"Failed to initialize plugin {plugin.PluginName}", ex);
+                    }
+
+                    _loadErrors.Add(new PluginLoadError(plugin.PluginName, ex.Message));
                 }
             }
         }

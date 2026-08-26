@@ -13,13 +13,14 @@ using SwitchBlade.Services;
 
 namespace SwitchBlade.ViewModels
 {
-    public class MainViewModel : INotifyPropertyChanged, IWindowListViewModel
+    public class MainViewModel : INotifyPropertyChanged, IWindowListViewModel, IDisposable
     {
         private readonly IWindowOrchestrationService _orchestrationService;
         private readonly IWindowSearchService _searchService;
         private readonly INavigationService _navigationService;
         private readonly ISettingsService? _settingsService;
         private readonly IDispatcherService _dispatcherService;
+        private bool _disposed;
         private ObservableCollection<WindowItem> _filteredWindows = [];
         private WindowItem? _selectedWindow;
         private string _searchText = "";
@@ -73,24 +74,48 @@ namespace SwitchBlade.ViewModels
                 }
                 EnablePreviews = _settingsService.Settings.EnablePreviews;
 
-                _settingsService.SettingsChanged += () =>
-                {
-                    lock (_settingsLock)
-                    {
-                        _disabledPlugins = [.. _settingsService.Settings.DisabledPlugins];
-                    }
-                    EnablePreviews = _settingsService.Settings.EnablePreviews;
-                    OnPropertyChanged(nameof(ShowInTaskbar));
-                    OnPropertyChanged(nameof(ShowIcons));
-                    OnPropertyChanged(nameof(EnableNumberShortcuts));
-                    OnPropertyChanged(nameof(ShortcutModifierText));
-                    OnPropertyChanged(nameof(ItemHeight));
-                    OnPropertyChanged(nameof(EnableSearchHighlighting));
-                    OnPropertyChanged(nameof(EnableFuzzySearch));
-                };
+                _settingsService.SettingsChanged += OnSettingsChanged;
             }
 
             OpenSettingsCommand = new RelayCommand(_ => OpenSettingsRequested?.Invoke(this, EventArgs.Empty));
+        }
+
+        private void OnSettingsChanged()
+        {
+            // Only subscribed when _settingsService is non-null (see constructor).
+            lock (_settingsLock)
+            {
+                _disabledPlugins = [.. _settingsService!.Settings.DisabledPlugins];
+            }
+            EnablePreviews = _settingsService.Settings.EnablePreviews;
+            OnPropertyChanged(nameof(ShowInTaskbar));
+            OnPropertyChanged(nameof(ShowIcons));
+            OnPropertyChanged(nameof(EnableNumberShortcuts));
+            OnPropertyChanged(nameof(ShortcutModifierText));
+            OnPropertyChanged(nameof(ItemHeight));
+            OnPropertyChanged(nameof(EnableSearchHighlighting));
+            OnPropertyChanged(nameof(EnableFuzzySearch));
+        }
+
+        /// <summary>
+        /// Unsubscribes from the long-lived services this view model listens to.
+        /// Safe to call multiple times; required so a replaced view model does not keep
+        /// receiving (and reacting to) orchestration/settings updates through stale handlers.
+        /// </summary>
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _orchestrationService.WindowListUpdated -= OnWindowListUpdated;
+
+            if (_settingsService != null)
+            {
+                _settingsService.SettingsChanged -= OnSettingsChanged;
+            }
         }
 
         private void OnWindowListUpdated(object? sender, WindowListUpdatedEventArgs e)

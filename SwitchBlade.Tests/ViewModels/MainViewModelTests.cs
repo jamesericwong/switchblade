@@ -323,6 +323,53 @@ namespace SwitchBlade.Tests.ViewModels
         }
 
         [Fact]
+        public void Dispose_UnsubscribesFromOrchestrationUpdates()
+        {
+            var mockOrch = new Mock<IWindowOrchestrationService>();
+            mockOrch.Setup(o => o.AllWindows).Returns([]);
+
+            var vm = new MainViewModel(mockOrch.Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, null, new SynchronousDispatcherService());
+
+            // Act: dispose, then simulate a late orchestration update
+            vm.Dispose();
+
+            int updates = 0;
+            vm.ResultsUpdated += (s, e) => updates++;
+            mockOrch.Raise(o => o.WindowListUpdated += null, new WindowListUpdatedEventArgs(null!, true));
+
+            // Assert: the disposed view model no longer reacts to orchestration updates
+            Assert.Equal(0, updates);
+        }
+
+        [Fact]
+        public void Dispose_UnsubscribesFromSettingsChanged()
+        {
+            var mockSettings = new Mock<ISettingsService>();
+            var settings = new UserSettings { EnablePreviews = true };
+            mockSettings.Setup(s => s.Settings).Returns(settings);
+
+            var vm = new MainViewModel(new Mock<IWindowOrchestrationService>().Object, new Mock<IWindowSearchService>().Object, new Mock<INavigationService>().Object, mockSettings.Object);
+            bool originalValue = vm.EnablePreviews;
+
+            // Act: dispose, then mutate settings and raise the change notification
+            vm.Dispose();
+            settings.EnablePreviews = !originalValue;
+            mockSettings.Raise(s => s.SettingsChanged += null);
+
+            // Assert: the disposed view model no longer reacts to settings changes
+            Assert.Equal(originalValue, vm.EnablePreviews);
+        }
+
+        [Fact]
+        public void Dispose_Twice_DoesNotThrow()
+        {
+            var vm = CreateViewModel();
+
+            vm.Dispose();
+            vm.Dispose();
+        }
+
+        [Fact]
         public void SyncCollection_EdgeCases()
         {
             var vm = CreateViewModel();

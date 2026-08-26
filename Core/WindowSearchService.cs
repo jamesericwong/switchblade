@@ -50,13 +50,16 @@ namespace SwitchBlade.Core
 
             if (useFuzzy)
             {
-                // Fuzzy search: Score all items and filter/sort by score
+                // Fuzzy search: Score all items and filter/sort by score.
+                // Hwnd is the final tiebreaker so equal-score ties (e.g. duplicate tab titles)
+                // always resolve to a deterministic order, matching the other sort paths below.
                 results = windowList
                     .Select(w => new { Item = w, Score = _matcher.Score(w.Title, query) })
                     .Where(x => x.Score > 0)
                     .OrderByDescending(x => x.Score)
                     .ThenBy(x => x.Item.ProcessName)
                     .ThenBy(x => x.Item.Title)
+                    .ThenBy(x => x.Item.Hwnd.ToInt64())
                     .Select(x => x.Item)
                     .Distinct()
                     .ToList();

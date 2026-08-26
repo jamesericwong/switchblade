@@ -36,12 +36,15 @@ namespace SwitchBlade.Services
             // Fire-and-forget: runs independently of the fast-path refresh.
             _ = Task.Run(async () =>
             {
+                var uiaDisabled = new HashSet<string>(
+                    providers.Where(p => disabledPlugins.Contains(p.PluginName)).Select(p => p.PluginName),
+                    StringComparer.OrdinalIgnoreCase);
+
+                // Providers that produced results this scan; used to clear stale windows for the rest.
+                var reportedProviders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 try
                 {
-                    var uiaDisabled = new HashSet<string>(
-                        providers.Where(p => disabledPlugins.Contains(p.PluginName)).Select(p => p.PluginName),
-                        StringComparer.OrdinalIgnoreCase);
-
                     // Build a lookup for fast provider resolution by name
                     var providerLookup = providers.ToDictionary(
                         p => p.PluginName,
@@ -93,6 +96,9 @@ namespace SwitchBlade.Services
 
                         _logger?.Log($"[UIA] Plugin {pluginResult.PluginName} returned {windowItems.Count} windows - processing immediately.");
 
+                        // Mark as reported BEFORE emitting so a throwing subscriber can't trigger a duplicate clear.
+                        reportedProviders.Add(uiaProvider.PluginName);
+
                         // Process and emit event IMMEDIATELY
                         onResults(uiaProvider, windowItems);
                     }
@@ -105,6 +111,31 @@ namespace SwitchBlade.Services
                 }
                 finally
                 {
+                    // Emit empty results for providers that never reported so their stale windows are cleared.
+                    // Covers worker death mid-stream, client-side timeouts, and plugins the worker skipped.
+                    foreach (var provider in providers)
+                    {
+                        if (uiaDisabled.Contains(provider.PluginName))
+                        {
+                            continue;
+                        }
+
+                        if (reportedProviders.Contains(provider.PluginName))
+                        {
+                            continue;
+                        }
+
+                        _logger?.Log($"[UIA] Plugin {provider.PluginName} never reported results - clearing stale windows.");
+                        try
+                        {
+                            onResults(provider, []);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogError($"Failed to clear stale windows for plugin {provider.PluginName}", ex);
+                        }
+                    }
+
                     _uiaRefreshLock.Release();
                 }
             });

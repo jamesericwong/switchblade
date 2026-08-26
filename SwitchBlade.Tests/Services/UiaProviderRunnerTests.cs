@@ -159,6 +159,139 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public async Task RunAsync_StreamYieldsNothing_EmitsEmptyForUnreportedProvider()
+        {
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.Setup(p => p.PluginName).Returns("P1");
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns([]);
+
+            // Empty stream: the worker died before reporting anything.
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResults());
+
+            var calls = new List<(string Provider, int Count)>();
+            await _runner.RunAsync([mockProvider.Object], [], [], (p, items) => calls.Add((p.PluginName, items.Count)));
+
+            await WaitForBackgroundTaskAsync(_runner);
+
+            // Regression: a provider that never reported must receive an empty result so its stale windows are cleared.
+            var call = Assert.Single(calls);
+            Assert.Equal("P1", call.Provider);
+            Assert.Equal(0, call.Count);
+        }
+
+        [Fact]
+        public async Task RunAsync_PartialStream_EmptyOnlyForMissingProviders()
+        {
+            var p1 = new Mock<IWindowProvider>();
+            p1.Setup(x => x.PluginName).Returns("P1");
+            p1.As<IProviderExclusionSettings>().Setup(x => x.GetHandledProcesses()).Returns([]);
+
+            var p2 = new Mock<IWindowProvider>();
+            p2.Setup(x => x.PluginName).Returns("P2");
+            p2.As<IProviderExclusionSettings>().Setup(x => x.GetHandledProcesses()).Returns([]);
+
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResults(new UiaPluginResult { PluginName = "P1", Windows = [new() { Title = "W1" }] }));
+
+            var calls = new List<(string Provider, int Count)>();
+            await _runner.RunAsync([p1.Object, p2.Object], [], [], (prov, items) => calls.Add((prov.PluginName, items.Count)));
+
+            await WaitForBackgroundTaskAsync(_runner);
+
+            Assert.Equal(2, calls.Count);
+            Assert.Contains(("P1", 1), calls); // reported normally
+            Assert.Contains(("P2", 0), calls); // never reported -> empty emit clears stale windows
+        }
+
+        [Fact]
+        public async Task RunAsync_DisabledProviderNeverReports_NoEmptyEmit()
+        {
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.Setup(p => p.PluginName).Returns("P1");
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns([]);
+
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResults());
+
+            var calls = new List<(string Provider, int Count)>();
+            await _runner.RunAsync([mockProvider.Object], ["P1"], [], (p, items) => calls.Add((p.PluginName, items.Count)));
+
+            await WaitForBackgroundTaskAsync(_runner);
+
+            // Disabled plugins are intentionally skipped by the worker; their windows must not be cleared here.
+            Assert.Empty(calls);
+        }
+
+        [Fact]
+        public async Task RunAsync_UnreportedEmit_CallbackThrows_ContinuesForOtherProviders()
+        {
+            var p1 = new Mock<IWindowProvider>();
+            p1.Setup(x => x.PluginName).Returns("P1");
+            p1.As<IProviderExclusionSettings>().Setup(x => x.GetHandledProcesses()).Returns([]);
+
+            var p2 = new Mock<IWindowProvider>();
+            p2.Setup(x => x.PluginName).Returns("P2");
+            p2.As<IProviderExclusionSettings>().Setup(x => x.GetHandledProcesses()).Returns([]);
+
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResults());
+
+            var cleared = new List<string>();
+            await _runner.RunAsync([p1.Object, p2.Object], [], [], (p, items) =>
+            {
+                if (p.PluginName == "P1")
+                {
+                    throw new InvalidOperationException("subscriber failure");
+                }
+
+                cleared.Add(p.PluginName);
+            });
+
+            await WaitForBackgroundTaskAsync(_runner);
+
+            // P1's failing emit must not prevent P2 from being cleared.
+            Assert.Equal(["P2"], cleared);
+        }
+
+        #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+        private static async IAsyncEnumerable<UiaPluginResult> GetResultsThenThrow(params UiaPluginResult[] results)
+        {
+            foreach (var r in results)
+            {
+                yield return r;
+            }
+
+            throw new Exception("worker died mid-stream");
+        }
+        #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+
+        [Fact]
+        public async Task RunAsync_StreamThrowsAfterPartialResults_ClearsOnlyUnreportedProviders()
+        {
+            var p1 = new Mock<IWindowProvider>();
+            p1.Setup(x => x.PluginName).Returns("P1");
+            p1.As<IProviderExclusionSettings>().Setup(x => x.GetHandledProcesses()).Returns([]);
+
+            var p2 = new Mock<IWindowProvider>();
+            p2.Setup(x => x.PluginName).Returns("P2");
+            p2.As<IProviderExclusionSettings>().Setup(x => x.GetHandledProcesses()).Returns([]);
+
+            // The worker reports P1, then dies before reporting P2.
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResultsThenThrow(new UiaPluginResult { PluginName = "P1", Windows = [new() { Title = "W1" }] }));
+
+            var calls = new List<(string Provider, int Count)>();
+            await _runner.RunAsync([p1.Object, p2.Object], [], [], (prov, items) => calls.Add((prov.PluginName, items.Count)));
+
+            await WaitForBackgroundTaskAsync(_runner);
+
+            Assert.Contains(("P1", 1), calls); // reported before the worker died
+            Assert.Contains(("P2", 0), calls); // never reported -> cleared so stale windows don't linger
+            _mockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains("UIA Worker streaming error")), It.IsAny<Exception>()), Times.Once);
+        }
+
+        [Fact]
         public async Task RunAsync_ExceptionInStream_Logged()
         {
             _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))

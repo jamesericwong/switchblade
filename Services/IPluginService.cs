@@ -15,6 +15,12 @@ namespace SwitchBlade.Services
         IReadOnlyList<IWindowProvider> Providers { get; }
 
         /// <summary>
+        /// Gets the plugins that were discovered but failed to initialize during the last load.
+        /// A failing plugin is isolated: it does not prevent other plugins from loading.
+        /// </summary>
+        IReadOnlyList<PluginLoadError> LoadErrors { get; }
+
+        /// <summary>
         /// Reloads plugins from the Plugins directory.
         /// </summary>
         void ReloadPlugins();
