@@ -432,7 +432,7 @@ element.SetFocus();
 ```
 
 #### 4. Robust Fallback Strategy (v1.9.3 — `UiaElementResolver`)
-Specific windows (like Teams) often fail `AutomationElement.FromHandle(hwnd)` with `E_FAIL` due to internal state or elevation issues. Since v1.9.3, shared `UiaElementResolver` in `SwitchBlade.Contracts` provides a configurable **3-Tier Fallback** via `UiaResolverOptions`:
+Specific windows (like Teams) often fail `AutomationElement.FromHandle(hwnd)` with `E_FAIL` due to internal state or elevation issues. Since v1.9.3, shared `UiaElementResolver` provides a configurable **3-Tier Fallback** via `UiaResolverOptions`. It lives in the `SwitchBlade.Contracts.Uia` assembly (namespace remains `SwitchBlade.Contracts`) — UIA plugins must reference that project:
 
 1. **Direct HWND**: Fast, O(1). Tries `AutomationElement.FromHandle`.
 2. **Desktop FindFirst**: Slower, O(N). Searches `RootElement` children for the specific PID.

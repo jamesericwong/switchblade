@@ -12,7 +12,7 @@
     <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
     <StartupObject>SwitchBlade.Program</StartupObject>
-    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Plugins.NotepadPlusPlus\**;SwitchBlade.Plugins.Teams\**;SwitchBlade.Tests\**;SwitchBlade.UiaWorker\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);SwitchBlade.Contracts\**;SwitchBlade.Contracts.Uia\**;SwitchBlade.Plugins.Chrome\**;SwitchBlade.Plugins.WindowsTerminal\**;SwitchBlade.Plugins.NotepadPlusPlus\**;SwitchBlade.Plugins.Teams\**;SwitchBlade.Tests\**;SwitchBlade.UiaWorker\**</DefaultItemExcludes>
     
     <!-- Memory Optimization -->
     <ServerGarbageCollection>false</ServerGarbageCollection>

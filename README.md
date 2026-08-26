@@ -55,7 +55,7 @@ SwitchBlade supports the following keyboard shortcuts for navigation:
   - `SettingsService`: Manages persistence of user preferences (Registry-based).
   - `HotKeyService`: Handles global low-level keyboard hooks for the toggle hotkey.
   - `WindowOrchestrationService`: Coordinates window discovery, reconciliation, and provider result aggregation.
-  - `UiaElementResolver` (Contracts): Shared 3-stage HWND→FindFirst→TreeWalker fallback for UIA plugins.
+  - `UiaElementResolver` (Contracts.Uia): Shared 3-stage HWND→FindFirst→TreeWalker fallback for UIA plugins.
 - **Window Providers**: Independent modules responsible for scanning and returning `WindowItem` objects.
 
 ```mermaid

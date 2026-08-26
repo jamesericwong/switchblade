@@ -18,7 +18,6 @@
     <Description>Out-of-process worker for UI Automation scans</Description>
     
     <!-- WPF is needed because Plugins reference PresentationFramework (ISettingsControl) -->
-    <UseWPF>true</UseWPF>
     <UseWindowsForms>false</UseWindowsForms>
     
     <!-- Self-contained single-file deployment (no .NET install prompt) -->

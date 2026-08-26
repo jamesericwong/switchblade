@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SwitchBlade.Contracts\SwitchBlade.Contracts.csproj" />
+    <ProjectReference Include="..\SwitchBlade.Contracts.Uia\SwitchBlade.Contracts.Uia.csproj" />
   </ItemGroup>
 
 
