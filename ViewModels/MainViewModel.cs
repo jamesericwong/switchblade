@@ -128,7 +128,7 @@ namespace SwitchBlade.ViewModels
         public bool EnablePreviews
         {
             get => _enablePreviews;
-            set { _enablePreviews = value; OnPropertyChanged(); }
+            set { _enablePreviews = value; OnPropertyChanged(nameof(EnablePreviews)); }
         }
 
         public bool EnableNumberShortcuts => _settingsService?.Settings.EnableNumberShortcuts ?? true;
@@ -159,7 +159,7 @@ namespace SwitchBlade.ViewModels
                 if (value != null)
                 {
                     _filteredWindows = value;
-                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(FilteredWindows));
                 }
             }
         }
@@ -174,7 +174,7 @@ namespace SwitchBlade.ViewModels
                     _selectedWindow = value;
                     if (!_isUpdating)
                     {
-                        OnPropertyChanged();
+                        OnPropertyChanged(nameof(SelectedWindow));
                     }
                 }
             }
@@ -188,7 +188,7 @@ namespace SwitchBlade.ViewModels
                 if (_searchText != value)
                 {
                     _searchText = value;
-                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SearchText));
                     SearchTextChanged?.Invoke(this, EventArgs.Empty);
                     UpdateSearch(resetSelection: true);
                 }

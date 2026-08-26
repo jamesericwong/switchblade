@@ -100,5 +100,24 @@ namespace SwitchBlade.Tests
             // Assert
             Assert.Empty(results);
         }
+
+        [Fact]
+        public void GetWindows_UnknownPidWindows_AreIncludedWithoutLkgTracking()
+        {
+            // Arrange: a window whose PID cannot be resolved (hwnd 0 → pid 0 in this provider)
+            var unknown = new WindowItem { Hwnd = IntPtr.Zero, Title = "Unknown Pid", IsFallback = false };
+            _provider.NextScanResults = new List<WindowItem> { unknown };
+
+            // Act: first scan must include it (previously dropped as an invalid PID group)
+            var first = _provider.GetWindows().ToList();
+            Assert.Contains(first, w => w.Title == "Unknown Pid");
+
+            // Act: second scan misses it — with no LKG tracking for pid 0 it must not be resurrected
+            _provider.NextScanResults = new List<WindowItem>();
+            var second = _provider.GetWindows().ToList();
+
+            // Assert
+            Assert.DoesNotContain(second, w => w.Title == "Unknown Pid");
+        }
     }
 }

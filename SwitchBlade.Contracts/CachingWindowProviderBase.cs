@@ -112,17 +112,26 @@ namespace SwitchBlade.Contracts
 
         /// <summary>
         /// Retrieves the PID for a given window handle. Virtual for testability.
+        /// Contract: returns 0 when the PID cannot be resolved — 0 is the shared "unknown PID"
+        /// sentinel and can never be a real Windows process ID. Overrides must honor this.
         /// </summary>
         protected virtual int GetPid(IntPtr hwnd)
         {
-            if (Interop != null)
+            try
             {
-                Interop.GetWindowThreadProcessId(hwnd, out uint pid);
-                return (int)pid;
-            }
+                if (Interop != null)
+                {
+                    Interop.GetWindowThreadProcessId(hwnd, out uint pid);
+                    return (int)pid;
+                }
 
-            NativeInterop.GetWindowThreadProcessId(hwnd, out uint pidStatic);
-            return (int)pidStatic;
+                NativeInterop.GetWindowThreadProcessId(hwnd, out uint pidStatic);
+                return (int)pidStatic;
+            }
+            catch
+            {
+                return 0; // PID unresolvable — shared "unknown" sentinel
+            }
         }
 
         /// <summary>

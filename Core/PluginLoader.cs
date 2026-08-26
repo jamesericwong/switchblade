@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
 using SwitchBlade.Contracts;
 
@@ -22,13 +20,13 @@ namespace SwitchBlade.Core
 
         /// <summary>
         /// Discovers and instantiates IWindowProvider implementations from plugin DLLs.
+        /// Discovery is shared with the UIA worker via <see cref="PluginDiscovery"/> so both
+        /// sides agree on which assemblies count as plugins (naming convention + subfolders).
         /// Does NOT call Initialize — the caller (PluginService) is responsible for
         /// providing per-plugin contexts and initializing each provider exactly once.
         /// </summary>
         public List<IWindowProvider> LoadPlugins()
         {
-            var providers = new List<IWindowProvider>();
-
             if (!Directory.Exists(_pluginsPath))
             {
                 try
@@ -38,45 +36,12 @@ namespace SwitchBlade.Core
                 catch (Exception ex)
                 {
                     _logger?.LogError($"Failed to create plugins directory: {_pluginsPath}", ex);
-                    return providers;
+                    return new List<IWindowProvider>();
                 }
             }
 
-            var dllFiles = Directory.GetFiles(_pluginsPath, "*.dll");
-
-            foreach (var dll in dllFiles)
-            {
-                try
-                {
-                    var assembly = Assembly.LoadFrom(dll);
-
-                    var providerTypes = assembly.GetTypes()
-                        .Where(t => typeof(IWindowProvider).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
-
-                    foreach (var type in providerTypes)
-                    {
-                        try
-                        {
-                            var instance = Activator.CreateInstance(type) as IWindowProvider;
-                            if (instance != null)
-                            {
-                                providers.Add(instance);
-                                _logger?.Log($"Discovered plugin provider: {type.Name} from {Path.GetFileName(dll)}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger?.LogError($"Failed to instantiate plugin {type.Name}", ex);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError($"Failed to load plugin assembly: {dll}", ex);
-                }
-            }
-
-            return providers;
+            var dllFiles = PluginDiscovery.EnumeratePluginDlls(_pluginsPath);
+            return PluginDiscovery.DiscoverProviders(dllFiles, _logger);
         }
     }
 }

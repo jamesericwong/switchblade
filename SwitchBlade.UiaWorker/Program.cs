@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -348,12 +347,12 @@ internal static class Program
 
     /// <summary>
     /// Dynamically loads all IWindowProvider implementations from the Plugins directory.
+    /// Discovery is shared with the host app via PluginDiscovery so both sides agree on
+    /// which assemblies count as plugins (naming convention + subfolders).
     /// Only loads plugins that use UIA (IsUiaProvider == true).
     /// </summary>
     private static List<IWindowProvider> LoadPlugins(List<string> errors)
     {
-        var plugins = new List<IWindowProvider>();
-
         // Get the directory where UiaWorker.exe is located
         string baseDir = AppContext.BaseDirectory;
         string pluginsDir = Path.Combine(baseDir, "Plugins");
@@ -365,68 +364,16 @@ internal static class Program
             string msg = $"Plugins directory not found: {pluginsDir}";
             DebugLog(msg);
             errors.Add(msg);
-            return plugins;
+            return new List<IWindowProvider>();
         }
 
-        // Search for all DLLs in Plugins and subdirectories
-        var dllFiles = Directory.GetFiles(pluginsDir, "*.dll", SearchOption.AllDirectories);
-        DebugLog($"Found {dllFiles.Length} DLLs in Plugins folder.");
+        var dllFiles = PluginDiscovery.EnumeratePluginDlls(pluginsDir);
+        DebugLog($"Found {dllFiles.Count} plugin DLLs in Plugins folder.");
 
-        foreach (var dllPath in dllFiles)
-        {
-            try
-            {
-                // Skip non-plugin assemblies (e.g., SwitchBlade.Contracts if present)
-                string fileName = Path.GetFileName(dllPath);
-                if (!fileName.StartsWith("SwitchBlade.Plugins.", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                DebugLog($"Inspecting: {fileName}");
-                var assembly = Assembly.LoadFrom(dllPath);
-
-                // Find all types that implement IWindowProvider
-                var providerTypes = assembly.GetTypes()
-                    .Where(t => typeof(IWindowProvider).IsAssignableFrom(t)
-                                && !t.IsInterface
-                                && !t.IsAbstract);
-
-                foreach (var type in providerTypes)
-                {
-                    try
-                    {
-                        DebugLog($"Found provider type: {type.FullName}");
-                        var provider = (IWindowProvider)Activator.CreateInstance(type)!;
-
-                        // Only load UIA providers (the whole point of this worker)
-                        if (provider is IExtrusionStrategy { IsUiaProvider: true })
-                        {
-                            DebugLog($"Adding UIA provider: {type.FullName}");
-                            plugins.Add(provider);
-                        }
-                        else
-                        {
-                            DebugLog($"Skipping non-UIA provider: {type.FullName}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        string msg = $"Failed to instantiate {type.FullName}: {ex.Message}";
-                        DebugLog(msg);
-                        errors.Add(msg);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                DebugLog($"Failed to load assembly {dllPath}: {ex}");
-                // Skip DLLs that can't be loaded (not .NET assemblies, etc.)
-                // Don't add to errors - this is expected for native DLLs
-            }
-        }
-
-        return plugins;
+        // Only load UIA providers (the whole point of this worker)
+        return PluginDiscovery.DiscoverProviders(dllFiles, BridgedLogger.Instance, msg => errors.Add(msg))
+            .Where(provider => provider is IExtrusionStrategy { IsUiaProvider: true })
+            .ToList();
     }
 
     private static void WriteResponse(UiaResponse response)

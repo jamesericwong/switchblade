@@ -31,12 +31,14 @@ namespace SwitchBlade.Contracts
     }
 
     /// <summary>
-    /// Shared three-stage fallback for acquiring an <see cref="AutomationElement"/> from an HWND:
+    /// Shared multi-stage fallback for acquiring an <see cref="AutomationElement"/> from an HWND:
     /// 1. <see cref="AutomationElement.FromHandle(IntPtr)"/>
-    /// 2. Desktop <see cref="AutomationElement.FindFirst"/> by PID
-    /// 3. Desktop <see cref="TreeWalker"/> by PID
-    /// 4. (Optional) <see cref="AutomationElement.FromPoint"/> via window center
+    /// 2. Desktop <see cref="AutomationElement.FindFirst"/> by PID + HWND
+    /// 3. Desktop <see cref="TreeWalker"/> by PID + HWND
+    /// 4. (Optional) <see cref="AutomationElement.FromPoint"/> via window center, verified against the HWND
     ///
+    /// Strategies 2-4 verify NativeWindowHandle so a multi-window process can never yield
+    /// an element belonging to one of its other windows.
     /// Eliminates duplicated TryGetAutomationElement implementations across plugins.
     /// </summary>
     [ExcludeFromCodeCoverage]
@@ -78,12 +80,15 @@ namespace SwitchBlade.Contracts
                 try
                 {
                     var root = AutomationElement.RootElement;
-                    var condition = new PropertyCondition(AutomationElement.ProcessIdProperty, pid);
+                    // Match by PID AND HWND so a multi-window process can't yield the wrong top-level window.
+                    var condition = new AndCondition(
+                        new PropertyCondition(AutomationElement.ProcessIdProperty, pid),
+                        new PropertyCondition(AutomationElement.NativeWindowHandleProperty, (int)(long)hwnd));
                     var match = root.FindFirst(TreeScope.Children, condition);
 
                     if (match != null)
                     {
-                        logger?.Log($"{callerName}: Successfully acquired root via Desktop FindFirst for PID {pid}.");
+                        logger?.Log($"{callerName}: Successfully acquired root via Desktop FindFirst for HWND {hwnd}.");
                         return match;
                     }
                 }
@@ -102,9 +107,9 @@ namespace SwitchBlade.Contracts
                     {
                         try
                         {
-                            if (child.Current.ProcessId == pid)
+                            if (child.Current.ProcessId == pid && child.Current.NativeWindowHandle == (int)(long)hwnd)
                             {
-                                logger?.Log($"{callerName}: Successfully acquired root via Desktop Walker for PID {pid}.");
+                                logger?.Log($"{callerName}: Successfully acquired root via Desktop Walker for HWND {hwnd}.");
                                 return child;
                             }
                         }
@@ -137,9 +142,9 @@ namespace SwitchBlade.Contracts
                             var point = new System.Windows.Point(centerX, centerY);
 
                             var element = AutomationElement.FromPoint(point);
-                            if (element != null && element.Current.ProcessId == pid)
+                            if (element != null && IsOwnedByWindow(element, hwnd))
                             {
-                                logger?.Log($"{callerName}: Successfully acquired root via FromPoint for PID {pid}.");
+                                logger?.Log($"{callerName}: Successfully acquired root via FromPoint for HWND {hwnd}.");
                                 return element;
                             }
                         }
@@ -162,6 +167,49 @@ namespace SwitchBlade.Contracts
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Maximum ancestor levels to walk when verifying FromPoint ownership.
+        /// UIA trees are shallow (desktop → window → control), so this bounds pathological walks.
+        /// </summary>
+        private const int MaxOwnershipWalkDepth = 32;
+
+        /// <summary>
+        /// True when the element is the target window itself or a descendant of it.
+        /// FromPoint can land on a child control that has no HWND of its own, so walk up
+        /// the tree until an ancestor exposes the target NativeWindowHandle.
+        /// </summary>
+        private static bool IsOwnedByWindow(AutomationElement element, IntPtr hwnd)
+        {
+            int targetHandle = (int)(long)hwnd;
+            var current = element;
+
+            for (int depth = 0; current != null && depth < MaxOwnershipWalkDepth; depth++)
+            {
+                try
+                {
+                    if (current.Current.NativeWindowHandle == targetHandle)
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // Property unavailable on this element — keep walking up.
+                }
+
+                try
+                {
+                    current = TreeWalker.ControlViewWalker.GetParent(current);
+                }
+                catch
+                {
+                    break;
+                }
+            }
+
+            return false;
         }
     }
 }

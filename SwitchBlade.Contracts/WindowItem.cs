@@ -38,40 +38,13 @@ namespace SwitchBlade.Contracts
         }
 
         /// <summary>
-        /// Lazily computed normalized title for fuzzy matching.
-        /// Caches the result to avoid repeated normalization on every search keystroke.
+        /// Lazily computed normalized title for fuzzy matching (canonical form: see
+        /// <see cref="SearchNormalization.Normalize"/>). Caches the result to avoid repeated
+        /// normalization on every search keystroke.
         /// </summary>
         public string NormalizedTitle
         {
-            get => _normalizedTitle ??= NormalizeForSearch(_title);
-        }
-
-        /// <summary>
-        /// Normalizes a string for fuzzy matching: lowercase, remove delimiters.
-        /// </summary>
-        private static string NormalizeForSearch(string input)
-        {
-            if (string.IsNullOrEmpty(input))
-            {
-                return string.Empty;
-            }
-
-            // Use Span for zero-allocation normalization
-            Span<char> buffer = input.Length <= 256 ? stackalloc char[input.Length] : new char[input.Length];
-            int writeIndex = 0;
-
-            for (int i = 0; i < input.Length && writeIndex < buffer.Length; i++)
-            {
-                char c = input[i];
-                if (c == ' ' || c == '_' || c == '-')
-                {
-                    continue;
-                }
-
-                buffer[writeIndex++] = char.ToLowerInvariant(c);
-            }
-
-            return new string(buffer[..writeIndex]);
+            get => _normalizedTitle ??= SearchNormalization.Normalize(_title);
         }
 
         public string ProcessName { get; set; } = string.Empty;

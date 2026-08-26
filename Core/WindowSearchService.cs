@@ -54,7 +54,7 @@ namespace SwitchBlade.Core
                 // Hwnd is the final tiebreaker so equal-score ties (e.g. duplicate tab titles)
                 // always resolve to a deterministic order, matching the other sort paths below.
                 results = windowList
-                    .Select(w => new { Item = w, Score = _matcher.Score(w.Title, query) })
+                    .Select(w => new { Item = w, Score = _matcher.ScoreWithNormalizedTitle(w.Title, w.NormalizedTitle, query) })
                     .Where(x => x.Score > 0)
                     .OrderByDescending(x => x.Score)
                     .ThenBy(x => x.Item.ProcessName)

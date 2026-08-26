@@ -254,10 +254,12 @@ public class WindowItem
 ## Step-by-Step Implementation Guide
 
 ### 1. Create a Project
-Create a new **Class Library** project targeting **.NET 9.0-windows**.
+Create a new **Class Library** project targeting **.NET 9.0-windows**. The assembly name must start with `SwitchBlade.Plugins.` — both the host and the UIA worker only load DLLs that follow this convention (enforced by the shared discovery routine since v1.9.17):
 ```bash
-dotnet new classlib -n MyCustomPlugin -f net9.0-windows
+dotnet new classlib -n SwitchBlade.Plugins.MyCustomPlugin -f net9.0-windows
 ```
+
+Plugins may live directly in the `Plugins` folder or in a subfolder of it — discovery is recursive on both sides, so subfolder plugins behave identically in the host and in the UIA worker.
 
 ### 2. Add References
 Reference the `SwitchBlade.Contracts.dll`. You can copy this DLL from the SwitchBlade main output directory. If your plugin uses UI Automation (`IsUiaProvider = true`), also reference **`SwitchBlade.Contracts.Uia.dll`** — it hosts the shared `UiaElementResolver` (required since v1.9.17).

@@ -160,6 +160,36 @@ namespace SwitchBlade.Tests
             Assert.Single(results);
             Assert.Equal("Tab 1", results[0].Title);
         }
+
+        [Fact]
+        public void GetPid_InteropThrows_ReturnsZeroSentinel()
+        {
+            // Arrange — a provider using the base GetPid implementation with throwing interop
+            var provider = new RawGetPidProvider();
+            var throwingInterop = new Mock<IWindowInterop>();
+            throwingInterop.Setup(x => x.GetWindowThreadProcessId(It.IsAny<IntPtr>(), out It.Ref<uint>.IsAny)).Throws(new Exception());
+
+            var mockContext = new Mock<IPluginContext>();
+            mockContext.Setup(c => c.Interop).Returns(throwingInterop.Object);
+            provider.Initialize(mockContext.Object);
+
+            // Act / Assert — shared contract: 0 is the "unknown PID" sentinel (previously the exception propagated)
+            Assert.Equal(0, provider.GetPidPublic(IntPtr.Zero));
+        }
+    }
+
+    /// <summary>
+    /// Test provider that uses the base GetPid implementation (no override).
+    /// </summary>
+    internal class RawGetPidProvider : CachingWindowProviderBase
+    {
+        public override string PluginName => "RawGetPidProvider";
+        public override bool HasSettings => false;
+        public override void ActivateWindow(WindowItem item) { }
+
+        protected override IEnumerable<WindowItem> ScanWindowsCore() => new List<WindowItem>();
+
+        public int GetPidPublic(IntPtr hwnd) => base.GetPid(hwnd);
     }
 
     /// <summary>

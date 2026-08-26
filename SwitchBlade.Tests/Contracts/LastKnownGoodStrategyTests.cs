@@ -120,9 +120,9 @@ namespace SwitchBlade.Tests.Contracts
         }
 
         [Fact]
-        public void Apply_PidZero_SkippedFromResultsAndLkg()
+        public void Apply_PidZero_IncludedAsIsWithoutLkgTracking()
         {
-            // Arrange - all items resolve to an invalid PID (0)
+            // Arrange - all items resolve to an unresolvable PID (0)
             var strategy = CreateStrategy();
             _windows.Setup(w => w.GetPid(It.IsAny<IntPtr>())).Returns(0);
 
@@ -133,8 +133,14 @@ namespace SwitchBlade.Tests.Contracts
                 new() { Hwnd = (IntPtr)200, Title = "Orphan 2", IsFallback = true }
             });
 
-            // Assert - PID-0 groups are skipped entirely and never enter LKG
-            Assert.Empty(result);
+            // Assert - unknown-PID windows are surfaced as-is (previously dropped silently)
+            Assert.Equal(2, result.Count);
+            Assert.Contains(result, i => i.Title == "Orphan 1");
+            Assert.Contains(result, i => i.Title == "Orphan 2");
+
+            // And they never enter LKG: a later scan that misses them must not resurrect them
+            var second = strategy.Apply(new List<WindowItem>());
+            Assert.Empty(second);
         }
 
         [Fact]

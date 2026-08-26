@@ -10,6 +10,10 @@ namespace SwitchBlade.Core
         public int Score(string title, string query) => FuzzyMatcher.Score(title, query);
 
         /// <inheritdoc />
+        public int ScoreWithNormalizedTitle(string title, string normalizedTitle, string query)
+            => FuzzyMatcher.ScoreWithNormalizedTitle(title, normalizedTitle, query);
+
+        /// <inheritdoc />
         public bool IsMatch(string title, string query) => FuzzyMatcher.IsMatch(title, query);
     }
 }

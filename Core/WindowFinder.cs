@@ -141,22 +141,23 @@ namespace SwitchBlade.Core
             _interop.ForceForegroundWindow(windowItem.Hwnd);
         }
 
+        // Shared contract with CachingWindowProviderBase: 0 is the "unknown PID" sentinel.
         protected override int GetPid(IntPtr hwnd)
         {
             try
             {
                 _interop.GetWindowThreadProcessId(hwnd, out uint pid);
-                return (int)pid != 0 ? (int)pid : -1;
+                return (int)pid;
             }
             catch
             {
-                return -1;
+                return 0; // PID unresolvable — shared "unknown" sentinel
             }
         }
 
         protected override (string ProcessName, string? ExecutablePath) GetProcessInfo(uint pid)
         {
-             if ((int)pid == -1)
+             if (pid == 0)
             {
                 return ("Window", null);
             }

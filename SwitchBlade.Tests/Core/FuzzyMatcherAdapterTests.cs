@@ -31,5 +31,18 @@ namespace SwitchBlade.Tests.Core
             // Assert
             Assert.True(isMatch);
         }
+
+        [Fact]
+        public void ScoreWithNormalizedTitle_MatchesScoreSemantics()
+        {
+            string title = "Visual Studio Code";
+            string query = "vsc";
+
+            // Act
+            int score = _adapter.ScoreWithNormalizedTitle(title, SwitchBlade.Contracts.SearchNormalization.Normalize(title), query);
+
+            // Assert: identical to the raw-title path when given the canonical normalization
+            Assert.Equal(FuzzyMatcher.Score(title, query), score);
+        }
     }
 }

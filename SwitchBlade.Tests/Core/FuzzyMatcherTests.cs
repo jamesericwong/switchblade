@@ -1,3 +1,5 @@
+using System;
+using SwitchBlade.Contracts;
 using SwitchBlade.Core;
 using Xunit;
 
@@ -556,6 +558,88 @@ namespace SwitchBlade.Tests.Core
             var result = FuzzyMatcher.GetMatchedIndices(longTitle, "xyz", true);
             
             Assert.Equal([3, 4, 5], result);
+        }
+
+        #endregion
+
+        #region ScoreWithNormalizedTitle (pre-normalized title path)
+
+        [Fact]
+        public void ScoreWithNormalizedTitle_NullOrEmpty_ReturnsZero()
+        {
+            Assert.Equal(0, FuzzyMatcher.ScoreWithNormalizedTitle(null!, "x", "q"));
+            Assert.Equal(0, FuzzyMatcher.ScoreWithNormalizedTitle("Chrome", "", "q"));
+            Assert.Equal(0, FuzzyMatcher.ScoreWithNormalizedTitle("Chrome", "chrome", null!));
+        }
+
+        [Fact]
+        public void ScoreWithNormalizedTitle_ExactContainsStartsWith_ReturnsFastPathScore()
+        {
+            string title = "Visual Studio Code";
+
+            int score = FuzzyMatcher.ScoreWithNormalizedTitle(title, SearchNormalization.Normalize(title), "visual");
+
+            Assert.Equal(FuzzyMatcher.Score(title, "visual"), score);
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void ScoreWithNormalizedTitle_ExactContainsNotStartsWith_ReturnsFastPathScore()
+        {
+            string title = "My Visual Studio";
+
+            int score = FuzzyMatcher.ScoreWithNormalizedTitle(title, SearchNormalization.Normalize(title), "visual");
+
+            Assert.Equal(FuzzyMatcher.Score(title, "visual"), score);
+        }
+
+        [Fact]
+        public void ScoreWithNormalizedTitle_DelimiterOnlyQuery_ReturnsZero()
+        {
+            // Query normalizes to empty (all delimiters) — slow path early-out
+            int score = FuzzyMatcher.ScoreWithNormalizedTitle("Chrome", SearchNormalization.Normalize("Chrome"), " -_ ");
+
+            Assert.Equal(0, score);
+        }
+
+        [Fact]
+        public void ScoreWithNormalizedTitle_QueryLongerThanTitle_ReturnsZero()
+        {
+            // No fast-path contains; normalized query longer than normalized title — quick rejection
+            int score = FuzzyMatcher.ScoreWithNormalizedTitle("ab", SearchNormalization.Normalize("ab"), "abcdef");
+
+            Assert.Equal(0, score);
+        }
+
+        [Fact]
+        public void ScoreWithNormalizedTitle_FuzzyMatch_MatchesRawScore()
+        {
+            // No raw substring match — exercises the subsequence slow path with a pre-normalized title
+            string title = "Visual Studio Code";
+
+            int score = FuzzyMatcher.ScoreWithNormalizedTitle(title, SearchNormalization.Normalize(title), "vsc");
+
+            Assert.Equal(FuzzyMatcher.Score(title, "vsc"), score);
+            Assert.True(score > 0);
+        }
+
+        [Fact]
+        public void ScoreWithNormalizedTitle_QueryOver64Chars_UsesHeapAllocation()
+        {
+            // Query longer than the stackalloc threshold (64) — heap allocation branch.
+            // Alternating "ab" title has no run of 70 'a's, so the raw-contains fast path is skipped.
+            var builder = new System.Text.StringBuilder(150);
+            for (int i = 0; i < 75; i++)
+            {
+                builder.Append("ab");
+            }
+
+            string title = builder.ToString();
+            string query = new string('a', 70);
+
+            int score = FuzzyMatcher.ScoreWithNormalizedTitle(title, SearchNormalization.Normalize(title), query);
+
+            Assert.True(score > 0);
         }
 
         #endregion

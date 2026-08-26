@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using SwitchBlade.Contracts;
 
 namespace SwitchBlade.Core
 {
@@ -57,6 +58,51 @@ namespace SwitchBlade.Core
 
             // Normalize and perform fuzzy match
             return ScoreNormalized(title.AsSpan(), query.AsSpan());
+        }
+
+        /// <summary>
+        /// Scores a title using its pre-normalized form (e.g., from <see cref="WindowItem.NormalizedTitle"/>),
+        /// avoiding re-normalization of the title on every keystroke.
+        /// Produces identical results to <see cref="Score(string, string)"/> when normalizedTitle is the
+        /// canonical normalization of title (<see cref="SearchNormalization.Normalize"/>).
+        /// </summary>
+        public static int ScoreWithNormalizedTitle(string title, string normalizedTitle, string query)
+        {
+            if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(title))
+            {
+                return 0;
+            }
+
+            // Fast path: exact contains check (common case) — identical to Score
+            if (title.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                int exactScore = query.Length * (BaseMatchScore + ContiguityBonus);
+                if (title.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    exactScore += StartsWithBonus;
+                }
+
+                return exactScore;
+            }
+
+            // Slow path: reuse the caller's normalized title instead of re-normalizing it.
+            int queryLen = Math.Min(query.Length, MaxNormalizedLength);
+            Span<char> normalizedQuery = queryLen <= 64 ? stackalloc char[queryLen] : new char[queryLen];
+            int actualQueryLen = Normalize(query.AsSpan(0, queryLen), normalizedQuery);
+
+            if (actualQueryLen == 0)
+            {
+                return 0;
+            }
+
+            var titleSpan = normalizedTitle.AsSpan();
+            int titleLen = Math.Min(titleSpan.Length, MaxNormalizedLength);
+            if (actualQueryLen > titleLen)
+            {
+                return 0;
+            }
+
+            return CalculateSubsequenceScore(titleSpan.Slice(0, titleLen), normalizedQuery.Slice(0, actualQueryLen));
         }
 
         /// <summary>

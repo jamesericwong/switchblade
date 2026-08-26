@@ -44,6 +44,29 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public void StartPolling_AfterDispose_DoesNotRestartPolling()
+        {
+            // Arrange — polling enabled, so a settings change would normally (re)start it
+            _settings.EnableBackgroundPolling = true;
+
+            var service = new BackgroundPollingService(
+                _mockSettingsService.Object,
+                _mockDispatcherService.Object,
+                () => Task.CompletedTask,
+                _mockWorkstationService.Object,
+                _mockTimerFactory.Object);
+
+            int callsAfterConstruction = _mockTimerFactory.Invocations.Count;
+
+            // Act: dispose, then a settings change that was already in flight when shutdown began
+            service.Dispose();
+            service.StartPolling();
+
+            // Assert: no new timer is created after Dispose (previously this resurrected a zombie loop)
+            Assert.Equal(callsAfterConstruction, _mockTimerFactory.Invocations.Count);
+        }
+
+        [Fact]
         public async Task Polling_WhenEnabled_CreatesTimerAndWaits()
         {
             // Arrange

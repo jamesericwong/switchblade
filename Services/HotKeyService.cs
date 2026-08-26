@@ -19,6 +19,12 @@ namespace SwitchBlade.Services
         private Action _onHotKeyPressed;
         private bool _disposed;
 
+        // Tracks the last successfully registered hotkey so unrelated settings changes
+        // don't churn a working registration (unregister + re-register gap, spurious failures).
+        private uint _lastRegisteredMods;
+        private uint _lastRegisteredKey;
+        private bool _hotKeyRegistered;
+
         public HotKeyService(Window window, ISettingsService settingsService, ILogger logger, Action onHotKeyPressed)
         {
             _window = window;
@@ -54,21 +60,39 @@ namespace SwitchBlade.Services
         {
             _source = HwndSource.FromHwnd(handle);
             _source.AddHook(HwndHook);
-            RegisterHotKey(handle);
+
+            var mods = _settingsService.Settings.HotKeyModifiers;
+            var key = _settingsService.Settings.HotKeyKey;
+            if (RegisterHotKey(handle, mods, key))
+            {
+                RecordRegistration(mods, key);
+            }
         }
 
         private void OnSettingsChanged()
         {
-            _logger.Log("HotKeyService: OnSettingsChanged triggered - re-registering hotkey");
-            if (_source != null)
+            var mods = _settingsService.Settings.HotKeyModifiers;
+            var key = _settingsService.Settings.HotKeyKey;
+
+            if (_hotKeyRegistered && mods == _lastRegisteredMods && key == _lastRegisteredKey)
             {
-                bool unregSuccess = UnregisterHotKey(_source.Handle);
-                _logger.Log($"HotKeyService: Unregister result: {unregSuccess}");
-                RegisterHotKey(_source.Handle);
+                // Unrelated settings change: keep the working registration instead of churning it.
+                _logger.Log("HotKeyService: Hotkey settings unchanged, keeping existing registration");
+                return;
             }
-            else
+
+            if (_source == null)
             {
-                _logger.Log("HotKeyService: OnSettingsChanged - _source is null, cannot re-register");
+                _logger.Log("HotKeyService: OnSettingsChanged - no window source yet, cannot (re-)register hotkey");
+                return;
+            }
+
+            UnregisterHotKey(_source.Handle);
+            _hotKeyRegistered = false; // re-asserted below only if registration succeeds
+
+            if (RegisterHotKey(_source.Handle, mods, key))
+            {
+                RecordRegistration(mods, key);
             }
         }
 
@@ -98,13 +122,12 @@ namespace SwitchBlade.Services
             if (_source != null)
             {
                 UnregisterHotKey(_source.Handle);
+                _hotKeyRegistered = false;
             }
         }
 
-        private void RegisterHotKey(IntPtr handle)
+        private bool RegisterHotKey(IntPtr handle, uint mods, uint key)
         {
-            var mods = _settingsService.Settings.HotKeyModifiers;
-            var key = _settingsService.Settings.HotKeyKey;
             _logger.Log($"HotKeyService: Attempting to register hotkey. Mods: {mods}, Key: {key:X} (0x{key:X})");
             bool success = NativeInterop.RegisterHotKey(handle, HOTKEY_ID, mods, key);
             if (!success)
@@ -116,6 +139,15 @@ namespace SwitchBlade.Services
             {
                 _logger.Log($"HotKeyService: Successfully registered hotkey. Mods: {mods}, Key: {key:X}");
             }
+
+            return success;
+        }
+
+        private void RecordRegistration(uint mods, uint key)
+        {
+            _hotKeyRegistered = true;
+            _lastRegisteredMods = mods;
+            _lastRegisteredKey = key;
         }
 
         private bool UnregisterHotKey(IntPtr handle)

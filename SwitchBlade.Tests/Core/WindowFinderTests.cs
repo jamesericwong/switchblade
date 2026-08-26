@@ -396,12 +396,12 @@ namespace SwitchBlade.Tests.Core
             
             var finder = new WindowFinderTestWrapper(_mockSettingsService.Object, _mockInterop.Object);
             
-            // Test GetPid with exception
+            // Test GetPid with exception — shared contract: 0 is the "unknown PID" sentinel
             _mockInterop.Setup(x => x.GetWindowThreadProcessId(It.IsAny<IntPtr>(), out It.Ref<uint>.IsAny)).Throws(new Exception());
-            Assert.Equal(-1, finder.GetPidPublic(IntPtr.Zero));
+            Assert.Equal(0, finder.GetPidPublic(IntPtr.Zero));
 
-            // Test GetProcessInfo with pid -1
-            var (name1, path1) = finder.GetProcessInfoPublic(unchecked((uint)-1));
+            // Test GetProcessInfo with the unknown-PID sentinel (0)
+            var (name1, path1) = finder.GetProcessInfoPublic(0);
             Assert.Equal("Window", name1);
             Assert.Null(path1);
 
@@ -430,18 +430,18 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
-        public void GetPid_ReturnsMinusOne_OnException()
+        public void GetPid_ReturnsZeroSentinel_OnException()
         {
              var finder = new WindowFinderTestWrapper(_mockSettingsService.Object, _mockInterop.Object);
              _mockInterop.Setup(x => x.GetWindowThreadProcessId(It.IsAny<IntPtr>(), out It.Ref<uint>.IsAny)).Throws(new Exception());
-             Assert.Equal(-1, finder.GetPidPublic(IntPtr.Zero));
+             Assert.Equal(0, finder.GetPidPublic(IntPtr.Zero));
         }
 
         [Fact]
-        public void GetProcessInfo_ReturnsWindow_OnMinusOne()
+        public void GetProcessInfo_ReturnsWindow_OnUnknownPidSentinel()
         {
              var finder = new WindowFinderTestWrapper(_mockSettingsService.Object, _mockInterop.Object);
-             var (name, path) = finder.GetProcessInfoPublic(unchecked((uint)-1));
+             var (name, path) = finder.GetProcessInfoPublic(0);
              Assert.Equal("Window", name);
              Assert.Null(path);
         }

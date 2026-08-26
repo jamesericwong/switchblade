@@ -11,6 +11,7 @@ namespace SwitchBlade.Contracts
     /// - A scan that yields "Good" items (<see cref="WindowItem.IsFallback"/> == false) for a PID updates its LKG entry.
     /// - A scan that yields only fallback items for a PID whose process is still alive restores the LKG entry instead.
     /// - PIDs missing from a scan keep their LKG data while any of their windows remain valid; otherwise it is discarded.
+    /// - Windows with an unresolvable PID (0) are surfaced as-is, without LKG tracking.
     /// 
     /// The policy is stateful and thread-safe: call <see cref="Apply"/> with each raw scan result set
     /// to obtain the stabilized results to surface.
@@ -63,13 +64,17 @@ namespace SwitchBlade.Contracts
                 foreach (var group in currentPidGroups)
                 {
                     int pid = group.Key;
+                    var items = group.ToList();
+
                     if (pid == 0)
                     {
-                        continue; // Skip invalid PIDs
+                        // PID unresolvable: surface the windows as-is without LKG tracking —
+                        // they can't be grouped by process, so stabilization would mix unrelated windows.
+                        processedResults.AddRange(items);
+                        continue;
                     }
 
                     pidsSeenInThisScan.Add(pid);
-                    var items = group.ToList();
 
                     bool hasGoodItems = items.Any(i => !i.IsFallback);
 

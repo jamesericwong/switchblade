@@ -20,6 +20,10 @@ namespace SwitchBlade.Services
         private readonly Func<TimeSpan, IPeriodicTimer> _periodicTimerFactory;
         private readonly ILogger? _logger;
 
+        // Guards the CTS lifecycle and the disposed flag so a settings change racing with
+        // Dispose can neither resurrect polling nor double-dispose the source.
+        private readonly object _lifecycleLock = new();
+
         private CancellationTokenSource? _cts;
         private Task? _pollingTask;
         private bool _disposed;
@@ -46,30 +50,40 @@ namespace SwitchBlade.Services
             StartPolling();
         }
 
-        private void StartPolling()
+        // Internal (not public) so tests can exercise the dispose-race path deterministically:
+        // a settings change already in flight when Dispose runs must be able to reach here.
+        internal void StartPolling()
         {
-            // Cancel previous polling if any
-            StopPolling();
-
-            if (!_settingsService.Settings.EnableBackgroundPolling)
+            lock (_lifecycleLock)
             {
-                _logger?.Log("BackgroundPollingService: Polling disabled.");
-                return;
+                if (_disposed)
+                {
+                    return; // A settings change racing with shutdown must not resurrect polling.
+                }
+
+                // Cancel previous polling if any
+                StopPollingLocked();
+
+                if (!_settingsService.Settings.EnableBackgroundPolling)
+                {
+                    _logger?.Log("BackgroundPollingService: Polling disabled.");
+                    return;
+                }
+
+                int intervalMs = _settingsService.Settings.BackgroundPollingIntervalSeconds * 1000;
+                if (intervalMs < 1000)
+                {
+                    intervalMs = 1000; // Minimum 1 second
+                }
+
+                _cts = new CancellationTokenSource();
+                _pollingTask = PollingLoop(TimeSpan.FromMilliseconds(intervalMs), _cts.Token);
+
+                _logger?.Log($"BackgroundPollingService: Polling enabled with interval {intervalMs}ms.");
             }
-
-            int intervalMs = _settingsService.Settings.BackgroundPollingIntervalSeconds * 1000;
-            if (intervalMs < 1000)
-            {
-                intervalMs = 1000; // Minimum 1 second
-            }
-
-            _cts = new CancellationTokenSource();
-            _pollingTask = PollingLoop(TimeSpan.FromMilliseconds(intervalMs), _cts.Token);
-
-            _logger?.Log($"BackgroundPollingService: Polling enabled with interval {intervalMs}ms.");
         }
 
-        private void StopPolling()
+        private void StopPollingLocked()
         {
             if (_cts != null)
             {
@@ -129,15 +143,20 @@ namespace SwitchBlade.Services
 
         public void Dispose()
         {
-            if (_disposed)
+            lock (_lifecycleLock)
             {
-                return;
+                if (_disposed)
+                {
+                    return;
+                }
+
+                // Set under the same lock StartPolling checks, so a concurrent settings change
+                // can never start polling after this point.
+                _disposed = true;
+
+                _settingsService.SettingsChanged -= OnSettingsChanged;
+                StopPollingLocked();
             }
-
-            _disposed = true;
-
-            _settingsService.SettingsChanged -= OnSettingsChanged;
-            StopPolling();
         }
     }
 }
