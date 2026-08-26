@@ -2,6 +2,7 @@ using Xunit;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Windows.Automation;
 using SwitchBlade.Plugins.WindowsTerminal;
 using SwitchBlade.Contracts;
 using System.Linq;
@@ -177,6 +178,30 @@ namespace SwitchBlade.Tests.Plugins
             var result = WindowsTerminalPlugin.DeduplicateResults(_plugin, new Dictionary<int, List<WindowItem>>()).ToList();
 
             Assert.Empty(result);
+        }
+
+        [Fact]
+        public void RunTabScan_NonTransientResolutionFailure_Propagates()
+        {
+            // A genuine bug in root resolution must surface (scan coordinator's error path), not be swallowed.
+            var results = new List<WindowItem>();
+            Func<AutomationElement?> boom = () => throw new InvalidOperationException("real bug");
+
+            var ex = Record.Exception(() => _plugin.RunTabScan(new IntPtr(1), 42, "WindowsTerminal", null, "Term", new ScanDiagnostics(), results, boom));
+
+            Assert.IsType<InvalidOperationException>(ex);
+        }
+
+        [Fact]
+        public void RunTabScan_ResolverReturnsNull_AddsFallbackItem()
+        {
+            var results = new List<WindowItem>();
+
+            _plugin.RunTabScan(new IntPtr(1), 42, "WindowsTerminal", null, "Main Window", new ScanDiagnostics(), results, () => null);
+
+            var fallback = Assert.Single(results);
+            Assert.True(fallback.IsFallback);
+            Assert.Equal("Main Window", fallback.Title);
         }
     }
 }

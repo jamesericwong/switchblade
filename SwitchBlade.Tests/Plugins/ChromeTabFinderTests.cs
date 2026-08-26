@@ -1,6 +1,8 @@
 using Xunit;
 using Moq;
+using System;
 using System.Collections.Generic;
+using System.Windows.Automation;
 using SwitchBlade.Plugins.Chrome;
 using SwitchBlade.Contracts;
 using System.Linq;
@@ -121,6 +123,41 @@ namespace SwitchBlade.Tests.Plugins
 
             // Assert - HashSet with OrdinalIgnoreCase should dedupe
             Assert.Single(handled);
+        }
+
+        [Fact]
+        public void RunTabScan_NonTransientResolutionFailure_Propagates()
+        {
+            // A genuine bug in root resolution must surface (scan coordinator's error path), not be swallowed.
+            var results = new List<WindowItem>();
+            Func<AutomationElement?> boom = () => throw new InvalidOperationException("real bug");
+
+            var ex = Record.Exception(() => _plugin.RunTabScan(new IntPtr(1), 42, "chrome", null, "Win", new ScanDiagnostics(), results, boom));
+
+            Assert.IsType<InvalidOperationException>(ex);
+        }
+
+        [Fact]
+        public void RunTabScan_ResolverReturnsNull_AddsFallbackItem()
+        {
+            var results = new List<WindowItem>();
+
+            _plugin.RunTabScan(new IntPtr(1), 42, "chrome", null, "Main Window", new ScanDiagnostics(), results, () => null);
+
+            var fallback = Assert.Single(results);
+            Assert.True(fallback.IsFallback);
+            Assert.Equal("Main Window", fallback.Title);
+        }
+
+        [Fact]
+        public void ActivateWindow_DeadHwnd_ReturnsGracefully()
+        {
+            // A window that no longer exists must not throw out of activation (resolver degrades to null).
+            var item = new WindowItem { Hwnd = new IntPtr(0x12345678), Title = "Ghost Tab", Source = _plugin };
+
+            var ex = Record.Exception(() => _plugin.ActivateWindow(item));
+
+            Assert.Null(ex);
         }
     }
 }

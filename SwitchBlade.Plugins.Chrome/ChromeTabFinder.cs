@@ -5,6 +5,8 @@ using System.Windows.Automation;
 using System.Windows.Interop;
 using SwitchBlade.Contracts;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SwitchBlade.Tests")]
+
 namespace SwitchBlade.Plugins.Chrome
 {
     public class ChromeTabFinder : CachingWindowProviderBase
@@ -157,47 +159,51 @@ namespace SwitchBlade.Plugins.Chrome
                 return;
             }
 
+            RunTabScan(hwnd, pid, processName, executablePath, windowTitle, diagnostics, results,
+                () => UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger));
+        }
+
+        /// <summary>
+        /// Core per-window tab scan. Transient UIA failures are handled inside the shared primitives
+        /// (UiaSafe + ScanDiagnostics); non-transient exceptions propagate to the scan coordinator's
+        /// error path instead of being swallowed here.
+        /// </summary>
+        internal void RunTabScan(IntPtr hwnd, int pid, string processName, string? executablePath, string windowTitle, ScanDiagnostics diagnostics, List<WindowItem> results, Func<AutomationElement?> resolveRoot)
+        {
             var initialCount = results.Count;
 
-            try
+            // Use UiaElementResolver for robust multi-strategy element acquisition
+            var root = resolveRoot();
+            if (root == null)
             {
-                // Use UiaElementResolver for robust multi-strategy element acquisition
-                var root = UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger);
-                if (root == null)
-                {
-                    _logger?.Log($"{PluginName}: All UIA strategies failed for PID {pid}, marking scan as failed.");
-                }
-                else
-                {
-                    _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
-
-                    foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
-                    {
-                        var name = UiaTabScanner.GetTabName(tab, diagnostics);
-                        if (!string.IsNullOrWhiteSpace(name) && !ExcludedTabNames.Contains(name) && name != "New Tab" && name != "+")
-                        {
-                            results.Add(new WindowItem
-                            {
-                                Hwnd = hwnd,
-                                Title = name,
-                                ProcessName = processName,
-                                ExecutablePath = executablePath,
-                                Source = this
-                            });
-
-                            _logger?.Log($"    FOUND TAB: '{name}'");
-                        }
-                    }
-
-                    if (results.Count > initialCount)
-                    {
-                        _logger?.Log($"  Found {results.Count - initialCount} tabs.");
-                    }
-                }
+                _logger?.Log($"{PluginName}: All UIA strategies failed for PID {pid}, marking scan as failed.");
             }
-            catch (Exception ex)
+            else
             {
-                _logger?.LogError($"{PluginName}: Error scanning window {hwnd}", ex);
+                _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
+
+                foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
+                {
+                    var name = UiaTabScanner.GetTabName(tab, diagnostics);
+                    if (!string.IsNullOrWhiteSpace(name) && !ExcludedTabNames.Contains(name) && name != "New Tab" && name != "+")
+                    {
+                        results.Add(new WindowItem
+                        {
+                            Hwnd = hwnd,
+                            Title = name,
+                            ProcessName = processName,
+                            ExecutablePath = executablePath,
+                            Source = this
+                        });
+
+                        _logger?.Log($"    FOUND TAB: '{name}'");
+                    }
+                }
+
+                if (results.Count > initialCount)
+                {
+                    _logger?.Log($"  Found {results.Count - initialCount} tabs.");
+                }
             }
 
             // FALLBACK: If no tabs were added for this window (UIA failed OR found 0 tabs),
@@ -231,25 +237,21 @@ namespace SwitchBlade.Plugins.Chrome
                 return;
             }
 
-            try
+            // The resolver never throws (its strategy fallbacks are internal) and the shared scanner/activator
+            // handle transient UIA failures via UiaSafe, so no blanket catch is needed here.
+            NativeInterop.GetWindowThreadProcessId(item.Hwnd, out uint pid);
+            var root = UiaElementResolver.TryResolve(item.Hwnd, (int)pid, PluginName, _logger);
+            if (root == null)
             {
-                AutomationElement? root = AutomationElement.FromHandle(item.Hwnd);
-                if (root == null)
-                {
-                    return;
-                }
-
-                var tabElement = UiaTabScanner.FindTabs(root).FirstOrDefault(tab =>
-                    string.Equals(UiaTabScanner.GetTabName(tab), item.Title, StringComparison.Ordinal));
-
-                if (tabElement != null)
-                {
-                    ElementActivator.TryActivate(tabElement, UiaActivationStrategy.SelectionItem, UiaActivationStrategy.Invoke);
-                }
+                return;
             }
-            catch (Exception ex)
+
+            var tabElement = UiaTabScanner.FindTabs(root).FirstOrDefault(tab =>
+                string.Equals(UiaTabScanner.GetTabName(tab), item.Title, StringComparison.Ordinal));
+
+            if (tabElement != null)
             {
-                _logger?.LogError($"Error activating tab '{item.Title}'", ex);
+                ElementActivator.TryActivate(tabElement, UiaActivationStrategy.SelectionItem, UiaActivationStrategy.Invoke);
             }
         }
     }

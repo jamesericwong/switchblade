@@ -1,5 +1,7 @@
 using Xunit;
 using Moq;
+using System;
+using System.Windows.Automation;
 using SwitchBlade.Plugins.NotepadPlusPlus;
 using SwitchBlade.Contracts;
 using System.Linq;
@@ -97,6 +99,29 @@ namespace SwitchBlade.Tests.Plugins
             Assert.NotNull(windows);
             // Should be empty in a test environment (unless user has NPP open, but we can't control that)
             // Main check is that it doesn't throw E_FAIL or other exceptions
+        }
+
+        [Fact]
+        public void RunTabScan_NonTransientResolutionFailure_Propagates()
+        {
+            // A genuine bug in root resolution must surface (scan coordinator's error path), not be swallowed.
+            var results = new List<WindowItem>();
+            Func<AutomationElement?> boom = () => throw new InvalidOperationException("real bug");
+
+            var ex = Record.Exception(() => _plugin.RunTabScan(new IntPtr(1), 42, "notepad++", null, new ScanDiagnostics(), results, boom));
+
+            Assert.IsType<InvalidOperationException>(ex);
+        }
+
+        [Fact]
+        public void RunTabScan_ResolverReturnsNull_DeadHwnd_AddsNothing()
+        {
+            var results = new List<WindowItem>();
+
+            _plugin.RunTabScan(new IntPtr(0x12345678), 42, "notepad++", null, new ScanDiagnostics(), results, () => null);
+
+            // Fallback reads the (nonexistent) window title via Win32 and adds nothing for a dead HWND
+            Assert.Empty(results);
         }
     }
 }

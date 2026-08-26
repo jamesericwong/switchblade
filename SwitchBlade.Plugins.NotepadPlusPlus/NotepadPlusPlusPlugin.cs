@@ -6,6 +6,8 @@ using System.Windows.Automation;
 using System.Windows.Interop;
 using SwitchBlade.Contracts;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SwitchBlade.Tests")]
+
 namespace SwitchBlade.Plugins.NotepadPlusPlus
 {
     /// <summary>
@@ -125,26 +127,30 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
 
         private void ScanWindow(IntPtr hwnd, int pid, string processName, string? executablePath, ScanDiagnostics diagnostics, List<WindowItem> results)
         {
+            RunTabScan(hwnd, pid, processName, executablePath, diagnostics, results, () => TryGetAutomationElement(hwnd, pid));
+        }
+
+        /// <summary>
+        /// Core per-window tab scan. Transient UIA failures are handled inside the shared primitives
+        /// (UiaSafe + ScanDiagnostics); non-transient exceptions propagate to the scan coordinator's
+        /// error path instead of being swallowed here.
+        /// </summary>
+        internal void RunTabScan(IntPtr hwnd, int pid, string processName, string? executablePath, ScanDiagnostics diagnostics, List<WindowItem> results, Func<AutomationElement?> resolveRoot)
+        {
             var tabNames = new List<string>();
-            try
+
+            // Safe UIA access to handle E_FAIL (the resolver's strategy fallbacks are internal and never throw)
+            var root = resolveRoot();
+            if (root != null)
             {
-                // Safe UIA access to handle E_FAIL
-                var root = TryGetAutomationElement(hwnd, pid);
-                if (root != null)
+                foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
                 {
-                    foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
+                    var name = UiaTabScanner.GetTabName(tab, diagnostics);
+                    if (!string.IsNullOrWhiteSpace(name))
                     {
-                        var name = UiaTabScanner.GetTabName(tab, diagnostics);
-                        if (!string.IsNullOrWhiteSpace(name))
-                        {
-                            tabNames.Add(name);
-                        }
+                        tabNames.Add(name);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError($"{PluginName}: Error scanning UIA tree", ex);
             }
 
             if (tabNames.Count > 0)
@@ -196,26 +202,21 @@ namespace SwitchBlade.Plugins.NotepadPlusPlus
             {
                 System.Threading.Thread.Sleep(50); // Brief wait for window activation
 
-                try
+                // The resolver never throws and the shared scanner/activator handle transient UIA failures
+                // via UiaSafe, so no blanket catch is needed here.
+                NativeInterop.GetWindowThreadProcessId(item.Hwnd, out uint pid);
+                var root = TryGetAutomationElement(item.Hwnd, (int)pid);
+                if (root == null)
                 {
-                    NativeInterop.GetWindowThreadProcessId(item.Hwnd, out uint pid);
-                    var root = TryGetAutomationElement(item.Hwnd, (int)pid);
-                    if (root == null)
-                    {
-                        return;
-                    }
-
-                    var tabElement = UiaTabScanner.FindTabs(root).FirstOrDefault(tab =>
-                        string.Equals(UiaTabScanner.GetTabName(tab), item.Title, StringComparison.Ordinal));
-
-                    if (tabElement != null)
-                    {
-                        ElementActivator.TryActivate(tabElement, UiaActivationStrategy.SelectionItem, UiaActivationStrategy.Invoke);
-                    }
+                    return;
                 }
-                catch (Exception ex)
+
+                var tabElement = UiaTabScanner.FindTabs(root).FirstOrDefault(tab =>
+                    string.Equals(UiaTabScanner.GetTabName(tab), item.Title, StringComparison.Ordinal));
+
+                if (tabElement != null)
                 {
-                    _logger?.LogError($"{PluginName}: Error activating tab '{item.Title}'", ex);
+                    ElementActivator.TryActivate(tabElement, UiaActivationStrategy.SelectionItem, UiaActivationStrategy.Invoke);
                 }
             }
         }
