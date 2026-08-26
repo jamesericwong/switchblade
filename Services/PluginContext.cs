@@ -1,7 +1,10 @@
-namespace SwitchBlade.Contracts
+using SwitchBlade.Contracts;
+
+namespace SwitchBlade.Services
 {
     /// <summary>
-    /// Default implementation of IPluginContext.
+    /// Default implementation of IPluginContext. App-only: the UIA worker builds its own context,
+    /// so this concrete class no longer belongs in the shared Contracts kernel.
     /// </summary>
     public class PluginContext : IPluginContext
     {

@@ -1,5 +1,9 @@
-namespace SwitchBlade.Contracts
+namespace SwitchBlade.Services
 {
+    /// <summary>
+    /// App-only UI service (message boxes, restart, admin check). Lives in the main assembly —
+    /// not part of the shared Contracts kernel consumed by plugins and the UIA worker.
+    /// </summary>
     public interface IUIService
     {
         System.Windows.MessageBoxResult ShowMessageBox(string message, string title, System.Windows.MessageBoxButton button, System.Windows.MessageBoxImage icon);

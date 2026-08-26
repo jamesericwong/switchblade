@@ -1,6 +1,7 @@
 using Xunit;
 using Moq;
 using SwitchBlade.Contracts;
+using SwitchBlade.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
