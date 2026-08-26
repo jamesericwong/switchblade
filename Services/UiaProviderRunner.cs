@@ -12,10 +12,11 @@ namespace SwitchBlade.Services
     /// Runs UIA providers out-of-process via the UIA Worker Client with streaming.
     /// Uses a separate lock so slow UIA scans don't block core window updates.
     /// </summary>
-    public class UiaProviderRunner(IUiaWorkerClient uiaWorkerClient, ILogger? logger = null) : IProviderRunner, IDisposable
+    public class UiaProviderRunner(IUiaWorkerClient uiaWorkerClient, ILogger? logger = null, IProcessLivenessChecker? liveness = null) : IProviderRunner, IDisposable
     {
         private readonly IUiaWorkerClient _uiaWorkerClient = uiaWorkerClient ?? throw new ArgumentNullException(nameof(uiaWorkerClient));
         private readonly ILogger? _logger = logger;
+        private readonly IProcessLivenessChecker _liveness = liveness ?? throw new ArgumentNullException(nameof(liveness));
         private readonly SemaphoreSlim _uiaRefreshLock = new(1, 1);
         private bool _disposed;
 
@@ -125,14 +126,34 @@ namespace SwitchBlade.Services
                             continue;
                         }
 
-                        _logger?.Log($"[UIA] Plugin {provider.PluginName} never reported results - clearing stale windows.");
                         try
                         {
+                            // Liveness gate: a failed scan cycle is more likely than all of the plugin's
+                            // windows having disappeared — if its target process is still running, keep
+                            // the last-known-good items instead of clearing them.
+                            bool anyTargetAlive = false;
+                            if (provider is IProviderExclusionSettings exclusion)
+                            {
+                                var handled = exclusion.GetHandledProcesses();
+                                if (handled.Any())
+                                {
+                                    anyTargetAlive = _liveness.IsAnyRunning(handled);
+                                }
+                            }
+
+                            if (anyTargetAlive)
+                            {
+                                _logger?.Log($"[UIA] Plugin {provider.PluginName} never reported results, but its target process is still running - keeping last-known-good items.");
+                                continue;
+                            }
+
+                            _logger?.Log($"[UIA] Plugin {provider.PluginName} never reported results - clearing stale windows.");
                             onResults(provider, []);
                         }
                         catch (Exception ex)
                         {
-                            _logger?.LogError($"Failed to clear stale windows for plugin {provider.PluginName}", ex);
+                            // Best-effort cleanup must never break the refresh lock lifecycle or skip other providers.
+                            _logger?.LogError($"Failed to process never-reported plugin {provider.PluginName}", ex);
                         }
                     }
 

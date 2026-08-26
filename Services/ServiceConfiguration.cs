@@ -124,7 +124,7 @@ namespace SwitchBlade.Services
                     uiaWorkerClient,
                     nativeInterop,
                     new InProcessProviderRunner(logger),
-                    new UiaProviderRunner(uiaWorkerClient, logger),
+                    new UiaProviderRunner(uiaWorkerClient, logger, new SystemProcessLivenessChecker()),
                     logger);
             });
 

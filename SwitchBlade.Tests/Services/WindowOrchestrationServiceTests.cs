@@ -133,7 +133,8 @@ namespace SwitchBlade.Tests.Services
         {
             var workerClient = worker ?? new NullUiaWorkerClient();
             var fastRunner = new InProcessProviderRunner(logger);
-            var uiaRunner = new UiaProviderRunner(workerClient, logger);
+            // Loose mock: IsAnyRunning returns false by default, preserving the clear-on-never-reported behavior.
+            var uiaRunner = new UiaProviderRunner(workerClient, logger, new Mock<IProcessLivenessChecker>().Object);
 
             return new WindowOrchestrationService(
                 providers,

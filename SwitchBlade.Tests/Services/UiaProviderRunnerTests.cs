@@ -14,25 +14,33 @@ namespace SwitchBlade.Tests.Services
     {
         private readonly Mock<IUiaWorkerClient> _mockClient;
         private readonly Mock<ILogger> _mockLogger;
+        // Loose mock: IsAnyRunning returns false by default (target process "dead"), preserving clear-on-never-reported.
+        private readonly Mock<IProcessLivenessChecker> _liveness = new();
         private readonly UiaProviderRunner _runner;
 
         public UiaProviderRunnerTests()
         {
             _mockClient = new Mock<IUiaWorkerClient>();
             _mockLogger = new Mock<ILogger>();
-            _runner = new UiaProviderRunner(_mockClient.Object, _mockLogger.Object);
+            _runner = new UiaProviderRunner(_mockClient.Object, _mockLogger.Object, _liveness.Object);
         }
 
         [Fact]
         public void Constructor_NullClient_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => new UiaProviderRunner(null!, _mockLogger.Object));
+            Assert.Throws<ArgumentNullException>(() => new UiaProviderRunner(null!, _mockLogger.Object, _liveness.Object));
+        }
+
+        [Fact]
+        public void Constructor_NullLiveness_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() => new UiaProviderRunner(_mockClient.Object, _mockLogger.Object, null!));
         }
 
         [Fact]
         public void Constructor_NullLogger_Works()
         {
-            var noLoggerRunner = new UiaProviderRunner(_mockClient.Object, null);
+            var noLoggerRunner = new UiaProviderRunner(_mockClient.Object, null, _liveness.Object);
             Assert.NotNull(noLoggerRunner);
             noLoggerRunner.Dispose();
         }
@@ -254,6 +262,95 @@ namespace SwitchBlade.Tests.Services
             Assert.Equal(["P2"], cleared);
         }
 
+        [Fact]
+        public async Task RunAsync_NeverReported_TargetProcessAlive_KeepsLastKnownGood()
+        {
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.Setup(p => p.PluginName).Returns("P1");
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(["chrome"]);
+
+            _liveness.Setup(l => l.IsAnyRunning(It.Is<IEnumerable<string>>(n => n.Contains("chrome")))).Returns(true);
+
+            // Empty stream: the worker died before reporting anything.
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResults());
+
+            var calls = new List<(string Provider, int Count)>();
+            await _runner.RunAsync([mockProvider.Object], [], [], (p, items) => calls.Add((p.PluginName, items.Count)));
+
+            await WaitForBackgroundTaskAsync(_runner);
+
+            // Target process still running: a failed scan cycle is more likely than all tabs disappearing — keep LKG.
+            Assert.Empty(calls);
+        }
+
+        [Fact]
+        public async Task RunAsync_NeverReported_TargetProcessAlive_NullLogger_KeepsLastKnownGood()
+        {
+            // Null-logger variant of the alive path: keeps LKG and survives without a logger.
+            var noLoggerRunner = new UiaProviderRunner(_mockClient.Object, null, _liveness.Object);
+
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.Setup(p => p.PluginName).Returns("P1");
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(["chrome"]);
+
+            _liveness.Setup(l => l.IsAnyRunning(It.IsAny<IEnumerable<string>>())).Returns(true);
+
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResults());
+
+            var calls = new List<(string Provider, int Count)>();
+            await noLoggerRunner.RunAsync([mockProvider.Object], [], [], (p, items) => calls.Add((p.PluginName, items.Count)));
+
+            await WaitForBackgroundTaskAsync(noLoggerRunner);
+
+            Assert.Empty(calls);
+            noLoggerRunner.Dispose();
+        }
+
+        [Fact]
+        public async Task RunAsync_NeverReported_TargetProcessDead_ClearsStaleWindows()
+        {
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.Setup(p => p.PluginName).Returns("P1");
+            mockProvider.As<IProviderExclusionSettings>().Setup(p => p.GetHandledProcesses()).Returns(["chrome"]);
+
+            _liveness.Setup(l => l.IsAnyRunning(It.IsAny<IEnumerable<string>>())).Returns(false);
+
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResults());
+
+            var calls = new List<(string Provider, int Count)>();
+            await _runner.RunAsync([mockProvider.Object], [], [], (p, items) => calls.Add((p.PluginName, items.Count)));
+
+            await WaitForBackgroundTaskAsync(_runner);
+
+            // Target process gone: stale windows must be cleared so true ghosts don't linger.
+            var call = Assert.Single(calls);
+            Assert.Equal("P1", call.Provider);
+            Assert.Equal(0, call.Count);
+        }
+
+        [Fact]
+        public async Task RunAsync_NeverReported_NoHandledProcesses_ClearsStaleWindows()
+        {
+            // Provider that declares no target processes: liveness can't be verified, so clear as before.
+            var mockProvider = new Mock<IWindowProvider>();
+            mockProvider.Setup(p => p.PluginName).Returns("P1");
+
+            _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
+                       .Returns(GetResults());
+
+            var calls = new List<(string Provider, int Count)>();
+            await _runner.RunAsync([mockProvider.Object], [], [], (p, items) => calls.Add((p.PluginName, items.Count)));
+
+            await WaitForBackgroundTaskAsync(_runner);
+
+            var call = Assert.Single(calls);
+            Assert.Equal("P1", call.Provider);
+            Assert.Equal(0, call.Count);
+        }
+
         #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         private static async IAsyncEnumerable<UiaPluginResult> GetResultsThenThrow(params UiaPluginResult[] results)
         {
@@ -306,7 +403,7 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task RunAsync_NullLogger_Exception_Handled()
         {
-            var noLoggerRunner = new UiaProviderRunner(_mockClient.Object, null);
+            var noLoggerRunner = new UiaProviderRunner(_mockClient.Object, null, _liveness.Object);
             _mockClient.Setup(c => c.ScanStreamingAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), default))
                        .Throws(new Exception("Stream failure"));
 
