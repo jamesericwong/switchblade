@@ -316,6 +316,25 @@ namespace SwitchBlade.Handlers
             }
         }
 
+        /// <summary>
+        /// Pulses badges for rows renumbered by an update pass (option C), so streamed re-sorts read as intentional
+        /// updates. No-op when badge animations are disabled or no animator is attached.
+        /// </summary>
+        public void OnItemsRenumbered(object? sender, IReadOnlyList<WindowItem>? items)
+        {
+            if (_badgeAnimations == null || !_settingsService.Settings.EnableBadgeAnimations || items == null)
+            {
+                return;
+            }
+
+            // Non-null: guarded above.
+            var badgeAnimations = _badgeAnimations;
+            foreach (var item in items)
+            {
+                badgeAnimations.PulseRenumber(item);
+            }
+        }
+
         /// <summary>Handles a search-text change: defers the animation reset to the next results update.</summary>
         public void OnSearchTextChanged(object? sender, EventArgs e)
         {

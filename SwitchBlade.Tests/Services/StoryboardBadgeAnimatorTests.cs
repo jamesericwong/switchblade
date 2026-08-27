@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using SwitchBlade.Contracts;
 using SwitchBlade.Services;
 using Xunit;
@@ -42,6 +43,38 @@ namespace SwitchBlade.Tests.Services
 
             Assert.Equal(1.0, item.BadgeOpacity);
             Assert.Equal(0.0, item.BadgeTranslateX);
+        }
+
+        [Fact]
+        public void Animate_AlreadyCancelledToken_LeavesVisibleBadgeUntouched()
+        {
+            // C contract: a superseded cycle must not hide or re-apply state to badges the newer trigger owns —
+            // an already-visible badge stays exactly as-is when its animator work is cancelled.
+            var item = new WindowItem { Hwnd = new IntPtr(43), Title = "orphan", Source = null };
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            var animator = new StoryboardBadgeAnimator(_dispatcher, _ => null);
+            item.BadgeOpacity = 1.0; // visible state from the superseding cycle
+            item.BadgeTranslateX = 0.0;
+
+            var ex = Record.Exception(() => animator.Animate(item, delayMs: 0, durationMs: 150, startingOffsetX: -20, cts.Token));
+
+            Assert.Null(ex);
+            Assert.Equal(1.0, item.BadgeOpacity);
+            Assert.Equal(0.0, item.BadgeTranslateX);
+        }
+
+        [Fact]
+        public void PulseRenumber_ContainerNotFound_DoesNotThrow()
+        {
+            // Option C: renumbering a row whose container is not realized must be a safe no-op (nothing to pulse).
+            var item = new WindowItem { Hwnd = new IntPtr(44), Title = "orphan", Source = null };
+            var animator = new StoryboardBadgeAnimator(_dispatcher, _ => null);
+
+            var ex = Record.Exception(() => animator.PulseRenumber(item));
+
+            Assert.Null(ex);
         }
     }
 }

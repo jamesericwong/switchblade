@@ -136,6 +136,7 @@ namespace SwitchBlade
             _controller.SetBadgeAnimationService(_badgeAnimationService);
             _viewModel.ResultsUpdated += _controller.OnResultsUpdated;
             _viewModel.SearchTextChanged += _controller.OnSearchTextChanged;
+            _viewModel.Renumbered += _controller.OnItemsRenumbered;
 
             // Interaction handlers from UserControl
             ResultsConfig.PreviewItemRequested += ResultList_PreviewItemRequested;

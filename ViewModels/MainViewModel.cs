@@ -36,6 +36,12 @@ namespace SwitchBlade.ViewModels
         /// <summary>Event fired when search text changes (user typing).</summary>
         public event EventHandler? SearchTextChanged;
 
+        /// <summary>
+        /// Event fired when an update pass renumbered one or more rows. Handlers use this to give the affected
+        /// badges a brief pulse so streamed re-sorts read as intentional updates instead of silent jumps (option C).
+        /// </summary>
+        public event EventHandler<IReadOnlyList<WindowItem>>? Renumbered;
+
         /// <summary>Event fired when settings opening is requested.</summary>
         public event EventHandler? OpenSettingsRequested;
 
@@ -226,10 +232,26 @@ namespace SwitchBlade.ViewModels
                     // Sync collection in-place
                     SyncCollection(FilteredWindows, sortedResults);
 
-                    // Update shortcut indices
+                    // Update shortcut indices. Capture rows whose number changed so the view can pulse those badges
+                    // (option C); unchanged rows never fire, so steady-state passes stay side-effect free.
+                    List<WindowItem>? renumbered = null;
                     for (int i = 0; i < FilteredWindows.Count; i++)
                     {
-                        FilteredWindows[i].ShortcutIndex = (i < 10) ? i : -1;
+                        var item = FilteredWindows[i];
+                        int newIndex = (i < 10) ? i : -1;
+
+                        if (item.ShortcutIndex != newIndex)
+                        {
+                            renumbered ??= [];
+                            renumbered.Add(item);
+                        }
+
+                        item.ShortcutIndex = newIndex;
+                    }
+
+                    if (renumbered is not null)
+                    {
+                        Renumbered?.Invoke(this, renumbered);
                     }
 
                     // Delegate selection resolution to navigation service

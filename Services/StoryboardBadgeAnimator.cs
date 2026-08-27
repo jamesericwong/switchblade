@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -28,10 +29,16 @@ namespace SwitchBlade.Services
             _containerResolver = containerResolver ?? throw new ArgumentNullException(nameof(containerResolver));
         }
 
-        public void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX)
+        public void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX, CancellationToken cancellationToken = default)
         {
             _dispatcherService.InvokeAsync(async () =>
             {
+                // A superseded cycle must not touch badges at all — the newer trigger owns them now.
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 // 1. Immediately reset ViewModel state so the badge is 'ready' for animation
                 // This ensures it stays hidden during any potential layout wait or stagger delay.
                 item.BadgeOpacity = 0.0;
@@ -50,7 +57,14 @@ namespace SwitchBlade.Services
                     }
 
                     attempts++;
-                    await System.Threading.Tasks.Task.Delay(25);
+                    try
+                    {
+                        await System.Threading.Tasks.Task.Delay(25, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return; // Superseded mid-poll: the newer cycle owns these badges.
+                    }
                 }
 
                 if (container == null)
@@ -117,9 +131,41 @@ namespace SwitchBlade.Services
                     transform.BeginAnimation(TranslateTransform.XProperty, null);
                 };
 
+                // Cancellation may arrive between container resolution and apply — check once more so a superseded
+                // cycle never starts animations the newer trigger has already replaced.
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 // 8. Apply animations directly to visual elements
                 badgeBorder.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
                 transform.BeginAnimation(TranslateTransform.XProperty, translateAnim);
+            });
+        }
+
+        /// <summary>
+        /// Brief opacity pulse for a badge whose number changed while it was on screen (option C): the fade is subtle
+        /// by design — it signals "this row's number updated" without competing with the entry animation, which keeps
+        /// owning its own properties. No HoldEnd: when done, the BadgeOpacity binding reasserts.
+        /// </summary>
+        public void PulseRenumber(WindowItem item)
+        {
+            _dispatcherService.Invoke(() =>
+            {
+                var container = _containerResolver(item);
+                if (container == null)
+                {
+                    return; // Row not realized yet: nothing to pulse — the badge will slide in with its new number.
+                }
+
+                var badge = FindChild<Border>(container, "NumberBadge");
+                if (badge == null)
+                {
+                    return;
+                }
+
+                badge.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.35, 1.0, TimeSpan.FromMilliseconds(120)));
             });
         }
 

@@ -34,7 +34,7 @@ namespace SwitchBlade.Tests.Services
         public async Task Trigger_NullItems_ReturnsImmediately()
         {
             await _service.TriggerStaggeredAnimationAsync(null);
-            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
         }
 
         [Fact]
@@ -100,7 +100,7 @@ namespace SwitchBlade.Tests.Services
             // Verification is tricky with loose mocks, but we expect only 1 animation cycle
             // actually validating distinct cancellation is hard without checking token
             
-            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.AtMost(1));
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.AtMost(1));
         }
 
         [Fact]
@@ -114,6 +114,25 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
+        public void PulseRenumber_ForwardsToAnimator()
+        {
+            var item = new WindowItem { Title = "renumbered" };
+
+            _service.PulseRenumber(item);
+
+            _mockAnimator.Verify(a => a.PulseRenumber(item), Times.Once());
+        }
+
+        [Fact]
+        public void PulseRenumber_NullItem_ThrowsArgumentNullException()
+        {
+            var ex = Record.Exception(() => _service.PulseRenumber(null!));
+
+            Assert.IsType<ArgumentNullException>(ex);
+            _mockAnimator.Verify(a => a.PulseRenumber(It.IsAny<WindowItem>()), Times.Never());
+        }
+
+        [Fact]
         public async Task Trigger_AlreadyAnimatedItems_SkipsAnimationButSetsVisibility()
         {
             var item = new WindowItem { Title = "T1", ShortcutIndex = 1, HasBeenAnimated = true };
@@ -121,7 +140,7 @@ namespace SwitchBlade.Tests.Services
             
             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
             
-            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
             Assert.Equal(1.0, item.BadgeOpacity);
             Assert.Equal(0.0, item.BadgeTranslateX);
         }
@@ -141,8 +160,8 @@ namespace SwitchBlade.Tests.Services
             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
 
             // Verify animations were triggered with correct delays passed to Animator
-            _mockAnimator.Verify(a => a.Animate(items[0], 0, 100, It.IsAny<double>()), Times.Once());
-            _mockAnimator.Verify(a => a.Animate(items[1], 4 * 50, 100, It.IsAny<double>()), Times.Once());
+            _mockAnimator.Verify(a => a.Animate(items[0], 0, 100, It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once());
+            _mockAnimator.Verify(a => a.Animate(items[1], 4 * 50, 100, It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once());
         }
 
         [Fact]
@@ -168,7 +187,7 @@ namespace SwitchBlade.Tests.Services
 
              // Before animating, it should have reset Opacity to 0 (via ResetBadgeAnimation)
              // and then animator handles it. 
-             _mockAnimator.Verify(a => a.Animate(item, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
+             _mockAnimator.Verify(a => a.Animate(item, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once());
              Assert.True(item.HasBeenAnimated);
         }
 
@@ -203,7 +222,7 @@ namespace SwitchBlade.Tests.Services
             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: false);
 
             // Assert
-            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
         }
 
         [Fact]
@@ -220,7 +239,7 @@ namespace SwitchBlade.Tests.Services
 
             // Assert
             // Animation should have still been triggered
-            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once());
         }
 
         [Fact]
@@ -234,11 +253,11 @@ namespace SwitchBlade.Tests.Services
             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
 
             // item1 should be animated (HasBeenAnimated = true)
-            _mockAnimator.Verify(a => a.Animate(item1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Once());
+            _mockAnimator.Verify(a => a.Animate(item1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once());
             Assert.True(item1.HasBeenAnimated);
 
             // item2 should be skipped (continue branch)
-            _mockAnimator.Verify(a => a.Animate(item2, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.Never());
+            _mockAnimator.Verify(a => a.Animate(item2, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
             Assert.False(item2.HasBeenAnimated);
         }
 
@@ -260,7 +279,7 @@ namespace SwitchBlade.Tests.Services
             await Task.WhenAll(task1, task2);
 
             // One of them should have been cancelled before completing all items
-            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()), Times.AtMost(3)); 
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.AtMost(3)); 
             }
 
         [Fact]
@@ -299,7 +318,7 @@ namespace SwitchBlade.Tests.Services
             
             int callCount = 0;
             // Mock animator to trigger cancellation of task1 when item1 is "animated"
-            _mockAnimator.Setup(a => a.Animate(item1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>()))
+            _mockAnimator.Setup(a => a.Animate(item1, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
                 .Callback(() => {
                     // Only trigger cancellation once to avoid infinite recursion
                     if (Interlocked.Increment(ref callCount) == 1)
@@ -313,6 +332,45 @@ namespace SwitchBlade.Tests.Services
             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
 
             // This should hit line 117 after item1 but before item2
+        }
+
+        [Fact]
+        public async Task Trigger_SupersededCycle_AnimatorReceivesCancelledToken()
+        {
+            // C contract: a superseded trigger cycle must hand its animator a token that is cancelled, so the
+            // animator stops before touching badges it never started. Regression test for overlapping cascades.
+            var item = new WindowItem { ShortcutIndex = 1 };
+            var items = new List<WindowItem> { item };
+
+            CancellationToken firstCycleToken = default;
+            bool recorded = false;
+            _mockAnimator.Setup(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
+                .Callback<WindowItem, int, int, double, CancellationToken>((_, _, _, _, ct) =>
+                {
+                    if (!recorded)
+                    {
+                        firstCycleToken = ct;
+                        recorded = true;
+                    }
+                });
+
+            // Cycle 1: skipDebounce, so its only delay is the final wait — hold it pending.
+            var tcs = new TaskCompletionSource();
+            _mockDelayProvider.SetupSequence(d => d.Delay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns(tcs.Task)          // cycle 1's final wait: held
+                .Returns(Task.CompletedTask); // cycle 2's final wait: completes
+
+            var task1 = _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+            Assert.True(recorded);
+            Assert.False(firstCycleToken.IsCancellationRequested);
+
+            // Cycle 2 supersedes cycle 1 -> cancels its CTS.
+            await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
+
+            Assert.True(firstCycleToken.IsCancellationRequested, "cycle-1 token must be cancelled once cycle 2 supersedes it");
+
+            tcs.SetResult();
+            await task1; // completes gracefully (OCE path is handled inside the service)
         }
 
         [Fact]

@@ -69,6 +69,12 @@ namespace SwitchBlade.Services
         }
 
         /// <summary>
+        /// Pulses the badge of an item whose shortcut number changed while it was on screen (option C),
+        /// so streamed re-sorts read as intentional updates instead of silent jumps.
+        /// </summary>
+        public void PulseRenumber(WindowItem? item) => _animator.PulseRenumber(item ?? throw new ArgumentNullException(nameof(item)));
+
+        /// <summary>
         /// Triggers staggered animations for the given window items.
         /// Only items with shortcuts (index 0-9) and not previously animated will animate.
         /// Uses debouncing: if called again within DebounceMs, the previous call is cancelled.
@@ -141,8 +147,9 @@ namespace SwitchBlade.Services
                 {
                     int delay = item.ShortcutIndex * StaggerDelayMs;
 
-                    // Delegate execution to the strategy
-                    _animator.Animate(item, delay, AnimationDurationMs, StartingOffsetX);
+                    // Delegate execution to the strategy. The token ties the animation to this cycle: if a newer
+                    // trigger supersedes it, the animator must stop before touching badges that haven't started yet.
+                    _animator.Animate(item, delay, AnimationDurationMs, StartingOffsetX, ct);
 
                     // Mark as animated immediately so we don't re-animate on next pass
                     item.HasBeenAnimated = true;

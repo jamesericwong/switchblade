@@ -66,7 +66,10 @@ namespace SwitchBlade.Tests.Handlers
         private sealed class FakeBadgeAnimator : IBadgeAnimator
         {
             public List<WindowItem> AnimatedItems { get; } = [];
-            public void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX) => AnimatedItems.Add(item);
+            public List<WindowItem> PulsedItems { get; } = [];
+
+            public void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX, CancellationToken cancellationToken = default) => AnimatedItems.Add(item);
+            public void PulseRenumber(WindowItem item) => PulsedItems.Add(item);
         }
 
         /// <summary>Records requested delays (so debounce vs skip-debounce is observable) without actually waiting.</summary>
@@ -623,6 +626,53 @@ namespace SwitchBlade.Tests.Handlers
 
             Assert.True(a.HasBeenAnimated); // reset branch skipped without the service
             Assert.Empty(ctx.Animator.AnimatedItems);
+        }
+
+        [Fact]
+        public void OnItemsRenumbered_AnimationsEnabled_PulsesEachBadgeInOrder()
+        {
+            var ctx = new TestContext().WithBadges();
+            var a = TestContext.Item("A");
+            var b = TestContext.Item("B");
+
+            ctx.Controller.OnItemsRenumbered(null, [a, b]);
+
+            Assert.Equal(2, ctx.Animator.PulsedItems.Count);
+            Assert.Same(a, ctx.Animator.PulsedItems[0]);
+            Assert.Same(b, ctx.Animator.PulsedItems[1]);
+        }
+
+        [Fact]
+        public void OnItemsRenumbered_AnimationsDisabled_DoesNotPulse()
+        {
+            var ctx = new TestContext().WithBadges();
+            ctx.Settings.EnableBadgeAnimations = false;
+            var a = TestContext.Item("A");
+
+            ctx.Controller.OnItemsRenumbered(null, [a]);
+
+            Assert.Empty(ctx.Animator.PulsedItems);
+        }
+
+        [Fact]
+        public void OnItemsRenumbered_NoBadgeService_DoesNothing()
+        {
+            var ctx = new TestContext(); // badge service never attached
+            var a = TestContext.Item("A");
+
+            ctx.Controller.OnItemsRenumbered(null, [a]); // must not throw
+
+            Assert.Empty(ctx.Animator.PulsedItems);
+        }
+
+        [Fact]
+        public void OnItemsRenumbered_NullItems_DoesNotThrow()
+        {
+            var ctx = new TestContext().WithBadges();
+
+            Record.Exception(() => ctx.Controller.OnItemsRenumbered(null, null!));
+
+            Assert.Empty(ctx.Animator.PulsedItems);
         }
 
         [Fact]
