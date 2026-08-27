@@ -48,6 +48,20 @@ namespace SwitchBlade.Tests.Contracts
             Assert.False(UiaTabScanner.IsTabElement(null, null));
         }
 
+        /// <summary>
+        /// Regression (v1.9.17 tab-discovery): Notepad++'s SysTabControl32 and Windows Terminal's XAML TabView
+        /// expose ControlType.Tab with LocalizedControlType "tab" and hold the real TabItem entries as children.
+        /// The predicate must reject the container itself so the BFS descends into it — collecting it as a leaf
+        /// tab swallowed all 92 Notepad++ / 6 Terminal tabs on live trees.
+        /// </summary>
+        [Theory]
+        [InlineData("tab")]
+        [InlineData("TAB")]
+        [InlineData("tab item")]
+        [InlineData("Tab Item")]
+        public void IsTabElement_TabControlContainer_ReturnsFalse(string localizedControlType) =>
+            Assert.False(UiaTabScanner.IsTabElement(ControlType.Tab, localizedControlType));
+
         [Fact]
         public void DefaultMaxContainers_IsTheMaximumHistoricalPerPluginCap() =>
             Assert.Equal(200, UiaTabScanner.DefaultMaxContainers); // Chrome 100 / Terminal 200 / NPP 50.

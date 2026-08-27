@@ -34,9 +34,18 @@ namespace SwitchBlade.Contracts
         /// Determines whether an element is a tab by control type or localized control type literal.
         /// Pure function of the two property values so it can be unit-tested without a live UIA tree.
         /// </summary>
+        /// <remarks>
+        /// A <see cref="ControlType.Tab"/> container (Notepad++'s SysTabControl32, Windows Terminal's XAML TabView)
+        /// reports LocalizedControlType "tab" and holds the real TabItem entries as children. It must NOT be
+        /// collected by the literal — FindTabs treats matched elements as leaves it never descends into, so
+        /// collecting the container would swallow its tab items (v1.9.17 zero-tab regression). ControlType.Tab
+        /// stays expandable; its children are still matched via TabItem or the "tab item" literal.
+        /// </remarks>
         public static bool IsTabElement(ControlType? controlType, string? localizedControlType) =>
             controlType == ControlType.TabItem ||
-            (localizedControlType != null && TabLocalizedControlTypes.Contains(localizedControlType));
+            (localizedControlType != null &&
+             TabLocalizedControlTypes.Contains(localizedControlType) &&
+             controlType != ControlType.Tab);
 
         /// <summary>
         /// Finds tab elements under <paramref name="root"/> using BFS with Document pruning; falls back to a
