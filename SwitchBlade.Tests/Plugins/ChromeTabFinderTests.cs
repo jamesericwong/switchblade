@@ -126,15 +126,19 @@ namespace SwitchBlade.Tests.Plugins
         }
 
         [Fact]
-        public void RunTabScan_NonTransientResolutionFailure_Propagates()
+        public void RunTabScan_ResolutionThrows_IsolatesErrorAndAddsFallback()
         {
-            // A genuine bug in root resolution must surface (scan coordinator's error path), not be swallowed.
+            // Per-window isolation (TeamsPlugin parity / v1.9.16 behavior): a window whose scan throws must not
+            // abort the whole run and discard sibling windows' results — it is logged, and the main-window
+            // fallback for this window still runs so LKG keeps the PID alive.
             var results = new List<WindowItem>();
             Func<AutomationElement?> boom = () => throw new InvalidOperationException("real bug");
 
             var ex = Record.Exception(() => _plugin.RunTabScan(new IntPtr(1), 42, "chrome", null, "Win", new ScanDiagnostics(), results, boom));
 
-            Assert.IsType<InvalidOperationException>(ex);
+            Assert.Null(ex);
+            var fallback = Assert.Single(results);
+            Assert.True(fallback.IsFallback);
         }
 
         [Fact]

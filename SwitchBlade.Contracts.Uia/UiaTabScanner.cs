@@ -122,19 +122,15 @@ namespace SwitchBlade.Contracts
         }
 
         /// <summary>
-        /// Reads a tab's display name tolerating transient failures and cache misses. Returns null when unavailable.
+        /// Reads a tab's display name tolerating transient failures and cache misses (see
+        /// <see cref="TryReadCached"/>). Returns null when unavailable.
         /// </summary>
         [ExcludeFromCodeCoverage] // Requires a live UIA element.
         public static string? GetTabName(AutomationElement element, ScanDiagnostics? diagnostics = null)
         {
-            if (UiaSafe.TryGet(() => element.Cached.Name, diagnostics, out var cached))
+            if (TryReadCached(() => element.Cached.Name, () => element.Current.Name, diagnostics, out var name))
             {
-                return cached;
-            }
-
-            if (UiaSafe.TryGet(() => element.Current.Name, diagnostics, out var live))
-            {
-                return live;
+                return name;
             }
 
             return null;
@@ -172,16 +168,35 @@ namespace SwitchBlade.Contracts
             return walked;
         }
 
-        private static ControlType? ReadControlType(AutomationElement element, ScanDiagnostics? diagnostics)
+        /// <summary>
+        /// Reads a property from the element's cache context, falling back to a live read. Elements obtained via
+        /// the RawViewWalker fallback path in <see cref="GetChildren"/> never received a cache context: accessing
+        /// .Cached.* on them throws InvalidOperationException ("not cached"), which is an expected condition of that
+        /// path rather than a transient COM failure and must not abort the scan. v1.9.17 regression: Comet's
+        /// faulting window produced exactly this and killed the whole plugin run; v1.9.16 fell back to live reads.
+        /// </summary>
+        private static bool TryReadCached<T>(Func<T> cachedAccess, Func<T> liveAccess, ScanDiagnostics? diagnostics, out T value)
         {
-            if (UiaSafe.TryGet(() => element.Cached.ControlType, diagnostics, out var cached))
+            try
             {
-                return cached;
+                if (UiaSafe.TryGet(cachedAccess, diagnostics, out value))
+                {
+                    return true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Element carries no cache context — fall through to the live read below.
             }
 
-            if (UiaSafe.TryGet(() => element.Current.ControlType, diagnostics, out var live))
+            return UiaSafe.TryGet(liveAccess, diagnostics, out value);
+        }
+
+        private static ControlType? ReadControlType(AutomationElement element, ScanDiagnostics? diagnostics)
+        {
+            if (TryReadCached(() => element.Cached.ControlType, () => element.Current.ControlType, diagnostics, out var controlType))
             {
-                return live;
+                return controlType;
             }
 
             return null;
@@ -189,14 +204,9 @@ namespace SwitchBlade.Contracts
 
         private static string? ReadLocalizedControlType(AutomationElement element, ScanDiagnostics? diagnostics)
         {
-            if (UiaSafe.TryGet(() => element.Cached.LocalizedControlType, diagnostics, out var cached))
+            if (TryReadCached(() => element.Cached.LocalizedControlType, () => element.Current.LocalizedControlType, diagnostics, out var localized))
             {
-                return cached;
-            }
-
-            if (UiaSafe.TryGet(() => element.Current.LocalizedControlType, diagnostics, out var live))
-            {
-                return live;
+                return localized;
             }
 
             return null;

@@ -102,15 +102,18 @@ namespace SwitchBlade.Tests.Plugins
         }
 
         [Fact]
-        public void RunTabScan_NonTransientResolutionFailure_Propagates()
+        public void RunTabScan_ResolutionThrows_DoesNotPropagate()
         {
-            // A genuine bug in root resolution must surface (scan coordinator's error path), not be swallowed.
+            // Per-window isolation (TeamsPlugin parity / v1.9.16 behavior): a faulting window must not abort the
+            // whole run and discard sibling windows' results. With this dead HWND there is no title to fall back
+            // on, so nothing escapes AND nothing is added for this window.
             var results = new List<WindowItem>();
             Func<AutomationElement?> boom = () => throw new InvalidOperationException("real bug");
 
             var ex = Record.Exception(() => _plugin.RunTabScan(new IntPtr(1), 42, "notepad++", null, new ScanDiagnostics(), results, boom));
 
-            Assert.IsType<InvalidOperationException>(ex);
+            Assert.Null(ex);
+            Assert.Empty(results);
         }
 
         [Fact]

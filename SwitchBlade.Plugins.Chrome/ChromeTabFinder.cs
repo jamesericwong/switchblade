@@ -165,45 +165,53 @@ namespace SwitchBlade.Plugins.Chrome
 
         /// <summary>
         /// Core per-window tab scan. Transient UIA failures are handled inside the shared primitives
-        /// (UiaSafe + ScanDiagnostics); non-transient exceptions propagate to the scan coordinator's
-        /// error path instead of being swallowed here.
+        /// (UiaSafe + ScanDiagnostics); any other failure is isolated to this window (TeamsPlugin / v1.9.16
+        /// parity): logged, then the main-window fallback below still runs — one faulting window must never
+        /// abort the whole run and discard sibling windows' results.
         /// </summary>
         internal void RunTabScan(IntPtr hwnd, int pid, string processName, string? executablePath, string windowTitle, ScanDiagnostics diagnostics, List<WindowItem> results, Func<AutomationElement?> resolveRoot)
         {
             var initialCount = results.Count;
 
-            // Use UiaElementResolver for robust multi-strategy element acquisition
-            var root = resolveRoot();
-            if (root == null)
+            try
             {
-                _logger?.Log($"{PluginName}: All UIA strategies failed for PID {pid}, marking scan as failed.");
-            }
-            else
-            {
-                _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
-
-                foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
+                // Use UiaElementResolver for robust multi-strategy element acquisition
+                var root = resolveRoot();
+                if (root == null)
                 {
-                    var name = UiaTabScanner.GetTabName(tab, diagnostics);
-                    if (!string.IsNullOrWhiteSpace(name) && !ExcludedTabNames.Contains(name) && name != "New Tab" && name != "+")
-                    {
-                        results.Add(new WindowItem
-                        {
-                            Hwnd = hwnd,
-                            Title = name,
-                            ProcessName = processName,
-                            ExecutablePath = executablePath,
-                            Source = this
-                        });
+                    _logger?.Log($"{PluginName}: All UIA strategies failed for PID {pid}, marking scan as failed.");
+                }
+                else
+                {
+                    _logger?.Log($"Scanning Window HWND: {hwnd} (PID: {pid}, Name: {processName})");
 
-                        _logger?.Log($"    FOUND TAB: '{name}'");
+                    foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
+                    {
+                        var name = UiaTabScanner.GetTabName(tab, diagnostics);
+                        if (!string.IsNullOrWhiteSpace(name) && !ExcludedTabNames.Contains(name) && name != "New Tab" && name != "+")
+                        {
+                            results.Add(new WindowItem
+                            {
+                                Hwnd = hwnd,
+                                Title = name,
+                                ProcessName = processName,
+                                ExecutablePath = executablePath,
+                                Source = this
+                            });
+
+                            _logger?.Log($"    FOUND TAB: '{name}'");
+                        }
+                    }
+
+                    if (results.Count > initialCount)
+                    {
+                        _logger?.Log($"  Found {results.Count - initialCount} tabs.");
                     }
                 }
-
-                if (results.Count > initialCount)
-                {
-                    _logger?.Log($"  Found {results.Count - initialCount} tabs.");
-                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"{PluginName}: Error scanning window {hwnd} (PID {pid})", ex);
             }
 
             // FALLBACK: If no tabs were added for this window (UIA failed OR found 0 tabs),

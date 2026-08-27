@@ -184,25 +184,33 @@ namespace SwitchBlade.Plugins.WindowsTerminal
 
         /// <summary>
         /// Core per-window tab scan. Transient UIA failures are handled inside the shared primitives
-        /// (UiaSafe + ScanDiagnostics); non-transient exceptions propagate to the scan coordinator's
-        /// error path instead of being swallowed here.
+        /// (UiaSafe + ScanDiagnostics); any other failure is isolated to this window (TeamsPlugin / v1.9.16
+        /// parity): logged, then the main-window fallback below still runs — one faulting window must never
+        /// abort the whole run and discard sibling windows' results.
         /// </summary>
         internal void RunTabScan(IntPtr hwnd, int pid, string processName, string? executablePath, string windowTitle, ScanDiagnostics diagnostics, List<WindowItem> results, Func<AutomationElement?> resolveRoot)
         {
             var tabNames = new List<string>();
 
-            // The resolver's strategy fallbacks are internal and never throw; transients are handled inside the scanner.
-            var root = resolveRoot();
-            if (root != null)
+            try
             {
-                foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
+                // The resolver's strategy fallbacks are internal and never throw; transients are handled inside the scanner.
+                var root = resolveRoot();
+                if (root != null)
                 {
-                    var name = UiaTabScanner.GetTabName(tab, diagnostics);
-                    if (!string.IsNullOrWhiteSpace(name))
+                    foreach (var tab in UiaTabScanner.FindTabs(root, diagnostics))
                     {
-                        tabNames.Add(name);
+                        var name = UiaTabScanner.GetTabName(tab, diagnostics);
+                        if (!string.IsNullOrWhiteSpace(name))
+                        {
+                            tabNames.Add(name);
+                        }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"{PluginName}: Error scanning window {hwnd} (PID {pid})", ex);
             }
 
             if (tabNames.Count > 0)
