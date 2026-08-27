@@ -72,7 +72,21 @@ namespace SwitchBlade.Services
         /// Pulses the badge of an item whose shortcut number changed while it was on screen (option C),
         /// so streamed re-sorts read as intentional updates instead of silent jumps.
         /// </summary>
-        public void PulseRenumber(WindowItem? item) => _animator.PulseRenumber(item ?? throw new ArgumentNullException(nameof(item)));
+        public void PulseRenumber(WindowItem? item)
+        {
+            var badge = item ?? throw new ArgumentNullException(nameof(item));
+
+            // A pulse applied mid-entry would start a late badge's fade before its stagger slot, yanking high numbers
+            // forward out of order and fighting the entry animation. Only settled badges (opacity fully at rest) are
+            // ever visible enough for their renumber to need signalling; mid-stagger rows carry their new number into
+            // the slide-in anyway.
+            if (badge.BadgeOpacity < 1.0)
+            {
+                return;
+            }
+
+            _animator.PulseRenumber(badge);
+        }
 
         /// <summary>
         /// Triggers staggered animations for the given window items.
@@ -141,7 +155,9 @@ namespace SwitchBlade.Services
                     continue;
                 }
 
-                bool shouldAnimate = !item.HasBeenAnimated;
+                // An already-animated badge that is currently hidden was interrupted by a superseded cycle before its
+                // animation applied — re-run it so rapid toggles still see the stagger instead of an instant pop-in.
+                bool shouldAnimate = !item.HasBeenAnimated || item.BadgeOpacity < 0.5;
 
                 if (shouldAnimate)
                 {

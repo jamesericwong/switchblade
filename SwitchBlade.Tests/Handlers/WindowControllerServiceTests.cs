@@ -68,7 +68,8 @@ namespace SwitchBlade.Tests.Handlers
             public List<WindowItem> AnimatedItems { get; } = [];
             public List<WindowItem> PulsedItems { get; } = [];
 
-            public void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX, CancellationToken cancellationToken = default) => AnimatedItems.Add(item);
+            // Applying an entry animation settles the badge (fully visible), mirroring the production Completed handler.
+            public void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX, CancellationToken cancellationToken = default) { AnimatedItems.Add(item); item.BadgeOpacity = 1.0; }
             public void PulseRenumber(WindowItem item) => PulsedItems.Add(item);
         }
 
@@ -629,11 +630,15 @@ namespace SwitchBlade.Tests.Handlers
         }
 
         [Fact]
-        public void OnItemsRenumbered_AnimationsEnabled_PulsesEachBadgeInOrder()
+        public void OnItemsRenumbered_AnimationsEnabled_PulsesEachSettledBadgeInOrder()
         {
             var ctx = new TestContext().WithBadges();
+
+            // In production renumber events only concern badges already on screen, i.e. settled (fully visible).
             var a = TestContext.Item("A");
+            a.BadgeOpacity = 1.0;
             var b = TestContext.Item("B");
+            b.BadgeOpacity = 1.0;
 
             ctx.Controller.OnItemsRenumbered(null, [a, b]);
 

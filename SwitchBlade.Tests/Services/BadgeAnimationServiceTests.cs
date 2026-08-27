@@ -25,6 +25,13 @@ namespace SwitchBlade.Tests.Services
                 .Returns(Task.CompletedTask);
 
             _service = new BadgeAnimationService(_mockAnimator.Object, _mockDelayProvider.Object);
+
+            // Simulate the real animator: applying an entry animation settles the badge (fully visible), exactly as
+            // the production Completed handler does. Without this, a fake that never settles would make every later
+            // trigger re-animate "interrupted" items forever — which is the corrected behavior, not a bug.
+            _mockAnimator.Setup(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
+                .Callback<WindowItem, int, int, double, CancellationToken>((item, _, _, _, _) => item.BadgeOpacity = 1.0);
+
             // Even with mock delay, we set these low for safety
             _service.DebounceMs = 10;
             _service.StaggerDelayMs = 10;
@@ -114,13 +121,26 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void PulseRenumber_ForwardsToAnimator()
+        public void PulseRenumber_SettledBadge_ForwardsToAnimator()
         {
-            var item = new WindowItem { Title = "renumbered" };
+            var item = new WindowItem { Title = "renumbered", BadgeOpacity = 1.0 };
 
             _service.PulseRenumber(item);
 
             _mockAnimator.Verify(a => a.PulseRenumber(item), Times.Once());
+        }
+
+        [Fact]
+        public void PulseRenumber_MidEntryBadge_DoesNotForward()
+        {
+            // Regression: pulsing during the stagger window yanked late badges forward out of order and fought the
+            // entry animation. Only fully settled badges may pulse; mid-entry rows carry their new number into the
+            // slide-in instead.
+            var item = new WindowItem { Title = "streaming", BadgeOpacity = 0.0 };
+
+            _service.PulseRenumber(item);
+
+            _mockAnimator.Verify(a => a.PulseRenumber(It.IsAny<WindowItem>()), Times.Never());
         }
 
         [Fact]
@@ -135,7 +155,7 @@ namespace SwitchBlade.Tests.Services
         [Fact]
         public async Task Trigger_AlreadyAnimatedItems_SkipsAnimationButSetsVisibility()
         {
-            var item = new WindowItem { Title = "T1", ShortcutIndex = 1, HasBeenAnimated = true };
+            var item = new WindowItem { Title = "T1", ShortcutIndex = 1, HasBeenAnimated = true, BadgeOpacity = 1.0 };
             var items = new List<WindowItem> { item };
             
             await _service.TriggerStaggeredAnimationAsync(items, skipDebounce: true);
@@ -143,6 +163,18 @@ namespace SwitchBlade.Tests.Services
             _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
             Assert.Equal(1.0, item.BadgeOpacity);
             Assert.Equal(0.0, item.BadgeTranslateX);
+        }
+
+        [Fact]
+        public async Task Trigger_AnimatedButHiddenBadge_ReAnimatesInsteadOfPoppingIn()
+        {
+            // Regression: a badge marked animated but left hidden by a superseded cycle used to pop in instantly on
+            // the next trigger. Rapid toggles must still see the stagger, not skip it.
+            var item = new WindowItem { Title = "interrupted", ShortcutIndex = 2, HasBeenAnimated = true, BadgeOpacity = 0.0 };
+
+            await _service.TriggerStaggeredAnimationAsync([item], skipDebounce: true);
+
+            _mockAnimator.Verify(a => a.Animate(item, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once());
         }
 
         [Fact]
