@@ -303,5 +303,32 @@ namespace SwitchBlade.Tests.Services
             _mockStartupManager.Verify(m => m.EnableStartup(It.IsAny<string>()), Times.Never());
             _mockStartupManager.Verify(m => m.DisableStartup(), Times.Never());
         }
+
+        [Fact]
+        public void SaveSettings_StartupManagerThrows_WithLogger_LogsError()
+        {
+            _mockStartupManager.Setup(m => m.EnableStartup(It.IsAny<string>())).Throws(new InvalidOperationException("boom"));
+            var logger = new Mock<ILogger>();
+
+            // These fixtures pass a null logger everywhere else; the catch path's non-null side needs one.
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, logger.Object, _mockProcessFactory.Object);
+            service.Settings.LaunchOnStartup = true;
+
+            service.SaveSettings(); // failure is contained inside UpdateStartupRegistryEntry
+
+            logger.Verify(l => l.LogError("Failed to sync startup registry entry", It.IsAny<Exception>()), Times.Once());
+        }
+
+        [Fact]
+        public void SaveSettings_StartupManagerThrows_WithNullLogger_DoesNotCrash()
+        {
+            _mockStartupManager.Setup(m => m.EnableStartup(It.IsAny<string>())).Throws(new InvalidOperationException("boom"));
+
+            // Null logger (the default in this fixture) must not turn the contained failure into a crash.
+            var service = new SettingsService(_mockStorage.Object, _mockStartupManager.Object, null, _mockProcessFactory.Object);
+            service.Settings.LaunchOnStartup = true;
+
+            Assert.Null(Record.Exception(() => service.SaveSettings()));
+        }
     }
 }

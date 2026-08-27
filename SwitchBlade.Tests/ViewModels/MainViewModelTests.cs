@@ -853,6 +853,54 @@ namespace SwitchBlade.Tests.ViewModels
 
             mockOrch.Verify(o => o.RefreshAsync(It.Is<IEnumerable<string>>(e => e.Contains("P1") && e.Contains("P2"))), Times.Once);
         }
+
+        [Fact]
+        public void MoveSelection_NavigationReturnsNegativeIndex_DoesNotChangeSelection()
+        {
+            var nav = new Mock<INavigationService>();
+            nav.Setup(n => n.CalculateMoveIndex(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>())).Returns(-1);
+
+            var vm = new MainViewModel(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), nav.Object, null, new SynchronousDispatcherService());
+            var item = new WindowItem { Hwnd = new IntPtr(1), Title = "Only" };
+            vm.FilteredWindows = [item];
+            vm.SelectedWindow = item;
+
+            vm.MoveSelection(1);
+
+            Assert.Same(item, vm.SelectedWindow); // -1 rejected by the range guard
+        }
+
+        [Fact]
+        public void MoveSelection_NavigationReturnsIndexBeyondCount_DoesNotChangeSelection()
+        {
+            var nav = new Mock<INavigationService>();
+            nav.Setup(n => n.CalculateMoveIndex(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>())).Returns(99);
+
+            var vm = new MainViewModel(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), nav.Object, null, new SynchronousDispatcherService());
+            var item = new WindowItem { Hwnd = new IntPtr(1), Title = "Only" };
+            vm.FilteredWindows = [item];
+            vm.SelectedWindow = item;
+
+            vm.MoveSelection(-1);
+
+            Assert.Same(item, vm.SelectedWindow); // 99 >= count rejected by the range guard
+        }
+
+        [Fact]
+        public void MoveSelectionByPage_NavigationReturnsNegativeIndex_DoesNotChangeSelection()
+        {
+            var nav = new Mock<INavigationService>();
+            nav.Setup(n => n.CalculatePageMoveIndex(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>())).Returns(-1);
+
+            var vm = new MainViewModel(Mock.Of<IWindowOrchestrationService>(), Mock.Of<IWindowSearchService>(), nav.Object, null, new SynchronousDispatcherService());
+            var item = new WindowItem { Hwnd = new IntPtr(1), Title = "Only" };
+            vm.FilteredWindows = [item];
+            vm.SelectedWindow = item;
+
+            vm.MoveSelectionByPage(1, 5);
+
+            Assert.Same(item, vm.SelectedWindow); // -1 rejected by the range guard
+        }
     }
 }
 

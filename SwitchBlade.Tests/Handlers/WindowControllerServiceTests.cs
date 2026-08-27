@@ -716,5 +716,16 @@ namespace SwitchBlade.Tests.Handlers
 
             Assert.Contains("Hide", ctx.Surface.Sequence); // hide still happens after the failure
         }
+
+        [Fact]
+        public void OnResultsUpdated_PendingResetWithoutBadgeService_SkipsReset()
+        {
+            var ctx = new TestContext(); // BadgeAnimationService never attached -> null badge service path
+            ctx.Controller.OnSearchTextChanged(null, EventArgs.Empty); // arms the pending animation reset
+
+            ctx.Controller.OnResultsUpdated(null, EventArgs.Empty);    // guard must short-circuit on the null badge service
+
+            Assert.Empty(ctx.Animator.AnimatedItems);                  // nothing routed through the absent service
+        }
     }
 }

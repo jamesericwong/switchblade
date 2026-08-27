@@ -384,5 +384,63 @@ namespace SwitchBlade.Tests.Services
             Assert.Same(result1, result3);
             Assert.True(result3.HasBeenAnimated, "Animation state should be preserved across title updates");
         }
+
+        [Fact]
+        public void RemoveFromCache_UnknownHwnd_IsNoOp()
+        {
+            _reconciler.RemoveFromCache(new WindowItem { Hwnd = new IntPtr(0xBAD), Title = "ghost" });
+
+            Assert.Equal(0, _reconciler.GetHwndCacheCount());
+        }
+
+        [Fact]
+        public void RemoveFromCache_MultiItemWindow_KeepsRemainingThenClearsEntry()
+        {
+            var hwnd = new IntPtr(7);
+            var a = new WindowItem { Hwnd = hwnd, Title = "A" };
+            var b = new WindowItem { Hwnd = hwnd, Title = "B" };
+            _reconciler.AddToCache(a);
+            _reconciler.AddToCache(b);
+
+            _reconciler.RemoveFromCache(a); // window list not empty -> entry kept
+            Assert.Equal(1, _reconciler.GetHwndCacheCount());
+
+            _reconciler.RemoveFromCache(b); // last item gone -> entry dropped
+            Assert.Equal(0, _reconciler.GetHwndCacheCount());
+        }
+
+        [Fact]
+        public void PopulateIcons_WithDebugLogging_LogsPerfSummary()
+        {
+            var item = new WindowItem { Hwnd = new IntPtr(1), Title = "App", ExecutablePath = "app.exe" };
+            _mockIconService.Setup(s => s.GetIcon("app.exe")).Returns((System.Windows.Media.ImageSource)null!); // no throw -> counted
+            _mockLogger.SetupGet(l => l.IsDebugEnabled).Returns(true);
+
+            _reconciler.PopulateIcons([item]);
+
+            _mockLogger.Verify(l => l.Log(It.Is<string>(m => m.Contains("[Perf]"))), Times.Once());
+        }
+
+        [Fact]
+        public void PopulateIcons_NullLogger_DoesNotThrow()
+        {
+            var reconciler = new WindowReconciler(_mockIconService.Object, null); // logger is optional
+            var item = new WindowItem { Hwnd = new IntPtr(1), Title = "App", ExecutablePath = "app.exe" };
+
+            var ex = Record.Exception(() => reconciler.PopulateIcons([item])); // count > 0 with a null logger must be safe
+
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void PopulateIcons_NoEligibleItems_SkipsPerfSummary()
+        {
+            _mockLogger.SetupGet(l => l.IsDebugEnabled).Returns(true);
+
+            // Empty ExecutablePath -> nothing populated, count stays 0.
+            _reconciler.PopulateIcons([new WindowItem { Hwnd = new IntPtr(1), Title = "NoExe" }]);
+
+            _mockLogger.Verify(l => l.Log(It.IsAny<string>()), Times.Never());
+        }
     }
 }
