@@ -30,6 +30,28 @@ namespace SwitchBlade.Tests.Contracts
             Assert.True(UiaSafe.IsTransient(new COMException("transient", hresult)));
 
         [Fact]
+        public void IsTransient_RpcServerFault_ReturnsTrue()
+        {
+            // Regression: Comet/Chrome-family providers surface RPC_E_SERVERFAULT on live scans; before the
+            // v1.9.17 fix this escaped UiaSafe, aborted the whole plugin run and discarded tabs already found.
+            var serverFault = new COMException("The server threw an exception.", unchecked((int)0x80010105));
+
+            Assert.True(UiaSafe.IsTransient(serverFault));
+        }
+
+        [Fact]
+        public void TryGet_RpcServerFault_ReturnsFalseAndDefault()
+        {
+            // Regression: a server-faulting probe degrades to "no value" instead of propagating.
+            var serverFault = new COMException("The server threw an exception.", unchecked((int)0x80010105));
+
+            var ok = UiaSafe.TryGet(() => throw serverFault, out string? value);
+
+            Assert.False(ok);
+            Assert.Null(value);
+        }
+
+        [Fact]
         public void IsTransient_TransientNestedInInnerChain_ReturnsTrue()
         {
             // Framework wrappers frequently nest the raw COMException.

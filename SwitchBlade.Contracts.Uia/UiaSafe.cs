@@ -6,9 +6,10 @@ namespace SwitchBlade.Contracts
 {
     /// <summary>
     /// Centralized safe access for UI Automation calls against live COM objects owned by other processes.
-    /// Encodes the verified transient-exception whitelist (element invalidation, provider-process death)
-    /// so every plugin and helper shares one definition of "transient". Anything outside the whitelist
-    /// propagates unchanged so genuine bugs surface in tests and logs instead of being swallowed.
+    /// Encodes the verified transient-exception whitelist (element invalidation, provider-process death,
+    /// provider-side server faults) so every plugin and helper shares one definition of "transient".
+    /// Anything outside the whitelist propagates unchanged so genuine bugs surface in tests and logs
+    /// instead of being swallowed.
     /// </summary>
     /// <remarks>
     /// Whitelist verified against Windows SDK 10.0.22000.0 headers (see CODEBASE_ASSESSMENT.md §11):
@@ -22,6 +23,14 @@ namespace SwitchBlade.Contracts
         private const uint HResult_RpcServerUnavailable = 0x800706BA;   // RPC_S_SERVER_UNAVAILABLE (win32 1722) — winerror.h:10796
         private const uint HResult_RpcDisconnected = 0x80010108;        // RPC_E_DISCONNECTED — winerror.h:35046
         private const uint HResult_RpcServerDied = 0x80010007;          // RPC_E_SERVER_DIED — winerror.h:34866
+
+        // RPC_E_SERVERFAULT — winerror.h:35566. The provider process threw while servicing the call
+        // (observed empirically on Comet/Chrome-family providers, §11 rule 7). From the client side it is
+        // indistinguishable in duration from a disconnected or dead server, so it gets the same treatment:
+        // skip this probe and salvage the rest of the tree. Before v1.9.17 this was unwhitelisted and one
+        // faulting window aborted the entire plugin run, discarding every tab already found (v1.9.16 caught
+        // these per-node).
+        private const uint HResult_RpcServerFault = 0x80010105;
 
         /// <summary>
         /// Determines whether the exception (or any exception nested in its InnerException chain) is a
@@ -121,6 +130,7 @@ namespace SwitchBlade.Contracts
             hresult == HResult_UiaElementNotAvailable ||
             hresult == HResult_RpcServerUnavailable ||
             hresult == HResult_RpcDisconnected ||
-            hresult == HResult_RpcServerDied;
+            hresult == HResult_RpcServerDied ||
+            hresult == HResult_RpcServerFault;
     }
 }
