@@ -165,6 +165,14 @@ namespace SwitchBlade.Contracts
         public bool EntryPending { get; set; } = false;
 
         /// <summary>
+        /// Environment.TickCount64 value until which the EntryPending protection window is valid. The service stamps
+        /// this at dispatch (delay + duration + polling grace): if the flag is still set after it elapses, the entry
+        /// animation died without completing (e.g. its row container was recycled mid re-sort) and later trigger passes
+        /// must force the badge visible instead of skipping it forever. Coordination state — never bound.
+        /// </summary>
+        public long EntryProtectionTicks { get; set; } = 0;
+
+        /// <summary>
         /// Opacity of the badge for fade-in animation (0 to 1).
         /// </summary>
         public double BadgeOpacity

@@ -124,12 +124,45 @@ namespace SwitchBlade.Tests.Services
         public async Task Trigger_EntryPendingBadge_IsLeftUndisturbed()
         {
             // Regression: re-hiding or re-delaying a badge whose entry animation is still running made rapid trigger
-            // passes read as flash and lag. In-flight entries must finish undisturbed via their own completion handler.
-            var item = new WindowItem { Title = "in flight", ShortcutIndex = 2, HasBeenAnimated = true, EntryPending = true };
+            // passes read as flash and lag. Within its protection window an in-flight entry must finish undisturbed via
+            // its own completion handler.
+            var item = new WindowItem
+            {
+                Title = "in flight",
+                ShortcutIndex = 2,
+                HasBeenAnimated = true,
+                EntryPending = true,
+                EntryProtectionTicks = Environment.TickCount64 + 10_000 // protection window still open
+            };
 
             await _service.TriggerStaggeredAnimationAsync([item], skipDebounce: true);
 
             _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
+        }
+
+        [Fact]
+        public async Task Trigger_EntryPending_ExpiredProtection_ForceSettlesInsteadOfStranding()
+        {
+            // Regression: a badge whose entry animation died before completing (its row container was recycled mid
+            // re-sort, or a superseded cycle released it) left EntryPending set forever — every later pass skipped it
+            // and the badge stayed missing on screen. Once the protection window elapses, passes must force-settle the
+            // badge and clear the stale marker instead of skipping it indefinitely.
+            var item = new WindowItem
+            {
+                Title = "stranded",
+                ShortcutIndex = 4,
+                HasBeenAnimated = true,
+                BadgeOpacity = 0.0,
+                EntryPending = true,
+                EntryProtectionTicks = Environment.TickCount64 - 1_000 // window already expired
+            };
+
+            await _service.TriggerStaggeredAnimationAsync([item], skipDebounce: true);
+
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
+            Assert.Equal(1.0, item.BadgeOpacity);      // force-settled visible — never left hidden
+            Assert.Equal(0.0, item.BadgeTranslateX);
+            Assert.False(item.EntryPending);           // stale marker cleared so cascade detection isn't poisoned either
         }
 
         [Fact]
@@ -139,7 +172,14 @@ namespace SwitchBlade.Tests.Services
             // read as lag. Their entry delay must be capped while other badges are still settling.
             _service.StaggerDelayMs = 50;
 
-            var inFlight = new WindowItem { Title = "settling", ShortcutIndex = 1, HasBeenAnimated = true, EntryPending = true };
+            var inFlight = new WindowItem
+            {
+                Title = "settling",
+                ShortcutIndex = 1,
+                HasBeenAnimated = true,
+                EntryPending = true,
+                EntryProtectionTicks = Environment.TickCount64 + 10_000 // protection window still open → left alone
+            };
             var joiner = new WindowItem { Title = "late tab", ShortcutIndex = 4 };
 
             await _service.TriggerStaggeredAnimationAsync([inFlight, joiner], skipDebounce: true);

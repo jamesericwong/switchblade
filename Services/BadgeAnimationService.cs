@@ -20,6 +20,10 @@ namespace SwitchBlade.Services
         private readonly ILogger? _logger;
         private CancellationTokenSource? _animationCts;
 
+        // Grace beyond (delay + duration) covering container polling and settle slack for a healthy entry. Bounds how
+        // long a dead-but-flagged animation can keep a badge hidden before a later pass force-settles it.
+        private const int EntrySettleGraceMs = 800;
+
         /// <summary>
         /// Duration of each badge's animation in milliseconds.
         /// </summary>
@@ -142,12 +146,23 @@ namespace SwitchBlade.Services
                 }
 
                 // An entry animation already applied to this badge must finish undisturbed: re-hiding or re-delaying
-                // it mid-animation is what made rapid trigger passes read as flash and lag. It settles itself via the
-                // animator's completion handler.
+                // it mid-animation is what made rapid trigger passes read as flash and lag. Within its protection window
+                // it settles itself via the animator's completion handler.
                 if (item.EntryPending)
                 {
+                    if (Environment.TickCount64 < item.EntryProtectionTicks)
+                    {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Window elapsed with the flag still set: this entry's animation died before completing (its row
+                    // container was recycled mid re-sort, or a superseded cycle released it). Force-settle it and clear
+                    // the stale marker — skipping such badges forever is how they end up missing.
+                    item.EntryPending = false;
+                    item.BadgeOpacity = 1.0;
+                    item.BadgeTranslateX = 0;
                     skippedCount++;
-                    continue;
                 }
 
                 // An already-animated badge that is currently hidden was interrupted by a superseded cycle before its
@@ -165,6 +180,11 @@ namespace SwitchBlade.Services
 
                     // Mark as animated immediately so we don't re-animate on next pass
                     item.HasBeenAnimated = true;
+
+                    // Stamp this entry's protection window: stagger delay + duration + polling/grace slack. If
+                    // EntryPending is still set past this point, the animation can no longer be alive and a later pass
+                    // force-settles it instead of skipping forever (see WindowItem.EntryProtectionTicks).
+                    item.EntryProtectionTicks = Environment.TickCount64 + delay + AnimationDurationMs + EntrySettleGraceMs;
                     animatedCount++;
 
                     if (item.ShortcutIndex > maxShortcutIndex)
