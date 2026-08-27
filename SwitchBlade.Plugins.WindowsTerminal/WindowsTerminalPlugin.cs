@@ -265,16 +265,11 @@ namespace SwitchBlade.Plugins.WindowsTerminal
             }
         }
 
-        private static readonly UiaResolverOptions _resolverOptions = new()
-        {
-            MaxRetries = 3,
-            RetryDelayMs = 50,
-            UseFromPointFallback = true
-        };
-
         private AutomationElement? TryGetAutomationElement(IntPtr hwnd, int pid)
         {
-            return UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger, _resolverOptions);
+            // All plugins share the canonical resilient defaults (UiaResolverOptions.Default):
+            // bounded retries plus the ownership-verified FromPoint last resort.
+            return UiaElementResolver.TryResolve(hwnd, pid, PluginName, _logger);
         }
     }
 }

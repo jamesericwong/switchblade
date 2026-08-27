@@ -10,22 +10,26 @@ namespace SwitchBlade.Contracts
     public sealed class UiaResolverOptions
     {
         /// <summary>
-        /// Maximum retry attempts (default 1 = no retries).
+        /// Maximum resolution attempts (default 3 — UIA provider startup is flaky and every failed
+        /// strategy aborts fast, so extra attempts are cheap on the failure path).
         /// </summary>
-        public int MaxRetries { get; init; } = 1;
+        public int MaxRetries { get; init; } = 3;
 
         /// <summary>
-        /// Delay between retries in milliseconds (default 50).
+        /// Delay between retry attempts in milliseconds (default 50).
         /// </summary>
         public int RetryDelayMs { get; init; } = 50;
 
         /// <summary>
-        /// If true, attempt FromPoint fallback using the window center (default false).
+        /// If true, attempt FromPoint fallback using the window center after HWND binding, desktop
+        /// search, and walker all fail (default true — last-resort strategy, ownership-verified).
         /// </summary>
-        public bool UseFromPointFallback { get; init; } = false;
+        public bool UseFromPointFallback { get; init; } = true;
 
         /// <summary>
-        /// Default options: single attempt, no FromPoint.
+        /// Canonical options shared by every UIA plugin: bounded retries plus the FromPoint last resort.
+        /// One definition keeps resolver behavior identical across plugins (previously only Windows
+        /// Terminal opted into these values while Chrome/Notepad++/Teams used single-attempt defaults).
         /// </summary>
         public static UiaResolverOptions Default { get; } = new();
     }
