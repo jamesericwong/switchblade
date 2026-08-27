@@ -30,13 +30,13 @@ internal static class Program
         WriteIndented = false
     };
 
-    // Per-plugin budget. Must stay well under the client's whole-process timeout
-    // (UiaWorkerTimeoutSeconds, default 60s) so a hung plugin reports a clean error result
-    // instead of the worker being killed mid-stream by the client.
-    private static readonly TimeSpan PluginScanTimeout = TimeSpan.FromSeconds(30);
+    // Timeout parity with v1.9.16: there is NO separate per-plugin deadline here. The host's whole-stream
+    // budget (user setting UiaWorkerTimeoutSeconds, default 60s) is the only timeout — on expiry it cancels
+    // the stream read and kills this worker. A hard-coded shorter cap (30s, introduced in eaa8d2a) aborted
+    // slow-but-valid scans, e.g. Chrome over a large tab tree at ~45-60s, well before the configured budget.
 
-    // Set once when the scan finishes; the worker is one-shot per process. Late writes from
-    // abandoned (timed-out) plugins are discarded so they can't corrupt the stream after the final marker.
+    // Set once when the scan finishes; the worker is one-shot per process. Late writes from plugins that
+    // complete after the final marker are discarded so they can't corrupt the stream.
     private static volatile bool _scanFinished;
 
     private static readonly string LogFile = Path.Combine(Path.GetTempPath(), "switchblade_uia_debug.log");
@@ -274,25 +274,11 @@ internal static class Program
             }
         })).ToArray();
 
-        // Wait for each plugin with an individual timeout so one hung plugin cannot block the worker forever.
-        // A timed-out plugin is reported as an error; its thread dies when this process exits.
-        for (int i = 0; i < tasks.Length; i++)
-        {
-            var finished = Task.WhenAny(tasks[i], Task.Delay(PluginScanTimeout)).GetAwaiter().GetResult();
-            if (finished != tasks[i])
-            {
-                string name = enabledPlugins[i].PluginName;
-                DebugLog($"Plugin {name} timed out after {PluginScanTimeout.TotalSeconds:0}s");
-                WritePluginResult(name, null, $"Timed out after {PluginScanTimeout.TotalSeconds:0}s");
-                lock (errors)
-                {
-                    errors.Add($"Plugin {name} timed out after {PluginScanTimeout.TotalSeconds:0}s");
-                }
-            }
-        }
-
-        // Ensure every completed plugin has finished writing its results before the final marker.
-        Task.WaitAll(tasks.Where(t => t.IsCompleted).ToArray());
+        // No per-plugin deadline (v1.9.16 parity): plugins run until they finish; a hung one is reaped when
+        // the host's whole-stream budget expires and kills this process. Completed results stream as they land,
+        // so one slow plugin no longer truncates the others' budgets. Each task catches its own exceptions
+        // (reported per-plugin), so WhenAll here only waits for completion, it cannot fault.
+        Task.WhenAll(tasks).GetAwaiter().GetResult();
 
         _scanFinished = true;
         WriteFinalResult();
