@@ -23,12 +23,5 @@ namespace SwitchBlade.Services
         /// hide or re-apply state to them.
         /// </param>
         void Animate(WindowItem item, int delayMs, int durationMs, double startingOffsetX, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Pulses the badge of an item whose shortcut number changed while it was on screen.
-        /// Implementations should apply a brief, subtle opacity fade so the renumber reads as intentional,
-        /// and must not disturb any in-flight entry animation (option C).
-        /// </summary>
-        void PulseRenumber(WindowItem item);
     }
 }

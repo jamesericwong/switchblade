@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SwitchBlade.Contracts;
@@ -69,26 +70,6 @@ namespace SwitchBlade.Services
         }
 
         /// <summary>
-        /// Pulses the badge of an item whose shortcut number changed while it was on screen (option C),
-        /// so streamed re-sorts read as intentional updates instead of silent jumps.
-        /// </summary>
-        public void PulseRenumber(WindowItem? item)
-        {
-            var badge = item ?? throw new ArgumentNullException(nameof(item));
-
-            // A pulse applied mid-entry would start a late badge's fade before its stagger slot, yanking high numbers
-            // forward out of order and fighting the entry animation. Only settled badges (opacity fully at rest) are
-            // ever visible enough for their renumber to need signalling; mid-stagger rows carry their new number into
-            // the slide-in anyway.
-            if (badge.BadgeOpacity < 1.0)
-            {
-                return;
-            }
-
-            _animator.PulseRenumber(badge);
-        }
-
-        /// <summary>
         /// Triggers staggered animations for the given window items.
         /// Only items with shortcuts (index 0-9) and not previously animated will animate.
         /// Uses debouncing: if called again within DebounceMs, the previous call is cancelled.
@@ -143,6 +124,11 @@ namespace SwitchBlade.Services
             int animatedCount = 0;
             int skippedCount = 0;
 
+            // A wave is in flight when any badge's entry animation has been applied but not finished. Joiners into a
+            // running wave use a capped delay instead of their nominal slot (that moment already passed — waiting for
+            // it only reads as lag).
+            bool cascadeLive = items.Any(i => i.EntryPending);
+
             foreach (var item in items)
             {
                 if (ct.IsCancellationRequested)
@@ -155,13 +141,23 @@ namespace SwitchBlade.Services
                     continue;
                 }
 
+                // An entry animation already applied to this badge must finish undisturbed: re-hiding or re-delaying
+                // it mid-animation is what made rapid trigger passes read as flash and lag. It settles itself via the
+                // animator's completion handler.
+                if (item.EntryPending)
+                {
+                    skippedCount++;
+                    continue;
+                }
+
                 // An already-animated badge that is currently hidden was interrupted by a superseded cycle before its
                 // animation applied — re-run it so rapid toggles still see the stagger instead of an instant pop-in.
                 bool shouldAnimate = !item.HasBeenAnimated || item.BadgeOpacity < 0.5;
 
                 if (shouldAnimate)
                 {
-                    int delay = item.ShortcutIndex * StaggerDelayMs;
+                    int nominalDelay = item.ShortcutIndex * StaggerDelayMs;
+                    int delay = cascadeLive ? Math.Min(nominalDelay, 2 * StaggerDelayMs) : nominalDelay;
 
                     // Delegate execution to the strategy. The token ties the animation to this cycle: if a newer
                     // trigger supersedes it, the animator must stop before touching badges that haven't started yet.

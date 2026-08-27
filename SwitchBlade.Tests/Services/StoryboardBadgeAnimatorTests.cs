@@ -64,17 +64,5 @@ namespace SwitchBlade.Tests.Services
             Assert.Equal(1.0, item.BadgeOpacity);
             Assert.Equal(0.0, item.BadgeTranslateX);
         }
-
-        [Fact]
-        public void PulseRenumber_ContainerNotFound_DoesNotThrow()
-        {
-            // Option C: renumbering a row whose container is not realized must be a safe no-op (nothing to pulse).
-            var item = new WindowItem { Hwnd = new IntPtr(44), Title = "orphan", Source = null };
-            var animator = new StoryboardBadgeAnimator(_dispatcher, _ => null);
-
-            var ex = Record.Exception(() => animator.PulseRenumber(item));
-
-            Assert.Null(ex);
-        }
     }
 }

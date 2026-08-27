@@ -126,6 +126,9 @@ namespace SwitchBlade.Services
                     item.BadgeOpacity = 1.0;
                     item.BadgeTranslateX = 0;
 
+                    // Entry is complete: clear the in-flight marker so later passes treat this badge as settled.
+                    item.EntryPending = false;
+
                     // Release animation hold - binding reasserts with the values we just set
                     badgeBorder.BeginAnimation(UIElement.OpacityProperty, null);
                     transform.BeginAnimation(TranslateTransform.XProperty, null);
@@ -138,34 +141,11 @@ namespace SwitchBlade.Services
                     return;
                 }
 
-                // 8. Apply animations directly to visual elements
+                // 8. Apply animations directly to visual elements. Mark the entry in-flight from this moment until
+                // completion: later trigger passes must leave it undisturbed rather than re-hiding or re-delaying it.
                 badgeBorder.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
                 transform.BeginAnimation(TranslateTransform.XProperty, translateAnim);
-            });
-        }
-
-        /// <summary>
-        /// Brief opacity pulse for a badge whose number changed while it was on screen (option C): the fade is subtle
-        /// by design — it signals "this row's number updated" without competing with the entry animation, which keeps
-        /// owning its own properties. No HoldEnd: when done, the BadgeOpacity binding reasserts.
-        /// </summary>
-        public void PulseRenumber(WindowItem item)
-        {
-            _dispatcherService.Invoke(() =>
-            {
-                var container = _containerResolver(item);
-                if (container == null)
-                {
-                    return; // Row not realized yet: nothing to pulse — the badge will slide in with its new number.
-                }
-
-                var badge = FindChild<Border>(container, "NumberBadge");
-                if (badge == null)
-                {
-                    return;
-                }
-
-                badge.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.35, 1.0, TimeSpan.FromMilliseconds(120)));
+                item.EntryPending = true;
             });
         }
 

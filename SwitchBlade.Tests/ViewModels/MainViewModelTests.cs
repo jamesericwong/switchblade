@@ -509,53 +509,6 @@ namespace SwitchBlade.Tests.ViewModels
             Assert.True(eventRaised);
         }
 
-        [Fact]
-        public void UpdateSearch_Renumbered_FiresWithExactlyTheRowsThatChanged()
-        {
-            var a = new WindowItem { Title = "A" };
-            var b = new WindowItem { Title = "B" };
-            var c = new WindowItem { Title = "C" };
-
-            // Mutable ordering so the list can be re-sorted between update passes (streaming scenario).
-            var windows = new List<WindowItem> { a, b, c };
-            var provider = new Mock<IWindowProvider>();
-            provider.Setup(p => p.GetWindows()).Returns(() => [.. windows]);
-            var vm = CreateViewModel([provider.Object]);
-
-            IReadOnlyList<WindowItem>? fired = null;
-            vm.Renumbered += (_, items) => fired = items;
-
-            // Pass one establishes A,B,C (b and c move off their default index).
-            vm.SearchText = "pass one";
-
-            windows.Reverse(); // C,B,A now: a and c renumber, b keeps slot 1.
-            vm.SearchText = "pass two";
-
-            Assert.NotNull(fired);
-            Assert.Contains(a, fired!);
-            Assert.Contains(c, fired!);
-            Assert.DoesNotContain(b, fired!); // unchanged rows must not be reported
-        }
-
-        [Fact]
-        public void UpdateSearch_StableOrder_DoesNotFireRenumbered()
-        {
-            var a = new WindowItem { Title = "A" };
-            var b = new WindowItem { Title = "B" };
-            var vm = CreateViewModel([CreateMockProvider(a, b).Object]);
-
-            // First pass assigns initial indices (no subscriber yet — exercises the no-listener path).
-            vm.SearchText = "establish";
-
-            bool fired = false;
-            vm.Renumbered += (_, _) => fired = true;
-
-            // Same order again: no index changes, so renumbering must not fire.
-            vm.SearchText = "same order again";
-
-            Assert.False(fired);
-        }
-
         // ===== Coverage Gap Tests =====
 
         [Fact]

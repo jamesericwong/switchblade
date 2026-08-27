@@ -121,35 +121,32 @@ namespace SwitchBlade.Tests.Services
         }
 
         [Fact]
-        public void PulseRenumber_SettledBadge_ForwardsToAnimator()
+        public async Task Trigger_EntryPendingBadge_IsLeftUndisturbed()
         {
-            var item = new WindowItem { Title = "renumbered", BadgeOpacity = 1.0 };
+            // Regression: re-hiding or re-delaying a badge whose entry animation is still running made rapid trigger
+            // passes read as flash and lag. In-flight entries must finish undisturbed via their own completion handler.
+            var item = new WindowItem { Title = "in flight", ShortcutIndex = 2, HasBeenAnimated = true, EntryPending = true };
 
-            _service.PulseRenumber(item);
+            await _service.TriggerStaggeredAnimationAsync([item], skipDebounce: true);
 
-            _mockAnimator.Verify(a => a.PulseRenumber(item), Times.Once());
+            _mockAnimator.Verify(a => a.Animate(It.IsAny<WindowItem>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
         }
 
         [Fact]
-        public void PulseRenumber_MidEntryBadge_DoesNotForward()
+        public async Task Trigger_JoiningLiveCascade_UsesCappedDelay()
         {
-            // Regression: pulsing during the stagger window yanked late badges forward out of order and fought the
-            // entry animation. Only fully settled badges may pulse; mid-entry rows carry their new number into the
-            // slide-in instead.
-            var item = new WindowItem { Title = "streaming", BadgeOpacity = 0.0 };
+            // Regression: joiners into an already-running wave waited for their nominal stagger slot (long gone) and
+            // read as lag. Their entry delay must be capped while other badges are still settling.
+            _service.StaggerDelayMs = 50;
 
-            _service.PulseRenumber(item);
+            var inFlight = new WindowItem { Title = "settling", ShortcutIndex = 1, HasBeenAnimated = true, EntryPending = true };
+            var joiner = new WindowItem { Title = "late tab", ShortcutIndex = 4 };
 
-            _mockAnimator.Verify(a => a.PulseRenumber(It.IsAny<WindowItem>()), Times.Never());
-        }
+            await _service.TriggerStaggeredAnimationAsync([inFlight, joiner], skipDebounce: true);
 
-        [Fact]
-        public void PulseRenumber_NullItem_ThrowsArgumentNullException()
-        {
-            var ex = Record.Exception(() => _service.PulseRenumber(null!));
-
-            Assert.IsType<ArgumentNullException>(ex);
-            _mockAnimator.Verify(a => a.PulseRenumber(It.IsAny<WindowItem>()), Times.Never());
+            // Nominal slot for index 4 is 200ms; capped to two stagger steps (100ms) because the wave is live.
+            _mockAnimator.Verify(a => a.Animate(joiner, 2 * 50, It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once());
+            _mockAnimator.Verify(a => a.Animate(inFlight, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never());
         }
 
         [Fact]

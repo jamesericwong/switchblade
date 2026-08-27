@@ -158,6 +158,13 @@ namespace SwitchBlade.Contracts
         public bool HasBeenAnimated { get; set; } = false;
 
         /// <summary>
+        /// True while this item's entry animation is applied but not yet complete. Protects in-flight badges from
+        /// being re-hidden or re-delayed by subsequent trigger passes (which reads as flash and lag). Managed by the
+        /// animator: set when the animation is applied, cleared when it completes. Coordination state — never bound.
+        /// </summary>
+        public bool EntryPending { get; set; } = false;
+
+        /// <summary>
         /// Opacity of the badge for fade-in animation (0 to 1).
         /// </summary>
         public double BadgeOpacity
