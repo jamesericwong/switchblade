@@ -33,6 +33,10 @@
     <!-- Reference the contracts for WindowItem and IWindowProvider -->
     <!-- NOTE: Contracts are bundled into the single-file exe -->
     <ProjectReference Include="..\SwitchBlade.Contracts\SwitchBlade.Contracts.csproj" />
+
+    <!-- Shared UIA primitives (UiaTabScanner/UiaElementResolver/ElementActivator) used by plugins at runtime.
+         NOTE: Must be bundled into the single-file exe so dynamically loaded Plugins\*.dll can resolve them -->
+    <ProjectReference Include="..\SwitchBlade.Contracts.Uia\SwitchBlade.Contracts.Uia.csproj" />
     
     <!-- Plugins are loaded DYNAMICALLY from Plugins/ directory at runtime -->
     <!-- NO static plugin references - this preserves the plugin architecture -->

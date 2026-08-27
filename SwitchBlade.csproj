@@ -36,6 +36,9 @@
   
   <ItemGroup>
     <ProjectReference Include="SwitchBlade.Contracts\SwitchBlade.Contracts.csproj" />
+    <!-- Shared UIA primitives (UiaTabScanner/UiaElementResolver/ElementActivator) are used by every plugin at runtime.
+         Must be bundled into the single-file exe so the loose Plugins\*.dll assemblies can resolve them. -->
+    <ProjectReference Include="SwitchBlade.Contracts.Uia\SwitchBlade.Contracts.Uia.csproj" />
     <ProjectReference Include="SwitchBlade.Plugins.Chrome\SwitchBlade.Plugins.Chrome.csproj">
        <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
