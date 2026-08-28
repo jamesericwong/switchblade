@@ -621,11 +621,11 @@ The Alt+Number badges feature a staggered animation that provides visual polish 
 
 ```mermaid
 flowchart LR
-    WC[WindowControllerService<br/>OnResultsUpdated / ForceOpen] -->|update pass| BAS[BadgeAnimationService]
-    BAS -->|cancels superseded cycle| CT[CancellationToken per cycle]
-    BAS -->|per-item decision table| SBA[StoryboardBadgeAnimator<br/>(WPF, excluded from coverage)]
-    SBA -->|poll container → BeginAnimation| B[NumberBadge Border ×10]
-    B -->|"Completed = single settle point"| WI[(WindowItem state:<br/>HasBeenAnimated · EntryPending ·<br/>EntryProtectionTicks)]
+    WC["WindowControllerService<br/>OnResultsUpdated / ForceOpen"] -->|"update pass"| BAS["BadgeAnimationService"]
+    BAS -->|"cancels superseded cycle"| CT["CancellationToken per cycle"]
+    BAS -->|"per-item decision table"| SBA["StoryboardBadgeAnimator<br/>(WPF, excluded from coverage)"]
+    SBA -->|"poll container → BeginAnimation"| B["NumberBadge Border ×10"]
+    B -->|"Completed = single settle point"| WI["WindowItem state:<br/>HasBeenAnimated · EntryPending ·<br/>EntryProtectionTicks"]
 ```
 
 #### Timing Parameters
