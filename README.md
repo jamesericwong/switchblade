@@ -607,48 +607,85 @@ The window list maintains a stable sort (by Process Name → Title → Handle) t
 
 ### Badge Animation System
 
-The Alt+Number badges feature a staggered animation that provides visual polish when the window list appears. Each badge fades in and slides from left to right in sequence.
+The Alt+Number badges feature a staggered animation that provides visual polish when the window list appears: each badge fades in and slides from left to right in sequence. Deceptively simple — until v1.8.2+ streaming discovery made the numbered list keep changing **while** the cascade is still running. The design below is the product of four field iterations, each one driven by a real user-visible failure mode: pop-in, out-of-order motion, flash, lag, and finally badges missing entirely. Every rule in it exists because some earlier version failed in exactly that way.
+
+#### Architecture
+
+| Layer | Type | Responsibility |
+|:---|:---|:---|
+| Trigger state machine | `WindowControllerService` (`Handlers/`) | Decides *when* a pass runs (results update, search-text change → deferred reset, force-open) and when full animation-state reset happens for deliberate re-animation. |
+| Orchestration | `BadgeAnimationService` (`Services/`) | Debouncing, per-cycle cancellation, the per-item decision table below, protection-window stamping, completion-wait budget. Zero WPF types — fully unit-testable through fakes. |
+| Execution seam | `IBadgeAnimator.Animate(item, delayMs, durationMs, offsetX, cancellationToken)` (`Services/`) | Strategy contract: a superseded cycle **must stop before touching any badge** (checkpoints at entry, mid-poll, pre-apply). Applied WPF animations are deliberately not tied to the token — they settle themselves. |
+| WPF executor | `StoryboardBadgeAnimator` (`Services/`, `[ExcludeFromCodeCoverage]`) | Marshals to the UI thread, hides the badge's source state, polls for its realized `ListBoxItem` container (≤ 20 × 25ms), resolves the named `NumberBadge` border by visual-tree walk, starts paired opacity + translate animations with `HoldEnd`, and settles in a single `Completed` handler. |
+| Coordination state | `WindowItem` (`SwitchBlade.Contracts`) | Three unbound auto-properties carry all inter-pass state: `HasBeenAnimated`, `EntryPending`, `EntryProtectionTicks`. No INPC, never bound to the UI. |
 
 ```mermaid
-sequenceDiagram
-    participant UI as UI Thread
-    participant WC as WindowControllerService
-    participant BAS as BadgeAnimationService
-    participant B1 as Badge Alt+1
-    participant B2 as Badge Alt+2
-    participant B0 as Badge Alt+0
-
-    UI->>WC: Results updated / window shown
-    WC->>BAS: TriggerStaggeredAnimationAsync(FilteredWindows)
-    BAS->>BAS: ResetAnimationState(items)
-    
-    Note over BAS: Stagger delay = 75ms per badge
-    
-    BAS->>B1: Start animation (0ms delay)
-    Note over B1: Opacity: 0→1<br/>TranslateX: -20px→0
-    
-    BAS->>B2: Start animation (75ms delay)
-    Note over B2: Opacity: 0→1<br/>TranslateX: -20px→0
-    
-    BAS->>B0: Start animation (675ms delay)
-    Note over B0: Last badge (index 9)
-    
-    Note over B1,B0: Each animation: 150ms duration, cubic ease-out
+flowchart LR
+    WC[WindowControllerService<br/>OnResultsUpdated / ForceOpen] -->|update pass| BAS[BadgeAnimationService]
+    BAS -->|cancels superseded cycle| CT[CancellationToken per cycle]
+    BAS -->|per-item decision table| SBA[StoryboardBadgeAnimator<br/>(WPF, excluded from coverage)]
+    SBA -->|poll container → BeginAnimation| B[NumberBadge Border ×10]
+    B -->|"Completed = single settle point"| WI[(WindowItem state:<br/>HasBeenAnimated · EntryPending ·<br/>EntryProtectionTicks)]
 ```
 
-#### Animation Timing
+#### Timing Parameters
+
 | Parameter | Value | Purpose |
 |:---|:---|:---|
-| **Stagger Delay** | 75ms | Time between each badge starting its animation |
-| **Duration** | 150ms | Total animation time per badge |
-| **Offset** | -20px | Starting X position (slides right to 0) |
-| **Easing** | Cubic ease-out | Smooth deceleration |
+| **Stagger delay** | 75ms | Gap between each badge's start (`index × 75ms`) |
+| **Duration** | 150ms, cubic ease-out | Per-badge fade-in + slide-in (opacity 0→1, X −20px→0) |
+| **Debounce** | 75ms — skipped for hotkey / initial load | Waits for typing to settle; first paint on open stays ~200ms snappy |
+| **Container poll budget** | ≤ ~600ms (20 × 25ms) | Wait for virtualization to realize a row before animating it |
+| **Settle grace** | 800ms (`EntrySettleGraceMs`) | Headroom in the protection window beyond delay + duration (below) |
 
-#### HWND Tracking
-The `BadgeAnimationService` tracks which window handles (HWNDs) have been animated to prevent re-animation:
-- When a window's title changes but HWND remains the same → badge stays visible (no re-animation)
-- When search text changes → animation state resets, badges re-animate with filtered results
-- When window hides and shows again → full reset, all badges animate fresh
+#### Per-item decision table (the actual algorithm)
+
+Every trigger pass visits every visible shortcut item:
+
+```mermaid
+flowchart TD
+    A[Item on screen] --> B{EntryPending?}
+    B -- "yes · protection window open" --> C["SKIP — let the in-flight entry finish undisturbed"]
+    B -- "yes · window EXPIRED" --> D["FORCE-SETTLE: opacity 1 / X 0, clear stale flag<br/>its animation died before completing → self-heal within ≤ ~1.5s"]
+    B -- no --> E{"!HasBeenAnimated OR opacity < 0.5 ?"}
+    E -- "yes · new or interrupted" --> F["ANIMATE: hide → poll container → BeginAnimation<br/>delay = index × stagger, capped at 2×stagger while a wave is live"]
+    E -- "no · settled" --> G["KEEP VISIBLE (no-op pass)"]
+
+    style C fill:#cfc,stroke:#396,color:black
+    style D fill:#fcc,stroke:#933,stroke-width:2px,color:black
+```
+
+- **Skip (in-flight)**: re-hiding or re-delaying a badge whose entry animation has been applied is what made rapid streaming passes read as *flash and lag*. The in-flight entry settles itself via its `Completed` handler.
+- **Force-settle (expired)**: the protection window exists because an in-flight animation can die without its completion handler ever firing — most commonly virtualization recycling (pitfalls below). A badge must never be skipped forever, so once the deadline passes a plain restore-to-visible heals it. Restore only — no hide, no dip — which is why healing itself is invisible on screen.
+- **Animate**: badges that were hidden before their entry applied re-stagger on the next trigger instead of popping in instantly; joiners into an already-running wave get `min(index × stagger, 2 × stagger)` because their nominal slot has already passed by the time they arrive (waiting for it reads as lag).
+- **Settle is a single point**: the animator's `Completed` handler syncs source values (`opacity = 1`, `X = 0`), clears `EntryPending`, and releases the HoldEnd hold so bindings reassert cleanly. Nothing else writes settled state.
+
+#### Why this was tricky — incident history (all user-reported)
+
+| Round | Symptom | Root cause | Fix (commit) |
+|:---|:---|:---|:---|
+| 1.9.17 baseline | Overlapping cascades, numbers jumping as late tab batches streamed in; inconsistent entry order | Streaming discovery means multiple renumber + trigger passes per open — against an animator designed for one clean cascade per open (pre-1.9.16 discovery aborted late tabs on COM faults, so multi-batch arrival was rare and the inconsistency stayed latent) | v1: per-cycle `CancellationToken` with a strict *"superseded cycle stops before touching any badge"* contract (`7b6d91a`) |
+| 2 | Rapid hotkey toggles → badges **pop in with no stagger**; sometimes a higher number moves before a lower one | A superseded cycle left some badges hidden but marked *animated*, so the next pass force-showed them instantly (zero animation) | v2: animate condition `!HasBeenAnimated ∥ opacity < 0.5` — interrupted-but-hidden badges **re-stagger** on the next trigger (`555c550`) |
+| 3 | "Better, but worse than 1.9.16 — a **flash**, and feels unintentionally **lagged**" | The v1/v2-era renumber pulse was itself a visible dip (a blink), repeated per streaming batch; each pass also re-hid + re-delayed badges still mid-entry (hide → wait slot → show, repeating = flash+lag) | v3: renumber pulse **removed entirely** — 1.9.16's silent number swap is what reads as acceptable; new `EntryPending` in-flight protection (never disturb a running entry); capped joiner delays (`00881bd`) |
+| 4 | **Badges missing**, scattered mid-list (e.g. only Alt+2,3,6,7,9,0 visible) until app restart | Recycling virtualization recycled row containers mid-entry → the animation died and its `Completed` never fired; v3's skip-trust then skipped that badge **forever** (a second death path: a superseded cycle's `BeginAnimation(prop, null)` release also suppresses completion) | v4 (**shipped**, `45f4e88`): bounded trust — service stamps `EntryProtectionTicks = now + delay + duration + 800ms grace` at dispatch; skip only while the window is open, force-settle past it. **Hard guarantee: no badge can stay hidden for more than ~1.5s under any failure mode.** |
+
+#### WPF pitfalls that shaped this design
+
+- **Virtualization kills animations silently**: `ResultList` runs on a recycling virtualization panel (`IsVirtualizing=True`, `Recycling`); when a list re-sort recycles a row's container, the active animation dies and its `Completed` event does **not** fire. This is why an in-flight flag must never be trusted unboundedly — only inside a stamped protection window with force-settle fallback (round 4).
+- **Releasing an animation suppresses completion**: `BeginAnimation(prop, null)` interrupts without firing `Completed`. A superseded cycle that releases a badge's animation orphans its in-flight marker the same way.
+- **Source state vs animated value are two planes**: hiding happens by setting `WindowItem.BadgeOpacity` / `BadgeTranslateX` (the binding plane); animating happens on the visual element (the render plane). While an active animation holds a property, source writes are invisible — which is also why "force-visible" healing can never pop or flash mid-animation.
+- **HoldEnd + release pattern**: entry animations use `FillBehavior.HoldEnd` so the settled value survives until the handler syncs the bound source values and releases the hold (`BeginAnimation(prop, null)`), after which bindings reassert cleanly.
+
+#### Regression coverage
+
+Every incident above has a named red→green test in `SwitchBlade.Tests`:
+
+- `Trigger_AnimatedButHiddenBadge_ReAnimatesInsteadOfPoppingIn` — round 2 pop-in (interrupted badge must re-stagger, never force-show instantly).
+- `Trigger_EntryPending_ExpiredProtection_ForceSettlesInsteadOfStranding` — round 4 missing badges (stranded badge + expired protection window → force-visible, flag cleared, no re-animation).
+- `Trigger_JoiningLiveCascade_UsesCappedDelay` / `Trigger_EntryPendingBadge_IsLeftUndisturbed` — round 3 in-flight protection and joiner cap.
+- Token-cancellation tests: `StoryboardBadgeAnimatorTests.Animate_AlreadyCancelledToken_LeavesVisibleBadgeUntouched` (a cancelled cycle touches nothing) plus the mid-poll / debounce / final-wait cancellation paths in `BadgeAnimationServiceTests`.
+
+Test-double rule that bites when forgotten: **fakes must settle on apply** — `Animate` sets `item.BadgeOpacity = 1.0`, mirroring production's `Completed` (constructor-level Moq Callback in `BadgeAnimationServiceTests`; same in the `FakeBadgeAnimator` used by the controller tests). An unsettled fake re-animates "interrupted" items forever under the corrected semantics and silently breaks three trigger tests.
 
 #### Configuration
 - **Enable Badge Animations**: Toggle in Settings (default: enabled)
