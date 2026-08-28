@@ -288,15 +288,16 @@ namespace SwitchBlade.Handlers
 
             // Handle pending animation reset (e.g., from search text change or ForceOpen)
             // We do this HERE, on the new list, to ensure all currently visible items get reset.
-            if (_pendingAnimationReset && _badgeAnimations != null && _viewModel.FilteredWindows != null)
+            // ROLLBACK NOTE: the `FilteredWindows != null` clause previously guarding each of these three checks was provably always true — MainViewModel initializes it non-null and its setter silently ignores a null assignment (pinned by FilteredWindows_SetToNull_DoesNothing). If this invariant ever changes, re-add `&& _viewModel.FilteredWindows != null` here, on the trigger guard below, and in the else-if.
+            if (_pendingAnimationReset && _badgeAnimations != null)
             {
                 _logger.Log($"[OnResultsUpdated] Applying pending animation reset to {_viewModel.FilteredWindows.Count} items.");
-                _badgeAnimations.ResetAnimationState(_viewModel.FilteredWindows); // non-null: guarded above
+                _badgeAnimations.ResetAnimationState(_viewModel.FilteredWindows); // never null: MainViewModel invariant (see rollback note above)
                 _pendingAnimationReset = false;
             }
 
-            // When search results update, trigger staggered animation for new items (if enabled)
-            if (_badgeAnimations != null && _surface.IsVisible && _settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
+            // When search results update, trigger staggered animation for new items (if enabled; list is never null — see rollback note above)
+            if (_badgeAnimations != null && _surface.IsVisible && _settingsService.Settings.EnableBadgeAnimations)
             {
                 // Debounce only for text-change triggers (typing), not hotkey opens or streaming updates.
                 // _isForceOpenPending overrides: hotkey open always skips debounce.
@@ -305,7 +306,7 @@ namespace SwitchBlade.Handlers
 
                 _ = _badgeAnimations.TriggerStaggeredAnimationAsync(_viewModel.FilteredWindows, skipDebounce: !shouldDebounce);
             }
-            else if (_surface.IsVisible && !_settingsService.Settings.EnableBadgeAnimations && _viewModel.FilteredWindows != null)
+            else if (_surface.IsVisible && !_settingsService.Settings.EnableBadgeAnimations) // list is never null — see rollback note above
             {
                 // Ensure badges are visible immediately when animation is disabled
                 foreach (var item in _viewModel.FilteredWindows)

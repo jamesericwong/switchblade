@@ -531,6 +531,19 @@ namespace SwitchBlade.Tests.Handlers
         // ---------- OnResultsUpdated / OnSearchTextChanged state machine ----------
 
         [Fact]
+        public void OnResultsUpdated_PendingResetWithoutBadgeService_SkipsGracefully()
+        {
+            // A badge-less controller is a supported configuration (SetBadgeAnimationService is opt-in).
+            // A pass with a pending animation reset must still run cleanly — this covers the null side of the badge guard.
+            var ctx = new TestContext();
+
+            ctx.Controller.OnSearchTextChanged(null, EventArgs.Empty); // arms the pending animation reset
+            var ex = Record.Exception(() => ctx.Controller.OnResultsUpdated(null, EventArgs.Empty));
+
+            Assert.Null(ex);
+        }
+
+        [Fact]
         public void OnResultsUpdated_PendingTextChange_ResetsAndDebounces()
         {
             var ctx = new TestContext().WithBadges();

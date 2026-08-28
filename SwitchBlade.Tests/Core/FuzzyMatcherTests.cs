@@ -482,6 +482,15 @@ namespace SwitchBlade.Tests.Core
         }
 
         [Fact]
+        public void GetMatchedIndices_FuzzyWithDash_MapsBackCorrectly()
+        {
+            // "hello-world" normalized -> "helloworld" (dash skipped) — mirrors the underscore case above.
+            // query "hw" -> h at norm[0] -> orig 0, w at norm[5] -> orig 6
+            var result = FuzzyMatcher.GetMatchedIndices("hello-world", "hw", true);
+            Assert.Equal([0, 6], result);
+        }
+
+        [Fact]
         public void GetMatchedIndices_FuzzyQueryLongerThanNormalized_ReturnsEmpty()
         {
             var result = FuzzyMatcher.GetMatchedIndices("ab", "abcdef", true);
