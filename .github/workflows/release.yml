@@ -15,15 +15,15 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
-    - name: Enforce release naming convention
-      # Releases must be tagged as v-prefixed semver (e.g. v1.9.17) to match branch naming (feature/v1.9.x).
-      # Fails fast so a misnamed release never burns CI minutes or publishes an unversioned asset name.
+    - name: Validate release tag format
+      # Releases use plain semver tags (e.g. 1.9.17 — the established convention since 1.9.2; a leading 'v' is also tolerated).
+      # Fails fast so a malformed release never burns CI minutes or publishes an unversioned asset name.
       env:
         RELEASE_TAG: ${{ github.event.release.tag_name }}
       shell: pwsh
       run: |
-        if ($RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
-          throw "Release tag '$RELEASE_TAG' violates the naming convention. Tag releases as v-prefixed semver, e.g. v1.9.17 (matching branch feature/v1.9.x)."
+        if ($RELEASE_TAG -notmatch '^(v?)\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
+          throw "Release tag '$RELEASE_TAG' is not semver. Tag releases as e.g. 1.9.17 (matching prior releases)."
         }
 
     - name: Setup .NET
@@ -59,7 +59,8 @@ jobs:
 
     - name: Version installer asset name
       # Single source of truth for the version is SwitchBlade.csproj <Version>; the release tag must agree.
-      # The published asset is named SwitchBlade-v<version>-x64.msi so releases read consistently (e.g. v1.9.17).
+      # The asset filename mirrors the release tag verbatim (e.g. 1.9.17 -> SwitchBlade-1.9.17-x64.msi),
+      # so release names and asset names can never drift apart again.
       env:
         RELEASE_TAG: ${{ github.event.release.tag_name }}
       shell: pwsh
@@ -75,4 +76,4 @@ jobs:
       uses: softprops/action-gh-release@v3
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: Installer/bin/Release/SwitchBlade-v*-x64.msi
+        files: Installer/bin/Release/SwitchBlade-*-x64.msi
