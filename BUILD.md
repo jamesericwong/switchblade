@@ -147,6 +147,14 @@ dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj --verbosity normal
 dotnet test SwitchBlade.sln -c Release --collect:"XPlat Code Coverage" --settings CodeCoverage.runsettings --results-directory ./coverage
 ```
 
+### Coverage pitfalls (learned the hard way — don't repeat these)
+
+- **Do not use `/p:CollectCoverage=true` / `-p:CoverletOutputFormat=cobertura`.** With `coverlet.collector` 10.x on .NET 9, tests run green but **no data collector is registered at all** — no error, no warning, no report file appears. The correct switch is `--collect:"XPlat Code Coverage"` (the collector's friendly name).
+- **Do not use `dotnet test --coverage`.** That flag only exists in .NET 10 SDKs; on .NET 9 it fails with `MSB1001: Unknown switch`.
+- **Always pass `--settings CodeCoverage.runsettings`.** Without it, collection still works but the scope balloons to include all plugins, XAML views/code-behind, and compiler-generated code — rates drop to ~line 83% / branch 76%, which is a *scope error*, not a regression. The runsettings exclusions define the "main app logic" scope we track (target: line = 100%).
+- **The output folder has a random GUID name.** Per run, expect `<results-directory>\<guid>\coverage.cobertura.xml` (default location without `--results-directory`: `SwitchBlade.Tests/TestResults/`). Take the newest file when parsing.
+- **Header `branch-rate` can sit just below 1.0 even when every source line is at 100%.** Coverlet counts a small number of branches it never attributes to any reportable line (compiler-generated code). As of 2026-08-27 the suite reports line = 1.0 with **zero partial branch lines**, and header branch ≈ 0.997 — that is the verified floor, not a gap.
+
 ### Test Structure
 
 | Directory | Description |
