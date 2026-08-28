@@ -15,6 +15,17 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    - name: Enforce release naming convention
+      # Releases must be tagged as v-prefixed semver (e.g. v1.9.17) to match branch naming (feature/v1.9.x).
+      # Fails fast so a misnamed release never burns CI minutes or publishes an unversioned asset name.
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+      shell: pwsh
+      run: |
+        if ($RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
+          throw "Release tag '$RELEASE_TAG' violates the naming convention. Tag releases as v-prefixed semver, e.g. v1.9.17 (matching branch feature/v1.9.x)."
+        }
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
@@ -43,11 +54,25 @@ jobs:
 
     - name: Build Installer (R2R)
       # This builds the Installer project, which triggers the R2R publish of the main app
-      # Output: Installer\bin\Release\en-US\SwitchBlade.msi
+      # Output: Installer\bin\Release\SwitchBlade.msi
       run: dotnet build Installer/SwitchBlade.Installer.wixproj -c Release -p:PublishR2R=true
+
+    - name: Version installer asset name
+      # Single source of truth for the version is SwitchBlade.csproj <Version>; the release tag must agree.
+      # The published asset is named SwitchBlade-v<version>-x64.msi so releases read consistently (e.g. v1.9.17).
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+      shell: pwsh
+      run: |
+        $tagVersion = $RELEASE_TAG.TrimStart('v')
+        $csprojVersion = (Select-String -Path SwitchBlade.csproj -Pattern '<Version>\s*([^<\s]+)\s*</Version>' | Select-Object -First 1).Matches[0].Groups[1].Value
+        if ($tagVersion -ne $csprojVersion) {
+          throw "Release tag version '$tagVersion' does not match SwitchBlade.csproj Version '$csprojVersion'. Bump the project version before publishing."
+        }
+        Move-Item "Installer/bin/Release/SwitchBlade.msi" ("Installer/bin/Release/SwitchBlade-{0}-x64.msi" -f $RELEASE_TAG)
 
     - name: Upload Installer to Release
       uses: softprops/action-gh-release@v3
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: Installer/bin/Release/SwitchBlade.msi
+        files: Installer/bin/Release/SwitchBlade-v*-x64.msi
