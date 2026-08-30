@@ -440,12 +440,12 @@ Plugins no longer need to implement this logic — call `UiaElementResolver.TryR
 
 1. Build your project (`Release` mode recommended).
 2. Navigate to the SwitchBlade installation directory.
-3. Create a folder named `Plugins` (if it doesn't exist).
+3. Create a folder named `Plugins` (if it doesn't exist). **The assembly name must start with `SwitchBlade.Plugins.`** — that prefix is the discovery filter shared by host and worker (`PluginDiscovery.IsPluginAssembly`); DLLs without it are silently ignored.
     - `SwitchBlade.exe`
     - `Plugins\`
-        - `MyCustomPlugin.dll`
-        - `AnotherPlugin.dll`
-4. Restart SwitchBlade. The `PluginLoader` will automatically discover your DLL, find any class implementing `IWindowProvider`, and load it.
+        - `SwitchBlade.Plugins.MyCustom.dll`
+        - `SwitchBlade.Plugins.Another.dll`
+4. Restart SwitchBlade. The `PluginLoader` will automatically discover your DLL, find any class implementing `IWindowProvider`, and load it. Security note: see `Security.md` → "Plugin Trust Model" — anything under `Plugins\` runs with your user privileges.
 
 ## Best Practices
 
