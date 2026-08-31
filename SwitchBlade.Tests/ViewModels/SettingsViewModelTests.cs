@@ -519,6 +519,7 @@ namespace SwitchBlade.Tests.ViewModels
             var vm = new SettingsViewModel(_settingsServiceMock.Object, _themeServiceMock.Object, _pluginServiceMock.Object, _uiServiceMock.Object);
 
             Assert.Null(Record.Exception(() => vm.PerformDebouncedSave()));
+            _settingsServiceMock.Verify(s => s.SaveSettings(), Times.Once()); // the save was attempted; the failure is what got contained
         }
     }
 }

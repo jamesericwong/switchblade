@@ -18,8 +18,8 @@ namespace SwitchBlade.Tests.Core
             // Act
             int score = _adapter.Score("Visual Studio Code", "vsc");
 
-            // Assert
-            Assert.True(score > 0);
+            // Assert: the adapter is a pure delegation — identical semantics to the underlying matcher
+            Assert.Equal(FuzzyMatcher.Score("Visual Studio Code", "vsc"), score);
         }
 
         [Fact]

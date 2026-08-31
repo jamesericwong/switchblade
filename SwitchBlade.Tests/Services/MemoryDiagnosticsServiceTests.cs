@@ -259,6 +259,7 @@ namespace SwitchBlade.Tests.Services
 
             service.Dispose();
             Assert.Null(Record.Exception(() => service.Dispose()));
+            _mockTimer.Verify(t => t.Dispose(), Times.Once()); // double dispose must not re-dispose the timer
         }
 
         private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)

@@ -153,6 +153,8 @@ namespace SwitchBlade.Tests.ViewModels
             var exception = Record.Exception(() => vm.MoveSelection(1));
 
             Assert.Null(exception);
+            Assert.Null(vm.SelectedWindow); // no-op must leave the selection untouched
+            Assert.Empty(vm.FilteredWindows);
         }
 
         [Fact]
@@ -164,6 +166,8 @@ namespace SwitchBlade.Tests.ViewModels
             var exception = Record.Exception(() => vm.MoveSelection(1));
 
             Assert.Null(exception);
+            Assert.Null(vm.SelectedWindow); // no-op must leave the selection untouched
+            Assert.Empty(vm.FilteredWindows);
         }
 
         [Fact]
@@ -190,6 +194,8 @@ namespace SwitchBlade.Tests.ViewModels
             var exception = Record.Exception(() => vm.MoveSelectionToFirst());
 
             Assert.Null(exception);
+            Assert.Null(vm.SelectedWindow); // no-op must leave the selection untouched
+            Assert.Empty(vm.FilteredWindows);
         }
 
         [Fact]
@@ -200,6 +206,8 @@ namespace SwitchBlade.Tests.ViewModels
             var exception = Record.Exception(() => vm.MoveSelectionToLast());
 
             Assert.Null(exception);
+            Assert.Null(vm.SelectedWindow); // no-op must leave the selection untouched
+            Assert.Empty(vm.FilteredWindows);
         }
 
         [Fact]
@@ -210,6 +218,8 @@ namespace SwitchBlade.Tests.ViewModels
             var exception = Record.Exception(() => vm.MoveSelectionByPage(1, 10));
 
             Assert.Null(exception);
+            Assert.Null(vm.SelectedWindow); // no-op must leave the selection untouched
+            Assert.Empty(vm.FilteredWindows);
         }
 
         [Fact]
@@ -220,6 +230,8 @@ namespace SwitchBlade.Tests.ViewModels
             var exception = Record.Exception(() => vm.MoveSelectionByPage(1, 0));
 
             Assert.Null(exception);
+            Assert.Null(vm.SelectedWindow); // no-op must leave the selection untouched
+            Assert.Empty(vm.FilteredWindows);
         }
 
         [Fact]
@@ -230,6 +242,8 @@ namespace SwitchBlade.Tests.ViewModels
             var exception = Record.Exception(() => vm.MoveSelectionByPage(1, -5));
 
             Assert.Null(exception);
+            Assert.Null(vm.SelectedWindow); // no-op must leave the selection untouched
+            Assert.Empty(vm.FilteredWindows);
         }
         [Fact]
         public void MoveSelectionToFirst_WithItems_SelectsFirstItem()

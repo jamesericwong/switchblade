@@ -329,6 +329,7 @@ namespace SwitchBlade.Tests.Services
             service.Settings.LaunchOnStartup = true;
 
             Assert.Null(Record.Exception(() => service.SaveSettings()));
+            _mockStartupManager.Verify(m => m.EnableStartup(@"C:\Test\SwitchBlade.exe"), Times.Once()); // failure reached startup sync and was contained
         }
     }
 }

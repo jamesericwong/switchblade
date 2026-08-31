@@ -18,6 +18,8 @@ namespace SwitchBlade.Tests.Core
         {
             int score = FuzzyMatcher.Score("Chrome", "Chrome");
             Assert.True(score > 0, "Exact match should return positive score");
+            Assert.True(score > FuzzyMatcher.Score("Chrome", "rome"),
+                "An exact match should outscore a shorter contains match of the same title");
         }
 
         [Fact]
@@ -65,6 +67,8 @@ namespace SwitchBlade.Tests.Core
             // Key feature: "hello there" should match "hello_there"
             int score = FuzzyMatcher.Score("hello_there", "hello there");
             Assert.True(score > 0, "Space in query should match underscore in title");
+            Assert.True(FuzzyMatcher.Score("hello_there", "hello-there") == score,
+                "Space and dash query delimiters are equivalent for the same title");
         }
 
         [Fact]
@@ -72,6 +76,8 @@ namespace SwitchBlade.Tests.Core
         {
             int score = FuzzyMatcher.Score("hello there", "hello_there");
             Assert.True(score > 0, "Underscore in query should match space in title");
+            Assert.True(FuzzyMatcher.Score("hello there", "hello-there") == score,
+                "Underscore and dash query delimiters are equivalent for the same title");
         }
 
         [Fact]
@@ -79,6 +85,8 @@ namespace SwitchBlade.Tests.Core
         {
             int score = FuzzyMatcher.Score("hello_there", "hello-there");
             Assert.True(score > 0, "Dash in query should match underscore in title");
+            Assert.True(FuzzyMatcher.Score("hello_there", "hello there") == score,
+                "Dash and space query delimiters are equivalent for the same title");
         }
 
         [Fact]
@@ -86,13 +94,18 @@ namespace SwitchBlade.Tests.Core
         {
             int score = FuzzyMatcher.Score("hello there", "hello-there");
             Assert.True(score > 0, "Dash in query should match space in title");
+            Assert.True(FuzzyMatcher.Score("hello there", "hello_there") == score,
+                "Dash and underscore query delimiters are equivalent for the same title");
         }
 
         [Fact]
         public void Score_MixedDelimiters_ReturnsPositive()
         {
-            int score = FuzzyMatcher.Score("my_long-file name.txt", "my long file name");
+            string title = "my_long-file name.txt";
+            int score = FuzzyMatcher.Score(title, "my long file name");
             Assert.True(score > 0, "Mixed delimiters should all be treated as equivalent");
+            Assert.True(score > FuzzyMatcher.Score(title, "my long file nam"),
+                "A longer subsequence match should outscore a shorter one in the same title");
         }
 
         #endregion
@@ -104,6 +117,7 @@ namespace SwitchBlade.Tests.Core
         {
             int score = FuzzyMatcher.Score("chrome", "CHROME");
             Assert.True(score > 0, "Should match regardless of case");
+            Assert.True(FuzzyMatcher.Score("chrome", "chrome") == score, "Uppercase query must score identically to lowercase");
         }
 
         [Fact]
@@ -111,6 +125,7 @@ namespace SwitchBlade.Tests.Core
         {
             int score = FuzzyMatcher.Score("CHROME", "chrome");
             Assert.True(score > 0, "Should match regardless of case");
+            Assert.True(FuzzyMatcher.Score("CHROME", "CHROME") == score, "Lowercase query must score identically against an uppercase title");
         }
 
         [Fact]
@@ -118,6 +133,7 @@ namespace SwitchBlade.Tests.Core
         {
             int score = FuzzyMatcher.Score("GoOgLe ChRoMe", "google chrome");
             Assert.True(score > 0, "Should match regardless of case");
+            Assert.True(FuzzyMatcher.Score("google chrome", "google chrome") == score, "Mixed case must score identically to the all-lowercase form");
         }
 
         #endregion
@@ -130,6 +146,8 @@ namespace SwitchBlade.Tests.Core
             // "gc" should match "Google Chrome"
             int score = FuzzyMatcher.Score("Google Chrome", "gc");
             Assert.True(score > 0, "Subsequence 'gc' should match 'Google Chrome'");
+            Assert.True(score < FuzzyMatcher.Score("Google Chrome", "Google Chrome"),
+                "A 2-character subsequence must score below an exact match of the same title");
         }
 
         [Fact]
@@ -138,6 +156,10 @@ namespace SwitchBlade.Tests.Core
             // "gchm" should match "Google Chrome"
             int score = FuzzyMatcher.Score("Google Chrome", "gchm");
             Assert.True(score > 0, "Subsequence 'gchm' should match 'Google Chrome'");
+            Assert.True(score > FuzzyMatcher.Score("Google Chrome", "gc"),
+                "Matching more characters should outscore a shorter subsequence of the same title");
+            Assert.True(score < FuzzyMatcher.Score("Google Chrome", "Google Chrome"),
+                "A subsequence match must score below an exact match of the same title");
         }
 
         [Fact]
@@ -223,36 +245,46 @@ namespace SwitchBlade.Tests.Core
         [Fact]
         public void Score_BrowserTab_PartialMatch()
         {
-            int score = FuzzyMatcher.Score("Inbox (5) - user@gmail.com - Gmail", "inbox gmail");
+            string title = "Inbox (5) - user@gmail.com - Gmail";
+            int score = FuzzyMatcher.Score(title, "inbox gmail");
             Assert.True(score > 0, "Should match browser tab with partial query");
+            Assert.True(score < FuzzyMatcher.Score(title, title), "A partial query must score below an exact match of the same title");
         }
 
         [Fact]
         public void Score_CodeFile_PartialMatch()
         {
-            int score = FuzzyMatcher.Score("main_controller.cs", "main con");
+            string title = "main_controller.cs";
+            int score = FuzzyMatcher.Score(title, "main con");
             Assert.True(score > 0, "Should match code file with partial query");
+            Assert.True(score < FuzzyMatcher.Score(title, title), "A partial query must score below an exact match of the same title");
         }
 
         [Fact]
         public void Score_Terminal_PartialMatch()
         {
-            int score = FuzzyMatcher.Score("PowerShell - [Admin]", "ps admin");
+            string title = "PowerShell - [Admin]";
+            int score = FuzzyMatcher.Score(title, "ps admin");
             Assert.True(score > 0, "Should match terminal with partial query");
+            Assert.True(score < FuzzyMatcher.Score(title, title), "A partial query must score below an exact match of the same title");
         }
 
         [Fact]
         public void Score_VsCode_WindowTitle()
         {
-            int score = FuzzyMatcher.Score("MainViewModel.cs - SwitchBlade - Visual Studio Code", "mainview");
+            string title = "MainViewModel.cs - SwitchBlade - Visual Studio Code";
+            int score = FuzzyMatcher.Score(title, "mainview");
             Assert.True(score > 0, "Should match VS Code window");
+            Assert.True(score < FuzzyMatcher.Score(title, title), "A partial query must score below an exact match of the same title");
         }
 
         [Fact]
         public void Score_WindowsExplorer_Path()
         {
-            int score = FuzzyMatcher.Score("Downloads - File Explorer", "down exp");
+            string title = "Downloads - File Explorer";
+            int score = FuzzyMatcher.Score(title, "down exp");
             Assert.True(score > 0, "Should match Explorer window");
+            Assert.True(score < FuzzyMatcher.Score(title, title), "A partial query must score below an exact match of the same title");
         }
 
         #endregion
@@ -268,6 +300,7 @@ namespace SwitchBlade.Tests.Core
             string longTitle = new string('a', 300) + "x y z";
             int score = FuzzyMatcher.Score(longTitle, "xyz"); // Fuzzy match 'x', 'y', 'z'
             Assert.True(score > 0);
+            Assert.True(score < FuzzyMatcher.Score(longTitle, longTitle), "A non-starting fuzzy match must score below an exact match of the same title");
         }
 
         [Fact]
@@ -278,6 +311,7 @@ namespace SwitchBlade.Tests.Core
             string title = new string('a', 100) + "x-y-z";
             int score = FuzzyMatcher.Score(title, longQuery);
             Assert.True(score > 0);
+            Assert.True(score < FuzzyMatcher.Score(title, title), "A fuzzy match must score below an exact match of the same title");
         }
 
         [Fact]
@@ -307,11 +341,14 @@ namespace SwitchBlade.Tests.Core
         [Fact]
         public void Score_MaximizeNormalizedLengths_DoesNotCrash()
         {
-            // Hits the logic where length is truncated to MaxNormalizedLength (512)
+            // 600-char inputs must score without crashing. The raw-contains fast path short-circuits before
+            // normalization, so this pins "extreme length is handled", not the 512-char truncation itself.
             string superLongTitle = new('a', 600);
             string superLongQuery = new('a', 600);
             int score = FuzzyMatcher.Score(superLongTitle, superLongQuery);
             Assert.True(score > 0);
+            Assert.True(score > FuzzyMatcher.Score(new string('a', 100), new string('a', 100)),
+                "A longer exact match must outscore a shorter one");
         }
 
         [Fact]
@@ -320,6 +357,8 @@ namespace SwitchBlade.Tests.Core
             // "G_C" should match "google-chrome"
             int score = FuzzyMatcher.Score("google-chrome", "G_C");
             Assert.True(score > 0);
+            Assert.True(FuzzyMatcher.Score("googlechrome", "gc") == score,
+                "Delimiters and case must not change the slow-path score");
         }
 
         [Fact]
@@ -331,6 +370,8 @@ namespace SwitchBlade.Tests.Core
             // But matchedAtStart is false here.
             int score = FuzzyMatcher.Score("abc", "c");
             Assert.True(score > 0);
+            Assert.True(FuzzyMatcher.Score("abc", "a") > score,
+                "A match anchored at the title start must outscore a match anchored at the end");
         }
 
         [Fact]
@@ -341,6 +382,8 @@ namespace SwitchBlade.Tests.Core
             // Exercises the branch: if (matchedAtStart && lastMatchIndex < title.Length)
             int score = FuzzyMatcher.Score("abc", "abc");
             Assert.True(score > 0);
+            Assert.True(score > FuzzyMatcher.Score("abc", "ab"),
+                "An exact match must outscore a prefix match of the same title");
         }
 
         [Fact]
@@ -350,6 +393,8 @@ namespace SwitchBlade.Tests.Core
             // matchedAtStart = true, lastMatchIndex = 1, title.Length = 4
             int score = FuzzyMatcher.Score("abcd", "ab");
             Assert.True(score > 0);
+            Assert.True(score > FuzzyMatcher.Score("abcd", "bc"),
+                "A start-anchored match must outscore a mid-title match of equal length");
         }
 
         [Fact]
@@ -373,6 +418,8 @@ namespace SwitchBlade.Tests.Core
             // Ensures matchedAtStart remains false.
             int score = FuzzyMatcher.Score("G_oogle", "ogle");
             Assert.True(score > 0);
+            Assert.True(score > FuzzyMatcher.Score("G_oogle", "le"),
+                "A longer substring of the same title must outscore a shorter one");
 
             // Verify matchedAtStart is false by comparing with a starts-with match
             int startsWithScore = FuzzyMatcher.Score("google", "goog");
@@ -389,6 +436,8 @@ namespace SwitchBlade.Tests.Core
             string maxLenTitle = new('a', 512); 
             int score = FuzzyMatcher.Score(maxLenTitle, "aaaa");
             Assert.True(score > 0);
+            Assert.True(score > FuzzyMatcher.Score(maxLenTitle, "aaa"),
+                "A longer exact match of the same title must outscore a shorter one");
         }
 
         #endregion
@@ -645,10 +694,13 @@ namespace SwitchBlade.Tests.Core
 
             string title = builder.ToString();
             string query = new string('a', 70);
+            string normalizedTitle = SearchNormalization.Normalize(title);
 
-            int score = FuzzyMatcher.ScoreWithNormalizedTitle(title, SearchNormalization.Normalize(title), query);
+            int score = FuzzyMatcher.ScoreWithNormalizedTitle(title, normalizedTitle, query);
 
             Assert.True(score > 0);
+            Assert.True(score < FuzzyMatcher.ScoreWithNormalizedTitle(title, normalizedTitle, title),
+                "A partial fuzzy match must score below an exact match of the same title");
         }
 
         #endregion

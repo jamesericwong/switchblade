@@ -430,6 +430,7 @@ namespace SwitchBlade.Tests.Services
             var ex = Record.Exception(() => reconciler.PopulateIcons([item])); // count > 0 with a null logger must be safe
 
             Assert.Null(ex);
+            _mockIconService.Verify(s => s.GetIcon("app.exe"), Times.Once()); // the icon pipeline still ran without a logger
         }
 
         [Fact]
