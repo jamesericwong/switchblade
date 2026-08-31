@@ -29,7 +29,7 @@ Before building SwitchBlade, ensure you have the following installed on your sys
 - `SwitchBlade.Plugins.WindowsTerminal/`: The Windows Terminal tab plugin.
 - `SwitchBlade.Plugins.NotepadPlusPlus/`: The Notepad++ tab plugin.
 - `SwitchBlade.UiaWorker/`: The out-of-process worker for UIA scans.
-- `SwitchBlade.Tests/`: The xUnit test suite (904 tests, 100% line coverage).
+- `SwitchBlade.Tests/`: The xUnit test suite (1071 tests, 100% line coverage).
 - `Installer/SwitchBlade.Installer.wixproj`: The WiX installer project.
 
 ## Building with Visual Studio
@@ -87,7 +87,7 @@ The installer project (`SwitchBlade.Installer.wixproj`) is configured to automat
 ### Using Visual Studio
 1. Right-click on the `SwitchBlade.Installer` project.
 2. Select **Build**.
-3. The resulting `.msi` will be in `Installer\bin\Release\en-US\SwitchBlade.msi`.
+3. The resulting `.msi` will be in `Installer\bin\Release\SwitchBlade.msi`.
 
 ### Using the CLI
 From the root directory:
@@ -113,14 +113,15 @@ dotnet build -c Release -p:PublishR2R=true
 If you are developing a new plugin:
 1. Reference `SwitchBlade.Contracts.csproj` — and also `SwitchBlade.Contracts.Uia.csproj` if your plugin uses UI Automation (`IsUiaProvider = true`).
 2. Ensure your build output (usually a `.dll`) is copied to a folder named `Plugins` in the same directory as `SwitchBlade.exe`.
-3. The main application uses `Directory.GetFiles` to look for `*.dll` files in the `Plugins` subfolder at runtime.
+3. Both the main application and the UIA worker discover plugins via the shared `SwitchBlade.Contracts.PluginDiscovery` routine — recursively under the `Plugins` folder, loading only DLLs whose name starts with `SwitchBlade.Plugins.` (case-insensitive); anything else is silently ignored.
 
 ### Example Plugin Build Step
-The existing Chrome plugin uses this post-build event in its `.csproj`:
+The existing Chrome plugin uses this post-build target in its `.csproj`:
 
 ```xml
 <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-  <Exec Command="xcopy /Y /F &quot;$(TargetDir)$(TargetName).dll&quot; &quot;$(MSBuildProjectDirectory)\..\bin\$(Configuration)\net9.0-windows\Plugins\&quot;" />
+  <MakeDir Directories="$(MSBuildProjectDirectory)\..\bin\$(Configuration)\net9.0-windows\Plugins" />
+  <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFolder="$(MSBuildProjectDirectory)\..\bin\$(Configuration)\net9.0-windows\Plugins\" />
 </Target>
 ```
 
@@ -143,7 +144,7 @@ dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj
 # Run tests with detailed output
 dotnet test SwitchBlade.Tests/SwitchBlade.Tests.csproj --verbosity normal
 
-# Run tests with code coverage (same invocation as CI; the runsettings file scopes the report to the main app and emits Cobertura XML)
+# Run tests with code coverage (same coverage flags as CI — ci.yml additionally passes --no-build and --blame-hang and runs against the Debug build; the runsettings file scopes the report to the main app and emits Cobertura XML)
 dotnet test SwitchBlade.sln -c Release --collect:"XPlat Code Coverage" --settings CodeCoverage.runsettings --results-directory ./coverage
 ```
 

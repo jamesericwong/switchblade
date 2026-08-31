@@ -66,7 +66,7 @@ namespace SwitchBlade.Contracts
         void SetExclusions(IEnumerable<string> exclusions); // Pushed by the orchestrator to prevent duplicates
     }
 
-    // 4. Optional - execution strategy capability flag (New in 1.8.0)
+    // 4. Optional - execution strategy capability flag (out-of-process UIA capability since 1.8.0)
     public interface IExtrusionStrategy
     {
         bool IsUiaProvider { get; }                   // true = runs out-of-process in SwitchBlade.UiaWorker.exe
@@ -84,7 +84,7 @@ namespace SwitchBlade.Contracts
     public interface IPluginContext
     {
         ILogger Logger { get; }
-        IPluginSettingsService? Settings { get; }     // Pre-configured settings service (New in 1.8.14)
+        IPluginSettingsService? Settings { get; }     // Pre-configured settings service (New in 1.4.2)
         IWindowInterop Interop { get; }               // Win32 interop helpers (process info, window ops)
         IRegistryService Registry { get; }            // Typed registry access for plugin settings
     }
@@ -181,7 +181,7 @@ The UIA Worker has a configurable timeout to prevent stuck plugins from blocking
 
 | Setting | Location | Default | Description |
 |---------|----------|---------|-------------|
-| `UiaWorkerTimeoutMs` | Registry: `HKCU\Software\SwitchBlade` | `60000` (60s) | Maximum time before worker is killed |
+| `UiaWorkerTimeoutSeconds` | Registry: `HKCU\Software\SwitchBlade` | `60` | Maximum time before worker is killed |
 
 **What happens on timeout:**
 1. Any results already streamed are preserved
@@ -432,7 +432,7 @@ Specific windows (like Teams) often fail `AutomationElement.FromHandle(hwnd)` wi
 2. **Desktop FindFirst**: Slower, O(N). Searches `RootElement` children for the specific PID.
 3. **Desktop TreeWalker**: Robust, O(N). Manually iterates `RootElement` children using `TreeWalker`.
 
-Plugins no longer need to implement this logic — call `UiaElementResolver.TryResolve(hwnd, pid, options)` instead.
+Plugins no longer need to implement this logic — call `UiaElementResolver.TryResolve(hwnd, pid, callerName, logger, options)` instead (`options` is optional and defaults to `UiaResolverOptions.Default`).
 
 ---
 

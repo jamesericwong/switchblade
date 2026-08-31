@@ -635,7 +635,7 @@ flowchart LR
 | **Stagger delay** | 75ms | Gap between each badge's start (`index × 75ms`) |
 | **Duration** | 150ms, cubic ease-out | Per-badge fade-in + slide-in (opacity 0→1, X −20px→0) |
 | **Debounce** | 75ms — skipped for hotkey / initial load | Waits for typing to settle; first paint on open stays ~200ms snappy |
-| **Container poll budget** | ≤ ~600ms (20 × 25ms) | Wait for virtualization to realize a row before animating it |
+| **Container poll budget** | ≤ ~500ms (20 × 25ms) | Wait for virtualization to realize a row before animating it |
 | **Settle grace** | 800ms (`EntrySettleGraceMs`) | Headroom in the protection window beyond delay + duration (below) |
 
 #### Per-item decision table (the actual algorithm)

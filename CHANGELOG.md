@@ -6,6 +6,7 @@
 ### Improved
 - **Crash-Path Hardening**: Settings-save crash guard, provider activation/hotkey lifecycle fixes, badge-animator layering, registry read logging, `UiaWorkerClient` ObjectDisposedException rethrow, and `MemoryDiagnosticsService` dispose ordering (cancel-before-dispose).
 - **Test Suite Hygiene**: Eliminated shared test state and live-registry integration tests (faked `IRegistryService` instead), replaced unbounded test sleeps with bounded condition polling, and fixed a vacuous provider-not-found test.
+- **Lint Pipeline**: `.editorconfig` + analyzers wired into the build with `TreatWarningsAsErrors`; brace style normalized project-wide.
 
 ### Fixed
 - **Badge cascade consistency under streaming discovery**: Alt+Number badge entry is now stable while window/tab results arrive in multiple batches (v1.8.2+ streaming). Superseded animation cycles can no longer touch badges they don't own; interrupted entries re-stagger instead of popping in instantly; and an in-flight entry that dies before completing (e.g. its row container was recycled mid re-sort) self-heals within ~1.5s — a badge can never remain missing on screen.
@@ -13,15 +14,19 @@
 - **Per-window scan isolation (Chrome / Windows Terminal / Notepad++)**: a failure inside one window's tab scan no longer discards results from its other windows; cache-context-less elements are tolerated (`TryReadCached`).
 - **UIA resolver resilience unified**: Windows Terminal's proven retry/`FromPoint` fallback defaults promoted to shared `UiaResolverOptions.Default`, so every UIA plugin gets the same resilient resolution behavior.
 - **Worker timeout semantics restored** to v1.9.16 behavior; ARIA tab containers (`ControlType.Tab`) no longer mis-matched by the unified tab-literal scan; `SwitchBlade.Contracts.Uia` is now correctly embedded in both single-file bundles (main app and worker).
+- **Stale UIA results no longer linger after a worker death — and good results no longer get wiped by a failed scan**: when a UIA provider never reports results (worker died mid-stream, per-plugin timeout, worker-side load error), the host now liveness-checks the provider's target application first — target app still running → keep last-known-good items; app gone → clear stale entries. Previously the stale-window clear ran unconditionally, so a transient scan failure could remove results for apps that are still open.
+- **Silent swallowing of non-transient UIA failures eliminated** (Chrome, Windows Terminal, Notepad++): plugin scan/activation paths migrated from blanket catches to the shared typed transient-exception whitelist, so expected COM failures (element invalidation, dead/faulted providers) stay tolerated while unexpected errors now surface in per-plugin error reporting and logs.
+- **Window identity stability**: `WindowItem` now has a stable identity (HWND frozen at creation), so hash collections can no longer orphan entries when a title changes mid-reconcile.
 
 ### Architectural / SOLID
 - **Window Controller Extraction**: Moved `MainWindow` code-behind into a dedicated `WindowControllerService` (show/hide, backdrop, fade animations, force-open state machine) behind narrow seams `IWindowSurface` + `IWindowStyleInterop`. The window class is now thin XAML glue; the controller is fully unit-testable (+39 tests).
 - **Contracts Kernel Slimming**: Removed app-only types (`IUIService`, `IIconExtractor`, `PluginContext`) from the shared kernel, and moved `UiaElementResolver` to its own assembly. `SwitchBlade.Contracts` is now WPF-free, and `SwitchBlade.UiaWorker` no longer declares an unused WPF dependency (SRP/ISP at the assembly level).
 - **CachingWindowProviderBase Split**: Decomposed the 332-line god base class into focused services (`CachingScanCoordinator`, `LastKnownGoodStrategy`) with behavior, log output and public surface preserved exactly; +26 tests pinning every LKG branch.
 - **Layer Inversion Fix (DIP/SRP)**: `NumberShortcutService` no longer depends on the view-model abstraction — it accepts `IReadOnlyList<WindowItem>` directly, keeping the service layer free of presentation dependencies.
+- **Theme Service Extraction (DIP)**: theme resolution moved behind `IThemeService` so consumers depend on the abstraction instead of app-level static state.
 
 ### Quality Gates
-- Test suite grew to **1069** passing tests; line coverage 100%, branch coverage ~99.6% (above main's baseline). Release builds verified at 0 warnings / 0 errors.
+- Test suite grew to **1071** passing tests; line coverage 100%, branch coverage ~99.7% (header floor 0.9974, forensics documented in BUILD.md — above main's baseline). Release builds verified at 0 warnings / 0 errors.
 
 ---
 
@@ -329,17 +334,6 @@
 - Fixed issue where the Teams plugin's BFS discovery was pruning "Document" elements (Chromium-specific).
 - Improved Windows Terminal tab discovery to use a hybrid approach (Manual BFS as primary, native Descendants as fallback).
 - Added `COMException` (E_FAIL) handling for Terminal windows to prevent crashes and log diagnostics.
-### Changed
-- **Streaming UIA Plugin Results**: Reimplemented the out-of-process UIA worker to stream results incrementally using NDJSON (Newline-Delimited JSON).
-  - **Problem**: Previously, the UIA worker waited for ALL plugins to complete before returning results. Fast plugins (e.g., Chrome tabs at 15ms) were blocked by slow plugins (e.g., complex Terminal scans at 2+ seconds).
-  - **Solution**: Each plugin now runs in parallel and emits its results immediately upon completion. The main process receives and displays results as each plugin finishes.
-  - **User Impact**: Faster perceived responsiveness—Chrome tabs appear almost instantly, even if other plugins take longer.
-
-### Technical
-- `SwitchBlade.UiaWorker.Program.cs`: Refactored to run plugins via `Task.WhenAll` with thread-safe streaming output.
-- `UiaWorkerClient.cs`: Added `ScanStreamingAsync` returning `IAsyncEnumerable<UiaPluginResult>` for incremental consumption.
-- `WindowOrchestrationService.cs`: Now consumes streaming results via `await foreach`, triggering `WindowListUpdated` events as each plugin completes.
-- New `UiaPluginResult` DTO for streaming protocol with `PluginName`, `Windows`, `Error`, and `IsFinal` fields.
 
 ---
 
